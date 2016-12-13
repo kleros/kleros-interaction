@@ -1,12 +1,12 @@
 Decentraliezd Court
 ===================
 
-
-
+Contribute
+----------
 
 ```
+git add [filed changed]
 git commit -m "describe commit"
-git remote add origin https://github.com/ethercourt/workspace.git
 git push -u origin master
 ```
 
