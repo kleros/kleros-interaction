@@ -1,0 +1,14 @@
+What?
+The decentralized court would act as an opt-in legal crypto-institution. Parties would select the court to arbitrate their contracts in case of disputes.
+
+Use cases?
+-Escrow system. A buyer and a seller would create a contract where the funds can be retrieved by two out of three parties. The court would be the third party. In most cases the court would do nothing, but in case of a dispute, the court would arbitrate and give the fund to either the buyer or the seller.
+-Emergency mechanism in smart contracts. When some funds are at risk or stucked in a smart contract because of conceptual or programming mistakes, the court could agree to move them into a new version of the smart contract.
+-Neutral party for smart-contract. For example in an insurance contract, where the insurer refuse to pay the policyholder, the case would be arbitrated by the decentralized court.
+
+How?
+Smart contract would explicitly allow the court to call some functions. Developers won't have to give it full control on their contracts but they would define in which case arbitration by the court may be necessary.
+
+How to make sure that the court gives correct rulings?
+Reputation tokens would be distributed through a crowdfunding, juries would be randomly chosen in proportion of their reputation. Juries voting differently than the majority of juries would loose some reputation (in a manner inspired by SchellingCoin mechanisms). Reputation would be valuable as arbitration fees would be distributed to juries in proportion of their reputation. In order to avoid bribes, parties may appeal to a higher number of juries. Ultimately (if someone appeal after all juries have been called), miners would be called and the court could split.
+In order to avoid a time consuming process, known arbiters (designed by the parties or elected by the court) could act as a first instance juridiction before calling the decentralized court.

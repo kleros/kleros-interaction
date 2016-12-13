@@ -1,0 +1,18 @@
+{
+  "name": "ethereum-js-sample",
+  "dependencies": {
+    "async": "^1.5.2",
+    "ethereumjs-tx": "^1.0.0",
+    "web3": "0.17.0-alpha"
+  },
+  "devDependencies": {
+    "browserify": "^13.0.0",
+    "ethereum-sandbox-helper": "^1.0.0-beta6",
+    "ethereum-sandbox-workbench": "^1.0.0-beta11",
+    "gulp": "^3.9.1",
+    "gulp-mocha": "^2.2.0",
+    "mocha": "^2.4.5",
+    "vinyl-source-stream": "^1.1.0",
+    "watchify": "^3.7.0"
+  }
+}
