@@ -6,47 +6,53 @@ Before deploying code which handle significant values, don't forget to check for
 The funds are released to the seller if:
 -The buyer fail to oppose after daysToOppose days (this avoid the problem of buyer never confirming)
 -The buyer release the funds
--The arbitrator rule in favor of the seller
+-The court rule in favor of the seller
 
 The funds are released to the buyer if:
--The arbitrator rule in favor of the buyer
+-The court rule in favor of the buyer
 -The seller accept to refund the buyer
 
 This contract only handle paiement in ether. (Support for tokens is planed for futur versions)
 */
 
-pragma solidity ^0.4.4;
+pragma solidity ^0.4.6;
 
-contract ArbitratedBuy {
+import "../Court.sol";
+import "./Arbitrated.sol";
+
+contract arbitratedBuy is TwoPartyArbitrable {
     address public buyer;
     address public seller;
-    address public arbitrator;
     uint32  public daysToOppose; // Number of days after which the ether are automaticaly given to the seller if no opposition
     uint256 public price;
     uint256 public timePayment;
-    bytes32 public blindedContract; // A hash of the plain English contract. The plain English contract should at least contain the good sold, the quantity and the maximum delivery time (which should be lower than daysToOppose).
     
     enum State {New, Paid, Blocked}
     State public state;
     
     /// Create the contract and put the amount needed in it.
-    function ArbitratedBuy(uint256 _price, uint32 _daysToOppose, address _arbitrator, bytes32 _blindedContract) {
+    function arbitratedBuy(uint256 _price, uint32 _daysToOppose, Court _court, uint256 _timeToReac) TwoPartyArbitrable(_court,0,_timeToReac) {
         seller=msg.sender;
-        arbitrator=_arbitrator;
         price=_price;
         daysToOppose=_daysToOppose;
-        blindedContract=_blindedContract;
     }
     
     function pay() payable {
         if (msg.value!=price || state!=State.New) // Verify the price is right and it hasn't been paid yet.
             throw;
         buyer=msg.sender;
+        partyB=msg.sender;
         timePayment=now;
     }
     
+    /// Release the money to the buyer.
+    function actionA(uint256 _disputeID) private {releaseToBuyer();}
+    
+    /// Release the money to the seller.
+    function actionB(uint256 _disputeID) private {releaseToSeller();}
+    
     function releaseToSeller() {
-        if (msg.sender==buyer || msg.sender==arbitrator) // Only buyer and arbitrator can release.
+        if (msg.sender==buyer || msg.sender==address(court)) // Only buyer and arbitrator can release.
         {
             if (!seller.send(this.balance))
                 throw;
@@ -56,7 +62,7 @@ contract ArbitratedBuy {
     }
     
     function releaseToBuyer() {
-        if (msg.sender==seller || msg.sender==arbitrator) // Only seller and arbitrator can release.
+        if (msg.sender==seller || msg.sender==address(court)) // Only seller and arbitrator can release.
         {
             if (!buyer.send(this.balance))
                 throw;
@@ -84,6 +90,5 @@ contract ArbitratedBuy {
     }
     
 }
-
 
 
