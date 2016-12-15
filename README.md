@@ -5,9 +5,7 @@ Contribute
 ----------
 
 ```
-git add [filed changed]
+git add [files changed]
 git commit -m "describe commit"
 git push -u origin master
 ```
-
-
