@@ -1,6 +1,5 @@
 pragma solidity ^0.4.6;
 
-
 /*
 Virtual Contract to be artibrated by the court.
 */
@@ -74,8 +73,8 @@ contract TwoPartyArbitrable is Arbitrable {
     function ruleB(uint256 disputeID) onlyCourt { executeRulingB(disputeID); }
     
     /// Set the state at ruledA. The court call this function if A is ruled.
-    function executeRulingA(uint256 _disputeID) private{
-        if (_disputeID!=disputeID) // There were no dispute
+    function executeRulingA(uint256 _disputeID) private {
+        if (_disputeID!=disputeID) // Not arbitrating the current dispute.
             throw;
         actionA(_disputeID);
         clean();
@@ -83,7 +82,7 @@ contract TwoPartyArbitrable is Arbitrable {
     
     /// Set the state at ruledB. The court call this function if B is ruled.
     function executeRulingB(uint256 _disputeID) private { 
-        if (_disputeID!=disputeID) // There were no dispute
+        if (_disputeID!=disputeID) // Not arbitrating the current dispute.
             throw;
         actionB(_disputeID);
         clean();
@@ -147,13 +146,13 @@ contract TwoPartyArbitrable is Arbitrable {
     
     /** Set the state in the absence of reaction of the other party.
      *  @param executeA True if A to be executed. False if B to be executed.
-     *  TO DO: Verify that we can't abuse of with the appeal mechanism.
      */
     function executeDueToInactvity(bool executeA) onlyParty {
         if (now - lastAction < timeToReac) // Reaction time to reached.
             throw;
         if ((msg.sender==requestCreator && secondRandom==0) // The requesting party can set the state if the other one has not given its random number
-            || (msg.sender!=requestCreator && secondRandom!=0 && disputeID==0)){// The counter-requesting party can set the state if the requesting party has not called createDispute in times.
+            || (msg.sender!=requestCreator && secondRandom!=0 && disputeID==0 && court.voteOpen()) // The counter-requesting party can set the state if the requesting party has not called createDispute in times.
+            ||  msg.sender!=requestCreator && disputeID!=0 && !court.appealOpen()){ // The party making the appeal failed to submit the appeal in time.
             if (executeA)
                 executeRulingA(disputeID);
             else
@@ -163,6 +162,7 @@ contract TwoPartyArbitrable is Arbitrable {
             throw;
     }
     
+
     /** Appeal a ruling.
      *  Notice that you must do it early enought as there will be timeToReac for the other party before the dispute is completed.
      *  @param _hashRandom Hash of the random number of the requesting party.
@@ -217,3 +217,4 @@ contract ExampleTwoPartyArbitrable is TwoPartyArbitrable {
     function actionA(uint256 _disputeID) private {state=State.ruledA;}
     function actionB(uint256 _disputeID) private {state=State.ruledB;}
 }
+
