@@ -1,0 +1,237 @@
+body {
+  font-family: 'Montserrat', sans-serif;}
+
+.jumbotron-header {
+  padding-bottom: 1rem;
+  background: transparent;}
+
+.vertical_center {
+    display: flex;
+    align-items: center;}
+
+.iconUniversity {
+  text-align: center;
+  color: #eee;
+  font-size: 2.3em;}
+
+.useCases {
+  padding-top: 1rem;
+  text-align: center;
+}
+
+.useCases .icon {
+  padding-bottom: 1rem;
+  color: #ddd;
+  font-size: 10em;}
+
+.how {
+  text-align: center;}
+
+img.desaturate {
+	filter: grayscale(100%);
+}
+
+footer {
+  margin-bottom: 1.5rem;
+  text-align: center;}
+
+.navbar {
+  z-index: 0;}
+
+h1.intro {
+  padding-top: 20px;}
+
+@import url(http://fonts.googleapis.com/css?family=Roboto);
+$body-bg: #fff;
+
+
+// Shadows
+$shadow-inset: inset 0 2px 2px 0 rgba(0,0,0,.14);
+$shadow-0: 0 0 1px rgba(0, 0, 0, 0);
+$shadow-2: 0 2px 2px 0 rgba(0,0,0,.14),0 3px 1px -2px rgba(0,0,0,.2),0 1px 5px 0 rgba(0,0,0,.12);
+$shadow-3: 0 3px 4px 0 rgba(0,0,0,.14),0 3px 3px -2px rgba(0,0,0,.2),0 1px 8px 0 rgba(0,0,0,.12);
+$shadow-4: 0 4px 5px 0 rgba(0,0,0,.14),0 1px 10px 0 rgba(0,0,0,.12),0 2px 4px -1px rgba(0,0,0,.2);
+$shadow-6: 0 6px 10px 0 rgba(0,0,0,.14),0 1px 18px 0 rgba(0,0,0,.12),0 3px 5px -1px rgba(0,0,0,.2);
+$shadow-8: 0 8px 10px 1px rgba(0,0,0,.14),0 3px 14px 2px rgba(0,0,0,.12),0 5px 5px -3px rgba(0,0,0,.2);
+
+// Font Sizes
+$mf-font-size: 1rem !default;
+$mf-active-font-size: $mf-font-size * 0.8 !default;
+$mf-active-top: -$mf-font-size !default;
+
+// Margin & Paddings
+$mf-gap: $mf-font-size * 1.5 !default;
+$mf-spacer: $mf-font-size / 8 !default;
+$mf-fieldset-margin: 0 0 $mf-gap * 2 !default;
+$mf-checkbox-gap: $mf-font-size * 2 !default;
+$mf-checkbox-top: 0 !default;
+$mf-radio-margin: $mf-font-size / -4 !default;
+
+// Colors
+$mf-input-color: #333 !default;
+$mf-border-color: #999 !default;
+$mf-label-color: lighten($mf-border-color, 10%) !default;
+$mf-active-color: darken($mf-border-color, 10%) !default;
+$mf-focus-color: #337ab7 !default;
+$mf-error-color: #d9534f !default;
+
+// Animation
+$mf-transition-speed: 0.28s !default;
+
+input{
+	box-sizing: border-box;
+
+
+	&::after,
+	&::before {
+		box-sizing: border-box;
+	}
+}
+
+.form-group {
+  width: 100%;
+	position: relative;
+	margin-top: ($mf-gap * 1.5);
+	margin-bottom: ($mf-gap * 1.5);
+}
+
+.form-group {
+	// scss-lint:disable QualifyingElement, NestingDepth
+	input {
+		height: ($mf-font-size * 1.9);
+	}
+
+	.control-label {
+		position: absolute;
+		top: ($mf-font-size / 4);
+		pointer-events: none;
+		padding-left: $mf-spacer;
+		z-index: 1;
+		color: $mf-label-color;
+		font-size: $mf-font-size;
+		font-weight: normal;
+		transition: all $mf-transition-speed ease;
+	}
+
+	.bar {
+		position: relative;
+		border-bottom: ($mf-font-size / 16) solid $mf-border-color;
+		display: block;
+
+		&::before {
+			content: '';
+			height: ($mf-font-size / 8);
+			width: 0;
+			left: 50%;
+			bottom: ($mf-font-size / -16);
+			position: absolute;
+			background: $mf-focus-color;
+			transition: left $mf-transition-speed ease, width $mf-transition-speed ease;
+			z-index: 2;
+		}
+	}
+
+	input{
+		display: block;
+		background: none;
+		padding: $mf-spacer $mf-spacer ($mf-spacer / 2);
+		font-size: $mf-font-size;
+		border-width: 0;
+		border-color: transparent;
+		line-height: 1.9;
+		width: 100%;
+		color: transparent;
+		transition: all $mf-transition-speed ease;
+		box-shadow: none;
+	}
+
+
+	input:focus,
+	input:valid,
+	input.form-file,
+	input.has-value {
+		color: $mf-input-color;
+
+		~ .control-label {
+			font-size: $mf-active-font-size;
+			color: $mf-active-color;
+			top: $mf-active-top;
+			left: 0;
+		}
+	}
+
+	input{
+		&:focus {
+			outline: none;
+
+			~ .control-label {
+				color: $mf-focus-color;
+			}
+
+			~ .bar {
+				&::before {
+					width: 100%;
+					left: 0;
+				}
+			}
+		}
+	}
+
+	label:hover .helper {
+		color: $mf-focus-color;
+	}
+
+}
+
+.has-error {
+	.legend.legend,
+	&.form-group .control-label.control-label {
+		// Prevent !importantRule
+		color: $mf-error-color;
+    text-align: center;
+    font-size: 15px;
+	}
+
+	&.form-group{
+		.form-help,
+		.helper {
+			color: $mf-error-color;
+		}
+	}
+
+	.bar {
+		&::before {
+			background: $mf-error-color;
+			left: 0;
+			width: 100%;
+		}
+	}
+}
+
+.form-inline {
+	> .form-group,
+	> .btn {
+		display: inline-block;
+		margin-bottom: 0;
+	}
+}
+
+.button {
+  margin-left: 20px;
+  border-radius: 0;
+  background-color: #eee;
+  border: 1px gray solid;
+  color: #999;
+}
+
+.button:hover {
+  color: #000;
+}
+
+.log-in {
+  color: #5cb85c;
+}
+
+.not-log-in {
+  color: #d9534f;
+}
