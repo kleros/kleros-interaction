@@ -1,6 +1,6 @@
-pragma solidity ^0.4.6;
-
 // Note, we assume totalSupply < 2^256-1
+// NOTE: All time interactions are for test and demo purpose only.
+// TODO: Manage the time states of the contract.
 contract Court is Token {
     /** Distribute tokens on initialization.
      *  To be replaced by a crowdfunding.
@@ -13,7 +13,7 @@ contract Court is Token {
             totalSupply+=tokens[i];
         }
         
-        session=1; // Sessions starts at 1 in order to keep 0 as a special value.
+        session=1; // Session starts at 1 in order to keep 0 as a special value.
         
         // Push a null dispute in order to make dispute starts at 1.
         // This allows interacting contracts to assume that the default value 0 indicates that there is no dispute yet.
@@ -21,6 +21,11 @@ contract Court is Token {
         disputes.length++;
         
     }
+    
+        
+    // **************************** //
+    // *       Token part         * //
+    // **************************** //
     
     function transfer(address _to, uint256 _value) returns (bool success) {
         // Note that (balances[msg.sender] >= _value + atStake[msg.sender]) is not sufficient as it could overflow.
@@ -59,27 +64,30 @@ contract Court is Token {
     mapping (address => uint256) balances;
     mapping (address => mapping (address => uint256)) allowed;
     
+    // **************************** //
+    // *       Court part         * //
+    // **************************** //
+    
     mapping (address => uint256) public atStake; // Max number of tokens which can be lost. Those tokens are blocked
     
     uint256 public session; // Current session of the court
     uint256 public endLastSession; // Time when last session finished
     
     mapping (address => uint256) public arbitralSession;       // Last session the tokens were activated for arbitration.
-    mapping (address => uint256) public arbitralSegementStart; // Start of the segment of tokens for arbitration during arbitralSession.
-    mapping (address => uint256) public arbitralSegementEnd;   // End of the segment of tokens for arbitration during arbitralSession.
+    mapping (address => uint256) public arbitralSegmentStart; // Start of the segment of tokens for arbitration during arbitralSession.
+    mapping (address => uint256) public arbitralSegmentEnd;   // End of the segment of tokens for arbitration during arbitralSession.
     uint256 public arbitralSegmentPosition;                    // Last position used in the arbitral token circle.
     
     mapping (address => uint256) public jurySession;           // Last session the tokens were activated for jury.
-    mapping (address => uint256) public jurySegementStart;     // Start of the segment of tokens for jury during arbitralSession.
-    mapping (address => uint256) public jurySegementEnd;       // End of the segment of tokens for jury during arbitralSession.
+    mapping (address => uint256) public jurySegmentStart;     // Start of the segment of tokens for jury during arbitralSession.
+    mapping (address => uint256) public jurySegmentEnd;       // End of the segment of tokens for jury during arbitralSession.
     uint256 public jurySegmentPosition;                        // Last position used in the jury token circle.
     
     // WARNING those values are for test purpose only
     uint256 public minArbitralToken=1000;                      // Minimum number of tokens to be arbitrator.
     uint256 public minJuryToken=1000;                          // Minimum of tokens drawn for jury.
-    uint256 public timeToAppeal=60;                            // Time to appeal (in seconds).
     uint256 public partAtStakeDivisor=5;                       // (1/partAtStakeDivisor) is the maximum proportion of tokens which can be lost.
-    
+
     struct Dispute {
         Arbitrable arbitratedContract; // Contract to be arbitrated.
         uint256 session; // Session for the dispute to be resolved. High values are special values.
@@ -119,32 +127,7 @@ contract Court is Token {
         else
             return false;
     }
-    
-    /** TO BE IMPLEMENTED
-     *  For now can be called by anyone.
-     */
-    function nextSession() {
-        session++; // Open a new session.
-        arbitralSegmentPosition=0; // Reset the positions for both jury and arbiters
-        jurySegmentPosition=0;
-        endLastSession=now;
-    }
-    
-    /** TO BE IMPLEMENTED
-     *  For now it is always open.
-     *  In the future, it will only be opened at the begining of sessions.
-     */
-    function activationOpen() constant returns(bool) {
-        return true;
-    }
-    
-    /** TO BE IMPLEMENTED
-     *  For now it is always open.
-     *  In the future, it will be only opened after the activation is closed.
-     */
-    function disputeOpen() constant returns(bool) {
-        return true;
-    }
+
     
     /** Active the tokens for arbitration.
      *  Tokens must not have already be activated for arbitration during this session.
@@ -159,9 +142,9 @@ contract Court is Token {
             
         arbitralSession[msg.sender]=session; // The tokens are activated for this session.
         
-        arbitralSegementStart[msg.sender]=arbitralSegmentPosition; // Update the positions.
+        arbitralSegmentStart[msg.sender]=arbitralSegmentPosition; // Update the positions.
         arbitralSegmentPosition+=tokens;
-        arbitralSegementEnd[msg.sender]=arbitralSegmentPosition;
+        arbitralSegmentEnd[msg.sender]=arbitralSegmentPosition;
     }
     
     /** Active the tokens for the jury system.
@@ -177,9 +160,9 @@ contract Court is Token {
             
         jurySession[msg.sender]=session; // The tokens are activated for this session.
         
-        jurySegementStart[msg.sender]=jurySegmentPosition; // Update the positions.
+        jurySegmentStart[msg.sender]=jurySegmentPosition; // Update the positions.
         jurySegmentPosition+=tokens;
-        jurySegementEnd[msg.sender]=jurySegmentPosition;
+        jurySegmentEnd[msg.sender]=jurySegmentPosition;
     }    
     
     /** Return true if account is the arbiter of the dispute.
@@ -188,14 +171,16 @@ contract Court is Token {
      *  Note that the function throws if arbitralSegmentPosition==0 which happens when no tokens have been activated for arbitration. 
      */
     function drawnArbiter(address account, uint256 r) constant returns(bool){
-        if (arbitralSession[msg.sender]!=session) // No tokens activated for this session
+        if (arbitralSession[account]!=session) // No tokens activated for this session
             return false;
         uint256 drawnPosition=r % arbitralSegmentPosition;
-        if (arbitralSegementStart[account]<=drawnPosition && drawnPosition<arbitralSegementEnd[account])
+        if (arbitralSegmentStart[account]<=drawnPosition && drawnPosition<arbitralSegmentEnd[account])
             return true;
         else
             return false;
     }
+    
+
     
     /** Return the number of drawn tokens belonging to account.
      *  @param account Account to be return the number of drawn tokens.
@@ -204,26 +189,26 @@ contract Court is Token {
      *  Note that the function throws if jurySegmentPosition==0 which happens when no tokens have been activated for the jury system.
      */
     function drawnTokens(address account, uint256 r, uint256 t) constant returns(uint256) {
-        if (jurySession[msg.sender]!=session) // No tokens activated for this session
+        if (jurySession[account]!=session) // No tokens activated for this session
             return 0;
         if (t>=jurySegmentPosition) // All the court is drawn
-            return jurySegementEnd[account]-jurySegementStart[account];
+            return jurySegmentEnd[account]-jurySegmentStart[account];
             
         uint256 startDrawnSegment=r % jurySegmentPosition;
         uint256 endDrawnSegment=startDrawnSegment+t;
         uint256 leftIntersection;
         uint256 rightIntersection;
         if (endDrawnSegment<=jurySegmentPosition){  // We don't wrap arround
-            leftIntersection=(jurySegementEnd[account] < endDrawnSegment ? jurySegementEnd[account] : endDrawnSegment);
-            rightIntersection=(jurySegementStart[account] > startDrawnSegment ? jurySegementStart[account] : startDrawnSegment);
+            leftIntersection=(jurySegmentEnd[account] < endDrawnSegment ? jurySegmentEnd[account] : endDrawnSegment);
+            rightIntersection=(jurySegmentStart[account] > startDrawnSegment ? jurySegmentStart[account] : startDrawnSegment);
             return (leftIntersection < rightIntersection ? rightIntersection - leftIntersection : 0);
         }
         else { // We wrap arround
             endDrawnSegment-=jurySegmentPosition;
-            leftIntersection=(jurySegementStart[account] > startDrawnSegment ? jurySegementStart[account] : startDrawnSegment);
-            rightIntersection=(jurySegementEnd[account] < jurySegmentPosition ? jurySegementEnd[account] : jurySegmentPosition);
+            leftIntersection=(jurySegmentStart[account] > startDrawnSegment ? jurySegmentStart[account] : startDrawnSegment);
+            rightIntersection=(jurySegmentEnd[account] < jurySegmentPosition ? jurySegmentEnd[account] : jurySegmentPosition);
             return (leftIntersection < rightIntersection ? rightIntersection - leftIntersection : 0)
-            + (endDrawnSegment > jurySegementStart[account] ? endDrawnSegment-jurySegementStart[account] : 0);
+            + (endDrawnSegment > jurySegmentStart[account] ? endDrawnSegment-jurySegmentStart[account] : 0);
         }
     }
     
@@ -257,7 +242,8 @@ contract Court is Token {
             || dispute.voteA > 0 // Verify that it hasn't been ruled yet.
             || dispute.voteB > 0
             || dispute.appeals != 0 // Verify it is a first instance
-            || dispute.session != session)  // Verify that the dispute is a dispute of this session.
+            || dispute.session != session  // Verify that the dispute is a dispute of this session.
+            || !voteOpen()) // The arbitration is closed or not open yet.
             throw;
         
         
@@ -277,9 +263,10 @@ contract Court is Token {
     
     /** Execute the ruling given by the court. 
      *  The ruling must be executable.
+     *  Note that this function can throw due to the arbitrated contract throwing.
      *  @param disputeID ID of the dispute to have its ruling enforced.
      */
-    function executeRuling(uint256 disputeID){
+    function untrustedExecuteRuling(uint256 disputeID){
         Dispute dispute=disputes[disputeID];
         if (dispute.session != EXECUTABLE)
             throw;
@@ -298,9 +285,9 @@ contract Court is Token {
     function appealRuling(uint256 disputeID, uint256 r) payable {
         Dispute dispute=disputes[disputeID];
         if (dispute.session != session-1 // The dispute was not ruled before this session.
-            || now-endLastSession >= timeToAppeal  // It's too late to appeal.
+            || !appealOpen() // It's too late to appeal.
             || dispute.arbitratedContract != msg.sender // Not called by the arbitrated contract.
-            || minJuryToken * (2**(dispute.appeals+1)) > jurySegmentPosition) // Number of drawn tokens would be more than twice the number of activated tokens. No more appeal possible.
+            || (minJuryToken * (2**(dispute.appeals+1)) > jurySegmentPosition && dispute.voteA!=dispute.voteB)) // Number of drawn tokens would be more than twice the number of activated tokens. No more appeal possible, unless the last ruling was tied.
             throw;
         
         dispute.voteA=0; // Reset votes.
@@ -318,7 +305,8 @@ contract Court is Token {
     function voteRuling(uint256 disputeID, bool voteA) {
         Dispute dispute=disputes[disputeID];
         uint256 stake;
-        if (dispute.hasVoted[msg.sender]==session) // Has already voted for the session
+        if (dispute.hasVoted[msg.sender]==session // Has already voted for the session
+            || !voteOpen()) // The vote is closed or not open yet.
             throw;
             
         uint256 votingRights=drawnTokens(msg.sender,dispute.r,(2**(dispute.appeals)) * minJuryToken);
@@ -348,7 +336,7 @@ contract Court is Token {
     function executeTokenRepartition(uint256 disputeID){
         Dispute dispute=disputes[disputeID];
         if (dispute.session >= session // The dispute was not solved before this session or is in a special state.
-            || now-endLastSession < timeToAppeal // The time to appeal has not passed yet.
+            || !executionOpen() // Execution can't be done yet.
             || dispute.voteA == dispute.voteB)   // The vote is tied or the arbiter was inactive.
             throw;
             
@@ -396,23 +384,134 @@ contract Court is Token {
         }
         
         // Token repartition for arbiter.
-        vote=dispute.voters[0][0];
-        if (winnerA)
-            lostStake=vote.stakeB<balances[vote.account] ? vote.stakeB : balances[vote.account];
-        else
-            lostStake=vote.stakeA<balances[vote.account] ? vote.stakeA : balances[vote.account];
+        if(dispute.voters[0].length>0) {
+            vote=dispute.voters[0][0];
+            if (winnerA)
+                lostStake=vote.stakeB<balances[vote.account] ? vote.stakeB : balances[vote.account];
+            else
+                lostStake=vote.stakeA<balances[vote.account] ? vote.stakeA : balances[vote.account];
+                
+            atStake[vote.account]-=vote.stakeA+vote.stakeB; // Remove tokens at Stake such that they can be moved again.
+            balances[vote.account]-=lostStake; // For now just give it to the court as the fee system is not there yet.
+            balances[this]+=lostStake;
             
-        atStake[vote.account]-=vote.stakeA+vote.stakeB; // Remove tokens at Stake such that they can be moved again.
-        balances[vote.account]-=lostStake; // For now just give it to the court as the fee system is not there yet.
-        balances[this]+=lostStake;
-        
-        --dispute.voters.length;// Clean up in order to get some gaz back.
+            --dispute.voters.length;// Clean up in order to get some gas back.
+        }
         
         dispute.session=EXECUTABLE; // Now the ruling can be executed.
     }
     
+    /** Make inactive arbitrators loose some tokens.
+     *  TODO: Send back the caller of the function a few ethers to cover gas cost.
+     *  @param accounts List of accounts to be penalized.
+     *  @param disputeIDs List of disputes the accounts failed to arbitrate.
+     */
+    function penalizeInactiveArbitrators(address[] accounts, uint256[] disputeIDs) {
+        if (!penalizationOpen()) // Too early or too late to penalize.
+            throw;
+        uint256 penalty=minArbitralToken/partAtStakeDivisor;
+        for (uint256 i=0;i<accounts.length;++i){
+            Dispute dispute=disputes[disputeIDs[i]];
+            if (!drawnArbiter(accounts[i],dispute.r) // This arbitrator was not chosen.
+                || dispute.hasVoted[accounts[i]]==session) // The arbitrator has voted.
+                throw;
+            uint256 toBeLost=penalty<balances[accounts[i]] ? penalty : balances[accounts[i]]; // Make sure not to loose more than the balance.
+            balances[accounts[i]]-=toBeLost; // Give some of his tokens to the court.
+            balances[this]+=toBeLost;
+            dispute.hasVoted[accounts[i]]=session; // Set him as if he had voted to prevent penalizing him multiple times.
+        }
+    }
     
-    // Constant Getters //
+    /** Make inactive jury members loose some tokens.
+     *  TODO: Send back the caller of the function a few ethers to cover gas cost.
+     *  @param accounts List of accounts to be penalized.
+     *  @param disputeIDs List of disputes the accounts failed to vote.
+     */
+    function penalizeInactiveJuries(address[] accounts, uint256[] disputeIDs) {
+        if (!penalizationOpen()) // Too early or too late to penalize.
+            throw;
+        for (uint256 i=0;i<accounts.length;++i){
+            Dispute dispute=disputes[disputeIDs[i]];
+            uint256 tokens=drawnTokens(accounts[i],dispute.r,(2**(dispute.appeals)) * minJuryToken);
+            if (tokens==0 // This jury member was not chosen.
+                || dispute.hasVoted[accounts[i]]==session) // The jury member has voted.
+                throw;
+            uint256 penalty=tokens/partAtStakeDivisor;
+            uint256 toBeLost=penalty<balances[accounts[i]] ? penalty : balances[accounts[i]]; // Make sure not to loose more than the balance.
+            balances[accounts[i]]-=toBeLost; // Give some of his tokens to the court.
+            balances[this]+=toBeLost;
+            dispute.hasVoted[accounts[i]]=session; // Set him as if he had voted to prevent penalizing him multiple times.
+        }
+    } 
+    
+
+    // **************************** //
+    // *        Time  part        * //
+    // **************************** //
+
+    /** TO BE IMPLEMENTED
+     *  For now can be called by anyone.
+     */
+    function nextSession() {
+        session++; // Open a new session.
+        arbitralSegmentPosition=0; // Reset the positions for both jury and arbiters.
+        jurySegmentPosition=0;
+        endLastSession=now;
+    }
+    
+    /** TO BE IMPLEMENTED
+     *  For now it is always open.
+     *  In the future, it will only be opened at the begining of sessions.
+     */
+    function activationOpen() constant returns(bool) {
+        return true;
+    }
+    
+    /** TO BE IMPLEMENTED
+     *  For now it is always open.
+     *  In the future, it will be only opened after the activation is closed.
+     */
+    function disputeOpen() constant returns(bool) {
+        return true;
+    }
+    
+    /** TO BE IMPLEMENTED
+     *  For now it is always open.
+     *  In the future, it will be open after the disputes are closed.
+     */
+     function voteOpen() constant returns(bool) {
+        return true;
+    }
+    
+    /** TO BE IMPLEMENTED
+     *  For now they are always open.
+     *  In the future, the will be only opened.
+     */
+    function appealOpen() constant returns(bool) {
+        return true;
+    }
+    
+    /** TO BE IMPLEMENTED
+     *  For now they are always open.
+     *  In the future, they will be open before the execution is.
+     */
+    function penalizationOpen() constant returns(bool){
+        return true;
+    }
+    
+    /** TO BE IMPLEMENTED
+     *  For now they are always open.
+     *  In the future, they will be open a few times after appeals are closed.
+     */
+    function executionOpen() constant returns(bool){
+        return true;
+    }
+    
+    
+    
+    // **************************** //
+    // *     Constant Getters     * //
+    // **************************** //
     
     /** Get the number of appeals of a dispute.
      *  Notice that it can throw if disputeID does not exist.
@@ -422,27 +521,57 @@ contract Court is Token {
         return disputes[disputeID].appeals;
     }
     
-}
-
-/*
-Virtual Contract to be artibrated by the court.
-*/
-contract Arbitrable {
-    Court court;
-    function Arbitrable(Court _court){
-        court=_court;
+    /** Return the last appeal account has voted.
+     *  Notice that it can throw if disputeID does not exist.
+     *  @param disputeID ID of the dispute.
+     *  @param account account who voted or not.
+     */
+    function getHasVoted(uint256 disputeID, address account) constant returns (uint256){
+        return disputes[disputeID].hasVoted[account];
     }
     
-    modifier onlyCourt {if (msg.sender!=address(court)) throw; _;}
-    
-    /** Function the court will call to execute ruling A.
-     *  In most cases, this function should have the modifier onlyCourt.
+    /** Return the stake in a vote.
+     *  Note that it can throw if disputeID does not exist or appeal is greater than the number of appeals.
+     *  @param disputeID ID of the dispute.
+     *  @param appeal Appeal to return the votes, or 0 to return the vote of the arbitrator.
+     *  @param voteID ID of the vote.
+     *  @param stakeA true to to return the stake in A. False to return the stake in B.
      */
-    function ruleA(uint256 disputeID);
+    function getVoteStake(uint256 disputeID, uint256 appeal, uint256 voteID, bool stakeA) constant returns(uint256){
+        if (stakeA)
+            return disputes[disputeID].voters[appeal][0].stakeA;
+        else
+            return disputes[disputeID].voters[appeal][0].stakeB;
+    }
     
-    /** Function the court will call to execute ruling B.
-     *  In most cases, this function should have the modifier onlyCourt.
+    /** Return the list of votes.
+     *  Note that it can throw if disputeID does not exist or appeal is greater than the number of appeals.
+     *  @param disputeID ID of the dispute.
+     *  @param appeal Appeal to return the votes, or 0 to return the vote of the arbitrator.
+     *  @param voteID ID of the vote.
      */
-    function ruleB(uint256 disputeID);
+    function getVoteAccount(uint256 disputeID, uint256 appeal, uint256 voteID) constant returns(address){
+        return disputes[disputeID].voters[appeal][0].account;
+    }
+    
+    /** Return the amount of tokens activated for arbitration in the current session.
+     *  @param account Account to return the number of activated tokens.
+     */
+    function activatedArbitrationTokens(address account) constant returns(uint256){
+        if (arbitralSession[account]!=session)
+            return 0;
+        else
+            return arbitralSegmentEnd[account]-arbitralSegmentStart[account];
+    }
+    
+    /** Return the amount of tokens activated for jury in the current session.
+     *  @param account Account to return the number of activated tokens.
+     */    
+    function activatedJuryTokens(address account) constant returns(uint256){
+        if (jurySession[account]!=session)
+            return 0;
+        else
+            return jurySegmentEnd[account]-jurySegmentStart[account];
+    }
     
 }
