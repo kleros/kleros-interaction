@@ -131,6 +131,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function createDispute(uint256 firstRandom) onlyAccount(requestCreator) {
         if (sha3(firstRandom)!=hashRandom // Value not corresponding to the commitment.
+            || secondRandom==0 // Lack of counter request
             || disputeID!=0) // The dispute has already been created.
             throw;
         disputeID=court.createDispute(firstRandom ^ secondRandom); // Create a dispute with a random number being a XOR of both of them
@@ -194,6 +195,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function createAppeal(uint256 firstRandom) onlyAccount(requestCreator) {
         if (sha3(firstRandom)!=hashRandom // Value not corresponding to the commitment.
+            || secondRandom==0 // Lack of counter appeal
             || court.getAppeals(disputeID) + 1 != nextAppeals) // The dispute is already submitted.
             throw;
         court.appealRuling(disputeID,firstRandom ^ secondRandom); // Create an appeal with a random number being a XOR of both of them.
