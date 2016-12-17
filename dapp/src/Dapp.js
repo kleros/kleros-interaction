@@ -108,7 +108,7 @@ class Dapp extends Component {
            gas: '4700000'
          }, function (e, contract){
            console.log(e, contract);
-           if (typeof contract.address !== 'undefined') {
+           if (contract && typeof contract.address !== 'undefined') {
             console.log('Contract mined! address: ' + contract.address + ' transactionHash: ' + contract.transactionHash);
             this.setState({ contractAdress: contract.address })
             this.setState({ contractTransactionHash: contract.transactionHash})
@@ -121,81 +121,81 @@ class Dapp extends Component {
 
     return (
       <div>
-      <div>
-        <Navbar color="faded" light full>
+        <div>
+          <Navbar color="faded" light full>
+            <Container>
+              <NavbarBrand className="float-xs-center" href="/#">EtherCourt</NavbarBrand>
+              <Nav className="float-xs-right" navbar>
+                <NavItem>
+                  <NavLink href="/#/dapp"><b>Đapp</b></NavLink>
+                </NavItem>
+                <NavItem>
+                  <NavLink href="https://docs.google.com/document/d/1aL_ypp2hKOo0lI7XKtOpxMkt3kBIky7Q5eb3jsPMq80">Vote for the project</NavLink>
+                </NavItem>
+                <NavItem>
+                  <NavLink href="/#/docs">Documentation</NavLink>
+                </NavItem>
+                <NavItem>
+                  <NavLink href="https://www.pdf-archive.com/2016/11/25/dac-1/">White paper</NavLink>
+                </NavItem>
+                <NavItem>
+                  <NavLink href="https://hack.ether.camp/public/decentralized-court">EtherCamp</NavLink>
+                </NavItem>
+              </Nav>
+            </Container>
+          </Navbar>
           <Container>
-            <NavbarBrand className="float-xs-center" href="/#">EtherCourt</NavbarBrand>
-            <Nav className="float-xs-right" navbar>
-              <NavItem>
-                <NavLink href="/#/dapp"><b>Đapp</b></NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink href="https://docs.google.com/document/d/1aL_ypp2hKOo0lI7XKtOpxMkt3kBIky7Q5eb3jsPMq80">Vote for the project</NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink href="/#/docs">Documentation</NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink href="https://www.pdf-archive.com/2016/11/25/dac-1/">White paper</NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink href="https://hack.ether.camp/public/decentralized-court">EtherCamp</NavLink>
-              </NavItem>
-            </Nav>
+            <Row>
+              <Col>
+                <h1 className="intro">Đapp</h1>
+                {'undefined' === typeof web3 ? <div className="not-log-in">Web3 account not found</div> : <div className="log-in">Log in {web3.eth.accounts[0]}</div>}
+                <form>
+                    <div className={this.state.errCourt ? 'form-group has-error' : 'form-group'}>
+                      <input type="text" required value={this.state.court} onChange={this.handleChangeCourt} />
+                      <label htmlFor="input" className="control-label" >address _court</label>
+                      <i className="bar"></i>
+                      {this.state.errCourt ?
+                        <legend className="legend">Address not valid</legend> :
+                        <div></div>
+                      }
+                    </div>
+                    <div className={this.state.errPartyB ? 'form-group has-error' : 'form-group'}>
+                      <input type="text" required value={this.state.partyB} onChange={this.handleChangePartyB} />
+                      <label htmlFor="input" className="control-label">address partyB</label>
+                      <i className="bar"></i>
+                      {this.state.errPartyB ?
+                        <legend className="legend">Address not valid</legend> :
+                        <div></div>
+                      }
+                    </div>
+                    <div className={this.state.errTimeToReact ? 'form-group has-error' : 'form-group'}>
+                      <input type="text" required value={this.state.timeToReact} onChange={this.handleChangeTimeToReact} />
+                      <label htmlFor="input" className="control-label">uint256 _timeToReact (seconds)</label>
+                      <i className="bar"></i>
+                      {this.state.errTimeToReact ?
+                        <legend className="legend">Format not valid</legend> :
+                        <div></div>
+                      }
+                    </div>
+                    <div className="float-xs-right">
+                      <button className="button text-right" onClick={this.deploySmartContract}>
+                        Deploy the smart contract
+                      </button>
+                    </div>
+                </form>
+                {this.state.contractAdress ?
+                  <div className="alert alert-success" role="alert">
+                    <strong>Contract mined!</strong> <br/>Address: {this.state.contractAdress} <br/>TransactionHash: {this.state.contractTransactionHash}
+                  </div> :
+                  <div></div>
+                }
+              </Col>
+            </Row>
           </Container>
-        </Navbar>
-        <Container>
-          <Row>
-            <Col>
-              <h1 className="intro">Đapp</h1>
-              {'undefined' === typeof web3 ? <div className="not-log-in">Web3 account not found</div> : <div className="log-in">Log in {web3.eth.accounts[0]}</div>}
-              <form>
-                  <div className={this.state.errCourt ? 'form-group has-error' : 'form-group'}>
-                    <input type="text" required value={this.state.court} onChange={this.handleChangeCourt} />
-                    <label htmlFor="input" className="control-label" >address _court</label>
-                    <i className="bar"></i>
-                    {this.state.errCourt ?
-                      <legend className="legend">Address not valid</legend> :
-                      <div></div>
-                    }
-                  </div>
-                  <div className={this.state.errPartyB ? 'form-group has-error' : 'form-group'}>
-                    <input type="text" required value={this.state.partyB} onChange={this.handleChangePartyB} />
-                    <label htmlFor="input" className="control-label">address partyB</label>
-                    <i className="bar"></i>
-                    {this.state.errPartyB ?
-                      <legend className="legend">Address not valid</legend> :
-                      <div></div>
-                    }
-                  </div>
-                  <div className={this.state.errTimeToReact ? 'form-group has-error' : 'form-group'}>
-                    <input type="text" required value={this.state.timeToReact} onChange={this.handleChangeTimeToReact} />
-                    <label htmlFor="input" className="control-label">uint256 _timeToReact (seconds)</label>
-                    <i className="bar"></i>
-                    {this.state.errTimeToReact ?
-                      <legend className="legend">Format not valid</legend> :
-                      <div></div>
-                    }
-                  </div>
-                  <div className="float-xs-right">
-                    <button className="button text-right" onClick={this.deploySmartContract}>
-                      Deploy the smart contract
-                    </button>
-                  </div>
-              </form>
-              {this.state.contractAdress ?
-                <div className="alert alert-success" role="alert">
-                  <strong>Contract mined!</strong> <br/>Address: {this.state.contractAdress} <br/>TransactionHash: {this.state.contractTransactionHash}
-                </div> :
-                <div></div>
-              }
-            </Col>
-          </Row>
-        </Container>
-        <hr className="my-2" />
-        <footer>EtherCourt.io</footer>
-      </div>
-      <GithubCorner href="https://github.com/ethercourt" />
+          <hr className="my-2" />
+          <footer>EtherCourt.io</footer>
+        </div>
+        <GithubCorner href="https://github.com/ethercourt" />
       </div>
     )
   }
