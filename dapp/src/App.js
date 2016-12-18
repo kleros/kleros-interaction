@@ -136,34 +136,6 @@ class App extends Component {
                 by the court may be necessary.
               </p>
             </Col>
-            <Col>
-              <div id="carousel-example-generic" className="carousel slide" data-ride="carousel">
-                <ol className="carousel-indicators">
-                  <li data-target="#carousel-example-generic" data-slide-to="0" className="active"></li>
-                  <li data-target="#carousel-example-generic" data-slide-to="1"></li>
-                  <li data-target="#carousel-example-generic" data-slide-to="2"></li>
-                </ol>
-                <div className="carousel-inner" role="listbox">
-                  <div className="carousel-item active">
-                    <img src="https://raw.githubusercontent.com/ethercourt/dapp/cc9c58816ff7a3dbf121cb39d4b68632ea205374/src/public/images/alice_bob_1.jpg" width="100%" alt="First slide"/>
-                  </div>
-                  <div className="carousel-item">
-                    <img src="https://raw.githubusercontent.com/ethercourt/dapp/cc9c58816ff7a3dbf121cb39d4b68632ea205374/src/public/images/alice_bob_2.jpg" width="100%"  alt="Second slide"/>
-                  </div>
-                  <div className="carousel-item">
-                    <img src="https://raw.githubusercontent.com/ethercourt/dapp/cc9c58816ff7a3dbf121cb39d4b68632ea205374/src/public/images/alice_bob_5.jpg" width="100%"  alt="Third slide"/>
-                  </div>
-                </div>
-                <a className="left carousel-control" href="#carousel-example-generic" role="button" data-slide="prev">
-                  <span className="icon-prev" aria-hidden="true"></span>
-                  <span className="sr-only">Previous</span>
-                </a>
-                <a className="right carousel-control" href="#carousel-example-generic" role="button" data-slide="next">
-                  <span className="icon-next" aria-hidden="true"></span>
-                  <span className="sr-only">Next</span>
-                </a>
-              </div>
-            </Col>
           </Row>
           <hr className="my-2" />
           <Row>
@@ -172,7 +144,7 @@ class App extends Component {
               <Row>
                 <Col xs="12" md="3">
                   <figure>
-                    <img src="https://raw.githubusercontent.com/ethercourt/dapp/f8fabeda51638fa80fda9592acfdc24b61544344/src/public/images/wagner_nicolas.jpg" width="200px" alt="Wagner Nicolas" className="desaturate" />
+                    <img src="https://media.licdn.com/mpr/mpr/shrinknp_400_400/AAEAAQAAAAAAAAkMAAAAJGE2MTdkMWRkLTQ1MGMtNDU1OC04Yzg3LWYyMzJhOTdjZDY1OA.jpg" width="200px" alt="Wagner Nicolas" className="desaturate" />
                     <figcaption>
                       Nicolas - <em>Developer</em>
                     </figcaption>
@@ -180,7 +152,7 @@ class App extends Component {
                 </Col>
                 <Col xs="12" md="3">
                   <figure>
-                    <img src="https://raw.githubusercontent.com/ethercourt/dapp/f8fabeda51638fa80fda9592acfdc24b61544344/src/public/images/lesaege_clement.jpg" width="200px" alt="Clément" className="desaturate" />
+                    <img src="https://media.licdn.com/media/AAEAAQAAAAAAAAddAAAAJDBkZTdmYWY3LWEyN2ItNGU2Mi1hMmU4LTkzMTdlNWNmMjFhNA.jpg" width="200px" alt="Clément" className="desaturate" />
                     <figcaption>
                       Clément - <em>Computer scientist</em>
                     </figcaption>
