@@ -1,12 +1,20 @@
 import React, { Component } from 'react'
 import FontAwesome from 'react-fontawesome'
-import GithubCorner from 'react-github-corner';
-import { keccak_256 } from 'js-sha3';
-import { Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap';
+import GithubCorner from 'react-github-corner'
+import { keccak_256 } from 'js-sha3'
+import { Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap'
+import { Link } from 'react-router'
+
 
 import '../styles/App.scss'
 
 class ExampleArbitrableForm extends Component {
+
+  constructor() {
+    super();
+  }
+
+  componentDidMount() {}
 
   state = {
       contractAdress: null,
@@ -15,6 +23,7 @@ class ExampleArbitrableForm extends Component {
       errPartyB: false,
       submitValueValid: false,
       transactionLoad: false,
+      contracts: ['0x00'],
   }
 
     /**
@@ -104,7 +113,10 @@ class ExampleArbitrableForm extends Component {
              this.setState({ transactionLoad: false})
              console.log('Contract mined! address: ' + contract.address + ' transactionHash: ' + contract.transactionHash);
              this.setState({ contractAdress: contract.address })
-             this.setState({ contractAdress: contract.address })
+             this.setState({ contractTransactionHash: contract.transactionHash })
+             let contracts = this.state.contracts;
+             contracts.push(contract.address)
+             this.setState({ contracts: contracts})
           }
        })
     }
@@ -148,6 +160,14 @@ class ExampleArbitrableForm extends Component {
           </div> :
           <div></div>
         }
+        <div>
+          <div>Contracts:</div>
+          <ul>
+            {this.state.contracts.map(item => (
+              <li key={item}><Link to={`/examplearbitrable/${item}`}>{item}</Link></li>
+            ))}
+          </ul>
+        </div>
       </div>
     )
   }
