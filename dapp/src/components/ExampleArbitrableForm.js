@@ -23,7 +23,7 @@ class ExampleArbitrableForm extends Component {
       errPartyB: false,
       submitValueValid: false,
       transactionLoad: false,
-      contracts: ['0x00'],
+      contracts: [],
   }
 
     /**
@@ -161,7 +161,7 @@ class ExampleArbitrableForm extends Component {
           <div></div>
         }
         <div>
-          <div>Contracts:</div>
+          <div>List contracts:</div>
           <ul>
             {this.state.contracts.map(item => (
               <li key={item}><Link to={`/examplearbitrable/${item}`}>{item}</Link></li>
