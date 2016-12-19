@@ -224,8 +224,16 @@ input{
   color: #999;
 }
 
-.button:hover {
-  color: #000;
+.valid {
+  margin-left: 20px;
+  border-radius: 0;
+  background-color: #5cb85c;
+  border: 1px #5cb85c solid;
+  color: #fff;
+}
+
+.valid:hover {
+    background-color: #4caf50;
 }
 
 .log-in {

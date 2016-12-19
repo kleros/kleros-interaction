@@ -1,7 +1,8 @@
 import React, { Component } from 'react'
 import FontAwesome from 'react-fontawesome'
 import GithubCorner from 'react-github-corner';
-import { Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap';
+import { Button, Jumbotron, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap';
+import Menu from './components/Menu';
 
 import 'styles/App.scss'
 
@@ -16,28 +17,7 @@ class Docs extends Component {
     return (
       <div>
       <div>
-        <Navbar color="faded" light full>
-          <Container>
-            <NavbarBrand className="float-xs-center" href="/#">EtherCourt</NavbarBrand>
-            <Nav className="float-xs-right" navbar>
-              <NavItem>
-                <NavLink href="/#/dapp">Đapp</NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink href="https://docs.google.com/document/d/1aL_ypp2hKOo0lI7XKtOpxMkt3kBIky7Q5eb3jsPMq80">Vote for the project</NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink href="/#/docs"><b>Documentation</b></NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink href="https://www.pdf-archive.com/2016/11/25/dac-1/">White paper</NavLink>
-              </NavItem>
-              <NavItem>
-                <NavLink href="https://hack.ether.camp/public/decentralized-court">EtherCamp</NavLink>
-              </NavItem>
-            </Nav>
-          </Container>
-        </Navbar>
+        <Menu />
         <Container>
           <Row>
             <Col>
@@ -62,12 +42,14 @@ class Docs extends Component {
                 contracts everybody is used to.
                 <br/>Why not connect them via human consensus?
                 <br/>Here we comes to
-                <blockquote class="blockquote">
-                  <strong>Decentralised court (DCourt)</strong> - <em>an opt-in
-                  option to enforce ANY plain text contract on a blockchain with
-                  ruling made by human arbiters selected randomly or by some
-                  criteria.</em>
-                </blockquote>
+              </p>
+              <blockquote className="blockquote">
+                <strong>Decentralised court (DCourt)</strong> - <em>an opt-in
+                option to enforce ANY plain text contract on a blockchain with
+                ruling made by human arbiters selected randomly or by some
+                criteria.</em>
+              </blockquote>
+              <p>
                 Take a notice that real-world contract are also interpreted by
                 humans  (courts) before they get enforced. And there are opt-in
                 international arbitration courts where you can choose arbiters
@@ -126,7 +108,6 @@ class Docs extends Component {
                 </li>
               </ol>
               <hr className="my-2" />
-
             </Col>
           </Row>
         </Container>
