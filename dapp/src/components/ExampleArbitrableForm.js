@@ -5,7 +5,6 @@ import { keccak_256 } from 'js-sha3'
 import { Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap'
 import { Link } from 'react-router'
 
-
 import '../styles/App.scss'
 
 class ExampleArbitrableForm extends Component {
@@ -34,16 +33,16 @@ class ExampleArbitrableForm extends Component {
    * @return {Boolean}
   */
   isAddress = (address) => {
-      if (!/^(0x)?[0-9a-f]{40}$/i.test(address)) {
-          // check if it has the basic requirements of an address
-          return false;
-      } else if (/^(0x)?[0-9a-f]{40}$/.test(address) || /^(0x)?[0-9A-F]{40}$/.test(address)) {
-          // If it's all small caps or all all caps, return true
-          return true;
-      } else {
-          // Otherwise check each case
-          return this.isChecksumAddress(address);
-      }
+    if (!/^(0x)?[0-9a-f]{40}$/i.test(address)) {
+      // check if it has the basic requirements of an address
+      return false;
+    } else if (/^(0x)?[0-9a-f]{40}$/.test(address) || /^(0x)?[0-9A-F]{40}$/.test(address)) {
+      // If it's all small caps or all all caps, return true
+      return true;
+    } else {
+      // Otherwise check each case
+      return this.isChecksumAddress(address);
+    }
   };
 
   /**
@@ -54,16 +53,16 @@ class ExampleArbitrableForm extends Component {
    * @return {Boolean}
   */
   isChecksumAddress = (address) => {
-      // Check each case
-      address = address.replace('0x','');
-      let addressHash = keccak_256(address.toLowerCase());
-      for (var i = 0; i < 40; i++ ) {
-          // the nth letter should be uppercase if the nth digit of casemap is 1
-          if ((parseInt(addressHash[i], 16) > 7 && address[i].toUpperCase() !== address[i]) || (parseInt(addressHash[i], 16) <= 7 && address[i].toLowerCase() !== address[i])) {
-              return false;
-          }
+    // Check each case
+    address = address.replace('0x','');
+    let addressHash = keccak_256(address.toLowerCase());
+    for (var i = 0; i < 40; i++ ) {
+      // the nth letter should be uppercase if the nth digit of casemap is 1
+      if ((parseInt(addressHash[i], 16) > 7 && address[i].toUpperCase() !== address[i]) || (parseInt(addressHash[i], 16) <= 7 && address[i].toLowerCase() !== address[i])) {
+          return false;
       }
-      return true;
+    }
+    return true;
   };
 
   submitValid = () => {
