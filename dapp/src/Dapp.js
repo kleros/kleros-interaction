@@ -9,9 +9,7 @@ import 'styles/App.scss'
 
 class Dapp extends Component {
 
-  state = {
-      transactionLoad: false,
-  }
+  state = {}
 
   render() {
 
@@ -24,16 +22,6 @@ class Dapp extends Component {
               <Col>
                 <h1 className="intro">Đapp</h1>
                 <ExampleArbitrableForm />
-              </Col>
-            </Row>
-            <Row>
-              <Col>
-                {this.state.contractAdress ?
-                  <div className="alert alert-success" role="alert">
-                    <strong>Contract mined!</strong> <br/>Address: {this.state.contractAdress} <br/>TransactionHash: {this.state.contractTransactionHash}
-                  </div> :
-                  <div></div>
-                }
               </Col>
             </Row>
           </Container>
