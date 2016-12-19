@@ -1,5 +1,7 @@
 pragma solidity ^0.4.6;
 
+// TODO Refactor all the time logic of those contracts.
+
 /*
 Virtual Contract to be artibrated by the court.
 */
@@ -131,7 +133,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function createDispute(uint256 firstRandom) onlyAccount(requestCreator) {
         if (sha3(firstRandom)!=hashRandom // Value not corresponding to the commitment.
-            || secondRandom==0 // Lack of counter request
+            || secondRandom==0 // Lack of counter request.
             || disputeID!=0) // The dispute has already been created.
             throw;
         disputeID=court.createDispute(firstRandom ^ secondRandom); // Create a dispute with a random number being a XOR of both of them
@@ -148,7 +150,7 @@ contract TwoPartyArbitrable is Arbitrable {
     /** Set the state in the absence of reaction of the other party.
      *  @param executeA True if A to be executed. False if B to be executed.
      */
-    function executeDueToInactvity(bool executeA) onlyParty {
+    function executeDueToInactivity(bool executeA) onlyParty {
         if (now - lastAction < timeToReac) // Reaction time to reached.
             throw;
         if ((msg.sender==requestCreator && secondRandom==0) // The requesting party can set the state if the other one has not given its random number
@@ -195,7 +197,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function createAppeal(uint256 firstRandom) onlyAccount(requestCreator) {
         if (sha3(firstRandom)!=hashRandom // Value not corresponding to the commitment.
-            || secondRandom==0 // Lack of counter appeal
+            || secondRandom==0 // Lack of counter appeal.
             || court.getAppeals(disputeID) + 1 != nextAppeals) // The dispute is already submitted.
             throw;
         court.appealRuling(disputeID,firstRandom ^ secondRandom); // Create an appeal with a random number being a XOR of both of them.
@@ -208,15 +210,3 @@ contract TwoPartyArbitrable is Arbitrable {
     }
     
 }
-
-/// This contract is a simple example where arbitration only change a state varible
-contract ExampleTwoPartyArbitrable is TwoPartyArbitrable {
-    enum State {created, ruledA, ruledB}
-    State public state; // The state can be set by the court.
-    
-    function ExampleTwoPartyArbitrable(Court _court, address _partyB, uint256 _timeToReac) TwoPartyArbitrable(_court,_partyB,_timeToReac) {}
-    
-    function actionA(uint256 _disputeID) private {state=State.ruledA;}
-    function actionB(uint256 _disputeID) private {state=State.ruledB;}
-}
-
