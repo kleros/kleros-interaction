@@ -4,6 +4,7 @@ import GithubCorner from 'react-github-corner'
 import { keccak_256 } from 'js-sha3'
 import { Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap'
 import { Link } from 'react-router'
+import axios from 'axios'
 
 import '../styles/App.scss'
 
@@ -13,7 +14,22 @@ class ExampleArbitrableForm extends Component {
     super();
   }
 
-  componentDidMount() {}
+  componentDidMount() {
+    setTimeout(() => {
+      if (typeof web3 !== 'undefined') {
+        web3 = new Web3(web3.currentProvider);
+        this.setState({web3: true})
+      }
+      this.serverRequest =
+        axios
+          .get("http://138.197.44.168:3000/twoPartyArbitrable/" + web3.eth.accounts[0])
+          .then((result) => {
+              this.setState({
+                data: result.data
+            });
+          })
+    }, 1000)
+  }
 
   state = {
       contractAdress: null,
@@ -23,6 +39,8 @@ class ExampleArbitrableForm extends Component {
       submitValueValid: false,
       transactionLoad: false,
       contracts: [],
+      data: [],
+      isWeb3: false,
   }
 
     /**
@@ -84,6 +102,16 @@ class ExampleArbitrableForm extends Component {
     this.submitValid()
   }
 
+  listContracts = () => {
+    axios
+      .get("http://138.197.44.168:3000/twoPartyArbitrable/" + web3.eth.accounts[0])
+      .then((result) => {
+          this.setState({
+            data: result.data
+        });
+      })
+  }
+
   deploySmartContract = (event) => {
     event.preventDefault();
     if ('undefined' === typeof web3) {
@@ -116,16 +144,45 @@ class ExampleArbitrableForm extends Component {
              let contracts = this.state.contracts;
              contracts.push(contract.address)
              this.setState({ contracts: contracts})
+
+             let config = {
+               headers: {"Content-Type": "application/json"}
+             }
+
+             axios
+              .post("http://138.197.44.168:3000/twoPartyArbitrable", {
+                 adressUser: web3.eth.accounts[0],
+                 adressContract: contract.address
+                 }, config)
+                 .then((response) => {
+                   console.log(response);
+                   let data = this.state.data
+                   data.push({adressUser: web3.eth.accounts[0], adressContract: contract.address})
+                   console.log(data)
+                   this.setState({
+                     data: data
+                   })
+                 })
+                 .catch((error) => {
+                   console.log(error);
+               })
           }
        })
     }
   }
 
   render() {
-
+    const isWeb3 = this.state.web3
     return (
       <div>
-        {'undefined' === typeof web3 ? <div className="not-log-in">Web3 account not found</div> : <div className="log-in">Log in {web3.eth.accounts[0]}</div>}
+        <div id="preload">
+          <img src="https://github.com/n1c01a5/workspace/blob/master/dapp/src/public/images/loading.gif?raw=true" width="1" height="1" alt="Image 01" />
+        </div>
+        {!isWeb3 ? (
+          <div className="not-log-in">Web3 account not found</div>
+        ) : (
+          <div className="log-in">Log in {web3.eth.accounts[0]}</div>
+        )}
         {this.state.transactionLoad ?
           <figure>
             <img
@@ -161,14 +218,14 @@ class ExampleArbitrableForm extends Component {
         }
         <div>
           <div>List contracts:</div>
-          <ul>
-            {this.state.contracts.map(item => (
-              <li key={item}><Link to={`/examplearbitrable/${item}`}>{item}</Link></li>
-            ))}
-          </ul>
+            <ul>
+              {this.listContracts && this.state.data.map((party, key) => (
+                <li key={key}><Link to={`/examplearbitrable/${party.adressContract}`}>{party.adressContract}</Link></li>
+              ))}
+            </ul>
+          </div>
         </div>
-      </div>
-    )
+      )
   }
 }
 
