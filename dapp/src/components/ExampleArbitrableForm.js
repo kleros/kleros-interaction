@@ -158,7 +158,6 @@ class ExampleArbitrableForm extends Component {
                    console.log(response);
                    let data = this.state.data
                    data.push({adressUser: web3.eth.accounts[0], adressContract: contract.address})
-                   console.log(data)
                    this.setState({
                      data: data
                    })
@@ -204,17 +203,23 @@ class ExampleArbitrableForm extends Component {
                 }
               </div>
               <div className="float-xs-right">
-                <button className={this.state.submitValueValid ? "button text-right valid" : "button text-right"} onClick={this.deploySmartContract}>
-                  Deploy the smart contract
-                </button>
+                {this.state.submitValueValid ?
+                  <Button color="primary" onClick={this.deploySmartContract}>
+                    Deploy the smart contract
+                  </Button>
+                  :
+                  <Button disabled>
+                    Deploy the smart contract
+                  </Button>
+                }
               </div>
           </form>
         }
         {this.state.contractAdress ?
           <div className="alert alert-success" role="alert">
             <strong>Contract mined!</strong> <br/>Address: {this.state.contractAdress} <br/>TransactionHash: {this.state.contractTransactionHash}
-          </div> :
-          <div></div>
+          </div>
+          : <div></div>
         }
         <div>
           <div>List contracts:</div>
