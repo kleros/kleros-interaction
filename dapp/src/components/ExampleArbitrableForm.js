@@ -28,7 +28,6 @@ class ExampleArbitrableForm extends Component {
                 data: result.data
             });
           })
-      this.getDetails()
     }, 1000)
   }
 
@@ -42,19 +41,6 @@ class ExampleArbitrableForm extends Component {
       contracts: [],
       data: [],
       isWeb3: false,
-      collapse: false,
-      details: {
-        'lastAction' : null,
-        'timeToReac' : null,
-        'state' : null,
-        'disputeID' : null,
-        'secondRandom' : null,
-        'requestCreator' : null,
-        'partyB' : null,
-        'partyB' : null,
-        'hashRandom' : null,
-        'nextAppeals' : null
-      },
   }
 
     /**
@@ -179,32 +165,6 @@ class ExampleArbitrableForm extends Component {
     }
   }
 
-  getDetails = (adressContract) => {
-    // TODO random number in [[1,2^256-1]]
-    if ('undefined' === typeof web3) {
-      alert("install metamask");
-    } else {
-      // if contract adressContract
-      // get contract
-      //add array with the state of the smart contract
-      let examplearbitrableContract = web3.eth.contract([{"constant":false,"inputs":[{"name":"_secondRandom","type":"uint256"}],"name":"counterAppeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"partyA","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"requestCreator","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"partyB","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_secondRandom","type":"uint256"}],"name":"counterRequest","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"firstRandom","type":"uint256"}],"name":"createDispute","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_state","type":"uint8"}],"name":"setState","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_hashRandom","type":"bytes32"}],"name":"request","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"nextAppeals","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"hashRandom","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"lastAction","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"disputeID","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"n","type":"uint256"}],"name":"hash","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"state","outputs":[{"name":"","type":"uint8"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"disputeID","type":"uint256"}],"name":"executeRulingA","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_hashRandom","type":"bytes32"}],"name":"appeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"timeToReac","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"firstRandom","type":"uint256"}],"name":"createAppeal","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"disputeID","type":"uint256"}],"name":"executeRulingB","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"secondRandom","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"inputs":[{"name":"_court","type":"address"},{"name":"_partyB","type":"address"},{"name":"_timeToReac","type":"uint256"}],"payable":false,"type":"constructor"}]);
-      // param adress contract
-      let examplearbitrableContractInstance = examplearbitrableContract.at("0xf6675dbf6ddb869bd51b18f1538f4e18e911950a");
-      examplearbitrableContractInstance.timeToReac({from: web3.eth.accounts[0]}, (res,err) => {
-        console.log(res)
-        console.log(err)
-        let details = this.state.details
-        details.timeToReac = err.c[0]
-        this.setState({details: details})
-        console.log(this.state.details)
-      });
-    }
-  }
-
-  toggle = () => {
-    this.setState({ collapse: !this.state.collapse });
-  }
-
   render() {
     const isWeb3 = this.state.web3
     return (
@@ -267,14 +227,6 @@ class ExampleArbitrableForm extends Component {
             ))}
           </ul>
         </div>
-        <Button onClick={this.toggle} style={{ marginBottom: '1rem' }}>Details of the smart contract</Button>
-        <Collapse isOpen={this.state.collapse}>
-          <Card>
-            <CardBlock>
-              <p>Time to reac: {this.state.details.timeToReac} seconds</p>
-            </CardBlock>
-          </Card>
-        </Collapse>
       </div>
     )
   }
