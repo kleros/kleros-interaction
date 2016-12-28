@@ -123,7 +123,12 @@ class ExampleArbitrableContract extends Component {
             <Row>
               <Col>
                 <h1 className="intro">Example Arbitrable</h1>
-                <p>Random number (save the number) : { this.state.randomNumber } <button onClick={this.randomNumber}>Change the random number</button></p>
+                <p>
+                  Random number (save the number) : { this.state.randomNumber }
+                  <div className="float-xs-right">
+                    <Button color="secondary" onClick={this.randomNumber}>Change the random number</Button>
+                  </div>
+                </p>
                 <p>Random number hash : { this.state.randomNumberHash }</p>
                 { this.state.request ? (
                   <div className="float-xs-right">
@@ -133,7 +138,7 @@ class ExampleArbitrableContract extends Component {
                       <Button onClick={this.action2}>Action 2</Button>
                     </ButtonGroup>
                   </div>
-                ) : (<div className="float-xs-right"><button onClick={this.saveRandomNumber}>Save the random number</button></div>)}
+                ) : (<div className="float-xs-right"><Button color="primary" onClick={this.saveRandomNumber}>Save the random number</Button></div>)}
               </Col>
             </Row>
           </Container>
