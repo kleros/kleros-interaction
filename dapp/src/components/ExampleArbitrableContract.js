@@ -48,11 +48,6 @@ class ExampleArbitrableContract extends Component {
     } else {
       let examplearbitrableContract = web3.eth.contract([{"constant":false,"inputs":[{"name":"executeA","type":"bool"}],"name":"executeDueToInactivity","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_secondRandom","type":"uint256"}],"name":"counterAppeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"partyA","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"requestCreator","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"partyB","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"disputeID","type":"uint256"}],"name":"ruleA","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_secondRandom","type":"uint256"}],"name":"counterRequest","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"disputeID","type":"uint256"}],"name":"ruleB","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"firstRandom","type":"uint256"}],"name":"createDispute","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_hashRandom","type":"bytes32"}],"name":"request","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"nextAppeals","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"hashRandom","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"lastAction","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"disputeID","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"n","type":"uint256"}],"name":"hash","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"state","outputs":[{"name":"","type":"uint8"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_hashRandom","type":"bytes32"}],"name":"appeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"timeToReac","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"firstRandom","type":"uint256"}],"name":"createAppeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"secondRandom","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"inputs":[{"name":"_court","type":"address"},{"name":"_partyB","type":"address"},{"name":"_timeToReac","type":"uint256"}],"payable":false,"type":"constructor"}]);
       let examplearbitrableContractInstance = examplearbitrableContract.at(this.props.params.contractAdress);
-      examplearbitrableContractInstance.hash(this.state.randomNumber, {from: web3.eth.accounts[0]}, (res,err) => {
-        console.log(res)
-        console.log(err)
-        this.setState({randomNumberHash: err})
-  	  });
       examplearbitrableContractInstance.executeDueToInactivity(true, {from: web3.eth.accounts[0]}, (res,err) => {
         console.log(res)
         console.log(err)
@@ -66,11 +61,6 @@ class ExampleArbitrableContract extends Component {
     } else {
       let examplearbitrableContract = web3.eth.contract([{"constant":false,"inputs":[{"name":"executeA","type":"bool"}],"name":"executeDueToInactivity","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_secondRandom","type":"uint256"}],"name":"counterAppeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"partyA","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"requestCreator","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"partyB","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"disputeID","type":"uint256"}],"name":"ruleA","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_secondRandom","type":"uint256"}],"name":"counterRequest","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"disputeID","type":"uint256"}],"name":"ruleB","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"firstRandom","type":"uint256"}],"name":"createDispute","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_hashRandom","type":"bytes32"}],"name":"request","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"nextAppeals","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"hashRandom","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"lastAction","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"disputeID","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"n","type":"uint256"}],"name":"hash","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"state","outputs":[{"name":"","type":"uint8"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_hashRandom","type":"bytes32"}],"name":"appeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"timeToReac","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"firstRandom","type":"uint256"}],"name":"createAppeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"secondRandom","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"inputs":[{"name":"_court","type":"address"},{"name":"_partyB","type":"address"},{"name":"_timeToReac","type":"uint256"}],"payable":false,"type":"constructor"}]);
       let examplearbitrableContractInstance = examplearbitrableContract.at(this.props.params.contractAdress);
-      examplearbitrableContractInstance.hash(this.state.randomNumber, {from: web3.eth.accounts[0]}, (res,err) => {
-        console.log(res)
-        console.log(err)
-        this.setState({randomNumberHash: err})
-      });
       examplearbitrableContractInstance.executeDueToInactivity(false, {from: web3.eth.accounts[0]}, (res,err) => {
         console.log(res)
         console.log(err)
@@ -131,6 +121,7 @@ class ExampleArbitrableContract extends Component {
         let details = this.state.details
         details.state = err.c[0]
         this.setState({details: details})
+        console.log(err)
       });
       examplearbitrableContractInstance.disputeID({from: web3.eth.accounts[0]}, (res,err) => {
         let details = this.state.details
@@ -160,9 +151,13 @@ class ExampleArbitrableContract extends Component {
         this.setState({details: details})
       });
       examplearbitrableContractInstance.hashRandom({from: web3.eth.accounts[0]}, (res,err) => {
+        console.log(res)
+        console.log(err)
         let details = this.state.details
         details.hashRandom = err
         this.setState({details: details})
+        if ('0x0000000000000000000000000000000000000000000000000000000000000000' != err)
+          this.setState({request: true})
       });
       examplearbitrableContractInstance.nextAppeals({from: web3.eth.accounts[0]}, (res,err) => {
         let details = this.state.details
@@ -174,6 +169,8 @@ class ExampleArbitrableContract extends Component {
 
   toggle = () => {
     this.setState({ collapse: !this.state.collapse });
+    if (!this.state.collapse)
+      this.getDetails()
   }
 
   render() {
@@ -186,13 +183,6 @@ class ExampleArbitrableContract extends Component {
             <Row>
               <Col>
                 <h1 className="intro">Example Arbitrable</h1>
-                <p>
-                  Random number (save the number) : { this.state.randomNumber }
-                  <div className="float-xs-right">
-                    <Button color="secondary" onClick={this.randomNumber}>Change the random number</Button>
-                  </div>
-                </p>
-                <p>Random number hash : { this.state.randomNumberHash }</p>
                 { this.state.request ? (
                   <div className="text-xs-center">
                     <b>Execute Due To Inactvity </b>
@@ -201,7 +191,18 @@ class ExampleArbitrableContract extends Component {
                       <Button onClick={this.action2}>Action 2</Button>
                     </ButtonGroup>
                   </div>
-                ) : (<div className="text-xs-center"><Button color="primary" onClick={this.saveRandomNumber}>Save the random number</Button></div>)}
+                ) : (
+                  <div>
+                    <p>Random number (save the number) : { this.state.randomNumber }</p>
+                    <div className="float-xs-right">
+                      <Button color="secondary" onClick={this.randomNumber}>Change the random number</Button>
+                    </div>
+                    <p>Random number hash : { this.state.randomNumberHash }</p>
+                    <div className="text-xs-center">
+                      <Button color="primary" onClick={this.saveRandomNumber}>Save the random number</Button>
+                    </div>
+                  </div>
+                )}
               </Col>
             </Row>
             <Row>
