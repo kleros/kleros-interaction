@@ -64,7 +64,7 @@ class ExampleArbitrableContract extends Component {
       examplearbitrableContractInstance.executeDueToInactivity(false, {from: web3.eth.accounts[0]}, (res,err) => {
         console.log(res)
         console.log(err)
-      });
+      })
     }
   }
 
@@ -81,7 +81,7 @@ class ExampleArbitrableContract extends Component {
         console.log(res)
         console.log(err)
         this.setState({randomNumberHash: err})
-  	  });
+  	  })
     }
   }
 

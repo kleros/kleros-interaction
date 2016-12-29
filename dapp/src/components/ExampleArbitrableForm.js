@@ -34,9 +34,12 @@ class ExampleArbitrableForm extends Component {
   state = {
       contractAdress: null,
       contractTransactionHash: null,
+      name: '',
+      timeToReac: 3600,
       partyB: '',
+      errName: false,
+      errTimeToReact: false,
       errPartyB: false,
-      submitValueValid: false,
       transactionLoad: false,
       contracts: [],
       data: [],
@@ -88,12 +91,30 @@ class ExampleArbitrableForm extends Component {
     this.setState({partyB: event.target.value});
     if ('' !== event.target.value && !this.isAddress(event.target.value)) {
       this.setState({errPartyB: true});
-      this.setState({submitValueValid: false});
     } else if ('' !== event.target.value) {
-      this.setState({submitValueValid: true});
       this.setState({errPartyB: false})
     } else {
       this.setState({errPartyB: false});
+    }
+  }
+
+  handleChangeName = (event) => {
+    event.preventDefault()
+    this.setState({name: event.target.value});
+    if (/^[a-z0-9]{2,32}$/.test(event.target.value)) {
+      this.setState({errName: false})
+    } else {
+      this.setState({errName: true});
+    }
+  }
+
+  handleChangeTimeToReac = (event) => {
+    event.preventDefault()
+    this.setState({timeToReac: event.target.value});
+    if (Number.isInteger(event.target.value)) {
+      this.setState({errTimeToReact: false})
+    } else {
+      this.setState({errTimeToReact: true});
     }
   }
 
@@ -112,9 +133,9 @@ class ExampleArbitrableForm extends Component {
     if ('undefined' === typeof web3) {
       alert("install metamask");
     } else if(!this.state.errCourt && !this.state.errPartyB && !this.state.errTimeToReact) {
-      let _court = "0x4666F54695Df986D58a70089e87422d2462a6799";
-      let _partyB = this.state.partyB;
-      let _timeToReac = "30";
+      let _court = "0x4666F54695Df986D58a70089e87422d2462a6799"
+      let _partyB = this.state.partyB
+      let _timeToReac = this.state.timeToReac
       let examplearbitrableContract = web3.eth.contract([{"constant":false,"inputs":[{"name":"executeA","type":"bool"}],"name":"executeDueToInactivity","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_secondRandom","type":"uint256"}],"name":"counterAppeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"partyA","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"requestCreator","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"partyB","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"disputeID","type":"uint256"}],"name":"ruleA","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_secondRandom","type":"uint256"}],"name":"counterRequest","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"disputeID","type":"uint256"}],"name":"ruleB","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"firstRandom","type":"uint256"}],"name":"createDispute","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_hashRandom","type":"bytes32"}],"name":"request","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"nextAppeals","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"hashRandom","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"lastAction","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"disputeID","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"n","type":"uint256"}],"name":"hash","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"state","outputs":[{"name":"","type":"uint8"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_hashRandom","type":"bytes32"}],"name":"appeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"timeToReac","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"firstRandom","type":"uint256"}],"name":"createAppeal","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"secondRandom","outputs":[{"name":"","type":"uint256"}],"payable":false,"type":"function"},{"inputs":[{"name":"_court","type":"address"},{"name":"_partyB","type":"address"},{"name":"_timeToReac","type":"uint256"}],"payable":false,"type":"constructor"}]);
       let examplearbitrable = examplearbitrableContract.new(
          _court,
@@ -188,29 +209,47 @@ class ExampleArbitrableForm extends Component {
             </figcaption>
           </figure> :
           <form>
-              <div className={this.state.errPartyB ? 'form-group has-error' : 'form-group'}>
-                <input type="text" required value={this.state.partyB} onChange={this.handleChangePartyB} />
-                <label htmlFor="input" className="control-label">address partyB</label>
-                <i className="bar"></i>
-                {this.state.errPartyB ?
-                  <legend className="legend">Address not valid</legend> :
-                  <div></div>
+            <div className={this.state.errName ? 'form-group has-error' : 'form-group'}>
+              <input name="input_name" type="text" required value={this.state.name} onChange={this.handleChangeName} />
+              <label htmlFor="input_name" className="control-label">Name</label>
+              <i className="bar"></i>
+              {this.state.errName ?
+                <legend className="legend">Name not valid</legend> :
+                <div></div>
+              }
+            </div>
+            <div className={this.state.errTimeToReact ? 'form-group has-error' : 'form-group'}>
+              <input type="text" required value={this.state.timeToReac} onChange={this.handleChangeTimeToReac} />
+              <label htmlFor="input" className="control-label">Time to reac (seconds)</label>
+              <i className="bar"></i>
+              {this.state.errTimeToReact ?
+                <legend className="legend">Time not valid</legend> :
+                <div></div>
+              }
+            </div>
+            <div className={this.state.errPartyB ? 'form-group has-error' : 'form-group'}>
+              <input type="text" required value={this.state.partyB} onChange={this.handleChangePartyB} />
+              <label htmlFor="input" className="control-label">Address B party</label>
+              <i className="bar"></i>
+              {this.state.errPartyB ?
+                <legend className="legend">Address not valid</legend> :
+                <div></div>
+              }
+            </div>
+            {!this.state.contractAdress ?
+              <div className="text-xs-center">
+                {(!this.state.errTimeToReact && !this.state.errPartyB && '' != this.state.partyB && 0 <= this.state.timeToReac) ?
+                  <Button color="primary" onClick={this.deploySmartContract}>
+                    Deploy the smart contract
+                  </Button>
+                  :
+                  <Button disabled>
+                    Deploy the smart contract
+                  </Button>
                 }
               </div>
-              {!this.state.contractAdress ?
-                <div className="text-xs-center">
-                  {this.state.submitValueValid ?
-                    <Button color="primary" onClick={this.deploySmartContract}>
-                      Deploy the smart contract
-                    </Button>
-                    :
-                    <Button disabled>
-                      Deploy the smart contract
-                    </Button>
-                  }
-                </div>
-                : <div></div>
-              }
+              : <div></div>
+            }
           </form>
         }
         {this.state.contractAdress ?
