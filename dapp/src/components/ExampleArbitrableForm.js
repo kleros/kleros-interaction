@@ -32,7 +32,7 @@ class ExampleArbitrableForm extends Component {
   }
 
   state = {
-      contractAdress: null,
+      contractAddress: null,
       contractTransactionHash: null,
       name: '',
       timeToReac: 3600,
@@ -50,7 +50,7 @@ class ExampleArbitrableForm extends Component {
    * Checks if the given string is an address
    *
    * @method isAddress
-   * @param {String} address the given HEX adress
+   * @param {String} address the given HEX address
    * @return {Boolean}
   */
   isAddress = (address) => {
@@ -70,7 +70,7 @@ class ExampleArbitrableForm extends Component {
    * Checks if the given string is a checksummed address
    *
    * @method isChecksumAddress
-   * @param {String} address the given HEX adress
+   * @param {String} address the given HEX address
    * @return {Boolean}
   */
   isChecksumAddress = (address) => {
@@ -155,7 +155,7 @@ class ExampleArbitrableForm extends Component {
            if (contract && typeof contract.address !== 'undefined') {
              this.setState({ transactionLoad: false})
              console.log('Contract mined! address: ' + contract.address + ' transactionHash: ' + contract.transactionHash);
-             this.setState({ contractAdress: contract.address })
+             this.setState({ contractAddress: contract.address })
              this.setState({ contractTransactionHash: contract.transactionHash })
              let contracts = this.state.contracts;
              contracts.push(contract.address)
@@ -167,13 +167,13 @@ class ExampleArbitrableForm extends Component {
 
              axios
               .post("http://138.197.44.168:3000/twoPartyArbitrable", {
-                 adressUser: web3.eth.accounts[0],
-                 adressContract: contract.address
+                 addressUser: web3.eth.accounts[0],
+                 addressContract: contract.address
                  }, config)
                  .then((response) => {
                    console.log(response);
                    let data = this.state.data
-                   data.push({adressUser: web3.eth.accounts[0], adressContract: contract.address})
+                   data.push({name: this.state.name, addressUser: web3.eth.accounts[0], addressContract: contract.address})
                    this.setState({
                      data: data
                    })
@@ -236,7 +236,7 @@ class ExampleArbitrableForm extends Component {
                 <div></div>
               }
             </div>
-            {!this.state.contractAdress ?
+            {!this.state.contractAddress ?
               <div className="text-xs-center">
                 {(!this.state.errTimeToReact && !this.state.errPartyB && '' != this.state.partyB && 0 <= this.state.timeToReac) ?
                   <Button color="primary" onClick={this.deploySmartContract}>
@@ -252,9 +252,9 @@ class ExampleArbitrableForm extends Component {
             }
           </form>
         }
-        {this.state.contractAdress ?
+        {this.state.contractAddress ?
           <div className="alert alert-success" role="alert">
-            <strong>Contract mined!</strong> <br/>Address: {this.state.contractAdress} <br/>TransactionHash: {this.state.contractTransactionHash}
+            <strong>Contract mined!</strong> <br/>Address: {this.state.contractAddress} <br/>TransactionHash: {this.state.contractTransactionHash}
           </div>
           : <div></div>
         }
@@ -262,7 +262,7 @@ class ExampleArbitrableForm extends Component {
           {this.state.contracts > 0 ? <div>List contracts:</div> : <div></div>}
           <ul>
             {this.listContracts && this.state.data.map((party, key) => (
-              <li key={key}><Link to={`/examplearbitrable/${party.adressContract}`}>{party.adressContract}</Link></li>
+              <li key={key}><Link to={`/examplearbitrable/${party.addressContract}`}>{party.addressContract} {party.name}</Link></li>
             ))}
           </ul>
         </div>
