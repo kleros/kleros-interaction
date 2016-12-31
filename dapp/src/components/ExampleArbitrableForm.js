@@ -19,6 +19,8 @@ class ExampleArbitrableForm extends Component {
       if (typeof web3 !== 'undefined') {
         web3 = new Web3(web3.currentProvider);
         this.setState({web3: true})
+      } else {
+        alert("install Metamask or use Mist");
       }
       this.serverRequest =
         axios
@@ -130,9 +132,7 @@ class ExampleArbitrableForm extends Component {
 
   deploySmartContract = (event) => {
     event.preventDefault();
-    if ('undefined' === typeof web3) {
-      alert("install metamask");
-    } else if(!this.state.errCourt && !this.state.errPartyB && !this.state.errTimeToReact) {
+    if(!this.state.errCourt && !this.state.errPartyB && !this.state.errTimeToReact) {
       let _court = "0x4666F54695Df986D58a70089e87422d2462a6799"
       let _partyB = this.state.partyB
       let _timeToReac = this.state.timeToReac
