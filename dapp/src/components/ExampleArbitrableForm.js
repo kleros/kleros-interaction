@@ -167,13 +167,14 @@ class ExampleArbitrableForm extends Component {
 
              axios
               .post("http://138.197.44.168:3000/twoPartyArbitrable", {
+                 name: this.state.name,
                  addressUser: web3.eth.accounts[0],
                  addressContract: contract.address
                  }, config)
                  .then((response) => {
                    console.log(response);
                    let data = this.state.data
-                   data.push({nameArbitrable: this.state.name, addressUser: web3.eth.accounts[0], addressContract: contract.address})
+                   data.push({name: this.state.name, addressUser: web3.eth.accounts[0], addressContract: contract.address})
                    this.setState({
                      data: data
                    })
@@ -262,7 +263,7 @@ class ExampleArbitrableForm extends Component {
           {this.state.contracts > 0 ? <div>List contracts:</div> : <div></div>}
           <ul>
             {this.listContracts && this.state.data.map((party, key) => (
-              <li key={key}><Link to={`/examplearbitrable/${party.addressContract}`}>{party.addressContract} {party.nameArbitrable !== undefined ? `- ${party.nameArbitrable}` : <div></div>}</Link></li>
+              <li key={key}><Link to={`/examplearbitrable/${party.addressContract}`}>{party.addressContract} {party.name !== undefined ? `- ${party.name}` : <div></div>}</Link></li>
             ))}
           </ul>
         </div>
