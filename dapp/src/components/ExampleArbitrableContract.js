@@ -1,8 +1,9 @@
 import React, { Component } from 'react'
 import GithubCorner from 'react-github-corner'
-import { Button, ButtonGroup, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col, Collapse, Card, CardBlock } from 'reactstrap'
+import { Alert, Button, ButtonGroup, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col, Collapse, Card, CardBlock } from 'reactstrap'
 import { keccak_256 } from 'js-sha3'
 import Menu from './Menu'
+import Footer from './Footer'
 
 import '../styles/App.scss'
 
@@ -29,6 +30,7 @@ class ExampleArbitrableContract extends Component {
     randomNumber: null,
     randomNumberHash: null,
     request: false,
+    requestMessageFlash: false,
     collapse: false,
     details: {
       'lastAction' : null,
@@ -89,6 +91,7 @@ class ExampleArbitrableContract extends Component {
         console.log(res)
         console.log(err)
         this.setState({request: true})
+        this.setState({requestMessageFlash: true})
         console.log("Request random number hash done")
       })
     }
@@ -167,60 +170,64 @@ class ExampleArbitrableContract extends Component {
 
     return (
       <div>
-        <div>
-          <Menu />
-          <Container>
-            <Row>
-              <Col>
-                <h1 className="intro">Example Arbitrable</h1>
-                { this.state.request ? (
+        <Menu />
+        <Container>
+          <Row>
+            <Col>
+              <h1 className="intro">Example Arbitrable</h1>
+              { this.state.request ? (
+                <div className="text-xs-center executeDueToInactivity">
+                  <b>Execute Due To Inactvity </b>
+                  <ButtonGroup>
+                    <Button onClick={this.action1}>Action 1</Button>
+                    <Button onClick={this.action2}>Action 2</Button>
+                  </ButtonGroup>
+                </div>
+              ) : (
+                <div>
+                  <p>Random number (save the number) : { this.state.randomNumber }</p>
+                  <div className="float-xs-right">
+                    <Button color="secondary" onClick={this.randomNumber}>Change the random number</Button>
+                  </div>
+                  <p>Random number hash : { this.state.randomNumberHash }</p>
                   <div className="text-xs-center">
-                    <b>Execute Due To Inactvity </b>
-                    <ButtonGroup>
-                      <Button onClick={this.action1}>Action 1</Button>
-                      <Button onClick={this.action2}>Action 2</Button>
-                    </ButtonGroup>
+                    <Button color="primary" onClick={this.saveRandomNumber}>Save the random number</Button>
                   </div>
-                ) : (
-                  <div>
-                    <p>Random number (save the number) : { this.state.randomNumber }</p>
-                    <div className="float-xs-right">
-                      <Button color="secondary" onClick={this.randomNumber}>Change the random number</Button>
-                    </div>
-                    <p>Random number hash : { this.state.randomNumberHash }</p>
-                    <div className="text-xs-center">
-                      <Button color="primary" onClick={this.saveRandomNumber}>Save the random number</Button>
-                    </div>
-                  </div>
-                )}
-              </Col>
-            </Row>
-            <Row>
-              <Col>
-                <Button onClick={this.toggle} style={{ marginBottom: '1rem' }}>Details of the smart contract</Button>
-                <Collapse isOpen={this.state.collapse}>
-                  <Card>
-                    <CardBlock>
-                      <p>Last action: {this.state.details.lastAction}</p>
-                      <p>Time to reac: {this.state.details.timeToReac} seconds</p>
-                      <p>State: {this.state.details.state}</p>
-                      <p>Id dispute: {this.state.details.disputeID}</p>
-                      <p>Second random number: {this.state.details.secondRandom}</p>
-                      <p>Creator request: {this.state.details.requestCreator}</p>
-                      <p>Party A: {this.state.details.partyA}</p>
-                      <p>Party B: {this.state.details.partyB}</p>
-                      <p>Random hash: {this.state.details.hashRandom}</p>
-                      <p>Next appeals: {this.state.details.nextAppeals}</p>
-                    </CardBlock>
-                  </Card>
-                </Collapse>
-              </Col>
-            </Row>
-          </Container>
-          <hr className="my-2" />
-          <footer>EtherCourt.io</footer>
-        </div>
-        <GithubCorner href="https://github.com/ethercourt" />
+                </div>
+              )}
+              {this.state.requestMessageFlash ?
+                <div>
+                <Alert color="success">
+                  Request random number hash done
+                </Alert>
+                </div>
+                : <div></div>
+              }
+            </Col>
+          </Row>
+          <Row>
+            <Col>
+              <Button onClick={this.toggle} style={{ marginBottom: '1rem' }}>Details of the smart contract</Button>
+              <Collapse isOpen={this.state.collapse}>
+                <Card>
+                  <CardBlock>
+                    <p>Last action: {this.state.details.lastAction}</p>
+                    <p>Time to reac: {this.state.details.timeToReac} seconds</p>
+                    <p>State: {this.state.details.state}</p>
+                    <p>Id dispute: {this.state.details.disputeID}</p>
+                    <p>Second random number: {this.state.details.secondRandom}</p>
+                    <p>Creator request: {this.state.details.requestCreator}</p>
+                    <p>Party A: {this.state.details.partyA}</p>
+                    <p>Party B: {this.state.details.partyB}</p>
+                    <p>Random hash: {this.state.details.hashRandom}</p>
+                    <p>Next appeals: {this.state.details.nextAppeals}</p>
+                  </CardBlock>
+                </Card>
+              </Collapse>
+            </Col>
+          </Row>
+        </Container>
+        <Footer />
       </div>
     )
   }

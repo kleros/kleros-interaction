@@ -30,8 +30,10 @@ div#preload {display: none;}
   text-align: center;}
 
 img.desaturate {
-	filter: grayscale(100%);
-}
+	filter: grayscale(100%);}
+
+.executeDueToInactivity {
+  margin-bottom: 20px;}
 
 footer {
   margin-bottom: 1.5rem;

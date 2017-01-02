@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 import FontAwesome from 'react-fontawesome'
 import GithubCorner from 'react-github-corner'
 import { keccak_256 } from 'js-sha3'
-import { Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col, Collapse, Card, CardBlock } from 'reactstrap'
+import { Alert, Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col, Collapse, Card, CardBlock } from 'reactstrap'
 import { Link } from 'react-router'
 import axios from 'axios'
 
@@ -253,16 +253,16 @@ class ExampleArbitrableForm extends Component {
           </form>
         }
         {this.state.contractAddress ?
-          <div className="alert alert-success" role="alert">
+          <Alert color="success">
             <strong>Contract mined!</strong> <br/>Address: {this.state.contractAddress} <br/>TransactionHash: {this.state.contractTransactionHash}
-          </div>
+          </Alert>
           : <div></div>
         }
         <div>
           {this.state.contracts > 0 ? <div>List contracts:</div> : <div></div>}
           <ul>
             {this.listContracts && this.state.data.map((party, key) => (
-              <li key={key}><Link to={`/examplearbitrable/${party.addressContract}`}>{party.addressContract} {party.name}</Link></li>
+              <li key={key}><Link to={`/examplearbitrable/${party.addressContract}`}>{party.addressContract} {party.name !== undefined ? `- ${party.name}` : <div></div>}</Link></li>
             ))}
           </ul>
         </div>
