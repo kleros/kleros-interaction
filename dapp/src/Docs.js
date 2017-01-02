@@ -1,8 +1,9 @@
 import React, { Component } from 'react'
 import FontAwesome from 'react-fontawesome'
-import GithubCorner from 'react-github-corner';
-import { Button, Jumbotron, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap';
-import Menu from './components/Menu';
+import GithubCorner from 'react-github-corner'
+import { Button, Jumbotron, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap'
+import Menu from './components/Menu'
+import Footer from './components/Footer'
 
 import 'styles/App.scss'
 
@@ -15,7 +16,6 @@ class Docs extends Component {
   render() {
 
     return (
-      <div>
       <div>
         <Menu />
         <Container>
@@ -111,10 +111,7 @@ class Docs extends Component {
             </Col>
           </Row>
         </Container>
-        <hr className="my-2" />
-        <footer>EtherCourt.io</footer>
-      </div>
-      <GithubCorner href="https://github.com/ethercourt" />
+        <Footer />
       </div>
     )
   }
