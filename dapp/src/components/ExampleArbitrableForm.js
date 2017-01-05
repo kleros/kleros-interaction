@@ -113,11 +113,9 @@ class ExampleArbitrableForm extends Component {
   handleChangeTimeToReac = (event) => {
     event.preventDefault()
     this.setState({timeToReac: event.target.value});
-    if (Number.isInteger(event.target.value)) {
-      this.setState({errTimeToReact: false})
-    } else {
-      this.setState({errTimeToReact: true});
-    }
+    /^\d+$/.test(event.target.value)
+      ? this.setState({errTimeToReact: false})
+      : this.setState({errTimeToReact: true})
   }
 
   listContracts = () => {
