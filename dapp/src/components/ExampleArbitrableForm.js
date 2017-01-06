@@ -17,10 +17,11 @@ class ExampleArbitrableForm extends Component {
   componentDidMount() {
     setTimeout(() => {
       if (typeof web3 !== 'undefined') {
-        web3 = new Web3(web3.currentProvider);
+        if (typeof Web3 !== 'undefined')
+          web3 = new Web3(web3.currentProvider);
         this.setState({web3: true})
       } else {
-        alert("install Metamask or use Mist");
+        alert("install Metamask or use Mist")
       }
       this.serverRequest =
         axios
@@ -113,11 +114,9 @@ class ExampleArbitrableForm extends Component {
   handleChangeTimeToReac = (event) => {
     event.preventDefault()
     this.setState({timeToReac: event.target.value});
-    if (Number.isInteger(event.target.value)) {
-      this.setState({errTimeToReact: false})
-    } else {
-      this.setState({errTimeToReact: true});
-    }
+    /^\d+$/.test(event.target.value)
+      ? this.setState({errTimeToReact: false})
+      : this.setState({errTimeToReact: true})
   }
 
   listContracts = () => {
@@ -174,7 +173,12 @@ class ExampleArbitrableForm extends Component {
                  .then((response) => {
                    console.log(response);
                    let data = this.state.data
-                   data.push({name: this.state.name, addressUser: web3.eth.accounts[0], addressContract: contract.address})
+                   data.push({
+                     name: this.state.name,
+                     addressUser: web3.eth.accounts[0],
+                     addressPartyB: this.state.partyB,
+                     addressContract: contract.address
+                   })
                    this.setState({
                      data: data
                    })
@@ -195,7 +199,7 @@ class ExampleArbitrableForm extends Component {
           <img src="https://github.com/n1c01a5/workspace/blob/master/dapp/src/public/images/loading.gif?raw=true" width="1" height="1" alt="Image 01" />
         </div>
         {!isWeb3 ? (
-          <div className="not-log-in">Web3 account not found</div>
+          <div className="not-log-in">Web3 account not found {web3.eth.accounts[0]}</div>
         ) : (
           <div className="log-in">Log in {web3.eth.accounts[0]}</div>
         )}
@@ -206,7 +210,7 @@ class ExampleArbitrableForm extends Component {
               alt="loading contract mining"
               className="mx-auto d-block" />
             <figcaption className="text-xs-center">
-              contract mining (~ 20 seconds) ...
+              contract mining ...
             </figcaption>
           </figure> :
           <form>
