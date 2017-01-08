@@ -48,8 +48,8 @@ class App extends Component {
                   <br/>Dispute will be first handled by arbitrators, but parties will have the possibility to appeal to a jury system.
                   Both arbitrators and jury members will have game theoretical incentive to arbitrate disputes in an honest manner.
                 </p>
-                <p className="lead">
-                  <a className="btn btn-outline-danger" href="https://docs.google.com/document/d/1aL_ypp2hKOo0lI7XKtOpxMkt3kBIky7Q5eb3jsPMq80/edit">Vote for the project</a>
+                <p className="text-xs-center">
+                  <a className="btn btn-outline-danger" href="/#/dapp">Đapp</a>
                 </p>
               </Jumbotron>
             </Col>

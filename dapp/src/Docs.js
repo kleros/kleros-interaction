@@ -27,7 +27,7 @@ class Docs extends Component {
                 system enforcing those contracts - courts and enforcement
                 agencies.
                 <br/>With the invention of blockchain technology we are moving
-                to an age where enforcing contracts is automatic via smart $
+                to an age where enforcing contracts is automatic via smart
                 contracts moving real assets on blockchain.
                 <br/>
                 But nowdays real-world contracts can not be presented as
