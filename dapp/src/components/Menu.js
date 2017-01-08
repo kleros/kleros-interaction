@@ -18,9 +18,6 @@ class Menu extends Component {
               <NavLink href="/#/dapp">Đapp</NavLink>
             </NavItem>
             <NavItem>
-              <NavLink href="https://docs.google.com/document/d/1aL_ypp2hKOo0lI7XKtOpxMkt3kBIky7Q5eb3jsPMq80">Vote for the project</NavLink>
-            </NavItem>
-            <NavItem>
               <NavLink href="/#/docs">Documentation</NavLink>
             </NavItem>
             <NavItem>
@@ -28,6 +25,9 @@ class Menu extends Component {
             </NavItem>
             <NavItem>
               <NavLink href="https://hack.ether.camp/public/decentralized-court">EtherCamp</NavLink>
+            </NavItem>
+            <NavItem>
+              <NavLink href="https://twitter.com/ethercourt">Twitter</NavLink>
             </NavItem>
           </Nav>
         </Container>
