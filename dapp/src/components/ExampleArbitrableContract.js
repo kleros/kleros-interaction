@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import GithubCorner from 'react-github-corner'
-import { Alert, Button, ButtonGroup, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col, Collapse, Card, CardBlock } from 'reactstrap'
+import { TabContent, TabPane, Nav, NavItem, NavLink, Button, CardTitle, CardText, Alert, ButtonGroup, Navbar, NavbarBrand, Tooltip, TooltipContent, Container, Row, Col, Collapse, Card, CardBlock } from 'reactstrap'
 import { keccak_256 } from 'js-sha3'
 import Menu from './Menu'
 import Footer from './Footer'
@@ -28,6 +28,14 @@ class ExampleArbitrableContract extends Component {
     }, 1000)
   }
 
+  toggle(tab) {
+    if (this.state.activeTab !== tab) {
+      this.setState({
+        activeTab: tab
+      });
+    }
+  }
+
   state = {
     // fake input
     randomNumber: 42,
@@ -53,6 +61,7 @@ class ExampleArbitrableContract extends Component {
       appeal: false,
     },
     waitingForArbitration: false,
+    activeTab: '1',
   }
 
 

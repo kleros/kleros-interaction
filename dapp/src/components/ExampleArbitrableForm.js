@@ -2,9 +2,10 @@ import React, { Component } from 'react'
 import FontAwesome from 'react-fontawesome'
 import GithubCorner from 'react-github-corner'
 import { keccak_256 } from 'js-sha3'
-import { Alert, Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col, Collapse, Card, CardBlock } from 'reactstrap'
+import { CardTitle, CardText, TabContent, TabPane, Alert, Button, Jumbotron, Navbar, NavbarBrand, Nav, NavItem, NavLink, Tooltip, TooltipContent, Container, Row, Col, Collapse, Card, CardBlock } from 'reactstrap'
 import { Link } from 'react-router'
 import axios from 'axios'
+import classnames from 'classnames'
 
 import '../styles/App.scss'
 
@@ -47,6 +48,15 @@ class ExampleArbitrableForm extends Component {
       contracts: [],
       data: [],
       isWeb3: false,
+      activeTab: '1',
+  }
+
+  toggle(tab) {
+    if (this.state.activeTab !== tab) {
+      this.setState({
+        activeTab: tab
+      });
+    }
   }
 
     /**
@@ -199,78 +209,113 @@ class ExampleArbitrableForm extends Component {
           <img src="https://github.com/n1c01a5/workspace/blob/master/dapp/src/public/images/loading.gif?raw=true" width="1" height="1" alt="Image 01" />
         </div>
         {!isWeb3 ? (
-          <div className="not-log-in">Web3 account not found {web3.eth.accounts[0]}</div>
+          <div className="not-log-in float-xs-right">Web3 account not found {web3.eth.accounts[0]}</div>
         ) : (
-          <div className="log-in">Log in {web3.eth.accounts[0]}</div>
+          <div className="log-in float-xs-right">Log in {web3.eth.accounts[0]}</div> // log in menu
         )}
-        {this.state.transactionLoad ?
-          <figure>
-            <img
-              src="https://github.com/n1c01a5/workspace/blob/master/dapp/src/public/images/loading.gif?raw=true"
-              alt="loading contract mining"
-              className="mx-auto d-block" />
-            <figcaption className="text-xs-center">
-              contract mining ...
-            </figcaption>
-          </figure> :
-          <form>
-            <div className={this.state.errName ? 'form-group has-error' : 'form-group'}>
-              <input name="input_name" type="text" required value={this.state.name} onChange={this.handleChangeName} />
-              <label htmlFor="input_name" className="control-label">Name</label>
-              <i className="bar"></i>
-              {this.state.errName ?
-                <legend className="legend">Name not valid</legend> :
-                <div></div>
-              }
-            </div>
-            <div className={this.state.errTimeToReact ? 'form-group has-error' : 'form-group'}>
-              <input type="text" required value={this.state.timeToReac} onChange={this.handleChangeTimeToReac} />
-              <label htmlFor="input" className="control-label">Time to reac (seconds)</label>
-              <i className="bar"></i>
-              {this.state.errTimeToReact ?
-                <legend className="legend">Time not valid</legend> :
-                <div></div>
-              }
-            </div>
-            <div className={this.state.errPartyB ? 'form-group has-error' : 'form-group'}>
-              <input type="text" required value={this.state.partyB} onChange={this.handleChangePartyB} />
-              <label htmlFor="input" className="control-label">Address B party</label>
-              <i className="bar"></i>
-              {this.state.errPartyB ?
-                <legend className="legend">Address not valid</legend> :
-                <div></div>
-              }
-            </div>
-            {!this.state.contractAddress ?
-              <div className="text-xs-center">
-                {(!this.state.errTimeToReact && !this.state.errPartyB && '' != this.state.partyB && 0 <= this.state.timeToReac) ?
-                  <Button color="primary" onClick={this.deploySmartContract}>
-                    Deploy the smart contract
-                  </Button>
-                  :
-                  <Button disabled>
-                    Deploy the smart contract
-                  </Button>
+
+        <Nav tabs>
+          <NavItem>
+            <NavLink
+              className={classnames({ active: this.state.activeTab === '1' })}
+              onClick={() => { this.toggle('1'); }}
+            >
+              Example arbitrable
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              className={classnames({ active: this.state.activeTab === '2' })}
+              onClick={() => { this.toggle('2'); }}
+            >
+              Court
+            </NavLink>
+          </NavItem>
+        </Nav>
+        <TabContent activeTab={this.state.activeTab}>
+          <TabPane tabId="1">
+            <Row>
+              <Col sm="12">
+                {this.state.transactionLoad ?
+                  <figure>
+                    <img
+                      src="https://github.com/n1c01a5/workspace/blob/master/dapp/src/public/images/loading.gif?raw=true"
+                      alt="loading contract mining"
+                      className="mx-auto d-block" />
+                    <figcaption className="text-xs-center">
+                      contract mining ...
+                    </figcaption>
+                  </figure> :
+                  <form>
+                    <div className={this.state.errName ? 'form-group has-error' : 'form-group'}>
+                      <input name="input_name" type="text" required value={this.state.name} onChange={this.handleChangeName} />
+                      <label htmlFor="input_name" className="control-label">Name</label>
+                      <i className="bar"></i>
+                      {this.state.errName ?
+                        <legend className="legend">Name not valid</legend> :
+                        <div></div>
+                      }
+                    </div>
+                    <div className={this.state.errTimeToReact ? 'form-group has-error' : 'form-group'}>
+                      <input type="text" required value={this.state.timeToReac} onChange={this.handleChangeTimeToReac} />
+                      <label htmlFor="input" className="control-label">Time to reac (seconds)</label>
+                      <i className="bar"></i>
+                      {this.state.errTimeToReact ?
+                        <legend className="legend">Time not valid</legend> :
+                        <div></div>
+                      }
+                    </div>
+                    <div className={this.state.errPartyB ? 'form-group has-error' : 'form-group'}>
+                      <input type="text" required value={this.state.partyB} onChange={this.handleChangePartyB} />
+                      <label htmlFor="input" className="control-label">Address B party</label>
+                      <i className="bar"></i>
+                      {this.state.errPartyB ?
+                        <legend className="legend">Address not valid</legend> :
+                        <div></div>
+                      }
+                    </div>
+                    {!this.state.contractAddress ?
+                      <div className="text-xs-center">
+                        {(!this.state.errTimeToReact && !this.state.errPartyB && '' != this.state.partyB && 0 <= this.state.timeToReac) ?
+                          <Button color="primary" onClick={this.deploySmartContract}>
+                            Deploy the smart contract
+                          </Button>
+                          :
+                          <Button disabled>
+                            Deploy the smart contract
+                          </Button>
+                        }
+                      </div>
+                      : <div></div>
+                    }
+                  </form>
                 }
-              </div>
-              : <div></div>
-            }
-          </form>
-        }
-        {this.state.contractAddress ?
-          <Alert color="success">
-            <strong>Contract mined!</strong> <br/>Address: {this.state.contractAddress} <br/>TransactionHash: {this.state.contractTransactionHash}
-          </Alert>
-          : <div></div>
-        }
-        <div>
-          {this.state.contracts > 0 ? <div>List contracts:</div> : <div></div>}
-          <ul>
-            {this.listContracts && this.state.data.map((party, key) => (
-              <li key={key}><Link to={`/examplearbitrable/${party.addressContract}`}>{party.addressContract} {party.name !== undefined ? `- ${party.name}` : <div></div>}</Link></li>
-            ))}
-          </ul>
-        </div>
+                {this.state.contractAddress ?
+                  <Alert color="success">
+                    <strong>Contract mined!</strong> <br/>Address: {this.state.contractAddress} <br/>TransactionHash: {this.state.contractTransactionHash}
+                  </Alert>
+                  : <div></div>
+                }
+                <div>
+                  {this.state.contracts > 0 ? <div>List contracts:</div> : <div></div>}
+                  <ul>
+                    {this.listContracts && this.state.data.map((party, key) => (
+                      <li key={key}><Link to={`/examplearbitrable/${party.addressContract}`}>{party.addressContract} {party.name !== undefined ? `- ${party.name}` : <div></div>}</Link></li>
+                    ))}
+                  </ul>
+                </div>
+              </Col>
+            </Row>
+          </TabPane>
+          <TabPane tabId="2">
+            <Row>
+              <Col sm="6">
+                <h4>Work in progress</h4>
+              </Col>
+            </Row>
+          </TabPane>
+        </TabContent>
+
       </div>
     )
   }
