@@ -20,7 +20,6 @@ class Dapp extends Component {
         <Container>
           <Row>
             <Col>
-              <h1 className="intro">Đapp</h1>
               <ExampleArbitrableForm />
             </Col>
           </Row>
