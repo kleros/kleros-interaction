@@ -45,12 +45,12 @@ class App extends Component {
   }
 
   onSubmit = () => () => {
-    console.log(this.state.email)
     if (this.validateEmail(this.state.email)) {
+      this.setState({ subscribe: true }) // TODO fix this
       let config = {
         headers: {"Content-Type": "application/json"}
       }
-      
+
       axios
        .post("http://138.197.44.168:3000/mailing-list", {
           email: this.state.email,
@@ -61,7 +61,6 @@ class App extends Component {
           .catch((error) => {
             console.log(error);
         })
-
     } else {
       alert('Mail is not valid')
     }
