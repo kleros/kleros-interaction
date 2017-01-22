@@ -47,6 +47,10 @@ class App extends Component {
   onSubmit = () => () => {
     console.log(this.state.email)
     if (this.validateEmail(this.state.email)) {
+      let config = {
+        headers: {"Content-Type": "application/json"}
+      }
+      
       axios
        .post("http://138.197.44.168:3000/mailing-list", {
           email: this.state.email,
