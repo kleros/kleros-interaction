@@ -1,9 +1,10 @@
 import React, { Component } from 'react'
 import FontAwesome from 'react-fontawesome'
 import GithubCorner from 'react-github-corner'
-import { Button, Jumbotron, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap'
+import { Alert, InputGroup, InputGroupAddon, InputGroupButton, Button, Jumbotron, Tooltip, TooltipContent, Container, Row, Col } from 'reactstrap'
 import Menu from './components/Menu'
 import Footer from './components/Footer'
+import axios from 'axios'
 
 import 'styles/App.scss'
 
@@ -13,6 +14,8 @@ class App extends Component {
     escrowDetails: false,
     emergencyMechanism: false,
     neutral: false,
+    email: '',
+    subscribe: false,
   }
 
   handleChange (event) {
@@ -32,6 +35,34 @@ class App extends Component {
     this.setState({ neutral: !this.state.neutral })
   }
 
+  handleChangeMail = (event) => {
+    this.setState({ email: event.target.value })
+  }
+
+  validateEmail = (email) => {
+    var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(email);
+  }
+
+  onSubmit = () => () => {
+    console.log(this.state.email)
+    if (this.validateEmail(this.state.email)) {
+      axios
+       .post("http://138.197.44.168:3000/mailing-list", {
+          email: this.state.email,
+          }, config)
+          .then((response) => {
+            this.setState({ subscribe: true })
+          })
+          .catch((error) => {
+            console.log(error);
+        })
+
+    } else {
+      alert('Mail is not valid')
+    }
+  }
+
   render() {
 
     return (
@@ -48,9 +79,17 @@ class App extends Component {
                   <br/>Dispute will be first handled by arbitrators, but parties will have the possibility to appeal to a jury system.
                   Both arbitrators and jury members will have game theoretical incentive to arbitrate disputes in an honest manner.
                 </p>
-                <p className="text-xs-center">
-                  <a className="btn btn-outline-danger" href="/#/dapp">Đapp</a>
-                </p>
+                <InputGroup style={{paddingBottom: "20px"}}>
+                  <InputGroupAddon>@</InputGroupAddon>
+                  <input type="text" name="mail" placeholder="Your mail" className="form-control" onChange={this.handleChangeMail} />
+                  <InputGroupButton><Button color="secondary" onClick={this.onSubmit()} >Join our mailing list</Button></InputGroupButton>
+                </InputGroup>
+                {this.state.subscribe ?
+                  <Alert color="success">
+                    <strong>Mailing list subscribe success</strong>
+                  </Alert>
+                  : <div></div>
+                }
               </Jumbotron>
             </Col>
             <Col md="4" className="hidden-xs-down iconUniversity">
