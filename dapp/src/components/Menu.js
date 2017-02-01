@@ -21,10 +21,7 @@ class Menu extends Component {
               <NavLink href="/#/docs">Documentation</NavLink>
             </NavItem>
             <NavItem>
-              <NavLink href="https://www.pdf-archive.com/2016/11/25/dac-1/">White paper</NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink href="https://hack.ether.camp/public/decentralized-court">EtherCamp</NavLink>
+              <NavLink href="https://github.com/ethercourt/workspace/raw/master/decentralized-court/whitePaper/DAC.pdf">White paper</NavLink>
             </NavItem>
             <NavItem>
               <NavLink href="https://twitter.com/ethercourt">Twitter</NavLink>
