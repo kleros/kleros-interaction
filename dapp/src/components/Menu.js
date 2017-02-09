@@ -12,13 +12,10 @@ class Menu extends Component {
     return (
       <Navbar color="faded" light full>
         <Container>
-          <NavbarBrand className="float-xs-center" href="/#">EtherCourt</NavbarBrand>
+          <NavbarBrand className="float-xs-center" href="/#">EtherCourt <sup style={{fontVariant: 'small-caps', fontWeight: 'bolder'}}>alpha</sup></NavbarBrand>
           <Nav className="float-xs-right" navbar>
             <NavItem>
               <NavLink href="/#/dapp">Đapp</NavLink>
-            </NavItem>
-            <NavItem>
-              <NavLink href="/#/docs">Documentation</NavLink>
             </NavItem>
             <NavItem>
               <NavLink href="https://github.com/ethercourt/workspace/raw/master/decentralized-court/whitePaper/DAC.pdf">White paper</NavLink>
