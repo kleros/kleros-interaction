@@ -1,10 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { Router, Route, hashHistory } from 'react-router'
-import App from './App';
-import Docs from './Docs';
-import Dapp from './Dapp';
-import ExampleArbitrableContract from './components/ExampleArbitrableContract';
+import App from './App'
+import Dapp from './Dapp'
+import ExampleArbitrableContract from './components/ExampleArbitrableContract'
 
 ReactDOM.render((
   <Router history={hashHistory}>
