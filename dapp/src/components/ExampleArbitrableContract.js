@@ -154,7 +154,6 @@ class ExampleArbitrableContract extends Component {
       if (this.state.details.disputeID != 0 && !this.state.court.appeal && this.state.details.requestCreator === '0x0000000000000000000000000000000000000000')
         this.setState({waitingForArbitration: true})
     })
-
   }
 
   getDetails = (callback) => {
