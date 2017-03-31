@@ -102,7 +102,7 @@ contract Court is Token {
     uint256 EXECUTABLE = uint256(-1);
     uint256 EXECUTED   = uint256(-2);
     
-    // TO DO: Replace appeals with voters.length if it consumes less gaz.
+    // TODO: Replace appeals with voters.length if it consumes less gaz.
     
     struct Vote {
         address account;
@@ -113,7 +113,7 @@ contract Court is Token {
     
     Dispute[] public disputes;
 
-    // TO DO: Verify and set the right types
+    // TODO: Verify and set the right types
     
     
     
@@ -215,7 +215,7 @@ contract Court is Token {
     /** To be called by Arbitrable contracts.
      *  @param r Random seed given by the arbitrable contract.
      *  @return disputeID The ID of the dispute. Notice that it starts at 1.
-     *  TO BE IMPLEMENTED: Payment of the arbitration fees.
+     *  TODO: Payment of the arbitration fees.
      */
     function createDispute(uint256 r) payable returns(uint256 disputeID) {
         if (!disputeOpen()) // Can't create a dispute now.
@@ -279,7 +279,7 @@ contract Court is Token {
     }
     
     /** Appeal a ruling.
-     *  TO BE IMPLEMENTED: Payment of the arbitration fees.
+     *  TODO: Payment of the arbitration fees.
      *  @param disputeID ID of the dispute to be appealed.
      */
     function appealRuling(uint256 disputeID, uint256 r) payable {
@@ -300,7 +300,7 @@ contract Court is Token {
     /** Make a ruling as a jury member.
      *  @param disputeID ID of the dispute to be arbitrated.
      *  @param voteA True to rule A. False to rule B.
-     *  TO DO: Switch to a system with committed votes.
+     *  TODO: Switch to a system with committed votes.
      */
     function voteRuling(uint256 disputeID, bool voteA) {
         Dispute dispute=disputes[disputeID];
@@ -331,7 +331,7 @@ contract Court is Token {
      *  minJuryToken is here to make it impossible for an attacker to make this function run out of gaz on purpose.
      *  However it can happen in cas of an high number of appeal.
      *  @param disputeID ID of the dispute.
-     *  TO DO: Implement function doing it in multiple shot in order to avoid being blocked by the gaz limit.
+     *  TODO: Implement function doing it in multiple shot in order to avoid being blocked by the gaz limit.
      */
     function executeTokenRepartition(uint256 disputeID){
         Dispute dispute=disputes[disputeID];
@@ -554,7 +554,7 @@ contract Court is Token {
         return disputes[disputeID].voters[appeal][0].account;
     }
     
-    /** Return the amount of tokens activated for arbitration in the current session.
+    /** Return the amount of tokens activated for arbitration in the current session. 
      *  @param account Account to return the number of activated tokens.
      */
     function activatedArbitrationTokens(address account) constant returns(uint256){
@@ -573,5 +573,10 @@ contract Court is Token {
         else
             return jurySegmentEnd[account]-jurySegmentStart[account];
     }
+    
+    /** Return the number of disputes.
+     *  @return nb number of disputes.
+     */
+    function nbDispute() constant returns(uint nb) {return disputes.length;}
     
 }
