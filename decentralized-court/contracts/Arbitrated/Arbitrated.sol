@@ -3,7 +3,7 @@ pragma solidity ^0.4.6;
 // TODO Refactor all the time logic of those contracts.
 
 /*
-Virtual Contract to be artibrated by the court.
+Virtual Contract to be arbitrated by the court.
 */
 contract Arbitrable {
     Court court;
