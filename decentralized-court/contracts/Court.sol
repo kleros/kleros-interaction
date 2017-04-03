@@ -198,7 +198,10 @@ contract Court is Token {
         uint256 endDrawnSegment=startDrawnSegment+t;
         uint256 leftIntersection;
         uint256 rightIntersection;
-        if (endDrawnSegment<=jurySegmentPosition){  // We don't wrap arround
+        // TODO: Find more elegant formulas not involving check that many different cases.
+        if (startDrawnSegment>=jurySegmentStart[account] && endDrawnSegment<=jurySegmentEnd[account])
+            return jurySegmentEnd[account] - jurySegmentStart[account];
+        else if (endDrawnSegment<=jurySegmentPosition){  // We don't wrap arround
             leftIntersection=(jurySegmentEnd[account] < endDrawnSegment ? jurySegmentEnd[account] : endDrawnSegment);
             rightIntersection=(jurySegmentStart[account] > startDrawnSegment ? jurySegmentStart[account] : startDrawnSegment);
             return (leftIntersection < rightIntersection ? rightIntersection - leftIntersection : 0);
@@ -208,7 +211,7 @@ contract Court is Token {
             leftIntersection=(jurySegmentStart[account] > startDrawnSegment ? jurySegmentStart[account] : startDrawnSegment);
             rightIntersection=(jurySegmentEnd[account] < jurySegmentPosition ? jurySegmentEnd[account] : jurySegmentPosition);
             return (leftIntersection < rightIntersection ? rightIntersection - leftIntersection : 0)
-            + (endDrawnSegment > jurySegmentStart[account] ? endDrawnSegment-jurySegmentStart[account] : 0);
+            + (endDrawnSegment > jurySegmentStart[account] ? endDrawnSegment - jurySegmentStart[account] : 0);
         }
     }
     
@@ -577,6 +580,6 @@ contract Court is Token {
     /** Return the number of disputes.
      *  @return nb number of disputes.
      */
-    function nbDispute() constant returns(uint nb) {return disputes.length;}
+    function nbDisputes() constant returns(uint nb) {return disputes.length;}
     
 }
