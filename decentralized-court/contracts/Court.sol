@@ -5,10 +5,10 @@ contract Court is Token {
     /** Distribute tokens on initialization.
      *  To be replaced by a crowdfunding.
      */
-    function Court(address[] accounts, uint256[] tokens){
+    function Court(address[] accounts, uint256[] tokens) {
         if (accounts.length!=tokens.length)
             throw;
-        for (uint256 i = 0; i < accounts.length; i++){
+        for (uint256 i = 0; i < accounts.length; i++) {
             balances[accounts[i]]+=tokens[i];
             totalSupply+=tokens[i];
         }
@@ -74,20 +74,21 @@ contract Court is Token {
     uint256 public endLastSession; // Time when last session finished
     
     mapping (address => uint256) public arbitralSession;       // Last session the tokens were activated for arbitration.
-    mapping (address => uint256) public arbitralSegmentStart; // Start of the segment of tokens for arbitration during arbitralSession.
-    mapping (address => uint256) public arbitralSegmentEnd;   // End of the segment of tokens for arbitration during arbitralSession.
+    mapping (address => uint256) public arbitralSegmentStart;  // Start of the segment of tokens for arbitration during arbitralSession.
+    mapping (address => uint256) public arbitralSegmentEnd;    // End of the segment of tokens for arbitration during arbitralSession.
     uint256 public arbitralSegmentPosition;                    // Last position used in the arbitral token circle.
     
     mapping (address => uint256) public jurySession;           // Last session the tokens were activated for jury.
-    mapping (address => uint256) public jurySegmentStart;     // Start of the segment of tokens for jury during arbitralSession.
-    mapping (address => uint256) public jurySegmentEnd;       // End of the segment of tokens for jury during arbitralSession.
+    mapping (address => uint256) public jurySegmentStart;      // Start of the segment of tokens for jury during arbitralSession.
+    mapping (address => uint256) public jurySegmentEnd;        // End of the segment of tokens for jury during arbitralSession.
     uint256 public jurySegmentPosition;                        // Last position used in the jury token circle.
     
     // WARNING those values are for test purpose only
     uint256 public minArbitralToken=1000;                      // Minimum number of tokens to be arbitrator.
     uint256 public minJuryToken=1000;                          // Minimum of tokens drawn for jury.
     uint256 public partAtStakeDivisor=5;                       // (1/partAtStakeDivisor) is the maximum proportion of tokens which can be lost.
-
+    uint256 public paymentPerToken=1e14;                       // Amount of wei paid per token.
+    
     struct Dispute {
         Arbitrable arbitratedContract; // Contract to be arbitrated.
         uint256 session; // Session for the dispute to be resolved. High values are special values.
@@ -102,7 +103,7 @@ contract Court is Token {
     uint256 EXECUTABLE = uint256(-1);
     uint256 EXECUTED   = uint256(-2);
     
-    // TODO: Replace appeals with voters.length if it consumes less gaz.
+    // TODO: Replace appeals with voters.length if it consumes less gas.
     
     struct Vote {
         address account;
@@ -114,7 +115,6 @@ contract Court is Token {
     Dispute[] public disputes;
 
     // TODO: Verify and set the right types
-    
     
     
     /** Return true if the tokens of account are blocked.
@@ -218,7 +218,7 @@ contract Court is Token {
     /** To be called by Arbitrable contracts.
      *  @param r Random seed given by the arbitrable contract.
      *  @return disputeID The ID of the dispute. Notice that it starts at 1.
-     *  TODO: Payment of the arbitration fees.
+     *  TODO: Payment of the arbitration fees (for now you pay what you want).
      */
     function createDispute(uint256 r) payable returns(uint256 disputeID) {
         if (!disputeOpen()) // Can't create a dispute now.
@@ -229,6 +229,7 @@ contract Court is Token {
         dispute.session=session;
         dispute.r=r;
         dispute.voters.length++;
+        
         
         return disputeID;
     }
@@ -261,6 +262,9 @@ contract Court is Token {
             dispute.voteA=1;
         else
             dispute.voteB=1;
+        
+        // Pay the arbitrator
+        msg.sender.send(paymentPerToken*minArbitralToken);
 
     }
     
@@ -327,6 +331,8 @@ contract Court is Token {
             stakeA:voteA ? stake : 0,
             stakeB:voteA ? 0 : stake
         }));
+        
+        msg.sender.send(paymentPerToken*votingRights);
     }
     
     /** Execute the repartition of tokens.
