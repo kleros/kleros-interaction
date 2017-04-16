@@ -189,9 +189,9 @@ contract Court is Token {
      *  Note that the function throws if jurySegmentPosition==0 which happens when no tokens have been activated for the jury system.
      */
     function drawnTokens(address account, uint256 r, uint256 t) constant returns(uint256) {
-        if (jurySession[account]!=session) // No tokens activated for this session
+        if (jurySession[account]!=session) // No tokens activated for this session.
             return 0;
-        if (t>=jurySegmentPosition) // All the court is drawn
+        if (t>=jurySegmentPosition) // All the court is drawn.
             return jurySegmentEnd[account]-jurySegmentStart[account];
             
         uint256 startDrawnSegment=r % jurySegmentPosition;
@@ -311,12 +311,15 @@ contract Court is Token {
      */
     function voteRuling(uint256 disputeID, bool voteA) {
         Dispute dispute=disputes[disputeID];
+        uint256 votingRights=drawnTokens(msg.sender,dispute.r,(2**(dispute.appeals)) * minJuryToken);
         uint256 stake;
+        require(votingRights>0); // Prevent voting without the right.
+        require(dispute.appeals!=0); // Prevent voting disputes in the arbitration stage.
         if (dispute.hasVoted[msg.sender]==session // Has already voted for the session
             || !voteOpen()) // The vote is closed or not open yet.
             throw;
-            
-        uint256 votingRights=drawnTokens(msg.sender,dispute.r,(2**(dispute.appeals)) * minJuryToken);
+        
+        
         dispute.hasVoted[msg.sender]=session; // Has voted
         if (voteA)
             dispute.voteA+=votingRights;
@@ -338,7 +341,7 @@ contract Court is Token {
     /** Execute the repartition of tokens.
      *  This function works in 1 shot.
      *  minJuryToken is here to make it impossible for an attacker to make this function run out of gaz on purpose.
-     *  However it can happen in cas of an high number of appeal.
+     *  However it can happen in case of an high number of appeal.
      *  @param disputeID ID of the dispute.
      *  TODO: Implement function doing it in multiple shot in order to avoid being blocked by the gaz limit.
      */
