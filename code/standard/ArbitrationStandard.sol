@@ -21,14 +21,15 @@ contract Arbitrable{
 
 contract Arbitrator{
     
+    modifier requireArbitrationFee(bytes _extraData) {require(msg.value>=arbitrationCost(_extraData)); _;}
+    modifier requireAppealFee(uint _disputeID, bytes _extraData) {require(msg.value>=appealCost(_disputeID, _extraData)); _;}
+    
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost().
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return disputeID ID of the dispute created.
      */
-    function createDispute(bytes _extraData) payable returns(uint disputeID)  {
-        require(msg.value>=arbitrationCost(_extraData)); // Require that the arbitration cost be paid.
-    }
+    function createDispute(bytes _extraData) requireArbitrationFee(_extraData) payable returns(uint disputeID)  {}
     
     /** @dev Compute the cost of arbitration.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
@@ -40,10 +41,7 @@ contract Arbitrator{
      *  @param _disputeID ID of the dispute to be appealed.
      *  @param _extraData Can be used to give extra info on the appeal.
      */
-    function appeal(uint _disputeID, bytes _extraData) payable {
-        require(msg.value>=appealCost(_disputeID, _extraData)); // Require the appeal cost to be paid.
-        
-    }
+    function appeal(uint _disputeID, bytes _extraData) requireAppealFee(_disputeID,_extraData) payable {}
     
     /** @dev Compute the cost of appeal.
      *  @param _disputeID ID of the dispute to be appealed.
