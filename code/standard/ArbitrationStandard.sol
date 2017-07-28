@@ -13,7 +13,7 @@ contract Arbitrable{
     /** @dev Give a ruling for a dispute. Must be call by the arbitrator.
      *  The arbitrable smart contract determines the consequences of this ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling Ruling given by the arbitrator.
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) onlyArbitrator {}
 }
@@ -26,10 +26,11 @@ contract Arbitrator{
     
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost().
+     *  @param _choices Amount of choices the arbitrator can make in this dispute. When ruling ruling<=choices.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return disputeID ID of the dispute created.
      */
-    function createDispute(bytes _extraData) requireArbitrationFee(_extraData) payable returns(uint disputeID)  {}
+    function createDispute(uint _choices, bytes _extraData) requireArbitrationFee(_extraData) payable returns(uint disputeID)  {}
     
     /** @dev Compute the cost of arbitration.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
@@ -50,7 +51,6 @@ contract Arbitrator{
      */
     function appealCost(uint _disputeID, bytes _extraData) constant returns(uint fee);
 }
-
 
 
 
