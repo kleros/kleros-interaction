@@ -6,7 +6,7 @@
  * 
  */
 
-import "RNGStandard.sol";
+import "./RNGStandard.sol";
 
 /** Simple Random Number Generator returning the blockhash.
  *  Allows saving the random number for use in the future. 
@@ -15,8 +15,8 @@ import "RNGStandard.sol";
  */
 contract BlockHashRNG is RNG {
     
-    mapping (uint => uint) randomNumber; // RN[block] is the random number for this block 0 otherwise.
-    mapping (uint => uint) reward; // reward[block] is the amount to be paid to the party w
+    mapping (uint => uint) public randomNumber; // RN[block] is the random number for this block 0 otherwise.
+    mapping (uint => uint) public reward; // reward[block] is the amount to be paid to the party w
     
 
     
