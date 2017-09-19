@@ -4,7 +4,7 @@
  *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
  */
 
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.16;
 
 /** @title Arbitrable
  *  Arbitrable abstract contract.
@@ -27,7 +27,7 @@ contract Arbitrable{
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string[] _rulingOptions);
     
     /** @dev Constructor. Choose the arbitrator.
-     *  @param _arbitrator The arbitrator of the contract. Can be an Arbitrator or an external account.
+     *  @param _arbitrator The arbitrator of the contract.
      */
     function Arbitrable(Arbitrator _arbitrator) {
         arbitrator=_arbitrator;
