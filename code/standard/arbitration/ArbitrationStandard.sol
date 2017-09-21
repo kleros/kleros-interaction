@@ -58,8 +58,6 @@ contract Arbitrable{
  */
 contract Arbitrator{
     
-    uint public nbDisputes; // Number of disputes. Usefull for disputeID.
-    
     modifier requireArbitrationFee(bytes _extraData) {require(msg.value>=arbitrationCost(_extraData)); _;}
     modifier requireAppealFee(uint _disputeID, bytes _extraData) {require(msg.value>=appealCost(_disputeID, _extraData)); _;}
     
