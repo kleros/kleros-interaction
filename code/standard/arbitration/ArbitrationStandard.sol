@@ -22,9 +22,9 @@ contract Arbitrable{
     /** @dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _rulingOptions Map ruling IDs to short description of the ruling. Note that ruling IDs start a 1. For example ["Send funds to buyer", "Send funds to seller"], means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.
+     *  @param _rulingOptions Map ruling IDs to short description of the ruling in a CSV format using ";" as a delimiter. Note that ruling IDs start a 1. For example "Send funds to buyer;Send funds to seller", means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.
      */
-    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string[] _rulingOptions);
+    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string _rulingOptions);
     
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
@@ -55,7 +55,6 @@ contract Arbitrable{
  *  -Define the functions for dispute creation (createDispute) and appeal (appeal). Don't forget to store the arbitrated contract and the disputeID (which should be unique, use nbDisputes).
  *  -Define the functions for cost display (arbitrationCost and appealCost).
  *  -Allow giving rulings. For this a function must call arbitrable.rule(disputeID,ruling).
- *  
  */
 contract Arbitrator{
     
@@ -72,7 +71,7 @@ contract Arbitrator{
      */
     function createDispute(uint _choices, bytes _extraData) requireArbitrationFee(_extraData) payable returns(uint disputeID)  {}
     
-    /** @dev Compute the cost of arbitration.
+    /** @dev Compute the cost of arbitration. It is recommended not to increase it often, as it can be higly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return fee Amount to be paid.
      */
@@ -84,7 +83,7 @@ contract Arbitrator{
      */
     function appeal(uint _disputeID, bytes _extraData) requireAppealFee(_disputeID,_extraData) payable {}
     
-    /** @dev Compute the cost of appeal.
+    /** @dev Compute the cost of appeal. It is recommended not to increase it often, as it can be higly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _disputeID ID of the dispute to be appealed.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return fee Amount to be paid.
