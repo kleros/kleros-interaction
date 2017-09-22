@@ -135,6 +135,15 @@ contract ArbitratedTransaction is Arbitrable {
         executeRuling(disputeID,PAY_PAYEE);
     }
     
+    /** @dev Submit a reference to evidence. EVENT.
+     *  @param _evidence A link to an evidence using its URI.
+     */
+    function submitEvidence(string _evidence) {
+        require(status>=Status.DisputeCreated);
+        require(msg.sender==payer || msg.sender==payee);
+        Evidence(arbitrator,disputeID,msg.sender,_evidence);
+    }
+    
     /** @dev Execute a ruling of a dispute.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the payer. 2 : Pay the payee.
