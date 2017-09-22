@@ -26,6 +26,15 @@ contract Arbitrable{
      */
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string _rulingOptions);
     
+    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due tp gas considerations).
+     *  @param _arbitrator The arbitrator of the contract.
+     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
+     *  @param _evidence A link to evidence. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ).
+     */
+    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
+    
+    
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
      */
@@ -60,6 +69,11 @@ contract Arbitrator{
     
     modifier requireArbitrationFee(bytes _extraData) {require(msg.value>=arbitrationCost(_extraData)); _;}
     modifier requireAppealFee(uint _disputeID, bytes _extraData) {require(msg.value>=appealCost(_disputeID, _extraData)); _;}
+    
+    /** @dev To be raised when a dispute can be appealed.
+     *  @param _disputeID ID of the dispute.
+     */
+    event AppealPossible(uint _disputeID);
     
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost().
