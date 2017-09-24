@@ -1,1 +1,0 @@
-This folder contains small contracts to illustrate concepts used in the White Paper.
