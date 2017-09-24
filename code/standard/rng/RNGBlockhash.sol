@@ -5,8 +5,7 @@
  *  This contract implement the RNG standard and giving parties incentives in saving the blockhash to avoid it to become unreachable after 256 blocks.
  * 
  */
-pragma solidity ^0.4.15;
- 
+
 import "./RNGStandard.sol";
 
 /** Simple Random Number Generator returning the blockhash.
@@ -14,7 +13,7 @@ import "./RNGStandard.sol";
  *  It allows the contract to still access the blockhash even after 256 blocks.
  *  The first party to call the save function gets the reward.
  */
-contract BlockHashRNG is RNGStandard {
+contract BlockHashRNG is RNG {
     
     mapping (uint => uint) public randomNumber; // RN[block] is the random number for this block 0 otherwise.
     mapping (uint => uint) public reward; // reward[block] is the amount to be paid to the party w

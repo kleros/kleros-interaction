@@ -5,7 +5,7 @@
  */
 
 
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.16;
 import "./TwoPartyArbitrable.sol";
 
 /** @title Arbitrated Transaction

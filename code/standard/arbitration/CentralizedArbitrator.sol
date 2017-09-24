@@ -4,9 +4,9 @@
  *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
  */
 
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.16;
 
-import "./Arbitrator.sol";
+import "./ArbitrationStandard";
 
 /** @title Centralized Arbitrator
  *  This is a centralized arbitrator deciding alone of the result of disputes.

@@ -4,14 +4,14 @@
  *  
  */
  
-pragma solidity ^0.4.15;
+ pragma solidity ^0.4.13;
  
- contract RNGStandard{
+ contract RNG{
      
     /** @dev Contribute to the reward of a random number.
      *  @param _block Block the random number is linked to.
      */
-    function contribute(uint _block) payable;
+    function contribute(uint _block);
     
     /** @dev Request a random number.
      *  @param _block Block linked to the request.

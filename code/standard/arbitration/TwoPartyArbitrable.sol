@@ -5,8 +5,8 @@
  */
 
 
-pragma solidity ^0.4.15;
-import "./Arbitrable.sol";
+pragma solidity ^0.4.16;
+import "./ArbitrationStandard.sol";
 
 
 /** @title Two-Party Arbitrable
