@@ -1,5 +1,5 @@
 /**
- *  @title Arbitrated Transaction
+ *  @title Arbitrable Transaction
  *  @author Clément Lesaege - <clement@lesaege.com>
  *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
  */
@@ -8,12 +8,12 @@
 pragma solidity ^0.4.15;
 import "./TwoPartyArbitrable.sol";
 
-/** @title Arbitrated Transaction
+/** @title Arbitrable Transaction
  *  This is a a contract for an arbitrated transaction which can be reversed by the arbitrator.
  *  This can be used for buying goods, services and for paying freelancers.
  *  Party A is the payer. Party B is the payee.
  */
- contract ArbitratedTransaction is TwoPartyArbitrable {
+ contract ArbitrableTransaction is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Reimburse partyA;Pay partyB";
     
     uint public amount; // Amount sent by party A.
@@ -25,7 +25,7 @@ import "./TwoPartyArbitrable.sol";
      *  @param _partyB The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    function ArbitratedTransaction(Arbitrator _arbitrator, uint _timeout, address _partyB, bytes _arbitratorExtraData) TwoPartyArbitrable(_arbitrator,_timeout,_partyB,_arbitratorExtraData) payable {
+    function ArbitrableTransaction(Arbitrator _arbitrator, uint _timeout, address _partyB, bytes _arbitratorExtraData) TwoPartyArbitrable(_arbitrator,_timeout,_partyB,_arbitratorExtraData) payable {
         amount+=msg.value;
     }
 
