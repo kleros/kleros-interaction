@@ -1,9 +1,6 @@
-const {expectThrow, waitForMined} = require('../helpers/utils');
-const ArbitrableTransaction = artifacts.require("./ArbitrableTransaction.sol")
-const CentralizedArbitrator = artifacts.require("./CentralizedArbitrator.sol")
-
-
-
+const { expectThrow, waitForMined } = require('../helpers/utils');
+const ArbitrableTransaction = artifacts.require('./ArbitrableTransaction.sol')
+const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
 
 contract('ArbitrableTransaction', function(accounts) {
 	
