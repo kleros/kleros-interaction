@@ -116,11 +116,11 @@ contract TwoPartyArbitrable is Arbitrable {
     
     /** @dev Pay partyB if partyA fails to pay the fee.
      */
-    function timeOutByPartyB() onlyPartyA {
+    function timeOutByPartyB() onlyPartyB {
         require(status==Status.WaitingPartyA);
         require(now>=lastInteraction+timeout);
         
-        executeRuling(disputeID,PARTY_A_WINS);
+        executeRuling(disputeID,PARTY_B_WINS);
     }
     
     /** @dev Submit a reference to evidence. EVENT.
