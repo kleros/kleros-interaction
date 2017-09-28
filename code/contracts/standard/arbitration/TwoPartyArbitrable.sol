@@ -49,7 +49,7 @@ contract TwoPartyArbitrable is Arbitrable {
      *  @param _partyB The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    function TwoPartyArbitrable(Arbitrator _arbitrator, uint _timeout, address _partyB, bytes _arbitratorExtraData) Arbitrable(_arbitrator) payable {
+    function TwoPartyArbitrable(Arbitrator _arbitrator, uint _timeout, address _partyB, bytes _arbitratorExtraData) Arbitrable(_arbitrator) {
         timeout=_timeout;
         partyA=msg.sender;
         partyB=_partyB;
