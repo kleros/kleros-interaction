@@ -6,9 +6,10 @@ contract('ArbitrableTransaction', function(accounts) {
     
     let payer = accounts[0]
     let payee = accounts[1]
-    let other = accounts[2]
+    let arbitrator = accounts[2]
     let amount = 1000
     let timeout = 100
+    let arbitrationFee = 20
     
     // Constructor
     it("Should put 1000 wei in the contract", async () => {
@@ -75,6 +76,42 @@ contract('ArbitrableTransaction', function(accounts) {
     })
     
     // executeRuling
+    it("It should reimburse the payer (including arbitration fee) when the arbitrator decides so", async () => {
+        let centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee,{from:arbitrator})
+        let arbitrableTransaction = await ArbitrableTransaction.new(centralizedArbitrator.address, timeout, payee, "0x0",{from:payer,value:amount})
+        await arbitrableTransaction.payArbitrationFeeByPartyA({from:payer,value:arbitrationFee})
+        await arbitrableTransaction.payArbitrationFeeByPartyB({from:payee,value:arbitrationFee})
+        let payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
+        await centralizedArbitrator.giveRuling(0,1,{from:arbitrator})
+        let newPayerBalance = web3.eth.getBalance(payer)
+        assert.equal(newPayerBalance.toString(), payerBalanceBeforeReimbursment.plus(1020).toString(), "The payer has not been reimbursed correctly")
+    })
+    
+    it("It should pay the payee and reimburse him the arbitration fee when the arbitrator decides so", async () => {
+        let centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee,{from:arbitrator})
+        let arbitrableTransaction = await ArbitrableTransaction.new(centralizedArbitrator.address, timeout, payee, "0x0",{from:payer,value:amount})
+        await arbitrableTransaction.payArbitrationFeeByPartyA({from:payer,value:arbitrationFee})
+        await arbitrableTransaction.payArbitrationFeeByPartyB({from:payee,value:arbitrationFee})
+        let payeeBalanceBeforePay = web3.eth.getBalance(payee)
+        await centralizedArbitrator.giveRuling(0,2,{from:arbitrator})
+        let newPayeeBalance = web3.eth.getBalance(payee)
+        assert.equal(newPayeeBalance.toString(), payeeBalanceBeforePay.plus(1020).toString(), "The payee has not been paid properly")
+    })
+    
+    it("It should do nothing if the arbitrator decides so", async () => {
+        let centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee,{from:arbitrator})
+        let arbitrableTransaction = await ArbitrableTransaction.new(centralizedArbitrator.address, timeout, payee, "0x0",{from:payer,value:amount})
+        await arbitrableTransaction.payArbitrationFeeByPartyA({from:payer,value:arbitrationFee})
+        await arbitrableTransaction.payArbitrationFeeByPartyB({from:payee,value:arbitrationFee})
+        let payeeBalanceBeforePay = web3.eth.getBalance(payee)
+        let payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
+        await centralizedArbitrator.giveRuling(0,0,{from:arbitrator})
+        let newPayeeBalance = web3.eth.getBalance(payee)
+        let newPayerBalance = web3.eth.getBalance(payer)
+        assert.equal(newPayeeBalance.toString(), payeeBalanceBeforePay.toString(), "The payee got wei while it shouldn't")
+        assert.equal(newPayerBalance.toString(), payerBalanceBeforeReimbursment.toString(), "The payer got wei while it shouldn't")
+    })
+    
     
     
     

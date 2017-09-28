@@ -78,18 +78,19 @@ contract CentralizedArbitrator is Arbitrator {
      *  @param _disputeID ID of the dispute to rule.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
      */
-    function giveRuling(uint _disputeID, uint _ruling) {
+    function giveRuling(uint _disputeID, uint _ruling) onlyOwner {
         Dispute dispute = disputes[_disputeID];
         require(_ruling<=dispute.choices);
         
         uint fee = dispute.fee;
+        Arbitrable arbitrated = dispute.arbitrated;
         dispute.arbitrated=Arbitrable(0x0); // Clean up to get gas back and prevent calling it again.
         dispute.choices=0;
         dispute.fee=0;
         
         
         msg.sender.transfer(fee);
-        dispute.arbitrated.rule(_disputeID,_ruling);
+        arbitrated.rule(_disputeID,_ruling);
     }
     
 }

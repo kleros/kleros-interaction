@@ -63,8 +63,10 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function payArbitrationFeeByPartyA() payable onlyPartyA {
         uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value+partyAFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
+        partyAFee+=msg.value;
+        require(partyAFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
+        
         
         lastInteraction=now;
         if (partyBFee < arbitrationCost) { // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
@@ -81,7 +83,8 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function payArbitrationFeeByPartyB() payable onlyPartyB {
         uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value+partyBFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
+        partyBFee+=msg.value;
+        require(partyBFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
         
         lastInteraction=now;
