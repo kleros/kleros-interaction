@@ -36,12 +36,19 @@ contract Arbitrable{
      */
     event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
     
+    /** @dev To be emmited at contract creation. Contains the hash of the plain text contract. This will allow any party to show what was the original contract.
+     *  This event is used as cheap way of storing it.
+     *  @param _contractHash Keccak256 hash of the plain text contract.
+     */
+    event ContractHash(bytes32 _contractHash);
     
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
+     *  @param _contractHash Keccak256 hash of the plain text contract.
      */
-    function Arbitrable(Arbitrator _arbitrator) {
+    function Arbitrable(Arbitrator _arbitrator, bytes32 _contractHash) {
         arbitrator=_arbitrator;
+        ContractHash(_contractHash);
     }
     
     /** @dev Give a ruling for a dispute. Must be call by the arbitrator.
