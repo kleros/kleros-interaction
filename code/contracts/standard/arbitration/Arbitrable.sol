@@ -32,7 +32,7 @@ contract Arbitrable{
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
-     *  @param _evidence A link to evidence. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ).
+     *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.
      */
     event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
     
