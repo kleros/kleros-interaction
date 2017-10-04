@@ -6,7 +6,7 @@
  
 pragma solidity ^0.4.15;
  
- contract RNGStandard{
+ contract RNG{
      
     /** @dev Contribute to the reward of a random number.
      *  @param _block Block the random number is linked to.

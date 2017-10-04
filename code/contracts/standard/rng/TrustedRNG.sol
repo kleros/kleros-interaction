@@ -7,12 +7,12 @@
  */
 pragma solidity ^0.4.15;
  
-import "./RNGStandard.sol";
+import "./RNG.sol";
 
 /** Simple Random Number Generator based on a trusted third party.
  *  The trusted third party determine the random number and get all the contributions.
  */
-contract TrustedRNG is RNGStandard {
+contract TrustedRNG is RNG {
     
     address public owner=msg.sender; // The operator of this RNG.
     mapping (uint => uint) public randomNumber; // RN[block] is the random number for this block 0 otherwise.

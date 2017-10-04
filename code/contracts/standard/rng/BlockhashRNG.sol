@@ -7,14 +7,14 @@
  */
 pragma solidity ^0.4.15;
  
-import "./RNGStandard.sol";
+import "./RNG.sol";
 
 /** Simple Random Number Generator returning the blockhash.
  *  Allows saving the random number for use in the future. 
  *  It allows the contract to still access the blockhash even after 256 blocks.
  *  The first party to call the save function gets the reward.
  */
-contract BlockHashRNG is RNGStandard {
+contract BlockHashRNG is RNG {
     
     mapping (uint => uint) public randomNumber; // RN[block] is the random number for this block 0 otherwise.
     mapping (uint => uint) public reward; // reward[block] is the amount to be paid to the party w

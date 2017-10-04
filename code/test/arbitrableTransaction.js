@@ -23,6 +23,7 @@ contract('ArbitrableTransaction', function(accounts) {
         assert.equal(amountSending.toNumber(), 1000, "The contract hasn't updated its amount correctly.")
     })
     
+    
     // Pay
     it("Should pay the payee", async () => {
         let initialPayeeBalance = web3.eth.getBalance(payee)
