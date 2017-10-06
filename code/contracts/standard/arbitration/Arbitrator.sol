@@ -27,7 +27,7 @@ contract Arbitrator{
     
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost().
-     *  @param _choices Amount of choices the arbitrator can make in this dispute. When ruling ruling<=choices.
+     *  @param _choices Amount of choices the arbitrator can make in this dispute.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return disputeID ID of the dispute created.
      */
