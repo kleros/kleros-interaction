@@ -15,7 +15,7 @@ pragma solidity ^0.4.15;
     /** @dev Constructor.
      *  @param _number The number to always return.
      */
-    function CNG(uint _number) {
+    function ConstantNG(uint _number) {
         number = _number;
     }
     
