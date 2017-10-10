@@ -24,14 +24,14 @@ pragma solidity ^0.4.15;
      *  @param _block Block the random number is linked to.
      *  @return RN Random Number. If the number is not ready or has not been required 0 instead.
      */
-    function getRN(uint _block) returns (uint RN);
+    function getRN(uint _block) public constant returns (uint RN);
     
     /** @dev Get a uncorrelated random number. Act like getRN but give a different number for each sender.
      *  This is to avoid all users having the same number for a block which could pose issues.
      *  @param _block Block the random number is linked to.
      *  @return RN Random Number. If the number is not ready or has not been required 0 instead.
      */
-    function getUncorrelatedRN(uint _block) returns (uint RN) {
+    function getUncorrelatedRN(uint _block) public constant returns (uint RN) {
         uint baseRN=getRN(_block);
         if (baseRN==0)
             return 0;

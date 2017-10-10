@@ -23,7 +23,7 @@ contract TrustedRNG is RNG {
     /** @dev Contribute to the reward of a random number.
      *  @param _block Block the random number is linked to.
      */
-    function contribute(uint _block) payable {
+    function contribute(uint _block) public payable {
         if (randomNumber[_block]!=0)
             owner.send(msg.value); // The random number has already been given, pay the operator. If send fails it's not an issue.
         else 
@@ -34,7 +34,7 @@ contract TrustedRNG is RNG {
      *  @param _block Block the random number is linked to.
      *  @param _RN The random number given by the trusted party.
      */
-    function giveRN(uint _block, uint _RN) onlyOwner {
+    function giveRN(uint _block, uint _RN) public onlyOwner {
         require(randomNumber[_block]==0); // Prevent the operator from changing a RN.
         
         owner.send(reward[_block]); // If send fails it's not an issue.
@@ -46,7 +46,7 @@ contract TrustedRNG is RNG {
      *  @param _block Block the random number is linked to.
      *  @return RN Random Number. If the number is not ready or has not been requested 0 instead.
      */
-    function getRN(uint _block) returns (uint RN) {
+    function getRN(uint _block) public constant returns (uint RN) {
         return randomNumber[_block];
     }
     
