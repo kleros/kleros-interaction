@@ -1,0 +1,27 @@
+{
+  "name": "kleros-interaction",
+  "version": "0.0.5",
+  "description": "Smart contracts interacting with Kleros.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kleros/kleros-interaction.git"
+  },
+  "keywords": [
+    "kleros",
+    "random",
+    "arbitration",
+    "arbitrable",
+    "arbitrator",
+    "rng"
+  ],
+  "author": "Kleros",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kleros/kleros-interaction/issues"
+  },
+  "homepage": "https://github.com/kleros/kleros-interaction#readme"
+}

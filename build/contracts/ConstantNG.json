@@ -1,0 +1,97 @@
+{
+  "contract_name": "ConstantNG",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_block",
+          "type": "uint256"
+        }
+      ],
+      "name": "getUncorrelatedRN",
+      "outputs": [
+        {
+          "name": "RN",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_number",
+          "type": "uint256"
+        }
+      ],
+      "name": "CNG",
+      "outputs": [],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_block",
+          "type": "uint256"
+        }
+      ],
+      "name": "requestRN",
+      "outputs": [],
+      "payable": true,
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "number",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_block",
+          "type": "uint256"
+        }
+      ],
+      "name": "contribute",
+      "outputs": [],
+      "payable": true,
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_block",
+          "type": "uint256"
+        }
+      ],
+      "name": "getRN",
+      "outputs": [
+        {
+          "name": "RN",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "type": "function"
+    }
+  ],
+  "unlinked_binary": "0x6060604052341561000f57600080fd5b5b6101de8061001f6000396000f300606060405236156100755763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416631c73601e811461007a57806344e794c9146100a25780637b9c34e0146100ba5780638381f58a146100c7578063c1cbbca7146100ec578063ca4742f1146100f9575b600080fd5b341561008557600080fd5b610090600435610121565b60405190815260200160405180910390f35b34156100ad57600080fd5b6100b8600435610189565b005b6100b8600435610192565b005b34156100d257600080fd5b61009061019f565b60405190815260200160405180910390f35b6100b860043561018f565b005b341561010457600080fd5b6100906004356101a9565b60405190815260200160405180910390f35b60008061012d836101a9565b905080151561013f5760009150610182565b338160405173ffffffffffffffffffffffffffffffffffffffff929092166c01000000000000000000000000028252601482015260340160405190819003902091505b5b50919050565b60008190555b50565b61018f8161018f565b5b50565b60005481565b5b50565b6000545b9190505600a165627a7a7230582061c531e1b808efd2b11df94302bbd1b8309dd1abee171a85ace44b78a374a9cc0029",
+  "networks": {},
+  "schema_version": "0.0.5",
+  "updated_at": 1507634569192
+}

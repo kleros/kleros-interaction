@@ -36,6 +36,10 @@
         {
           "name": "_arbitrator",
           "type": "address"
+        },
+        {
+          "name": "_contractHash",
+          "type": "bytes32"
         }
       ],
       "payable": false,
@@ -89,10 +93,22 @@
       ],
       "name": "Evidence",
       "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "_contractHash",
+          "type": "bytes32"
+        }
+      ],
+      "name": "ContractHash",
+      "type": "event"
     }
   ],
   "unlinked_binary": "0x",
   "networks": {},
   "schema_version": "0.0.5",
-  "updated_at": 1506278743337
+  "updated_at": 1507634569194
 }
