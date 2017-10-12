@@ -14,7 +14,7 @@ contract('ArbitrableTransaction', function (accounts) {
   let gasPrice = 5000000000
   let contractHash = 0x6aa0bb2779ab006be0739900654a89f1f8a2d7373ed38490a7cbab9c9392e1ff
 
-    // Constructor
+  // Constructor
   it('Should put 1000 wei in the contract', async () => {
     let arbitrableTransaction = await ArbitrableTransaction.new(0x0, contractHash, timeout, payee, 0x0, {from: payer, value: amount})
     assert.equal(web3.eth.getBalance(arbitrableTransaction.address), 1000, "The contract hasn't received the wei correctly.")
@@ -37,7 +37,7 @@ contract('ArbitrableTransaction', function (accounts) {
     await expectThrow(arbitrableTransaction.pay({from: payee}))
   })
 
-    // Reimburse
+  // Reimburse
   it('Should reimburse 507 to the payer', async () => {
     let arbitrableTransaction = await ArbitrableTransaction.new(0x0, contractHash, timeout, payee, 0x0, {from: payer, value: amount})
     let payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
@@ -74,7 +74,7 @@ contract('ArbitrableTransaction', function (accounts) {
     await expectThrow(arbitrableTransaction.reimburse(1000, {from: payer}))
   })
 
-    // executeRuling
+  // executeRuling
   it('Should reimburse the payer (including arbitration fee) when the arbitrator decides so', async () => {
     let centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
     let arbitrableTransaction = await ArbitrableTransaction.new(centralizedArbitrator.address, contractHash, timeout, payee, 0x0, {from: payer, value: amount})
@@ -154,7 +154,7 @@ contract('ArbitrableTransaction', function (accounts) {
     await expectThrow(arbitrableTransaction.timeOutByPartyB({from: payee, gasPrice: gasPrice}))
   })
 
-    // submitEvidence
+  // submitEvidence
   it('Should create events when evidence is submitted by the payer', async () => {
     let centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
     let arbitrableTransaction = await ArbitrableTransaction.new(centralizedArbitrator.address, contractHash, timeout, payee, 0x0, {from: payer, value: amount})
