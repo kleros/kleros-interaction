@@ -51,4 +51,11 @@ contract Arbitrator{
      *  @return fee Amount to be paid.
      */
     function appealCost(uint _disputeID, bytes _extraData) constant returns(uint fee);
+    
+    /** @dev Return the current _ruling
+     *  @param _disputeID ID of the dispute.
+     *  @return ruling The current ruling which will be given if there is no appeal. If it is not available yet, return 0.
+     */
+    function currentRuling(uint _disputeID) constant returns(uint ruling) { return 0; }
+     
 }
