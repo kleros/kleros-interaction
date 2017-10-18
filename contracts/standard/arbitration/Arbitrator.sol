@@ -33,7 +33,7 @@ contract Arbitrator{
      */
     function createDispute(uint _choices, bytes _extraData) requireArbitrationFee(_extraData) payable returns(uint disputeID)  {}
     
-    /** @dev Compute the cost of arbitration. It is recommended not to increase it often, as it can be higly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
+    /** @dev Compute the cost of arbitration. It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return fee Amount to be paid.
      */
