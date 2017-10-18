@@ -54,7 +54,7 @@ contract Arbitrator{
     
     /** @dev Return the current ruling of a dispute. This is usefull for parties to know if they should appeal.
      *  @param _disputeID ID of the dispute.
-     *  @return ruling The current ruling which will be given if there is no appeal. If it is not available yet, return 0.
+     *  @return ruling The current ruling which will be given if there is no appeal. If it is not available, return 0.
      */
     function currentRuling(uint _disputeID) constant returns(uint ruling) { return 0; }
      
