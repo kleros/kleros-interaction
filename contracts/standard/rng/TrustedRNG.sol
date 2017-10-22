@@ -16,7 +16,7 @@ contract TrustedRNG is RNG {
     
     address public owner=msg.sender; // The operator of this RNG.
     mapping (uint => uint) public randomNumber; // RN[block] is the random number for this block 0 otherwise.
-    mapping (uint => uint) public reward; // reward[block] is the amount to be paid to the party w
+    mapping (uint => uint) public reward; // reward[block] is the amount to be paid to the party w.
     
     modifier onlyOwner() {require(msg.sender==owner); _;}
     
