@@ -2,7 +2,7 @@
   "contract_name": "RNG",
   "abi": [
     {
-      "constant": false,
+      "constant": true,
       "inputs": [
         {
           "name": "_block",
@@ -46,7 +46,7 @@
       "type": "function"
     },
     {
-      "constant": false,
+      "constant": true,
       "inputs": [
         {
           "name": "_block",
@@ -67,5 +67,5 @@
   "unlinked_binary": "0x",
   "networks": {},
   "schema_version": "0.0.5",
-  "updated_at": 1507634569195
+  "updated_at": 1508684836147
 }
