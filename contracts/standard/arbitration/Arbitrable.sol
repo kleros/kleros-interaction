@@ -52,6 +52,7 @@ contract Arbitrable{
     }
     
     /** @dev Give a ruling for a dispute. Must be call by the arbitrator.
+     *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */

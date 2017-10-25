@@ -16,7 +16,7 @@ import "./Arbitrable.sol";
  *  - Redefine executeRuling while still calling super.executeRuling to implement the results of the arbitration.
  */
 contract TwoPartyArbitrable is Arbitrable {
-    uint public timeout;
+    uint public timeout; // Time in second a party can take before being considered unresponding and lose the dispute.
     address public partyA;
     address public partyB;
     uint public partyAFee; // Total fees paid by the partyA.
@@ -24,7 +24,7 @@ contract TwoPartyArbitrable is Arbitrable {
     bytes public arbitratorExtraData;
     uint public lastInteraction; // Last interaction for the dispute procedure.
     uint public disputeID;
-    enum Status {NoDispute, WaitingPartyB, WaitingPartyA, DisputeCreated, Resolved}
+    enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
     Status public status;
     
     uint8 constant AMOUNT_OF_CHOICES = 2;
@@ -68,7 +68,6 @@ contract TwoPartyArbitrable is Arbitrable {
         require(partyAFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
         
-        
         lastInteraction=now;
         if (partyBFee < arbitrationCost) { // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status=Status.WaitingPartyB;
@@ -97,7 +96,7 @@ contract TwoPartyArbitrable is Arbitrable {
         }
     }
     
-    /** @dev Create a dispute.
+    /** @dev Create a dispute. UNTRUSTED.
      *  @param _arbitrationCost Amount to pay the arbitrator.
      */
     function raiseDispute(uint _arbitrationCost) internal {
@@ -153,9 +152,9 @@ contract TwoPartyArbitrable is Arbitrable {
         // Give the arbitration fee back.
         // Note tha we use send to prevent a party from blocking the execution.
         if (_ruling==PARTY_A_WINS)
-            partyA.send(partyAFee);
+            partyA.send(partyAFee > partyBFee ? partyAFee : partyBFee); // In both cases sends the highest amount paid to avoid ETH to be stuck in the contract if the arbitrator lowers its fee.
         else if (_ruling==PARTY_B_WINS)
-            partyB.send(partyBFee);
+            partyB.send(partyAFee > partyBFee ? partyAFee : partyBFee);
         status=Status.Resolved;
     }
     
