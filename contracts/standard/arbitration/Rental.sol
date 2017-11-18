@@ -1,5 +1,5 @@
 /**
- *  @title Renting
+ *  @title Rental
  *  @author Clément Lesaege - <clement@lesaege.com>
  *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
  */
@@ -8,14 +8,14 @@
 pragma solidity ^0.4.15;
 import "./TwoPartyArbitrable.sol";
 
-/** @title Renting
- *  This is a a contract for renting agreement.
+/** @title Rental
+ *  This is a a contract for rental agreement.
  *  This can be used to rent objects or properties.
  *  Party A is the renter. Party B is the owner.
  *  Party A put a deposit. If everything goes well, it will be given back. 
  *  Otherwize parties can claim an amount of damages. If they disagree, the arbitrator will have to solve this dispute.
  */
- contract Renting is TwoPartyArbitrable {
+ contract Rental is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Rule for party A (renter);Rule for Party B (owner)";
     
     uint public amount; // Amount sent by party A.
@@ -29,7 +29,7 @@ import "./TwoPartyArbitrable.sol";
      *  @param _partyB The owner.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    function Renting(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) public TwoPartyArbitrable(_arbitrator,_hashContract,_timeout,_partyB,_arbitratorExtraData) payable {
+    function Rental(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) public TwoPartyArbitrable(_arbitrator,_hashContract,_timeout,_partyB,_arbitratorExtraData) payable {
         amount+=msg.value;
     }
 
