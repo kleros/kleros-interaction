@@ -124,7 +124,7 @@ contract('TwoPartyArbitrable', function (accounts) {
     assert.equal(tx.logs[0].args._evidence, 'ipfs:/X')
   })
 
-  it('Should fail if someone else try to submit', async () => {
+  it('Should fail if someone else tries to submit', async () => {
     let centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
     let arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, contractHash, timeout, partyB, 0x0, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
