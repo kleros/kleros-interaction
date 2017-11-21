@@ -23,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/kleros/kleros-interaction/issues"
   },
-  "homepage": "https://github.com/kleros/kleros-interaction#readme"
+  "homepage": "https://github.com/kleros/kleros-interaction#readme",
+  "dependencies": {
+    "zeppelin-solidity": "^1.3.0"
+  }
 }
