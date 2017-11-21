@@ -39,12 +39,24 @@ contract LockedToken is MintableToken {
         amountLocked[_to].add(_amount);
     }
     
-    /** @dev Unlock the tokens which can.
+    /** @dev Unlock the tokens which can. 
+     *  Note that this function is O(log(t)) where t is the last time of unlock.
+     *  You can call partiallUnlock with a maxUnlock to avoid gas issues.
+     *  But note that it is likely to never be necessary as the cost of this function, if not high even for multiple years.
      *  @param _to The address to unlock tokens from.
      */
     function unlock(address _to) public {
+        partialUnlock(_to,uint(-1));
+    }
+    
+    /** @dev Unlock the tokens which can. 
+     *  This function is O(_maxUnlock). You may need to call it multiple times.
+     *  @param _to The address to unlock tokens from.
+     */
+    function partialUnlock(address _to, uint _maxUnlock) public {
         if (lastUnlock[_to].add(4 weeks) <= now && amountLocked[_to]!=0) {
             uint amountOfMonths = now.sub(lastUnlock[_to]) / (4 weeks);
+            amountOfMonths = amountOfMonths < _maxUnlock ? amountOfMonths : _maxUnlock;
             lastUnlock[_to]=lastUnlock[_to].add(amountOfMonths.mul(4 weeks)); // Update last unlock date.
             uint newLocked=amountLocked[_to];
             for (uint i=0;i<amountOfMonths;++i)
