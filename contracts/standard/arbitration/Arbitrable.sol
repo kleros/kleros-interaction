@@ -29,7 +29,7 @@ contract Arbitrable{
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string _rulingOptions);
 	
 	/** @dev To be raised when a ruling is given.
-     *  @param _arbitrator The arbitrator of the contract.
+     *  @param _arbitrator The arbitrator giving the ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling The ruling which was given.
      */
