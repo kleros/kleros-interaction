@@ -30,6 +30,12 @@ contract Arbitrator{
 	 *  @param _arbitrable The contract which created the dispute.
 	 */
 	event DisputeCreation(uint indexed _disputeID, Arbitrable _arbitrable);
+	
+	/** @dev To be raised when the current ruling is appealed.
+	 *  @param _disputeID ID of the dispute.
+	 *  @param _arbitrable The contract which created the dispute.
+	 */
+	event AppealDecision(uint indexed _disputeID, Arbitrable _arbitrable);
     
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost().
@@ -49,7 +55,9 @@ contract Arbitrator{
      *  @param _disputeID ID of the dispute to be appealed.
      *  @param _extraData Can be used to give extra info on the appeal.
      */
-    function appeal(uint _disputeID, bytes _extraData) requireAppealFee(_disputeID,_extraData) payable {}
+    function appeal(uint _disputeID, bytes _extraData) requireAppealFee(_disputeID,_extraData) payable {
+		AppealDecision(_disputeID, Arbitrable(msg.sender));
+	}
     
     /** @dev Compute the cost of appeal. It is recommended not to increase it often, as it can be higly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _disputeID ID of the dispute to be appealed.
