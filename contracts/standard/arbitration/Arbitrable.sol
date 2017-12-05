@@ -27,8 +27,8 @@ contract Arbitrable{
      *  @param _rulingOptions Map ruling IDs to short description of the ruling in a CSV format using ";" as a delimiter. Note that ruling IDs start a 1. For example "Send funds to buyer;Send funds to seller", means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.
      */
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string _rulingOptions);
-	
-	/** @dev To be raised when a ruling is given.
+    
+    /** @dev To be raised when a ruling is given.
      *  @param _arbitrator The arbitrator giving the ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling The ruling which was given.
@@ -64,8 +64,8 @@ contract Arbitrable{
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) onlyArbitrator {
-		Ruling(Arbitrator(msg.sender),_disputeID,_ruling);
-		
+        Ruling(Arbitrator(msg.sender),_disputeID,_ruling);
+        
         executeRuling(_disputeID,_ruling);
     }
     
