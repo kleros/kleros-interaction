@@ -67,11 +67,13 @@ contract CentralizedArbitrator is Arbitrator {
      */
     function createDispute(uint _choices, bytes _extraData) payable returns(uint disputeID)  {
         super.createDispute(_choices,_extraData);
-        return disputes.push(Dispute({
+        disputeID = disputes.push(Dispute({
             arbitrated: Arbitrable(msg.sender),
             choices: _choices,
             fee: msg.value
         })) - 1; // Create the dispute and return its number.
+		DisputeCreation(disputeID, Arbitrable(msg.sender));
+		return disputeID;
     }
     
     /** @dev Give a ruling. UNTRUSTED.

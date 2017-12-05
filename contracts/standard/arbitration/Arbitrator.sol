@@ -24,6 +24,12 @@ contract Arbitrator{
      *  @param _disputeID ID of the dispute.
      */
     event AppealPossible(uint _disputeID);
+	
+	/** @dev To be raised when a dispute is created.
+	 *  @param _disputeID ID of the dispute.
+	 *  @param _arbitrable The contract which created the dispute.
+	 */
+	event DisputeCreation(uint indexed _disputeID, Arbitrable _arbitrable);
     
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost().
