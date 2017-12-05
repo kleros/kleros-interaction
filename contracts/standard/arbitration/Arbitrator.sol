@@ -38,7 +38,7 @@ contract Arbitrator{
     event AppealDecision(uint indexed _disputeID, Arbitrable _arbitrable);
     
     /** @dev Create a dispute. Must be called by the arbitrable contract.
-     *  Must be paid at least arbitrationCost().
+     *  Must be paid at least arbitrationCost(_extraData).
      *  @param _choices Amount of choices the arbitrator can make in this dispute.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return disputeID ID of the dispute created.
