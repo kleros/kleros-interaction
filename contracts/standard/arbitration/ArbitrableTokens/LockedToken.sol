@@ -35,8 +35,9 @@ contract LockedToken is MintableToken {
      */
     function mint(address _to, uint256 _amount) public returns (bool) {
         unlock(_to);
-        super.mint(_to,_amount);
+        assert(super.mint(_to,_amount));
         amountLocked[_to].add(_amount);
+        return true;
     }
     
     /** @dev Unlock the tokens which can. 
@@ -73,7 +74,8 @@ contract LockedToken is MintableToken {
         unlock(msg.sender);
         require(balances[msg.sender].sub(amountLocked[msg.sender])>=_value);
         
-        super.transfer(_to,_value);
+        assert(super.transfer(_to,_value));
+        return true;
     }
     
     /** @dev Transfer tokens from one address to another
@@ -85,7 +87,8 @@ contract LockedToken is MintableToken {
         unlock(_from);
         require(balances[_from].sub(amountLocked[_from])>=_value);
         
-        super.transferFrom(_from,_to,_value);
+        assert(super.transferFrom(_from,_to,_value));
+        return true;
     }
     
 }
