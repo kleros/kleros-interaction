@@ -18,6 +18,7 @@ import "./Arbitrator.sol";
  */
 contract Arbitrable{
     Arbitrator public arbitrator;
+	bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.
     
     modifier onlyArbitrator {require(msg.sender==address(arbitrator)); _;}
     
@@ -53,8 +54,9 @@ contract Arbitrable{
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _contractHash Keccak256 hash of the plain text contract.
      */
-    function Arbitrable(Arbitrator _arbitrator, bytes32 _contractHash) {
+    function Arbitrable(Arbitrator _arbitrator, bytes32 _arbitratorExtraData, bytes32 _contractHash) {
         arbitrator=_arbitrator;
+		arbitratorExtraData=_arbitratorExtraData;
         ContractHash(_contractHash);
     }
     

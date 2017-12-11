@@ -21,7 +21,6 @@ contract TwoPartyArbitrable is Arbitrable {
     address public partyB;
     uint public partyAFee; // Total fees paid by the partyA.
     uint public partyBFee; // Total fees paid by the partyB.
-    bytes public arbitratorExtraData;
     uint public lastInteraction; // Last interaction for the dispute procedure.
     uint public disputeID;
     enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
@@ -50,11 +49,10 @@ contract TwoPartyArbitrable is Arbitrable {
      *  @param _partyB The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    function TwoPartyArbitrable(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) Arbitrable(_arbitrator,_hashContract) {
+    function TwoPartyArbitrable(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) Arbitrable(_arbitrator,_arbitratorExtraData,_hashContract) {
         timeout=_timeout;
         partyA=msg.sender;
         partyB=_partyB;
-        arbitratorExtraData=_arbitratorExtraData;
     }
     
     
