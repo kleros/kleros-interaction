@@ -54,7 +54,7 @@ contract Arbitrable{
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _contractHash Keccak256 hash of the plain text contract.
      */
-    function Arbitrable(Arbitrator _arbitrator, bytes32 _arbitratorExtraData, bytes32 _contractHash) {
+    function Arbitrable(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash) {
         arbitrator=_arbitrator;
 		arbitratorExtraData=_arbitratorExtraData;
         ContractHash(_contractHash);
