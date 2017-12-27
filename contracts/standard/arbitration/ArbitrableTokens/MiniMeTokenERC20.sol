@@ -1,7 +1,7 @@
  /**
  *  @title Mini Me Token ERC20
- *  Overwrite the MiniMeToken to make it ERC20.
- *  This is required because the base token reverts when approve is used with the non zero value while allowed is non zero (which forbidden by the standard, see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md).
+ *  Overwrite the MiniMeToken to make it follow ERC20 recommendation.
+ *  This is required because the base token reverts when approve is used with the non zero value while allowed is non zero (which not recommended by the standard, see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md).
  *  @author Clément Lesaege - <clement@lesaege.com>
  *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
  */
