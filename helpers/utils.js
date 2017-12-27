@@ -1,9 +1,13 @@
 module.exports = {
  increaseTime: addSeconds => {
-     web3.currentProvider.send({jsonrpc: "2.0", method: "evm_increaseTime", params: [addSeconds], id: 0})
+   web3.currentProvider.send({jsonrpc: "2.0", method: "evm_increaseTime", params: [addSeconds], id: 0})
  },
- 
-    
+
+ mineBlock: () => {
+   web3.currentProvider.send({jsonrpc: "2.0", method: "evm_mine"})
+ },
+
+
  expectThrow: async promise => {
 
    try {
@@ -17,7 +21,7 @@ module.exports = {
      const invalidOpcode = error.message.search('invalid opcode') >= 0
 
      const outOfGas = error.message.search('out of gas') >= 0
-	 
+
 	 // TODO: Test if the error is a revert.
 
      return
