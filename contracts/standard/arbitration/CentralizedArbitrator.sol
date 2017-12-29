@@ -17,7 +17,7 @@ contract CentralizedArbitrator is Arbitrator {
     address public owner=msg.sender;
     uint arbitrationPrice; // Not public because arbitrationCost already acts as an accessor.
     uint constant NOT_PAYABLE_VALUE = (2**256-2)/2; // High value to be sure that the appeal is too expensive.
-    enum DisputeStatus {waiting, appealable, ended}
+
     struct Dispute {
         Arbitrable arbitrated;
         uint choices;

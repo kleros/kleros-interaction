@@ -17,6 +17,8 @@ import "./Arbitrable.sol";
  */
 contract Arbitrator{
     
+    enum DisputeStatus {waiting, appealable, ended}
+    
     modifier requireArbitrationFee(bytes _extraData) {require(msg.value>=arbitrationCost(_extraData)); _;}
     modifier requireAppealFee(uint _disputeID, bytes _extraData) {require(msg.value>=appealCost(_disputeID, _extraData)); _;}
     
@@ -43,19 +45,19 @@ contract Arbitrator{
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return disputeID ID of the dispute created.
      */
-    function createDispute(uint _choices, bytes _extraData) requireArbitrationFee(_extraData) payable returns(uint disputeID)  {}
+    function createDispute(uint _choices, bytes _extraData) public requireArbitrationFee(_extraData) payable returns(uint disputeID)  {}
     
     /** @dev Compute the cost of arbitration. It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return fee Amount to be paid.
      */
-    function arbitrationCost(bytes _extraData) constant returns(uint fee);
+    function arbitrationCost(bytes _extraData) public constant returns(uint fee);
     
     /** @dev Appeal a ruling. Note that it has to be called before the arbitrator contract calls rule.
      *  @param _disputeID ID of the dispute to be appealed.
      *  @param _extraData Can be used to give extra info on the appeal.
      */
-    function appeal(uint _disputeID, bytes _extraData) requireAppealFee(_disputeID,_extraData) payable {
+    function appeal(uint _disputeID, bytes _extraData) public requireAppealFee(_disputeID,_extraData) payable {
         AppealDecision(_disputeID, Arbitrable(msg.sender));
     }
     
@@ -64,12 +66,18 @@ contract Arbitrator{
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return fee Amount to be paid.
      */
-    function appealCost(uint _disputeID, bytes _extraData) constant returns(uint fee);
+    function appealCost(uint _disputeID, bytes _extraData) public constant returns(uint fee);
     
-    /** @dev Return the current ruling of a dispute. This is usefull for parties to know if they should appeal.
-     *  @param _disputeID ID of the dispute.
-     *  @return ruling The current ruling which will be given if there is no appeal. If it is not available, return 0.
+    /** @dev Return the status of a dispute.
+     *  @param _disputeID ID of the dispute to rule.
+     *  @return status The status of the dispute.
      */
-    function currentRuling(uint _disputeID) constant returns(uint ruling) { return 0; }
+    function disputeStatus(uint _disputeID) public constant returns(DisputeStatus status);
+    
+    /** @dev Return the current ruling of a dispute. This is useful for parties to know if they should appeal.
+     *  @param _disputeID ID of the dispute.
+     *  @return ruling The current ruling which will be given if there is no appeal or which has been given.
+     */
+    function currentRuling(uint _disputeID) public constant returns(uint ruling);
      
 }
