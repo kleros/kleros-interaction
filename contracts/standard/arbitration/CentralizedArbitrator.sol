@@ -74,7 +74,7 @@ contract CentralizedArbitrator is Arbitrator {
             choices: _choices,
             fee: msg.value,
             ruling: 0,
-            status: DisputeStatus.waiting
+            status: DisputeStatus.Waiting
         })) - 1; // Create the dispute and return its number.
 		DisputeCreation(disputeID, Arbitrable(msg.sender));
 		return disputeID;
@@ -93,7 +93,7 @@ contract CentralizedArbitrator is Arbitrator {
         dispute.arbitrated=Arbitrable(0x0); // Clean up to get gas back and prevent calling it again.
         dispute.fee=0;
         dispute.ruling=_ruling;
-        dispute.status=DisputeStatus.solved;
+        dispute.status=DisputeStatus.Solved;
         
         msg.sender.transfer(fee);
         arbitrated.rule(_disputeID,_ruling);

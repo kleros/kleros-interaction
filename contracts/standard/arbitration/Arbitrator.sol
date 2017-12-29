@@ -17,7 +17,7 @@ import "./Arbitrable.sol";
  */
 contract Arbitrator{
     
-    enum DisputeStatus {waiting, appealable, solved}
+    enum DisputeStatus {Waiting, Appealable, Solved}
     
     modifier requireArbitrationFee(bytes _extraData) {require(msg.value>=arbitrationCost(_extraData)); _;}
     modifier requireAppealFee(uint _disputeID, bytes _extraData) {require(msg.value>=appealCost(_disputeID, _extraData)); _;}
