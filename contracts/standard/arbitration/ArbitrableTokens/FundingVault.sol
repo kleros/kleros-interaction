@@ -37,6 +37,7 @@ contract FundingVault is Arbitrable {
 		uint disputeID; // ID of the dispute if this claim is disputed.
         uint lastTotalFeePayment; // Time of the last total fee payment, useful for timeouts.
         bool lastTotalFeePaymentIsTeam; // True if the last interaction is from the team.
+        address payerForHolders; // The address who first paid the arbitration fee and will be refunded in case of victory.
 	}
 	Milestone[] public milestones;
     mapping(uint => uint) public disputeIDToMilstoneID; // Map (disputeID => milestoneID).
@@ -82,7 +83,8 @@ contract FundingVault is Arbitrable {
                 voteToken:MiniMeToken(0x0),
 				disputeID:0,
                 lastTotalFeePayment:0,
-                lastTotalFeePaymentIsTeam:false
+                lastTotalFeePaymentIsTeam:false,
+                payerForHolders:0x0
             }))-1;
 	}
 
@@ -119,7 +121,9 @@ contract FundingVault is Arbitrable {
     }
 	
     /** @dev Pay fee to dispute a milestone. To be called by parties claiming the milestone was not completed.
-     *  Multiple people may pay the arbitration fee. A vote token is only created when the arbitration has been paid.
+     *  The first party to pay the fee entirely will be reimbursed if the dispute is won.
+     *  Note that holders can make a smart contract to crowdfund the fee.
+     *  In the rare event the arbitrationCost is increased, anyone can pay the extra, but it is always the first payer who can be reimbursed.
      *  @param _milestoneID The milestone which is disputed.
      */
     function payDisputeFeeByHolders(uint _milestoneID) public payable {
@@ -127,20 +131,22 @@ contract FundingVault is Arbitrable {
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(!milestone.disputed); // The milestone is not already disputed.
         require(milestone.voteToken.balanceOf(this) >= (disputeThreshold*milestone.voteToken.totalSupply())/1000); // There is enough votes.
+        require(milestone.feeHolders<arbitrationCost); // Fee has not be paid before.
+        require(milestone.feeHolders+msg.value>=arbitrationCost); // Enough is paid.
         require(!milestone.disputed); // A dispute has not been created yet.
         
         milestone.feeHolders+=msg.value;
         
-        if (milestone.feeHolders>=arbitrationCost){ // Enough has been paid.
-            if (milestone.feeTeam>=arbitrationCost) { // Enough has been paid by all sides.
-                createDispute(_milestoneID,arbitrationCost);
-            }
-            else if (milestone.lastTotalFeePayment==0) { // First time the fee is paid.
-                milestone.lastTotalFeePayment=now;
-            } else if(milestone.lastTotalFeePaymentIsTeam) { // The team was the last one who had paid entirely.
-                milestone.lastTotalFeePaymentIsTeam=false;
-                milestone.lastTotalFeePayment=now;
-            }
+        if (milestone.payerForHolders==0x0)
+            milestone.payerForHolders=msg.sender;
+        
+        if (milestone.feeTeam>=arbitrationCost) { // Enough has been paid by all sides.
+            createDispute(_milestoneID,arbitrationCost);
+        } else if (milestone.lastTotalFeePayment==0) { // First time the fee is paid.
+            milestone.lastTotalFeePayment=now;
+        } else if(milestone.lastTotalFeePaymentIsTeam) { // The team was the last one who had paid entirely.
+            milestone.lastTotalFeePaymentIsTeam=false;
+            milestone.lastTotalFeePayment=now;
         }
     }
     
@@ -202,8 +208,54 @@ contract FundingVault is Arbitrable {
     }
     
     // TODO: Timeouts
+    /** @dev Timeout to use when the holders don't pay the fee.
+     *  @param _milestoneID The milestone which is disputed.
+     */
+    function timeoutByTeam(uint _milestoneID) public {
+        Milestone storage milestone=milestones[_milestoneID];
+        require(msg.sender==team);
+        require(milestone.lastTotalFeePaymentIsTeam);
+        require(now-milestone.lastTotalFeePayment > timeout);
+        
+        team.transfer(milestone.amountClaimed+milestone.feeTeam+milestone.feeHolders); // Pay the amount claimed and the unused fees to the team.
+        milestone.amount-=milestone.amountClaimed;
+        milestone.amountClaimed=0;
+        milestone.claimTime=0;
+        milestone.feeTeam=0;
+        milestone.feeHolders=0;
+        milestone.voteToken=MiniMeToken(0x0);
+        milestone.lastTotalFeePayment=0;
+        milestone.lastTotalFeePaymentIsTeam=false;
+        milestone.payerForHolders=0x0;        
+    }
     
-    // TODO: Appeals
+    /** @dev Timeout to use whe the team don't pay the fee.
+     *  @param _milestoneID The milestone which is disputed.
+     */
+    function timeoutByHolders(uint _milestoneID) public {
+        Milestone storage milestone=milestones[_milestoneID];
+        require(!milestone.lastTotalFeePaymentIsTeam);
+        require(now-milestone.lastTotalFeePayment > timeout);
+        
+        milestone.payerForHolders.transfer(milestone.feeTeam+milestone.feeHolders); // Pay the unused fees to the payer for holders.
+        milestone.amountClaimed=0;
+        milestone.claimTime=0;
+        milestone.disputed=false;
+        milestone.feeTeam=0;
+        milestone.feeHolders=0;
+        milestone.voteToken=MiniMeToken(0x0);
+        milestone.lastTotalFeePayment=0;
+        milestone.payerForHolders=0x0;
+    }
+     
+    /** @dev Appeal an appealable ruling.
+     *  Transfer the funds to the arbitrator.
+     *  @param _milestoneID The milestone which is disputed.
+     */
+    function appeal(uint _milestoneID) public payable {
+        Milestone storage milestone=milestones[_milestoneID];
+        arbitrator.appeal.value(msg.value)(milestone.disputeID,arbitratorExtraData);
+    }
 
     /** @dev Execute a ruling of a dispute.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
@@ -211,8 +263,10 @@ contract FundingVault is Arbitrable {
      */
     function executeRuling(uint _disputeID, uint _ruling) internal{
         Milestone storage milestone=milestones[disputeIDToMilstoneID[_disputeID]];
+        require(milestone.voteToken.balanceOf(this) >= (disputeThreshold*milestone.voteToken.totalSupply())/1000); // Make sure there is enough votes to protect against a malicious arbitrator.
+        
         if (_ruling==TEAM_WINS) {
-            team.transfer(milestone.amountClaimed+milestone.feeTeam+milestone.feeHolders); // Pay the amount claimed and the unused fees.
+            team.transfer(milestone.amountClaimed+milestone.feeTeam+milestone.feeHolders); // Pay the amount claimed and the unused fees to the team.
             milestone.amount-=milestone.amountClaimed;
             milestone.amountClaimed=0;
             milestone.claimTime=0;
@@ -223,10 +277,22 @@ contract FundingVault is Arbitrable {
             milestone.disputeID=0; 
             milestone.lastTotalFeePayment=0;
             milestone.lastTotalFeePaymentIsTeam=false;
+            milestone.payerForHolders=0x0;
         } else if (_ruling==HOLDERS_WINS) {
-            
+            milestone.payerForHolders.transfer(milestone.feeTeam+milestone.feeHolders); // Pay the unused fees to the payer for holders.
+            milestone.amountClaimed=0;
+            milestone.claimTime=0;
+            milestone.disputed=false;
+            milestone.feeTeam=0;
+            milestone.feeHolders=0;
+            milestone.voteToken=MiniMeToken(0x0);
+            milestone.disputeID=0; 
+            milestone.lastTotalFeePayment=0;
+            milestone.lastTotalFeePaymentIsTeam=false;
+            milestone.payerForHolders=0x0;
         }
     }
+    
 
 
 }
