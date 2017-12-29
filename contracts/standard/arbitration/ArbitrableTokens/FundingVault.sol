@@ -19,88 +19,88 @@ import "minimetoken/contracts/MiniMeToken.sol";
  *  If the team does not agree, a dispute is created and the arbitrator decides if the token holders should be reimbursed.
  */
 contract FundingVault is Arbitrable {
-	address public team;
-	MiniMeToken public token;
-	address public funder;
-	uint public disputeThreshold;
-	uint public claimToWithdrawTime;
-	uint public additionalTimeToWithdraw;
+    address public team;
+    MiniMeToken public token;
+    address public funder;
+    uint public disputeThreshold;
+    uint public claimToWithdrawTime;
+    uint public additionalTimeToWithdraw;
     uint public timeout;
-	struct Milestone {
-		uint amount; // The maximum amount which can be unlocked for this milestone.
-		uint amountClaimed; // The current amount which is claimed.
-		uint claimTime; // The time the current claim was made. Or 0 if it's not currently claimed.
-		bool disputed; // True if a dispute has been raised.
+    struct Milestone {
+        uint amount; // The maximum amount which can be unlocked for this milestone.
+        uint amountClaimed; // The current amount which is claimed.
+        uint claimTime; // The time the current claim was made. Or 0 if it's not currently claimed.
+        bool disputed; // True if a dispute has been raised.
         uint feeTeam;  // Arbitration fee paid by the team.
         uint feeHolders; // Arbitration fee paid by token holders.
         MiniMeToken voteToken; // Forked token which will be used to vote.
-		uint disputeID; // ID of the dispute if this claim is disputed.
+        uint disputeID; // ID of the dispute if this claim is disputed.
         uint lastTotalFeePayment; // Time of the last total fee payment, useful for timeouts.
         bool lastTotalFeePaymentIsTeam; // True if the last interaction is from the team.
         address payerForHolders; // The address who first paid the arbitration fee and will be refunded in case of victory.
-	}
-	Milestone[] public milestones;
+    }
+    Milestone[] public milestones;
     mapping(uint => uint) public disputeIDToMilstoneID; // Map (disputeID => milestoneID).
     
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant TEAM_WINS = 1;
     uint8 constant HOLDERS_WINS = 2;
-	
+    
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _contractHash Keccak256 hash of the plain text contract.
-	 *  @param _team The address of the team who will be able to claim milestone completion.
-	 *  @param _token The token whose holders are able to dispute milestone claims.
-	 *  @param _funder The party putting funds in the vault.
-	 *  @param _disputeThreshold The ‱ of tokens required to dispute a milestone.
-	 *  @param _claimToWithdrawTime The base time in seconds after a claim is considered non-disputed (i.e  if no token holders dispute it).
-	 *  @param _additionalTimeToWithdraw The time in seconds which is added per ‱ of tokens disputing the claim.
+     *  @param _team The address of the team who will be able to claim milestone completion.
+     *  @param _token The token whose holders are able to dispute milestone claims.
+     *  @param _funder The party putting funds in the vault.
+     *  @param _disputeThreshold The ‱ of tokens required to dispute a milestone.
+     *  @param _claimToWithdrawTime The base time in seconds after a claim is considered non-disputed (i.e  if no token holders dispute it).
+     *  @param _additionalTimeToWithdraw The time in seconds which is added per ‱ of tokens disputing the claim.
      *  @param _timeout Maximum time to pay arbitration fees after the other side did.
      */
     function FundingVault(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash, address _team, address _token, address _funder, uint _disputeThreshold, uint _claimToWithdrawTime, uint _additionalTimeToWithdraw, uint _timeout) public Arbitrable(_arbitrator,_arbitratorExtraData,_contractHash) {
-		team=_team;
-		token=MiniMeToken(_token);
-		funder=_funder;
-		disputeThreshold=_disputeThreshold;
-		claimToWithdrawTime=_claimToWithdrawTime;
-		additionalTimeToWithdraw=_additionalTimeToWithdraw;
+        team=_team;
+        token=MiniMeToken(_token);
+        funder=_funder;
+        disputeThreshold=_disputeThreshold;
+        claimToWithdrawTime=_claimToWithdrawTime;
+        additionalTimeToWithdraw=_additionalTimeToWithdraw;
         timeout=_timeout;
     }
     
-	/** @dev Give the funds for a milestone.
-	 *  @return milestoneID The ID of the milestone which was created.
-	 */
-	function fundMilestone() public payable returns(uint milestoneID) {
-		require(msg.sender==funder);
-		
-		return milestones.push(Milestone({
+    /** @dev Give the funds for a milestone.
+     *  @return milestoneID The ID of the milestone which was created.
+     */
+    function fundMilestone() public payable returns(uint milestoneID) {
+        require(msg.sender==funder);
+        
+        return milestones.push(Milestone({
                 amount:msg.value,
                 amountClaimed:0,
                 claimTime:0,
-				disputed:false,
+                disputed:false,
                 feeTeam:0,
                 feeHolders:0,
                 voteToken:MiniMeToken(0x0),
-				disputeID:0,
+                disputeID:0,
                 lastTotalFeePayment:0,
                 lastTotalFeePaymentIsTeam:false,
                 payerForHolders:0x0
             }))-1;
-	}
+    }
 
     
-	/** @dev Claim funds of a milestone.
-	 *  @param _milestoneID The ID of the milestone.
-	 *  @param _amount The amount claim. Note that the team can claim less than the amount of a milestone. This allows partial completion claims.
-	 */
-	function claimMilestone(uint _milestoneID, uint _amount) public {
-		Milestone storage milestone=milestones[_milestoneID];
-		require(msg.sender==team);
-		require(milestone.claimTime==0); // Verify another claim is not active.
-		require(milestone.amount<=_amount);
-		
-		milestone.claimTime=now;
-	}
+    /** @dev Claim funds of a milestone.
+     *  @param _milestoneID The ID of the milestone.
+     *  @param _amount The amount claim. Note that the team can claim less than the amount of a milestone. This allows partial completion claims.
+     */
+    function claimMilestone(uint _milestoneID, uint _amount) public {
+        Milestone storage milestone=milestones[_milestoneID];
+        require(msg.sender==team);
+        require(milestone.claimTime==0); // Verify another claim is not active.
+        require(milestone.amount<=_amount);
+        
+        milestone.claimTime=now;
+    }
     
     /** @dev Make a forked token to dispute a claim.
      *  This avoid creating a token all the time, since most milestones should not be disputed.
@@ -119,7 +119,7 @@ contract FundingVault is Arbitrable {
                 true
                 ));
     }
-	
+    
     /** @dev Pay fee to dispute a milestone. To be called by parties claiming the milestone was not completed.
      *  The first party to pay the fee entirely will be reimbursed if the dispute is won.
      *  Note that holders can make a smart contract to crowdfund the fee.
@@ -186,7 +186,7 @@ contract FundingVault is Arbitrable {
         milestone.disputeID=arbitrator.createDispute(AMOUNT_OF_CHOICES,arbitratorExtraData);
         disputeIDToMilstoneID[milestone.disputeID]=_milestoneID;
     }
-	
+    
     /** @dev Withdraw the money claimed in a milestone.
      *  To be called when a dispute has not been created within the time limit.
      *  @param _milestoneID The milestone which is disputed.
@@ -247,7 +247,7 @@ contract FundingVault is Arbitrable {
         milestone.lastTotalFeePayment=0;
         milestone.payerForHolders=0x0;
     }
-     
+    
     /** @dev Appeal an appealable ruling.
      *  Transfer the funds to the arbitrator.
      *  @param _milestoneID The milestone which is disputed.
