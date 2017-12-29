@@ -24,8 +24,12 @@
     "url": "https://github.com/kleros/kleros-interaction/issues"
   },
   "homepage": "https://github.com/kleros/kleros-interaction#readme",
+  "devDependencies": {
+    "truffle": "^4.0.4",
+    "web3": "^1.0.0-beta.22"
+  },
   "dependencies": {
     "minimetoken": "^0.2.0",
-    "zeppelin-solidity": "^1.3.0"
+    "zeppelin-solidity": "^1.5.0"
   }
 }
