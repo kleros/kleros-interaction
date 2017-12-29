@@ -93,7 +93,7 @@ contract CentralizedArbitrator is Arbitrator {
         dispute.arbitrated=Arbitrable(0x0); // Clean up to get gas back and prevent calling it again.
         dispute.fee=0;
         dispute.ruling=_ruling;
-        dispute.status=DisputeStatus.ended;
+        dispute.status=DisputeStatus.solved;
         
         msg.sender.transfer(fee);
         arbitrated.rule(_disputeID,_ruling);
