@@ -15,8 +15,9 @@ import "minimetoken/contracts/MiniMeToken.sol";
  *  The team can claim a milestone is reached. Token holders will have some time to dispute that claim.
  *  When some token holders vote to dispute the claim, extra time is given to other token holders to dispute that claim.
  *  If a sufficient amount of token holders dispute it. A dispute is created and the arbitrator will decide if the milestone has been reached.
- *  Token holders can also claim that the team failed to deliver and ask for the remaining ETH to be given back to token holders.
- *  If the team does not agree, a dispute is created and the arbitrator decides if the token holders should be reimbursed.
+ *  When there is a disagreement a vote token is created. Holders should send the voteToken to the Vault to disagree with the milestone.
+ *  Token holders can also claim that the team failed to deliver and ask for the remaining ETH to be given back to a different contract.
+ *  This contract can be the vault of another team, or a contract to reimburse.
  */
 contract FundingVault is Arbitrable {
     address public team;
@@ -292,7 +293,7 @@ contract FundingVault is Arbitrable {
             milestone.payerForHolders=0x0;
         }
     }
-    
+    // TODO: Make a mechanism to send everything back to another contract.
 
 
 }
