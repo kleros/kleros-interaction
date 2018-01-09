@@ -23,7 +23,7 @@ contract BlockHashRNGFallback is BlockHashRNG {
      *  @param _block Block the random number is linked to.
      */
     function saveRN(uint _block) public {
-        if (_block!=block.number) {
+        if (_block<block.number) {
             uint rewardToSend=reward[_block];
             reward[_block]=0;
             if (block.blockhash(_block)!=0x0) // Normal case.
