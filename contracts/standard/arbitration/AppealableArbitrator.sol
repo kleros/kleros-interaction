@@ -1,5 +1,6 @@
 /**
- *  @title Arbitration Standard *  @author Mahadevan K - <mahadevan.k@gmail.com>
+ *  @title Arbitration Standard 
+ *  @author Mahadevan K - <mahadevan.k@gmail.com>
  *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
  */
 
