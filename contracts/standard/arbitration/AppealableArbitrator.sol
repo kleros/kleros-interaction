@@ -18,7 +18,7 @@ contract AppealableArbitrator is CentralizedArbitrator {
      *  @return fee Amount to be paid.
      */
     function appealCost(uint _disputeID, bytes _extraData) public constant returns(uint fee) {
-        return arbitrationPrice*2.0;
+        return arbitrationPrice*2;
     }
 
     /**
