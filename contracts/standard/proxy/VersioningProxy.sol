@@ -35,7 +35,7 @@ contract VersioningProxy {
     /* Modifiers */
 
     /**
-     *  @dev Makes a function only callable by the owner of the contract.
+     *  @dev Makes a function only callable by the owner of this contract.
      */
     modifier onlyOwner {
         require(owner == msg.sender);
@@ -45,9 +45,9 @@ contract VersioningProxy {
     /* Constructor */
 
     /**
-     *  @notice Constructs the version proxy with the first version of the contract, `firstTag`, at `firstAddress`.
-     *  @param firstTag The version tag of the first version of the contract you are versioning.
-     *  @param firstAddress The address of the associated contract.
+     *  @notice Constructs the version proxy with the first version of the managed contract, `firstTag`, at `firstAddress`.
+     *  @param firstTag The version tag of the first version of the managed contract.
+     *  @param firstAddress The address of the managed contract.
      */
     function VersioningProxy(bytes32 firstTag, address firstAddress) public {
         publish(firstTag, firstAddress);
@@ -64,9 +64,10 @@ contract VersioningProxy {
      */
     function rollback() external onlyOwner returns(bool) {
         uint256 tagsLen = tags.length;
-        if (tagsLen <= 2)
+        if (tagsLen <= 2) // We don't have a previous deployment, return false
             return false;
 
+        // Roll back and return true
         bytes32 prevTag = tags[tagsLen - 2];
         setStable(prevTag);
         return true;
@@ -84,25 +85,41 @@ contract VersioningProxy {
     /* Public */
 
     /**
-     *  @notice Publishes a new version, `newTag`, at `newAddress`.
-     *  @param newTag The new version tag.
-     *  @param newAddress The address of the associated contract.
+     *  @notice Publishes the next version of the managed contract, `nextTag`, at `nextAddress`.
+     *  @param nextTag The next version tag.
+     *  @param nextAddress The address of the managed contract.
      */
-    function publish(bytes32 newTag, address newAddress) public onlyOwner {
-        tags.push(newTag);
-        addresses[newTag] = newAddress;
-        stable = Deployment({tag: newTag, _address: newAddress});
+    function publish(bytes32 nextTag, address nextAddress) public onlyOwner {
+        // Save current address for handler
+        address prevAddress = addresses[tags[tags.length - 1]];
+
+        tags.push(nextTag); // Push next tag
+        addresses[nextTag] = nextAddress; // Set next address
+
+        // Set stable
+        stable = Deployment({tag: nextTag, _address: nextAddress});
+
+        // Call handler
+        handleStableChange(prevAddress, nextAddress);
     }
 
     /**
-     *  @notice Sets the value of stable to the address of `publishedTag`.
+     *  @notice Sets the value of 'stable' to the address of `publishedTag`.
      *  @param publishedTag The already published version tag.
      */
     function setStable(bytes32 publishedTag) public onlyOwner {
-        address _address = addresses[publishedTag];
-        require(_address != address(0)); // Throw if not published
+        // Make sure this version has already been published
+        address nextAddress = addresses[publishedTag];
+        require(nextAddress != address(0));
+
+        // Save current address for handler
+        address prevAddress = addresses[tags[tags.length - 1]];
     
-        stable = Deployment({tag: publishedTag, _address: _address});
+        // Set stable
+        stable = Deployment({tag: publishedTag, _address: nextAddress});
+
+        // Call handler
+        handleStableChange(prevAddress, nextAddress);
     }
 
     /* Public Views */
@@ -119,7 +136,12 @@ contract VersioningProxy {
 
     /* Private */
 
-
+    /**
+     * @notice Called whenever 'stable' changes.
+     * @param prevAddress The previous 'stable' managed contract address.
+     * @param nextAddress The next 'stable' managed contract address.
+     */
+    function handleStableChange(address prevAddress, address nextAddress) private;
 
     /* Private Views */
 

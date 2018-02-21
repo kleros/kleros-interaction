@@ -1,5 +1,7 @@
 pragma solidity ^0.4.15;
 
+import "https://github.com/kleros/kleros/contracts/KlerosPOC.sol";
+
 import "./VersioningProxy.sol";
 
 /**
@@ -62,7 +64,17 @@ import "./VersioningProxy.sol";
 
     /* Private */
 
+    /**
+     * @notice Called whenever 'stable' changes. We use it to transfer open disputes to the new Arbitrator contract.
+     * @param prevAddress The previous 'stable' contract address.
+     * @param nextAddress The next 'stable' contract address.
+     */
+    function handleStableChange(address prevAddress, address nextAddress) private {
+        KlerosPOC prevArbitrator = KlerosPOC(prevAddress);
+        KlerosPOC nextArbitrator = KlerosPOC(nextAddress);
 
+        
+    }
 
     /* Private Views */
 
