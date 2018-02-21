@@ -28,7 +28,7 @@ contract Whitelist is Ownable, WhitelistInterface {
      *  @param _value The value we want to know if allowed.
      *  @return allowed True if the value is allowed, false otherwize.
      */
-    function isAllowed(bytes32 _value) public returns (bool allowed) {
+    function isPermitted(bytes32 _value) public returns (bool allowed) {
         return registred[_value];
     }
 }
