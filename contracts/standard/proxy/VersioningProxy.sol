@@ -1,15 +1,13 @@
 pragma solidity ^0.4.15;
 
+import "./Proxy.sol";
+
 /**
  *  @title VersioningProxy
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
  *  @notice A base contract for managing the deployment of versions of another contract.
  */
-contract VersioningProxy {
-    /* Enums */
-
-
-
+contract VersioningProxy is Proxy {
     /* Structs */
 
     struct Deployment {
@@ -19,7 +17,14 @@ contract VersioningProxy {
 
     /* Events */
 
-
+    /**
+     * @notice Called whenever 'stable' changes for off-chain handling.
+     * @param prevTag The previous 'stable' managed contract version tag.
+     * @param prevAddress The previous 'stable' managed contract address.
+     * @param nextTag The next 'stable' managed contract version tag.
+     * @param nextAddress The next 'stable' managed contract address.
+     */
+    event OnStableChange(bytes32 prevTag, address prevAddress, bytes32 nextTag, address nextAddress);
 
     /* Storage */
 
@@ -47,15 +52,11 @@ contract VersioningProxy {
     /**
      *  @notice Constructs the version proxy with the first version of the managed contract, `firstTag`, at `firstAddress`.
      *  @param firstTag The version tag of the first version of the managed contract.
-     *  @param firstAddress The address of the managed contract.
+     *  @param firstAddress The address of the first verion of the managed contract.
      */
-    function VersioningProxy(bytes32 firstTag, address firstAddress) public {
+    function VersioningProxy(bytes32 firstTag, address firstAddress) Proxy(false, firstAddress) public {
         publish(firstTag, firstAddress);
     }
-
-    /* Fallback */
-
-
 
     /* External */
 
@@ -87,64 +88,49 @@ contract VersioningProxy {
     /**
      *  @notice Publishes the next version of the managed contract, `nextTag`, at `nextAddress`.
      *  @param nextTag The next version tag.
-     *  @param nextAddress The address of the managed contract.
+     *  @param nextAddress The next address of the managed contract.
      */
     function publish(bytes32 nextTag, address nextAddress) public onlyOwner {
-        // Save current address for handler
-        address prevAddress = addresses[tags[tags.length - 1]];
-
+        // Publish
         tags.push(nextTag); // Push next tag
         addresses[nextTag] = nextAddress; // Set next address
 
         // Set stable
-        stable = Deployment({tag: nextTag, _address: nextAddress});
-
-        // Call handler
-        handleStableChange(prevAddress, nextAddress);
+        setStable(nextTag);
     }
 
     /**
-     *  @notice Sets the value of 'stable' to the address of `publishedTag`.
-     *  @param publishedTag The already published version tag.
+     *  @notice Sets the value of 'stable' to the address of `nextTag`.
+     *  @param nextTag The already published version tag.
      */
-    function setStable(bytes32 publishedTag) public onlyOwner {
+    function setStable(bytes32 nextTag) public onlyOwner {
         // Make sure this version has already been published
-        address nextAddress = addresses[publishedTag];
+        address nextAddress = addresses[nextTag];
         require(nextAddress != address(0));
 
-        // Save current address for handler
-        address prevAddress = addresses[tags[tags.length - 1]];
+        // Save current tag and address for handlers
+        bytes32 prevTag = stable.tag;
+        address prevAddress = stable._address;
     
         // Set stable
-        stable = Deployment({tag: publishedTag, _address: nextAddress});
+        stable = Deployment({tag: nextTag, _address: nextAddress});
 
-        // Call handler
-        handleStableChange(prevAddress, nextAddress);
+        // Call handler and fire event
+        handleStableChange(prevTag, prevAddress, nextTag, nextAddress); // on-chain
+        OnStableChange(prevTag, prevAddress, nextTag, nextAddress); // off-chain
+
+        // Change proxy target
+        implementation = nextAddress;
     }
-
-    /* Public Views */
-
-
-
-    /* Internal */
-
-
-
-    /* Internal Views */
-
-
 
     /* Private */
 
     /**
-     * @notice Called whenever 'stable' changes.
+     * @notice Called whenever 'stable' changes for on-chain handling.
+     * @param prevTag The previous 'stable' managed contract version tag.
      * @param prevAddress The previous 'stable' managed contract address.
+     * @param nextTag The next 'stable' managed contract version tag.
      * @param nextAddress The next 'stable' managed contract address.
      */
-    function handleStableChange(address prevAddress, address nextAddress) private;
-
-    /* Private Views */
-
-
-
+    function handleStableChange(bytes32 prevTag, address prevAddress, bytes32 nextTag, address nextAddress) private;
 }
