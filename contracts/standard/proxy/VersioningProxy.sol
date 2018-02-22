@@ -5,7 +5,7 @@ import "./Proxy.sol";
 /**
  *  @title VersioningProxy
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
- *  @notice A base contract for managing the deployment of versions of another contract.
+ *  @notice A base contract derived from Proxy for managing the deployment of versions of another contract, the managed contract.
  */
 contract VersioningProxy is Proxy {
     /* Structs */
@@ -50,11 +50,12 @@ contract VersioningProxy is Proxy {
     /* Constructor */
 
     /**
-     *  @notice Constructs the version proxy with the first version of the managed contract, `firstTag`, at `firstAddress`.
+     *  @notice Constructs the versioning proxy with the proxy eternal storage flag and the first version of the managed contract, `firstTag`, at `firstAddress`.
+     *  @param storageIsEternal Wether this contract should store all storage. I.e. Use 'delegatecall'.
      *  @param firstTag The version tag of the first version of the managed contract.
      *  @param firstAddress The address of the first verion of the managed contract.
      */
-    function VersioningProxy(bytes32 firstTag, address firstAddress) Proxy(false, firstAddress) public {
+    function VersioningProxy(bool storageIsEternal, bytes32 firstTag, address firstAddress) Proxy(storageIsEternal, firstAddress) public {
         publish(firstTag, firstAddress);
     }
 
@@ -62,6 +63,7 @@ contract VersioningProxy is Proxy {
 
     /**
      * @notice Rolls back 'stable' to the previous deployment, and returns true, if one exists, returns false otherwise.
+     * @return True if there was a previous version and the rollback succeeded, false otherwise.
      */
     function rollback() external onlyOwner returns(bool) {
         uint256 tagsLen = tags.length;
@@ -78,6 +80,7 @@ contract VersioningProxy is Proxy {
 
     /**
      * @notice Returns all deployed version tags.
+     * @return All of the deployed version tags.
      */
     function allTags() external view returns(bytes32[]) {
         return tags;
@@ -95,7 +98,7 @@ contract VersioningProxy is Proxy {
         tags.push(nextTag); // Push next tag
         addresses[nextTag] = nextAddress; // Set next address
 
-        // Set stable
+        // Set 'stable'
         setStable(nextTag);
     }
 
@@ -112,7 +115,7 @@ contract VersioningProxy is Proxy {
         bytes32 prevTag = stable.tag;
         address prevAddress = stable._address;
     
-        // Set stable
+        // Set 'stable'
         stable = Deployment({tag: nextTag, _address: nextAddress});
 
         // Call handler and fire event
@@ -127,10 +130,11 @@ contract VersioningProxy is Proxy {
 
     /**
      * @notice Called whenever 'stable' changes for on-chain handling.
+     * @dev Overwrite this function to handle 'stable' changes on-chain.
      * @param prevTag The previous 'stable' managed contract version tag.
      * @param prevAddress The previous 'stable' managed contract address.
      * @param nextTag The next 'stable' managed contract version tag.
      * @param nextAddress The next 'stable' managed contract address.
      */
-    function handleStableChange(bytes32 prevTag, address prevAddress, bytes32 nextTag, address nextAddress) private;
+    function handleStableChange(bytes32 prevTag, address prevAddress, bytes32 nextTag, address nextAddress) private {}
 }
