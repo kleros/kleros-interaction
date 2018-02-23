@@ -148,7 +148,7 @@ contract TwoPartyArbitrable is Arbitrable {
         require(_ruling<=AMOUNT_OF_CHOICES);
         
         // Give the arbitration fee back.
-        // Note tha we use send to prevent a party from blocking the execution.
+        // Note that we use send to prevent a party from blocking the execution.
         if (_ruling==PARTY_A_WINS)
             partyA.send(partyAFee > partyBFee ? partyAFee : partyBFee); // In both cases sends the highest amount paid to avoid ETH to be stuck in the contract if the arbitrator lowers its fee.
         else if (_ruling==PARTY_B_WINS)

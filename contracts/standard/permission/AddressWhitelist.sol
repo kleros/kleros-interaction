@@ -6,13 +6,13 @@
 pragma solidity ^0.4.15;
 
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./AddressWhitelistInterface.sol";
+import "./AddressPermissionInterface.sol";
 
 /**
  *  @title Address Whitelist
  *  This is a Whitelist for addresses. The owner contract can Whitelist addresses. 
  */
-contract AddressWhitelist is Ownable, AddressWhitelistInterface {
+contract AddressWhitelist is Ownable, AddressPermissionInterface {
     
     mapping(address => bool) registred; // True if the address is registred.
     
