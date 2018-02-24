@@ -24,7 +24,7 @@ contract Whitelist is Ownable, PermissionInterface {
         registred[_value]=false;
     }
     
-    /** @dev Return true is the value is allowed.
+    /** @dev Return true if the value is allowed.
      *  @param _value The value we want to know if allowed.
      *  @return allowed True if the value is allowed, false otherwise.
      */

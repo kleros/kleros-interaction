@@ -29,7 +29,7 @@ contract TwoPartyArbitrable is Arbitrable {
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant PARTY_A_WINS = 1;
     uint8 constant PARTY_B_WINS = 2;
-    string constant RULING_OPTIONS = "Party A wins;Party B wins"; // A plain English of what rulings does. Need to be redefined by the child class.
+    string constant RULING_OPTIONS = "Party A wins;Party B wins"; // A plain English of what rulings do. Need to be redefined by the child class.
     
     modifier onlyPartyA{ require(msg.sender==partyA); _; }
     modifier onlyPartyB{ require(msg.sender==partyB); _; }

@@ -15,7 +15,7 @@ import "./AddressWhitelist.sol";
 contract AddressBlacklist is AddressWhitelist {
 
     
-    /** @dev Return true is the address is allowed.
+    /** @dev Return true if the address is allowed.
      *  @param _value The address we want to know if allowed.
      *  @return allowed True if the address is allowed, false otherwize.
      */
