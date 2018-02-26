@@ -1,6 +1,6 @@
 pragma solidity ^0.4.15;
 
-import "https://github.com/kleros/kleros/contracts/KlerosPOC.sol";
+import "kleros/contracts/KlerosPOC.sol";
 
 import "./VersioningProxy.sol";
 
