@@ -19,12 +19,12 @@ contract VersioningProxy is Proxy {
 
     /**
      * @notice Called whenever 'stable' changes for off-chain handling.
-     * @param prevTag The previous 'stable' managed contract version tag.
-     * @param prevAddress The previous 'stable' managed contract address.
-     * @param nextTag The next 'stable' managed contract version tag.
-     * @param nextAddress The next 'stable' managed contract address.
+     * @param _prevTag The previous 'stable' managed contract version tag.
+     * @param _prevAddress The previous 'stable' managed contract address.
+     * @param _nextTag The next 'stable' managed contract version tag.
+     * @param _nextAddress The next 'stable' managed contract address.
      */
-    event OnStableChange(bytes32 prevTag, address prevAddress, bytes32 nextTag, address nextAddress);
+    event OnStableChange(bytes32 _prevTag, address _prevAddress, bytes32 _nextTag, address _nextAddress);
 
     /* Storage */
 
@@ -51,12 +51,11 @@ contract VersioningProxy is Proxy {
 
     /**
      *  @notice Constructs the versioning proxy with the proxy eternal storage flag and the first version of the managed contract, `firstTag`, at `firstAddress`.
-     *  @param storageIsEternal Wether this contract should store all storage. I.e. Use 'delegatecall'.
-     *  @param firstTag The version tag of the first version of the managed contract.
-     *  @param firstAddress The address of the first verion of the managed contract.
+     *  @param _firstTag The version tag of the first version of the managed contract.
+     *  @param _firstAddress The address of the first verion of the managed contract.
      */
-    function VersioningProxy(bool storageIsEternal, bytes32 firstTag, address firstAddress) Proxy(storageIsEternal, firstAddress) public {
-        publish(firstTag, firstAddress);
+    function VersioningProxy(bytes32 _firstTag, address _firstAddress) Proxy(_firstAddress) public {
+        publish(_firstTag, _firstAddress);
     }
 
     /* External */
@@ -65,7 +64,7 @@ contract VersioningProxy is Proxy {
      * @notice Rolls back 'stable' to the previous deployment, and returns true, if one exists, returns false otherwise.
      * @return True if there was a previous version and the rollback succeeded, false otherwise.
      */
-    function rollback() external onlyOwner returns(bool) {
+    function rollback() external onlyOwner returns(bool _success) {
         uint256 tagsLen = tags.length;
         if (tagsLen <= 2) // We don't have a previous deployment, return false
             return false;
@@ -82,7 +81,7 @@ contract VersioningProxy is Proxy {
      * @notice Returns all deployed version tags.
      * @return All of the deployed version tags.
      */
-    function allTags() external view returns(bytes32[]) {
+    function allTags() external view returns(bytes32[] _tags) {
         return tags;
     }
 
@@ -90,25 +89,25 @@ contract VersioningProxy is Proxy {
 
     /**
      *  @notice Publishes the next version of the managed contract, `nextTag`, at `nextAddress`.
-     *  @param nextTag The next version tag.
-     *  @param nextAddress The next address of the managed contract.
+     *  @param _nextTag The next version tag.
+     *  @param _nextAddress The next address of the managed contract.
      */
-    function publish(bytes32 nextTag, address nextAddress) public onlyOwner {
+    function publish(bytes32 _nextTag, address _nextAddress) public onlyOwner {
         // Publish
-        tags.push(nextTag); // Push next tag
-        addresses[nextTag] = nextAddress; // Set next address
+        tags.push(_nextTag); // Push next tag
+        addresses[_nextTag] = _nextAddress; // Set next address
 
         // Set 'stable'
-        setStable(nextTag);
+        setStable(_nextTag);
     }
 
     /**
      *  @notice Sets the value of 'stable' to the address of `nextTag`.
-     *  @param nextTag The already published version tag.
+     *  @param _nextTag The already published version tag.
      */
-    function setStable(bytes32 nextTag) public onlyOwner {
+    function setStable(bytes32 _nextTag) public onlyOwner {
         // Make sure this version has already been published
-        address nextAddress = addresses[nextTag];
+        address nextAddress = addresses[_nextTag];
         require(nextAddress != address(0));
 
         // Save current tag and address for handlers
@@ -116,11 +115,11 @@ contract VersioningProxy is Proxy {
         address prevAddress = stable._address;
     
         // Set 'stable'
-        stable = Deployment({tag: nextTag, _address: nextAddress});
+        stable = Deployment({tag: _nextTag, _address: nextAddress});
 
         // Call handler and fire event
-        handleStableChange(prevTag, prevAddress, nextTag, nextAddress); // on-chain
-        OnStableChange(prevTag, prevAddress, nextTag, nextAddress); // off-chain
+        handleStableChange(prevTag, prevAddress, _nextTag, nextAddress); // on-chain
+        OnStableChange(prevTag, prevAddress, _nextTag, nextAddress); // off-chain
 
         // Change proxy target
         implementation = nextAddress;
@@ -131,10 +130,10 @@ contract VersioningProxy is Proxy {
     /**
      * @notice Called whenever 'stable' changes for on-chain handling.
      * @dev Overwrite this function to handle 'stable' changes on-chain.
-     * @param prevTag The previous 'stable' managed contract version tag.
-     * @param prevAddress The previous 'stable' managed contract address.
-     * @param nextTag The next 'stable' managed contract version tag.
-     * @param nextAddress The next 'stable' managed contract address.
+     * @param _prevTag The previous 'stable' managed contract version tag.
+     * @param _prevAddress The previous 'stable' managed contract address.
+     * @param _nextTag The next 'stable' managed contract version tag.
+     * @param _nextAddress The next 'stable' managed contract address.
      */
-    function handleStableChange(bytes32 prevTag, address prevAddress, bytes32 nextTag, address nextAddress) private {}
+    function handleStableChange(bytes32 _prevTag, address _prevAddress, bytes32 _nextTag, address _nextAddress) private {}
 }
