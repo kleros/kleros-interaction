@@ -2,7 +2,7 @@
  *  @title Arbitrable Blacklist
  *  @author Clément Lesaege - <clement@lesaege.com>
  *  This code hasn't undertaken bug bounty program yet.
- *  This code requires truffle testing.
+ *  This code requires truffle tests.
  */
 
 pragma solidity ^0.4.18;
@@ -18,7 +18,11 @@ import "./PermissionInterface.sol";
  *  During the time of the dispute, the item is shown as blacklisted unless it already won a dispute before. This follows the philosophy that it is better to show the user a warning about a potentially harmless listing than to take the risk of the user to be scammed or exposed to inappropriate content without warning.
  *  To make a request, parties have to deposit a stake and the arbitration fees. If the arbitration fees change between the submitter payment and the challenger payment, a part of the submitter stake can be used as an arbitration fee deposit.
  *  In case the arbitrator refuses to rule, the item is put in the initial absent status and the balance is split equally between parties.
- *  From an UI point of view, items which are permitted can be shown in green, items which are blacklisted can be shown in red.
+ *  
+ *  Example of uses of this blacklist contract are:
+ *    - ENS blacklist: Blacklisted (hash of) names would lead to the user receiving a warning in its UI when trying to interact with one.
+ *    - Social Network Safe For Work/Kids sections: Blacklist (hash of) words / sentences refering or leading to NSFW/NSFK content. This may be enforced by voluntary censorship on the UI or make participants violating the SFW/SFK rules lose a deposit.
+ *    - Listing blacklist: Blacklist categories of items which are forbiden on a marketplace or market place section (it can be terms refering to weapons or child porn material). The mechanism can be similar to the SFW/SFK example.
  */
 contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
     
