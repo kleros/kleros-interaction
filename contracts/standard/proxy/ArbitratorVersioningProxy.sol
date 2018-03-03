@@ -7,17 +7,24 @@ import "./VersioningProxy.sol";
 /**
  *  @title ArbitratorVersioningProxy
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
- *  @notice A proxy that only exposes methods in the Arbitrator spec.
+ *  @notice An Arbitrator proxy that only exposes methods in the Arbitrator spec.
  */
- contract ArbitratorVersioningProxy is VersioningProxy {
+ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
+     /* Structs */
+
+     struct Dispute {
+         address arbitrator;
+         uint256 disputeID;
+     }
+
     /* Storage */
 
-    mapping (uint256 => address) public disputes;
+   Dispute[] public disputes;
 
     /* Modifiers */
 
     modifier onlyIfDisputeExists(uint256 _disputeID) {
-        require(disputes[_disputeID] != address(0));
+        require(disputes[_disputeID].arbitrator != address(0));
         _;
     }
 
@@ -32,17 +39,25 @@ import "./VersioningProxy.sol";
     /* Public */
 
     function createDispute(uint256 _choices, bytes _extraData) public payable returns(uint256 _disputeID) {
-        _disputeID = Arbitrator(implementation).createDispute(_choices, _extraData);
-        disputes[_disputeID] = implementation; // Remember arbitrator
-        return _disputeID;
+        uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute(_choices, _extraData);
+        return disputes.push(
+            Dispute({
+                arbitrator: implementation,
+                disputeID: _arbitratorDisputeID
+            })
+        );
     }
 
-    function appeal(uint256 _disputeID, bytes _extraData) public payable onlyIfDisputeExists(_disputeID) returns(uint256 _newDisputeID) {
-        if (disputes[_disputeID] != implementation) // Arbitrator has been upgraded, create a new dispute in the new arbitrator
-            return createDispute((Arbitrator(disputes[_disputeID]).disputes(_disputeID).choices), _extraData);
+    function appeal(uint256 _disputeID, bytes _extraData) public payable onlyIfDisputeExists(_disputeID) {
+        if (disputes[_disputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
+            uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute(
+                Arbitrator(disputes[_disputeID].arbitrator).disputes(disputes[_disputeID].disputeID).choices,
+                _extraData
+            );
+            disputes[_disputeID] = Dispute({ arbitrator: implementation, disputeID: _arbitratorDisputeID });
+        }
         
-        Arbitrator(implementation).appeal(_disputeID, _extraData);
-        return _disputeID;
+        Arbitrator(implementation).appeal(disputes[_disputeID].disputeID, _extraData);
     }
 
     /* Public Views */
@@ -52,14 +67,14 @@ import "./VersioningProxy.sol";
     }
 
     function appealCost(uint256 _disputeID, bytes _extraData) public view returns(uint256 _fees) {
-        return Arbitrator(implementation).appealCost(_disputeID, _extraData);
+        return Arbitrator(implementation).appealCost(disputes[_disputeID].disputeID, _extraData);
     }
 
     function currentRuling(uint256 _disputeID) public view onlyIfDisputeExists(_disputeID) returns(uint256 _ruling) {
-        return Arbitrator(disputes[_disputeID]).currentRuling(_disputeID);
+        return Arbitrator(disputes[_disputeID].arbitrator).currentRuling(disputes[_disputeID].disputeID);
     }
 
     function disputeStatus(uint256 _disputeID) public view onlyIfDisputeExists(_disputeID) returns(Arbitrator.DisputeStatus _status) {
-        return Arbitrator(disputes[_disputeID]).disputeStatus(_disputeID);
+        return Arbitrator(disputes[_disputeID].arbitrator).disputeStatus(disputes[_disputeID].disputeID);
     }
 }
