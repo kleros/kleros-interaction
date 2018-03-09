@@ -24,5 +24,9 @@ contract MiniMeTokenERC20 is MiniMeToken {
         if (isContract(controller)) {
             require(TokenController(controller).onApprove(msg.sender, _spender, _amount));
         }
+
+        allowed[msg.sender][_spender] = _amount;
+        Approval(msg.sender, _spender, _amount);
+        return true;
     }
 }
