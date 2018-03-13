@@ -15,6 +15,7 @@ import "./VersioningProxy.sol";
      struct Dispute {
          address arbitrator;
          uint256 disputeID;
+         uint256 choices;
      }
 
     /* Storage */
@@ -39,34 +40,33 @@ import "./VersioningProxy.sol";
     /* Public */
 
     function createDispute(uint256 _choices, bytes _extraData) public payable returns(uint256 _disputeID) {
-        uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute(_choices, _extraData);
+        uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
         return disputes.push(
             Dispute({
                 arbitrator: implementation,
-                disputeID: _arbitratorDisputeID
+                disputeID: _arbitratorDisputeID,
+                choices: _choices
             })
         );
     }
 
     function appeal(uint256 _disputeID, bytes _extraData) public payable onlyIfDisputeExists(_disputeID) {
         if (disputes[_disputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
-            uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute(
-                Arbitrator(disputes[_disputeID].arbitrator).disputes(disputes[_disputeID].disputeID).choices,
-                _extraData
-            );
-            disputes[_disputeID] = Dispute({ arbitrator: implementation, disputeID: _arbitratorDisputeID });
+            uint256 _choices = disputes[_disputeID].choices;
+            uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
+            disputes[_disputeID] = Dispute({ arbitrator: implementation, disputeID: _arbitratorDisputeID, choices: _choices });
         }
         
-        Arbitrator(implementation).appeal(disputes[_disputeID].disputeID, _extraData);
+        Arbitrator(implementation).appeal.value(msg.value)(disputes[_disputeID].disputeID, _extraData);
     }
 
     /* Public Views */
 
-    function arbitrationCost(bytes _extraData) public view returns(uint256 _fees) {
+    function arbitrationCost(bytes _extraData) public view returns(uint256 _fee) {
         return Arbitrator(implementation).arbitrationCost(_extraData);
     }
 
-    function appealCost(uint256 _disputeID, bytes _extraData) public view returns(uint256 _fees) {
+    function appealCost(uint256 _disputeID, bytes _extraData) public view returns(uint256 _fee) {
         return Arbitrator(implementation).appealCost(disputes[_disputeID].disputeID, _extraData);
     }
 
