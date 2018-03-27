@@ -5,7 +5,7 @@ pragma solidity ^0.4.15;
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
  *  @notice A base proxy contract.
  */
- contract Proxy {
+contract Proxy {
     /* Storage */
 
     address public implementation;
