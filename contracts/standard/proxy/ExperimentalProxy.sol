@@ -5,7 +5,7 @@ pragma solidity ^0.4.15;
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
  *  @notice An experimental base proxy contract that forwards all calls to the 'implementation' contract and optionally keeps all storage.
  */
- contract ExperimentalProxy {
+contract ExperimentalProxy {
     /* Storage */
 
     bool public storageIsEternal;

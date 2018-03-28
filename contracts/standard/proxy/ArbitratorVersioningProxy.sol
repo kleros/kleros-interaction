@@ -9,21 +9,25 @@ import "./VersioningProxy.sol";
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
  *  @notice An Arbitrator proxy that only exposes methods in the Arbitrator spec.
  */
- contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
+contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      /* Structs */
 
-     struct Dispute {
-         address arbitrator;
-         uint256 disputeID;
-         uint256 choices;
-     }
+    struct Dispute {
+        address arbitrator;
+        uint256 disputeID;
+        uint256 choices;
+    }
 
     /* Storage */
 
-   Dispute[] public disputes;
+    Dispute[] public disputes;
 
     /* Modifiers */
 
+    /**
+     *  @dev Makes a function only callable if the dispute exists.
+     *  @param _disputeID The ID of the dispute.
+     */
     modifier onlyIfDisputeExists(uint256 _disputeID) {
         require(disputes[_disputeID].arbitrator != address(0));
         _;
