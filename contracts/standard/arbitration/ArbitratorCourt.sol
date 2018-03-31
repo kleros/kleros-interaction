@@ -12,7 +12,7 @@ contract ArbitratorCourt is Arbitrator {
 
     struct Court {
         string name;
-        address _address;
+        Arbitrator _address;
     }
 
     /* Events */
@@ -24,7 +24,7 @@ contract ArbitratorCourt is Arbitrator {
      * @param _nextParentName The next `parent`'s name.
      * @param _nextParentAddress The next `parent`'s address.
      */
-    event OnParentChange(string _prevParentName, address _prevParentAddress, string _nextParentName, address _nextParentAddress);
+    event OnParentChange(string _prevParentName, Arbitrator _prevParentAddress, string _nextParentName, Arbitrator _nextParentAddress);
 
     /**
      * @notice Called whenever a sub court is added.
@@ -32,7 +32,7 @@ contract ArbitratorCourt is Arbitrator {
      * @param _subCourtName The subcourt's name.
      * @param _subCourtAddress The subcourt's address.
      */
-    event OnSubCourtAdd(uint256 _subCourtIndex, string _subCourtName, address _subCourtAddress);
+    event OnSubCourtAdd(uint256 _subCourtIndex, string _subCourtName, Arbitrator _subCourtAddress);
 
     /**
      * @notice Called whenever a sub court is removed.
@@ -40,7 +40,7 @@ contract ArbitratorCourt is Arbitrator {
      * @param _subCourtName The subcourt's name.
      * @param _subCourtAddress The subcourt's address.
      */
-    event OnSubCourtRemove(uint256 _subCourtIndex, string _subCourtName, address _subCourtAddress);
+    event OnSubCourtRemove(uint256 _subCourtIndex, string _subCourtName, Arbitrator _subCourtAddress);
 
     /* Storage */
 
@@ -48,6 +48,7 @@ contract ArbitratorCourt is Arbitrator {
     address public owner = msg.sender;
 
     // Courts
+    uint256 maxLocalAppeals;
     Court parent; // Appeal to this arbitrator if it is set, otherwise reject appeal and finalize decision.
     Court[] subCourts;
 
@@ -60,7 +61,20 @@ contract ArbitratorCourt is Arbitrator {
         require(owner == msg.sender);
         _;
     }
-    
+
+    /* Constructor */
+
+    /**
+     *  @notice Constructs the arbitrator court with an initial parent and the maximum number of local appeals.
+     *  @param _maxLocalAppeals The maximum number of local appeals.
+     *  @param _parentName The name of the `parent`.
+     *  @param _parentAddress The address of the `parent`.
+     */
+    function ArbitratorCourt(uint256 _maxLocalAppeals, string _parentName, Arbitrator _parentAddress) public {
+        maxLocalAppeals = _maxLocalAppeals;
+        parent = Court({ name: _parentName, _address: _parentAddress });
+    }
+
     /* External */
 
     /**
@@ -68,7 +82,7 @@ contract ArbitratorCourt is Arbitrator {
      * @param _nextParentName The next `parent`'s name.
      * @param _nextParentAddress The next `parent`'s address.
      */
-    function setParent(string _nextParentName, address _nextParentAddress) external onlyOwner {
+    function setParent(string _nextParentName, Arbitrator _nextParentAddress) external onlyOwner {
         // Emit event before overwriting `parent`
         emit OnParentChange(parent.name, parent._address, _nextParentName, _nextParentAddress);
 
@@ -81,7 +95,7 @@ contract ArbitratorCourt is Arbitrator {
      * @param _subCourtName The subcourt's name.
      * @param _subCourtAddress The subcourt's address.
      */
-    function addSubCourt(string _subCourtName, address _subCourtAddress) external onlyOwner {
+    function addSubCourt(string _subCourtName, Arbitrator _subCourtAddress) external onlyOwner {
         uint256 _index = subCourts.push(Court({ name: _subCourtName, _address: _subCourtAddress })) - 1;
         emit OnSubCourtAdd(_index, _subCourtName, _subCourtAddress);
     }

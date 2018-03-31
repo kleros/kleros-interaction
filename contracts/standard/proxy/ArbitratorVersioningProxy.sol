@@ -13,7 +13,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      /* Structs */
 
     struct Dispute {
-        address arbitrator;
+        Arbitrator arbitrator;
         uint256 disputeID;
         uint256 choices;
     }
@@ -39,7 +39,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      * @notice Constructs the arbitrator versioning proxy with the first arbitrator contract version address and tags it v0.0.1.
      * @param _firstAddress The address of the first arbitrator contract version.
      */
-    function ArbitratorVersioningProxy(address _firstAddress) VersioningProxy("0.0.1", _firstAddress) public {}
+    function ArbitratorVersioningProxy(Arbitrator _firstAddress) VersioningProxy("0.0.1", _firstAddress) public {}
 
     /* Public */
 
@@ -52,7 +52,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
         uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
         return disputes.push(
             Dispute({
-                arbitrator: implementation,
+                arbitrator: Arbitrator(implementation),
                 disputeID: _arbitratorDisputeID,
                 choices: _choices
             })
@@ -67,7 +67,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
         if (disputes[_disputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
             uint256 _choices = disputes[_disputeID].choices;
             uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
-            disputes[_disputeID] = Dispute({ arbitrator: implementation, disputeID: _arbitratorDisputeID, choices: _choices });
+            disputes[_disputeID] = Dispute({ arbitrator: Arbitrator(implementation), disputeID: _arbitratorDisputeID, choices: _choices });
         }
         
         Arbitrator(implementation).appeal.value(msg.value)(disputes[_disputeID].disputeID, _extraData);
@@ -97,7 +97,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      *  @return _ruling The current ruling which will be given if there is no appeal or which has been given.
      */
     function currentRuling(uint256 _disputeID) public view onlyIfDisputeExists(_disputeID) returns(uint256 _ruling) {
-        return Arbitrator(disputes[_disputeID].arbitrator).currentRuling(disputes[_disputeID].disputeID);
+        return disputes[_disputeID].arbitrator.currentRuling(disputes[_disputeID].disputeID);
     }
 
     /** @notice Get the status of a dispute.
@@ -105,6 +105,6 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      *  @return _status The status of the dispute.
      */
     function disputeStatus(uint256 _disputeID) public view onlyIfDisputeExists(_disputeID) returns(Arbitrator.DisputeStatus _status) {
-        return Arbitrator(disputes[_disputeID].arbitrator).disputeStatus(disputes[_disputeID].disputeID);
+        return disputes[_disputeID].arbitrator.disputeStatus(disputes[_disputeID].disputeID);
     }
 }
