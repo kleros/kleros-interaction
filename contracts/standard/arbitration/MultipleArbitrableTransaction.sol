@@ -32,7 +32,7 @@ import "./Arbitrator.sol";
 
     Transaction[] transactions;
 
-    mapping (uint => uint) disputeTxMap;
+    mapping (bytes32 => uint) disputeTxMap;
     
     /** @dev Constructor.
      */
@@ -77,7 +77,7 @@ import "./Arbitrator.sol";
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) public { /* onlyArbitrator */
-        uint transactionId = disputeTxMap[_disputeID];
+        uint transactionId = disputeTxMap[keccak256(msg.sender,_disputeID)];
         Transaction storage transaction = transactions[transactionId];
         require(msg.sender==address(transaction.arbitrator)); //onlyArbitrator
 
@@ -158,7 +158,7 @@ import "./Arbitrator.sol";
         transaction.status = Status.DisputeCreated;
         transaction.disputeId = transaction.arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,transaction.arbitratorExtraData);
         transaction.disputed = true;
-        disputeTxMap[transaction.disputeId] = _transactionId;
+        disputeTxMap[keccak256(transaction.arbitrator, transaction.disputeId)] = _transactionId;
         Dispute(_transactionId, transaction.arbitrator, transaction.disputeId,RULING_OPTIONS);
     }
     
@@ -308,7 +308,7 @@ import "./Arbitrator.sol";
      *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the partyA. 2 : Pay the partyB.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        uint transactionId = disputeTxMap[_disputeID];
+        uint transactionId = disputeTxMap[keccak256(msg.sender,_disputeID)];
         Transaction storage transaction = transactions[transactionId];
         
         require(_disputeID == transaction.disputeId);

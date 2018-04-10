@@ -316,4 +316,36 @@ contract('MultipleArbitrableTransaction', function (accounts) {
     let newPayeeBalance = web3.eth.getBalance(payee)
     assert.equal(newPayeeBalance.toString(), payeeBalanceBeforePay.plus(1020).toString(), 'The payee has not been paid properly')
   })
+
+  it('Should handle multiple transactions and arbitrators concurrently', async () => {
+    let centralizedArbitrator1 = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
+    let centralizedArbitrator2 = await CentralizedArbitrator.new(arbitrationFee, {from: other})
+    
+    let multipleContract = await MultipleArbitrableTransaction.new({ from: payer })
+    
+    await multipleContract.createTransaction(centralizedArbitrator1.address, contractHash, timeout, payee, 0x0, {from: payer, value: amount})
+    let arbitrableTransactionId1 = (await multipleContract.lastTransactionId.call(undefined, { from: payer })).toNumber()
+
+    await multipleContract.createTransaction(centralizedArbitrator2.address, contractHash, timeout, payee, 0x0, {from: payer, value: amount})
+    let arbitrableTransactionId2 = (await multipleContract.lastTransactionId.call(undefined, { from: payer })).toNumber()
+  
+    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId2, {from: payer, value: arbitrationFee})
+    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId1, {from: payee, value: arbitrationFee})
+    //This generates transaction 1 dispute 0 from arbitrator 1
+    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId1, {from: payer, value: arbitrationFee})
+    //This generates transaction 2 dispute 0 from arbitrator 2
+    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId2, {from: payee, value: arbitrationFee})
+    
+    let payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
+    //Ruling for transaction 1
+    await centralizedArbitrator1.giveRuling(0, 1, {from: arbitrator})
+    let newPayerBalance = web3.eth.getBalance(payer)
+    assert.equal(newPayerBalance.toString(), payerBalanceBeforeReimbursment.plus(1020).toString(), 'The payer has not been reimbursed correctly')
+
+    let payeeBalanceBeforePay = web3.eth.getBalance(payee)
+    //ruling for transaction 2
+    await centralizedArbitrator2.giveRuling(0, 2, {from: other})
+    let newPayeeBalance = web3.eth.getBalance(payee)
+    assert.equal(newPayeeBalance.toString(), payeeBalanceBeforePay.plus(1020).toString(), 'The payee has not been paid properly')
+  })
 })
