@@ -320,15 +320,15 @@ contract FundingVault is Arbitrable {
         }
     }
 
-    /** @dev Change the team. Note that he holders would have to make
-    * the funder a votable contract if they want a vote on who the new team will be.
-    *  @param _newTeam the new team.
+    /** @dev Change the team. Note that the holders would have to make
+    *   the funder a votable contract if they want a vote on who the new team will be.
+    *   @param _newTeam the new team.
     */
-    function changeTeam( address _newTeam ) public {
+    function changeTeam(address _newTeam) public {
       require(msg.sender == funder); //The sender must be the funder.
       require(canChangeTeam);
       team = _newTeam;
       canChangeTeam = false; //This can only be called once.
     }
-    // TODO: Make a mechanism to send everything back to another contract.
+
 }
