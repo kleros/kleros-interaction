@@ -18,7 +18,7 @@ import "./Arbitrator.sol";
  */
 contract Arbitrable{
     Arbitrator public arbitrator;
-	bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.
+    bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.
     
     modifier onlyArbitrator {require(msg.sender==address(arbitrator)); _;}
     
