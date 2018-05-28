@@ -56,7 +56,7 @@ contract Arbitrable{
      */
     function Arbitrable(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash) {
         arbitrator=_arbitrator;
-		arbitratorExtraData=_arbitratorExtraData;
+	arbitratorExtraData=_arbitratorExtraData;
         ContractHash(_contractHash);
     }
     
