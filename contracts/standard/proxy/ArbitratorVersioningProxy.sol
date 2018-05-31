@@ -22,17 +22,6 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
 
     Dispute[] public disputes;
 
-    /* Modifiers */
-
-    /**
-     *  @dev Makes a function only callable if the dispute exists.
-     *  @param _disputeID The ID of the dispute.
-     */
-    modifier onlyIfDisputeExists(uint256 _disputeID) {
-        require(disputes[_disputeID].arbitrator != address(0));
-        _;
-    }
-
     /* Constructor */
 
     /**
@@ -63,7 +52,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      *  @param _disputeID The ID of the dispute to be appealed.
      *  @param _extraData Can be used to give extra info on the appeal.
      */
-    function appeal(uint256 _disputeID, bytes _extraData) public payable onlyIfDisputeExists(_disputeID) {
+    function appeal(uint256 _disputeID, bytes _extraData) public payable {
         if (disputes[_disputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
             uint256 _choices = disputes[_disputeID].choices;
             uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
@@ -96,7 +85,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      *  @param _disputeID The ID of the dispute.
      *  @return _ruling The current ruling which will be given if there is no appeal or which has been given.
      */
-    function currentRuling(uint256 _disputeID) public view onlyIfDisputeExists(_disputeID) returns(uint256 _ruling) {
+    function currentRuling(uint256 _disputeID) public view returns(uint256 _ruling) {
         return disputes[_disputeID].arbitrator.currentRuling(disputes[_disputeID].disputeID);
     }
 
@@ -104,7 +93,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      *  @param _disputeID The ID of the dispute.
      *  @return _status The status of the dispute.
      */
-    function disputeStatus(uint256 _disputeID) public view onlyIfDisputeExists(_disputeID) returns(Arbitrator.DisputeStatus _status) {
+    function disputeStatus(uint256 _disputeID) public view returns(Arbitrator.DisputeStatus _status) {
         return disputes[_disputeID].arbitrator.disputeStatus(disputes[_disputeID].disputeID);
     }
 }

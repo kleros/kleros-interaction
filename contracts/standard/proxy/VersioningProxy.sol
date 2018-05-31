@@ -1,13 +1,11 @@
 pragma solidity ^0.4.15;
 
-import "./Proxy.sol";
-
 /**
  *  @title VersioningProxy
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
- *  @notice A base contract derived from Proxy for managing the deployment of versions of another contract, the managed contract.
+ *  @notice A base contract for managing the deployment of versions of another contract, the managed contract.
  */
-contract VersioningProxy is Proxy {
+contract VersioningProxy {
     /* Structs */
 
     struct Deployment {
@@ -30,9 +28,9 @@ contract VersioningProxy is Proxy {
 
     // Owner and Creation Metadata
     address public owner = msg.sender;
-    uint256 public creationTime = now;
 
     // Deployments
+    address public implementation; // Proxy standard target address
     bytes32[] public tags; // We keep this so we can iterate over versions
     mapping (bytes32 => address) public addresses;
     Deployment public stable;
@@ -54,7 +52,8 @@ contract VersioningProxy is Proxy {
      *  @param _firstTag The version tag of the first version of the managed contract.
      *  @param _firstAddress The address of the first verion of the managed contract.
      */
-    function VersioningProxy(bytes32 _firstTag, address _firstAddress) Proxy(_firstAddress) public {
+    function VersioningProxy(bytes32 _firstTag, address _firstAddress) public {
+        implementation = _firstAddress;
         publish(_firstTag, _firstAddress);
     }
 
