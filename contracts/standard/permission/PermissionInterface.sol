@@ -14,5 +14,5 @@ interface PermissionInterface{
      *  @param _value The value we want to know if allowed.
      *  @return allowed True if the value is allowed, false otherwise.
      */
-    function isPermitted(bytes32 _value) public returns (bool allowed);
+    function isPermitted(bytes32 _value) public view returns (bool allowed);
 }
