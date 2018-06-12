@@ -1,6 +1,6 @@
 {
   "name": "kleros-interaction",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "Smart contracts interacting with Kleros.",
   "main": "index.js",
   "scripts": {
