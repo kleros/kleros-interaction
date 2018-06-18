@@ -49,11 +49,6 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
         uint disputeID;          // ID of the dispute, if any.
     }
 
-    function getItem(bytes32 key) public view
-      returns(ItemStatus status, uint lastAction, address submitter, address challenger, uint balance, bool disputed, uint disputeID) {
-        return (items[key].status, items[key].lastAction, items[key].submitter, items[key].challenger, items[key].balance, items[key].disputed, items[key].disputeID);
-      }
-
     mapping(bytes32 => Item) public items;           // Return True if the item is in the list.
     mapping(uint => bytes32) public disputeIDToItem; // Give the item from the disputeID.
 
