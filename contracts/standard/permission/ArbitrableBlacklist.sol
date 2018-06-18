@@ -18,14 +18,14 @@ import "./PermissionInterface.sol";
  *  During the time of the dispute, the item is shown as blacklisted unless it already won a dispute before. This follows the philosophy that it is better to show the user a warning about a potentially harmless listing than to take the risk of the user to be scammed or exposed to inappropriate content without warning.
  *  To make a request, parties have to deposit a stake and the arbitration fees. If the arbitration fees change between the submitter payment and the challenger payment, a part of the submitter stake can be used as an arbitration fee deposit.
  *  In case the arbitrator refuses to rule, the item is put in the initial absent status and the balance is split equally between parties.
- *  
+ *
  *  Example of uses of this blacklist contract are:
  *    - ENS blacklist: Blacklisted (hash of) names would lead to the user receiving a warning in its UI when trying to interact with one.
  *    - Social Network Safe For Work/Kids sections: Blacklist (hash of) words / sentences refering or leading to NSFW/NSFK content. This may be enforced by voluntary censorship on the UI or make participants violating the SFW/SFK rules lose a deposit.
  *    - Listing blacklist: Blacklist categories of items which are forbiden on a marketplace or market place section (it can be terms refering to weapons or child porn material). The mechanism can be similar to the SFW/SFK example.
  */
 contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
-    
+
     Arbitrator public arbitrator;
     bytes public arbitratorExtraData;
     uint public stake;
@@ -49,16 +49,16 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
         uint disputeID;          // ID of the dispute, if any.
     }
     mapping(bytes32 => Item) public items;           // Return True if the item is in the list.
-    mapping(uint => bytes32) public disputeIDToItem; // Give the item from the disputeID.  
-    
+    mapping(uint => bytes32) public disputeIDToItem; // Give the item from the disputeID.
+
     uint8 constant BLACKLIST = 1;
     uint8 constant CLEAR = 2;
     string constant RULING_OPTIONS = "Blacklist;Clear"; // A plain English of what rulings do.
-    
-    
+
+
     /** @dev Constructor.
      *  @param _stake The amount in weis of deposit required for a submission or a challenge.
-     *  @param _timeToChallenge The time in second, others parties have to challenge 
+     *  @param _timeToChallenge The time in second, others parties have to challenge
      */
     function ArbitrableBlacklist(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash, uint _stake, uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData, _contractHash) public {
         arbitrator=_arbitrator;
@@ -66,35 +66,35 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
         stake=_stake;
         timeToChallenge=_timeToChallenge;
     }
-    
+
     /** @dev Return true if the item is allowed. We take a conservative approach and return false if the status of the item is contested and it has not won a previous dispute.
      *  @param _value The value of item we want to know if allowed.
      *  @return allowed True if the item is allowed, false otherwise.
      */
-    function isPermitted(bytes32 _value) public returns (bool allowed) {
+    function isPermitted(bytes32 _value) public view returns (bool allowed) {
         return items[_value].status<=ItemStatus.Resubmitted || (items[_value].status==ItemStatus.PreventiveClearingRequested && !items[_value].disputed);
-    
+
     }
-    
-    /** @dev Request an item to be blacklisted. 
+
+    /** @dev Request an item to be blacklisted.
      *  @param _value The value of item to blacklist.
      */
     function requestBlacklisting(bytes32 _value) public payable {
         Item storage item=items[_value];
         uint arbitratorCost=arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value>=stake+arbitratorCost);
-        if (items[_value].status==ItemStatus.Absent) 
+        if (items[_value].status==ItemStatus.Absent)
             items[_value].status=ItemStatus.Submitted;
         else if (items[_value].status==ItemStatus.Cleared)
             items[_value].status=ItemStatus.Resubmitted;
         else
             revert(); // It the item is neither Absent nor Cleared, it is not possible to request blacklisting.
-        
+
         item.submitter=msg.sender;
         item.balance+=msg.value;
         item.lastAction=now;
     }
-    
+
     /** @dev Request an item to be cleared.
      *  @param _value The value of item to be cleared.
      */
@@ -112,7 +112,7 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
         item.balance+=msg.value;
         item.lastAction=now;
     }
-    
+
     /** @dev Challenge a blacklisting request.
      *  @param _value The value of item subject to the blacklist request.
      */
@@ -122,7 +122,7 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
        require(msg.value>=stake+arbitratorCost);
        require(item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted);
        require(!item.disputed);
-       
+
        if (item.balance>=arbitratorCost) { // In the general case, create a dispute.
             item.challenger=msg.sender;
             item.balance+=msg.value-arbitratorCost;
@@ -137,11 +137,11 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
                 item.status=ItemStatus.Absent;
             item.submitter.send(item.balance); // On purpose use of send in order not to block the contract in case of reverting fallback.
             item.balance=0;
-            msg.sender.transfer(msg.value); 
+            msg.sender.transfer(msg.value);
        }
        item.lastAction=now;
     }
-    
+
     /** @dev Challenge a clearing request.
      *  @param _value The value of item subject to the clearing request.
      */
@@ -151,7 +151,7 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
        require(msg.value>=stake+arbitratorCost);
        require(item.status==ItemStatus.ClearingRequested || item.status==ItemStatus.PreventiveClearingRequested);
        require(!item.disputed);
-       
+
        if (item.balance>=arbitratorCost) {
             item.challenger=msg.sender;
             item.lastAction=now;
@@ -161,7 +161,7 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
             disputeIDToItem[item.disputeID]=_value;
        }
        else { // In the case the arbitration fees would have increased so much that the deposit of the requester is not high enough. Cancel the request.
-            if (item.status==ItemStatus.ClearingRequested) 
+            if (item.status==ItemStatus.ClearingRequested)
                 item.status=ItemStatus.Blacklisted;
             else
                 item.status=ItemStatus.Absent;
@@ -171,7 +171,7 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
        }
        item.lastAction=now;
     }
-    
+
     /** @dev Execute a request after the time for challenge has passed. Can be called by anyone.
      *  @param _value The value of item to execute the request.
      */
@@ -186,7 +186,7 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
            revert();
        item.submitter.send(item.balance); // On purpose use of send in order not to block the contract in case of reverting fallback.
     }
-    
+
     /** @dev Appeal. Anyone can appeal to prevent a malicious actor from challenging its own submission and loosing on purpose.
      *  @param _value The value of item to execute the appeal.
      */
@@ -220,6 +220,6 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
             item.challenger.send(item.balance/2);
         }
         item.disputed=false;
-        item.balance=0; 
+        item.balance=0;
     }
 }
