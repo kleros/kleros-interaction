@@ -75,7 +75,6 @@ local.properties
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 
 ## Build generated
-build/
 DerivedData/
 
 ## Various settings
@@ -370,6 +369,6 @@ ENV/
 .mypy_cache/
 testeth
 .idea
-node_modules
+node_modules/
 bin_output
 logs
