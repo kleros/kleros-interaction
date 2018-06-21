@@ -155,7 +155,6 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
 
        if (item.balance>=arbitratorCost) {
             item.challenger=msg.sender;
-            item.lastAction=now;
             item.balance+=msg.value-arbitratorCost;
             item.disputed=true;
             item.disputeID=arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
