@@ -18,7 +18,7 @@ contract Blacklist is Whitelist {
      *  @param _value The address we want to know if allowed.
      *  @return allowed True if the address is allowed, false otherwize.
      */
-    function isPermitted(bytes32 _value) public returns (bool allowed) {
+    function isPermitted(bytes32 _value) public view returns (bool allowed) {
         return !super.isPermitted(_value);
     }
 }
