@@ -14,6 +14,16 @@ import "./Arbitrator.sol";
  */
  contract MultipleArbitrableTransaction {
     string constant RULING_OPTIONS = "Reimburse buyer;Pay seller";
+
+    
+    
+    uint8 constant AMOUNT_OF_CHOICES = 2;
+    uint8 constant BUYER_WINS = 1;
+    uint8 constant SELLER_WINS = 2;
+    
+    enum Party {Seller, Buyer}
+    
+    enum Status {NoDispute, WaitingSeller, WaitingBuyer, DisputeCreated, Resolved}
     
     struct Transaction {
         address seller;
@@ -40,7 +50,7 @@ import "./Arbitrator.sol";
     }
 
     /** @dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.
-     *  @param _transactionId The index of the transaction in dispute
+     *  @param _transactionId The index of the transaction in dispute.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _rulingOptions Map ruling IDs to short description of the ruling in a CSV format using ";" as a delimiter. Note that ruling IDs start a 1. For example "Send funds to buyer;Send funds to seller", means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.
@@ -48,15 +58,15 @@ import "./Arbitrator.sol";
     event Dispute(uint indexed _transactionId, Arbitrator indexed _arbitrator, uint indexed _disputeID, string _rulingOptions);
 
     /** @dev To be raised when a ruling is given.
-     *  @param _transactionId The index of the transaction in dispute
+     *  @param _transactionId The index of the transaction in dispute.
      *  @param _arbitrator The arbitrator giving the ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling The ruling which was given.
      */
     event Ruling(uint indexed _transactionId, Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
     
-    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due tp gas considerations).
-     *  @param _transactionId The index of the transaction
+    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
+     *  @param _transactionId The index of the transaction.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
@@ -66,12 +76,18 @@ import "./Arbitrator.sol";
     
     /** @dev To be emmited at contract creation. Contains the hash of the plain text contract. This will allow any party to show what was the original contract.
      *  This event is used as cheap way of storing it.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      *  @param _contractHash Keccak256 hash of the plain text contract.
      */
     event ContractHash(uint indexed _transactionId, bytes32 _contractHash);
     
-    /** @dev Give a ruling for a dispute. Must be call by the arbitrator.
+    /** @dev Indicate that a party has to pay a fee or would otherwise be considered as loosing.
+     *  @param _transactionId The index of the transaction.
+     *  @param _party The party who has to pay.
+     */
+    event HasToPayFee(uint indexed _transactionId, Party _party);
+    
+    /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
      *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
@@ -79,36 +95,20 @@ import "./Arbitrator.sol";
     function rule(uint _disputeID, uint _ruling) public {
         uint transactionId = disputeTxMap[keccak256(msg.sender,_disputeID)];
         Transaction storage transaction = transactions[transactionId];
-        require(msg.sender==address(transaction.arbitrator)); // Only arbitrator.
+        require(msg.sender==address(transaction.arbitrator));
 
         Ruling(transactionId, Arbitrator(msg.sender),_disputeID,_ruling);
         
         executeRuling(_disputeID,_ruling);
     }
 
-    enum Status {NoDispute, WaitingSeller, WaitingBuyer, DisputeCreated, Resolved}
-    
-    uint8 constant AMOUNT_OF_CHOICES = 2;
-    uint8 constant BUYER_WINS = 1;
-    uint8 constant SELLER_WINS = 2;
-    
-    enum Party {Seller, Buyer}
-    
-    /** @dev Indicate that a party has to pay a fee or would otherwise be considered as loosing.
-     *  @param _transactionId The index of the transaction
-     *  @param _party The party who has to pay.
-     */
-    event HasToPayFee(uint indexed _transactionId, Party _party);
-        
-    
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the seller. UNTRUSTED.
      *  Note that the arbitrator can have createDispute throw, which will make this function throw and therefore lead to a party being timed-out.
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      */
     function payArbitrationFeeBySeller(uint _transactionId) payable {
         Transaction storage transaction = transactions[_transactionId];
-        //onlySeller
         require(msg.sender == transaction.seller);
 
 
@@ -126,14 +126,12 @@ import "./Arbitrator.sol";
         }
     }
     
-    
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the buyer. UNTRUSTED.
      *  Note that this function mirror payArbitrationFeeBySeller.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      */
     function payArbitrationFeeByBuyer(uint _transactionId) payable {
         Transaction storage transaction = transactions[_transactionId];
-        //onlyBuyer
         require(msg.sender == transaction.buyer);
 
         uint arbitrationCost = transaction.arbitrator.arbitrationCost(transaction.arbitratorExtraData);
@@ -149,8 +147,9 @@ import "./Arbitrator.sol";
             raiseDispute(_transactionId, arbitrationCost);
         }
     }
+    
     /** @dev Create a dispute. UNTRUSTED.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      *  @param _arbitrationCost Amount to pay the arbitrator.
      */
     function raiseDispute(uint _transactionId, uint _arbitrationCost) internal {
@@ -163,11 +162,10 @@ import "./Arbitrator.sol";
     }
     
     /** @dev Reimburse partyA if partyB fails to pay the fee.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      */
     function timeOutBySeller(uint _transactionId) {
         Transaction storage transaction = transactions[_transactionId];
-        //onlyPartyA
         require(msg.sender == transaction.seller);
 
 
@@ -178,11 +176,10 @@ import "./Arbitrator.sol";
     }
     
     /** @dev Pay partyB if partyA fails to pay the fee.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      */
     function timeOutByBuyer(uint _transactionId) {
         Transaction storage transaction = transactions[_transactionId];
-        //onlyPartyB
         require(msg.sender == transaction.buyer);
 
 
@@ -193,12 +190,11 @@ import "./Arbitrator.sol";
     }
     
     /** @dev Submit a reference to evidence. EVENT.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      *  @param _evidence A link to an evidence using its URI.
      */
     function submitEvidence(uint _transactionId, string _evidence) {
         Transaction storage transaction = transactions[_transactionId];
-        //onlyParty
         require(msg.sender == transaction.buyer || msg.sender == transaction.seller);
         
         require(transaction.status>=Status.DisputeCreated);
@@ -208,12 +204,11 @@ import "./Arbitrator.sol";
     /** @dev Appeal an appealable ruling.
      *  Transfer the funds to the arbitrator.
      *  Note that no checks are required as the checks are done by the arbitrator.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      *  @param _extraData Extra data for the arbitrator appeal procedure.
      */
     function appeal(uint _transactionId, bytes _extraData) payable public {
         Transaction storage transaction = transactions[_transactionId];
-        //onlyParty
         require(msg.sender == transaction.buyer || msg.sender == transaction.seller);
         
         transaction.arbitrator.appeal.value(msg.value)(transaction.disputeId,_extraData);
@@ -238,11 +233,8 @@ import "./Arbitrator.sol";
             arbitrator: _arbitrator,
             arbitratorExtraData: _arbitratorExtraData,
             disputeId: 0,
-            // Total fees paid by the partyA.
             sellerFee: 0,
-            // Total fees paid by the partyB.
             buyerFee: 0,
-            // Last interaction for the dispute procedure.
             lastInteraction: now,
             status: Status.NoDispute
         }));
@@ -256,7 +248,6 @@ import "./Arbitrator.sol";
     function lastTransactionId () constant public returns (uint index) {
         uint len = transactions.length;
         for (uint i = len - 1; i>=0; i--) {
-            // do something
             if (transactions[i].buyer == msg.sender) {
                 return i;
             }
@@ -264,23 +255,21 @@ import "./Arbitrator.sol";
     }
 
     /** @dev
-     * returns the transaction amount. Can be called by buyer, seller or arbitrator.
-     * @param _transactionId The index of the transaction
+     * @return amount The transaction amount. Can be called by buyer, seller or arbitrator.
+     * @param _transactionId The index of the transaction.
      */
     function amount (uint _transactionId) constant public returns (uint amount) {
         Transaction storage transaction = transactions[_transactionId];
-        //onlyParty or arbitrator
         require(msg.sender == transaction.buyer || msg.sender == transaction.seller || msg.sender == address(transaction.arbitrator));
+        
         return transaction.amount;
     }
 
-    /** @dev
-     * transfer the transaction's amount to the seller if the timeout has passed
-     * @param _transactionId The index of the transaction
+    /** @dev Transfer the transaction's amount to the seller if the timeout has passed
+     * @param _transactionId The index of the transaction.
      */
     function withdraw(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
-        //onlySeller ifPastTimeout
         require(msg.sender == transaction.seller);
         require(now>=transaction.lastInteraction+transaction.timeout);
 
@@ -291,13 +280,14 @@ import "./Arbitrator.sol";
     }
     
     /** @dev Reimburse party A. To be called if the good or service can't be fully provided.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      *  @param _amountReimbursed Amount to reimburse in wei.
      */
     function reimburse(uint _transactionId, uint _amountReimbursed) public {
         Transaction storage transaction = transactions[_transactionId];
-        require(transaction.seller == msg.sender); //onlySeller 
+        require(transaction.seller == msg.sender);
         require(_amountReimbursed <= transaction.amount);
+        
         transaction.buyer.transfer(_amountReimbursed);
         transaction.amount -= _amountReimbursed;
     }
