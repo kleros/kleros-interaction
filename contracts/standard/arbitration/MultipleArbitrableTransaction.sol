@@ -76,10 +76,10 @@ import "./Arbitrator.sol";
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
-    function rule(uint _disputeID, uint _ruling) public { /* onlyArbitrator */
+    function rule(uint _disputeID, uint _ruling) public {
         uint transactionId = disputeTxMap[keccak256(msg.sender,_disputeID)];
         Transaction storage transaction = transactions[transactionId];
-        require(msg.sender==address(transaction.arbitrator)); //onlyArbitrator
+        require(msg.sender==address(transaction.arbitrator)); // Only arbitrator.
 
         Ruling(transactionId, Arbitrator(msg.sender),_disputeID,_ruling);
         
