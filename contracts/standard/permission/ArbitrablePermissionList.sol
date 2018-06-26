@@ -44,6 +44,16 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         uint disputeID; // ID of the dispute, if any.
     }
 
+    /* Events */
+
+    /**
+     *  @dev Called when the item's status changes or when it is contested/resolved.
+     *  @param _value The value of the item.
+     *  @param _newStatus The new status of the item.
+     *  @param _newDisputed The new disputed state of the item.
+     */
+    event ItemStatusChange(bytes32 indexed _value, ItemStatus _newStatus, bool _newDisputed);
+
     /* Storage */
 
     // Settings
@@ -55,9 +65,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     uint public timeToChallenge;
 
     // Ruling Options
-    uint8 constant BLACKLIST = 1;
+    uint8 constant REGISTER = 1;
     uint8 constant CLEAR = 2;
-    string constant RULING_OPTIONS = "Blacklist;Clear";
+    string constant RULING_OPTIONS = "Register;Clear";
 
     // Items
     mapping(bytes32 => Item) public items;
@@ -95,33 +105,36 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Request an item to be registered.
-     *  @param _value The item to register.
+     *  @param _value The value of the item to register.
      */
     function requestRegistering(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake+arbitratorCost);
+        require(msg.value >= stake + arbitratorCost);
 
-        if (items[_value].status == ItemStatus.Absent)
-            items[_value].status = ItemStatus.Submitted;
-        else if (items[_value].status == ItemStatus.Cleared)
-            items[_value].status = ItemStatus.Resubmitted;
+        if (item.status == ItemStatus.Absent)
+            item.status = ItemStatus.Submitted;
+        else if (item.status == ItemStatus.Cleared)
+            item.status = ItemStatus.Resubmitted;
         else
             revert(); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
 
         item.submitter = msg.sender;
         item.balance += msg.value;
         item.lastAction = now;
+
+        emit ItemStatusChange(_value, item.status, item.disputed);
     }
 
     /**
      *  @dev Request an item to be cleared.
-     *  @param _value The item to clear.
+     *  @param _value The value of the item to clear.
      */
     function requestClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake+arbitratorCost);
+        require(!appendOnly);
+        require(msg.value >= stake + arbitratorCost);
 
         if (item.status == ItemStatus.Registered)
             item.status = ItemStatus.ClearingRequested;
@@ -133,11 +146,13 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         item.submitter = msg.sender;
         item.balance += msg.value;
         item.lastAction = now;
+
+        emit ItemStatusChange(_value, item.status, item.disputed);
     }
 
     /**
      *  @dev Challenge a registering request.
-     *  @param _value The item subject to the registering request.
+     *  @param _value The value of the item subject to the registering request.
      */
     function challengeRegistering(bytes32 _value) public payable {
         Item storage item = items[_value];
@@ -164,11 +179,13 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         }
 
         item.lastAction = now;
+
+        emit ItemStatusChange(_value, item.status, item.disputed);
     }
 
     /**
      *  @dev Challenge a clearing request.
-     *  @param _value The item subject to the clearing request.
+     *  @param _value The value of the item subject to the clearing request.
      */
     function challengeClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
@@ -195,11 +212,13 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         }
 
         item.lastAction = now;
+
+        emit ItemStatusChange(_value, item.status, item.disputed);
     }
 
     /**
      *  @dev Appeal ruling. Anyone can appeal to prevent a malicious actor from challenging its own submission and loosing on purpose.
-     *  @param _value The item with the dispute to appeal on.
+     *  @param _value The value of the item with the dispute to appeal on.
      */
     function appeal(bytes32 _value) public payable {
         Item storage item = items[_value];
@@ -208,7 +227,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
-     *  @param _value The item with the request to execute.
+     *  @param _value The value of the item with the request to execute.
      */
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
@@ -222,18 +241,21 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             revert();
 
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+
+        emit ItemStatusChange(_value, item.status, item.disputed);
     }
 
     /* Public Views */
 
     /**
      *  @dev Return true if the item is allowed. We take a conservative approach and return false if the status of the item is contested and it has not won a previous dispute.
-     *  @param _value The item to check.
+     *  @param _value The value of the item to check.
      *  @return allowed True if the item is allowed, false otherwise.
      */
     function isPermitted(bytes32 _value) public view returns (bool allowed) {
-        bool _registered = items[_value].status <= ItemStatus.Resubmitted ||
-            (items[_value].status == ItemStatus.PreventiveClearingRequested && !items[_value].disputed);
+        Item storage item = items[_value];
+        bool _registered = item.status <= ItemStatus.Resubmitted ||
+            (item.status == ItemStatus.PreventiveClearingRequested && !item.disputed);
         return blacklist ? !_registered : _registered;
     }
 
@@ -248,7 +270,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         Item storage item = items[disputeIDToItem[_disputeID]];
         require(item.disputed);
 
-        if (_ruling == BLACKLIST) {
+        if (_ruling == REGISTER) {
             if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
                 item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             else
@@ -270,5 +292,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.disputed = false;
         item.balance = 0;
+
+        emit ItemStatusChange(disputeIDToItem[_disputeID], item.status, item.disputed);
     }
 }
