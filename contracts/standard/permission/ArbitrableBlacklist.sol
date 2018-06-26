@@ -7,7 +7,6 @@
 
 pragma solidity ^0.4.18;
 
-
 import "../arbitration/Arbitrable.sol";
 import "./PermissionInterface.sol";
 

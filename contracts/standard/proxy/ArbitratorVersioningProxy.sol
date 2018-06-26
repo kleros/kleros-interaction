@@ -10,7 +10,7 @@ import "./VersioningProxy.sol";
  *  @notice An Arbitrator proxy that only exposes methods in the Arbitrator spec.
  */
 contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
-     /* Structs */
+    /* Structs */
 
     struct Dispute {
         Arbitrator arbitrator;
