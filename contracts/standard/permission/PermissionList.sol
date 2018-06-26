@@ -16,7 +16,7 @@ contract PermissionList is Ownable, PermissionInterface {
     /* Storage */
     
     bool blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
-    mapping(bytes32 => bool) list; // True if the address is registered.
+    mapping(bytes32 => bool) list; // True if the value is registered.
 
     /* Constructor */
 

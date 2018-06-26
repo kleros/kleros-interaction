@@ -12,6 +12,10 @@ import "./PermissionList.sol";
  *  This is a permission list for addresses. The owner can add or remove addresses.
  */
 contract AddressPermissionList is PermissionList {
+    /* Storage */
+
+    mapping(address => bool) list; // True if the address is registered.
+
     /* Constructor */
 
     /**
