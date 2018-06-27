@@ -17,6 +17,7 @@ import "./Arbitrable.sol";
  */
 contract TwoPartyArbitrable is Arbitrable {
     uint public timeout; // Time in second a party can take before being considered unresponding and lose the dispute.
+    uint8 amountOfChoices;
     address public partyA;
     address public partyB;
     uint public partyAFee; // Total fees paid by the partyA.
@@ -26,10 +27,10 @@ contract TwoPartyArbitrable is Arbitrable {
     enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
     Status public status;
     
-    uint8 constant AMOUNT_OF_CHOICES = 2;
+    // A plain English of what rulings do. Need to be redefined by the child class.
+    string constant RULING_OPTIONS = "Party A wins;Party B wins";
     uint8 constant PARTY_A_WINS = 1;
-    uint8 constant PARTY_B_WINS = 2;
-    string constant RULING_OPTIONS = "Party A wins;Party B wins"; // A plain English of what rulings do. Need to be redefined by the child class.
+    uint8 constant PARTY_B_WINS = 2;    
     
     modifier onlyPartyA{ require(msg.sender==partyA); _; }
     modifier onlyPartyB{ require(msg.sender==partyB); _; }
@@ -47,30 +48,46 @@ contract TwoPartyArbitrable is Arbitrable {
      *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _partyB The recipient of the transaction.
+     *  @param _amountOfChoices The number of ruling options available.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    function TwoPartyArbitrable(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) Arbitrable(_arbitrator,_arbitratorExtraData,_hashContract) {
-        timeout=_timeout;
-        partyA=msg.sender;
-        partyB=_partyB;
+    constructor(
+        Arbitrator _arbitrator, 
+        bytes32 _hashContract,
+        uint _timeout,
+        address _partyB,
+        uint8 _amountOfChoices,
+        bytes _arbitratorExtraData
+    ) 
+        Arbitrable(_arbitrator,_arbitratorExtraData,_hashContract) 
+        public 
+    {
+        timeout = _timeout;
+        partyA = msg.sender;
+        partyB = _partyB;
+        amountOfChoices = _amountOfChoices;
     }
     
     
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the party A. UNTRUSTED.
-     *  Note that the arbitrator can have createDispute throw, which will make this function throw and therefore lead to a party being timed-out.
+     *  Note that the arbitrator can have createDispute throw, which will make this function 
+     *  throw and therefore lead to a party being timed-out.
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      */
-    function payArbitrationFeeByPartyA() payable onlyPartyA {
-        uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
-        partyAFee+=msg.value;
+    function payArbitrationFeeByPartyA() public payable onlyPartyA {
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        partyAFee += msg.value;
         require(partyAFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
         
-        lastInteraction=now;
-        if (partyBFee < arbitrationCost) { // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
-            status=Status.WaitingPartyB;
-            HasToPayFee(Party.PartyB);
-        } else { // The partyB has also paid the fee. We create the dispute
+        lastInteraction = now;
+        if (partyBFee < arbitrationCost) {
+            // The partyB still has to pay. This can also happens if he has paid, 
+            // but arbitrationCost has increased.
+            status = Status.WaitingPartyB;
+            emit HasToPayFee(Party.PartyB);
+        } else { 
+            // The partyB has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
     }
@@ -79,16 +96,18 @@ contract TwoPartyArbitrable is Arbitrable {
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the party B. UNTRUSTED.
      *  Note that this function mirror payArbitrationFeeByPartyA.
      */
-    function payArbitrationFeeByPartyB() payable onlyPartyB {
-        uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
-        partyBFee+=msg.value;
+    function payArbitrationFeeByPartyB() public payable onlyPartyB {
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        partyBFee += msg.value;
         require(partyBFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
         
-        lastInteraction=now;
-        if (partyAFee < arbitrationCost) { // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
-            status=Status.WaitingPartyA;
-            HasToPayFee(Party.PartyA);
+        lastInteraction = now;
+        if (partyAFee < arbitrationCost) { 
+            // The partyA still has to pay. This can also happens if he has paid, 
+            // but arbitrationCost has increased.
+            status = Status.WaitingPartyA;
+            emit HasToPayFee(Party.PartyA);
         } else { // The partyA has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
@@ -98,14 +117,14 @@ contract TwoPartyArbitrable is Arbitrable {
      *  @param _arbitrationCost Amount to pay the arbitrator.
      */
     function raiseDispute(uint _arbitrationCost) internal {
-        status=Status.DisputeCreated;
-        disputeID=arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
-        Dispute(arbitrator,disputeID,RULING_OPTIONS);
+        status = Status.DisputeCreated;
+        disputeID = arbitrator.createDispute.value(_arbitrationCost)(amountOfChoices,arbitratorExtraData);
+        emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
     }
     
     /** @dev Reimburse partyA if partyB fails to pay the fee.
      */
-    function timeOutByPartyA() onlyPartyA {
+    function timeOutByPartyA() public onlyPartyA {
         require(status==Status.WaitingPartyB);
         require(now>=lastInteraction+timeout);
         
@@ -114,7 +133,7 @@ contract TwoPartyArbitrable is Arbitrable {
     
     /** @dev Pay partyB if partyA fails to pay the fee.
      */
-    function timeOutByPartyB() onlyPartyB {
+    function timeOutByPartyB() public onlyPartyB {
         require(status==Status.WaitingPartyA);
         require(now>=lastInteraction+timeout);
         
@@ -124,9 +143,9 @@ contract TwoPartyArbitrable is Arbitrable {
     /** @dev Submit a reference to evidence. EVENT.
      *  @param _evidence A link to an evidence using its URI.
      */
-    function submitEvidence(string _evidence) onlyParty {
+    function submitEvidence(string _evidence) public onlyParty {
         require(status>=Status.DisputeCreated);
-        Evidence(arbitrator,disputeID,msg.sender,_evidence);
+        emit Evidence(arbitrator,disputeID,msg.sender,_evidence);
     }
     
     /** @dev Appeal an appealable ruling.
@@ -134,7 +153,7 @@ contract TwoPartyArbitrable is Arbitrable {
      *  Note that no checks are required as the checks are done by the arbitrator.
      *  @param _extraData Extra data for the arbitrator appeal procedure.
      */
-    function appeal(bytes _extraData) onlyParty payable {
+    function appeal(bytes _extraData) payable public onlyParty {
         arbitrator.appeal.value(msg.value)(disputeID,_extraData);
     }
     
@@ -145,15 +164,18 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         require(_disputeID==disputeID);
-        require(_ruling<=AMOUNT_OF_CHOICES);
+        require(_ruling<=amountOfChoices);
         
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
+        // In both cases sends the highest amount paid to avoid ETH to be stuck in 
+        // the contract if the arbitrator lowers its fee.
         if (_ruling==PARTY_A_WINS)
-            partyA.send(partyAFee > partyBFee ? partyAFee : partyBFee); // In both cases sends the highest amount paid to avoid ETH to be stuck in the contract if the arbitrator lowers its fee.
+            partyA.send(partyAFee > partyBFee ? partyAFee : partyBFee);
         else if (_ruling==PARTY_B_WINS)
             partyB.send(partyAFee > partyBFee ? partyAFee : partyBFee);
-        status=Status.Resolved;
+
+        status = Status.Resolved;
     }
     
 }

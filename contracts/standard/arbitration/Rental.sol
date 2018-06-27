@@ -15,7 +15,7 @@ import "./TwoPartyArbitrable.sol";
  *  Party A put a deposit. If everything goes well, it will be given back. 
  *  Otherwize parties can claim an amount of damages. If they disagree, the arbitrator will have to solve this dispute.
  */
- contract Rental is TwoPartyArbitrable {
+contract Rental is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Rule for party A (renter);Rule for Party B (owner)";
     
     uint public amount; // Amount sent by party A.
@@ -27,10 +27,29 @@ import "./TwoPartyArbitrable.sol";
      *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _partyB The owner.
+     *  @param _amountOfChoices The number of ruling options available.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    function Rental(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) public TwoPartyArbitrable(_arbitrator,_hashContract,_timeout,_partyB,_arbitratorExtraData) payable {
-        amount+=msg.value;
+    constructor(
+        Arbitrator _arbitrator,
+        bytes32 _hashContract,
+        uint _timeout,
+        address _partyB,
+        uint8 _amountOfChoices,
+        bytes _arbitratorExtraData
+    ) 
+        TwoPartyArbitrable(
+            _arbitrator,
+            _hashContract,
+            _timeout,
+            _partyB,
+            _amountOfChoices,
+            _arbitratorExtraData
+        ) 
+        public
+        payable 
+    {
+        amount += msg.value;
     }
 
     /** @dev Claim an amount of damages.

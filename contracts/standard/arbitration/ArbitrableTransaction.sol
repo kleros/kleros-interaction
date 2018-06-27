@@ -13,7 +13,7 @@ import "./TwoPartyArbitrable.sol";
  *  This can be used for buying goods, services and for paying freelancers.
  *  Party A is the payer. Party B is the payee.
  */
- contract ArbitrableTransaction is TwoPartyArbitrable {
+contract ArbitrableTransaction is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Reimburse partyA;Pay partyB";
     
     uint public amount; // Amount sent by party A.
@@ -24,26 +24,44 @@ import "./TwoPartyArbitrable.sol";
      *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _partyB The recipient of the transaction.
+     *  @param _amountOfChoices The number of ruling options available.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    function ArbitrableTransaction(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) TwoPartyArbitrable(_arbitrator,_hashContract,_timeout,_partyB,_arbitratorExtraData) payable {
-        amount+=msg.value;
+    constructor(
+        Arbitrator _arbitrator, 
+        bytes32 _hashContract, 
+        uint _timeout, 
+        address _partyB,
+        uint8 _amountOfChoices,
+        bytes _arbitratorExtraData
+    ) 
+        TwoPartyArbitrable(
+            _arbitrator,
+            _hashContract,
+            _timeout,
+            _partyB,
+            _amountOfChoices,
+            _arbitratorExtraData) 
+        public 
+        payable 
+    {
+        amount += msg.value;
     }
 
     /** @dev Pay the party B. To be called when the good is delivered or the service rendered.
      */
-    function pay() onlyPartyA {
+    function pay() public onlyPartyA {
         partyB.transfer(amount);
-        amount=0;
+        amount = 0;
     }
     
     /** @dev Reimburse party A. To be called if the good or service can't be fully provided.
      *  @param _amountReimbursed Amount to reimburse in wei.
      */
-    function reimburse(uint _amountReimbursed) onlyPartyB {
+    function reimburse(uint _amountReimbursed) public onlyPartyB {
         require(_amountReimbursed<=amount);
         partyA.transfer(_amountReimbursed);
-        amount-=_amountReimbursed;
+        amount -= _amountReimbursed;
     }
     
     /** @dev Execute a ruling of a dispute. It reimburse the fee to the winning party.
@@ -58,9 +76,7 @@ import "./TwoPartyArbitrable.sol";
         else if (_ruling==PARTY_B_WINS)
             partyB.send(amount);
             
-        amount=0;
-    }
+        amount = 0;
+    }    
     
-    
- }
- 
+}
