@@ -18,7 +18,7 @@ import "./Arbitrator.sol";
  */
 contract Arbitrable{
     Arbitrator public arbitrator;
-	bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.
+    bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.
     
     modifier onlyArbitrator {require(msg.sender==address(arbitrator)); _;}
     
@@ -56,11 +56,11 @@ contract Arbitrable{
      */
     function Arbitrable(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash) {
         arbitrator=_arbitrator;
-		arbitratorExtraData=_arbitratorExtraData;
+	arbitratorExtraData=_arbitratorExtraData;
         ContractHash(_contractHash);
     }
     
-    /** @dev Give a ruling for a dispute. Must be call by the arbitrator.
+    /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
      *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
@@ -78,5 +78,3 @@ contract Arbitrable{
      */
     function executeRuling(uint _disputeID, uint _ruling) internal;
 }
-
-

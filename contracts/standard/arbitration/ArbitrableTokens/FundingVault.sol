@@ -42,11 +42,13 @@ contract FundingVault is Arbitrable {
     }
     Milestone[] public milestones;
     mapping(uint => uint) public disputeIDToMilstoneID; // Map (disputeID => milestoneID).
-    
+    uint ousterID; //The ID of the milestone created at construction. To be disputed when the funders claim the team is not doing their job.
+    bool canChangeTeam; //True if the holders have attempted an oust and won the dispute. Allows the funder to select a new team (only once).
+
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant TEAM_WINS = 1;
     uint8 constant HOLDERS_WINS = 2;
-    
+
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _contractHash Keccak256 hash of the plain text contract.
@@ -66,14 +68,28 @@ contract FundingVault is Arbitrable {
         claimToWithdrawTime=_claimToWithdrawTime;
         additionalTimeToWithdraw=_additionalTimeToWithdraw;
         timeout=_timeout;
+        ousterID = milestones.push(Milestone({ //Create a base milestone to be disputed when the funders claim the team is not doing their job.
+               amount:0,
+               amountClaimed:0,
+               claimTime:0,
+               disputed:false,
+               feeTeam:0,
+               feeHolders:0,
+               voteToken:MiniMeToken(0x0),
+               disputeID:0,
+               lastTotalFeePayment:0,
+               lastTotalFeePaymentIsTeam:false,
+               payerForHolders:0x0
+           }))-1;
+       canChangeTeam = false;
     }
-    
+
     /** @dev Give the funds for a milestone.
      *  @return milestoneID The ID of the milestone which was created.
      */
     function fundMilestone() public payable returns(uint milestoneID) {
         require(msg.sender==funder);
-        
+
         return milestones.push(Milestone({
                 amount:msg.value,
                 amountClaimed:0,
@@ -89,29 +105,34 @@ contract FundingVault is Arbitrable {
             }))-1;
     }
 
-    
+     //Restricts Milestone function with functionality not necessary for Ouster.
+     modifier isNotOuster(uint _milestoneID) {
+       require(ousterID != _milestoneID);
+       _;
+     }
+
     /** @dev Claim funds of a milestone.
      *  @param _milestoneID The ID of the milestone.
      *  @param _amount The amount claim. Note that the team can claim less than the amount of a milestone. This allows partial completion claims.
      */
-    function claimMilestone(uint _milestoneID, uint _amount) public {
+    function claimMilestone(uint _milestoneID, uint _amount) public isNotOuster(_milestoneID) {
         Milestone storage milestone=milestones[_milestoneID];
         require(msg.sender==team);
         require(milestone.claimTime==0); // Verify another claim is not active.
         require(milestone.amount<=_amount);
-        
+
         milestone.claimTime=now;
     }
-    
+
     /** @dev Make a forked token to dispute a claim.
      *  This avoid creating a token all the time, since most milestones should not be disputed.
      *  @param _milestoneID The ID of the milestone.
      */
     function makeVoteToken(uint _milestoneID) public {
         Milestone storage milestone=milestones[_milestoneID];
-        require(milestone.claimTime!=0); // The milestone is currently claimed by the team.
+        if( ousterID != _milestoneID ) { require(milestone.claimTime!=0); } // The milestone is currently claimed by the team, unless this is the ouster.
         require(address(milestone.voteToken)==0x0); // Token has not already been made.
-        
+
         milestone.voteToken=MiniMeToken(token.createCloneToken(
                 "",
                 token.decimals(),
@@ -120,7 +141,7 @@ contract FundingVault is Arbitrable {
                 true
                 ));
     }
-    
+
     /** @dev Pay fee to dispute a milestone. To be called by parties claiming the milestone was not completed.
      *  The first party to pay the fee entirely will be reimbursed if the dispute is won.
      *  Note that holders can make a smart contract to crowdfund the fee.
@@ -134,13 +155,12 @@ contract FundingVault is Arbitrable {
         require(milestone.voteToken.balanceOf(this) >= (disputeThreshold*milestone.voteToken.totalSupply())/1000); // There is enough votes.
         require(milestone.feeHolders<arbitrationCost); // Fee has not be paid before.
         require(milestone.feeHolders+msg.value>=arbitrationCost); // Enough is paid.
-        require(!milestone.disputed); // A dispute has not been created yet.
-        
+
         milestone.feeHolders+=msg.value;
-        
+
         if (milestone.payerForHolders==0x0)
             milestone.payerForHolders=msg.sender;
-        
+
         if (milestone.feeTeam>=arbitrationCost) { // Enough has been paid by all sides.
             createDispute(_milestoneID,arbitrationCost);
         } else if (milestone.lastTotalFeePayment==0) { // First time the fee is paid.
@@ -150,7 +170,7 @@ contract FundingVault is Arbitrable {
             milestone.lastTotalFeePayment=now;
         }
     }
-    
+
     /** @dev Pay fee to for a milestone dispute. To be called by the team when the holders have enough votes and fee paid.
      *  @param _milestoneID The milestone which is disputed.
      */
@@ -161,8 +181,8 @@ contract FundingVault is Arbitrable {
         require(!milestone.disputed); // A dispute has not been created yet.
         require(milestone.voteToken.balanceOf(this) >= (disputeThreshold*milestone.voteToken.totalSupply())/1000); // There is enough votes.
         require(milestone.feeTeam+msg.value>=arbitrationCost); // Make sure enough is paid. Team can't pay partially.
-        
-        
+
+
         milestone.feeTeam+=msg.value;
         if (milestone.feeHolders>=arbitrationCost) { // Enough has been paid by all sides.
                 createDispute(_milestoneID,arbitrationCost);
@@ -175,7 +195,7 @@ contract FundingVault is Arbitrable {
             milestone.lastTotalFeePayment=now;
         }
     }
-    
+
     /** @dev Create a dispute.
      *  @param _milestoneID The milestone which is disputed.
      *  @param _arbitrationCost The amount which should be paid to the arbitrator.
@@ -187,12 +207,12 @@ contract FundingVault is Arbitrable {
         milestone.disputeID=arbitrator.createDispute(AMOUNT_OF_CHOICES,arbitratorExtraData);
         disputeIDToMilstoneID[milestone.disputeID]=_milestoneID;
     }
-    
+
     /** @dev Withdraw the money claimed in a milestone.
      *  To be called when a dispute has not been created within the time limit.
      *  @param _milestoneID The milestone which is disputed.
      */
-    function withdraw(uint _milestoneID) public {
+    function withdraw(uint _milestoneID) public isNotOuster(_milestoneID) {
         Milestone storage milestone=milestones[_milestoneID];
         require(msg.sender==team);
         require(!milestone.disputed);
@@ -205,9 +225,9 @@ contract FundingVault is Arbitrable {
         milestone.claimTime=0;
         milestone.feeTeam=0;
         milestone.feeHolders=0;
-        
+
     }
-    
+
     // TODO: Timeouts
     /** @dev Timeout to use when the holders don't pay the fee.
      *  @param _milestoneID The milestone which is disputed.
@@ -217,7 +237,7 @@ contract FundingVault is Arbitrable {
         require(msg.sender==team);
         require(milestone.lastTotalFeePaymentIsTeam);
         require(now-milestone.lastTotalFeePayment > timeout);
-        
+
         team.transfer(milestone.amountClaimed+milestone.feeTeam+milestone.feeHolders); // Pay the amount claimed and the unused fees to the team.
         milestone.amount-=milestone.amountClaimed;
         milestone.amountClaimed=0;
@@ -227,9 +247,9 @@ contract FundingVault is Arbitrable {
         milestone.voteToken=MiniMeToken(0x0);
         milestone.lastTotalFeePayment=0;
         milestone.lastTotalFeePaymentIsTeam=false;
-        milestone.payerForHolders=0x0;        
+        milestone.payerForHolders=0x0;
     }
-    
+
     /** @dev Timeout to use whe the team don't pay the fee.
      *  @param _milestoneID The milestone which is disputed.
      */
@@ -237,7 +257,7 @@ contract FundingVault is Arbitrable {
         Milestone storage milestone=milestones[_milestoneID];
         require(!milestone.lastTotalFeePaymentIsTeam);
         require(now-milestone.lastTotalFeePayment > timeout);
-        
+
         milestone.payerForHolders.transfer(milestone.feeTeam+milestone.feeHolders); // Pay the unused fees to the payer for holders.
         milestone.amountClaimed=0;
         milestone.claimTime=0;
@@ -247,8 +267,10 @@ contract FundingVault is Arbitrable {
         milestone.voteToken=MiniMeToken(0x0);
         milestone.lastTotalFeePayment=0;
         milestone.payerForHolders=0x0;
+
+        canChangeTeam = true; //since the team was nonresponsive, the holders are free to change the team.
     }
-    
+
     /** @dev Appeal an appealable ruling.
      *  Transfer the funds to the arbitrator.
      *  @param _milestoneID The milestone which is disputed.
@@ -265,7 +287,8 @@ contract FundingVault is Arbitrable {
     function executeRuling(uint _disputeID, uint _ruling) internal{
         Milestone storage milestone=milestones[disputeIDToMilstoneID[_disputeID]];
         require(milestone.voteToken.balanceOf(this) >= (disputeThreshold*milestone.voteToken.totalSupply())/1000); // Make sure there is enough votes to protect against a malicious arbitrator.
-        
+
+        uint _milestoneID = disputeIDToMilstoneID[_disputeID];
         if (_ruling==TEAM_WINS) {
             team.transfer(milestone.amountClaimed+milestone.feeTeam+milestone.feeHolders); // Pay the amount claimed and the unused fees to the team.
             milestone.amount-=milestone.amountClaimed;
@@ -275,7 +298,7 @@ contract FundingVault is Arbitrable {
             milestone.feeTeam=0;
             milestone.feeHolders=0;
             milestone.voteToken=MiniMeToken(0x0);
-            milestone.disputeID=0; 
+            milestone.disputeID=0;
             milestone.lastTotalFeePayment=0;
             milestone.lastTotalFeePaymentIsTeam=false;
             milestone.payerForHolders=0x0;
@@ -287,20 +310,25 @@ contract FundingVault is Arbitrable {
             milestone.feeTeam=0;
             milestone.feeHolders=0;
             milestone.voteToken=MiniMeToken(0x0);
-            milestone.disputeID=0; 
+            milestone.disputeID=0;
             milestone.lastTotalFeePayment=0;
             milestone.lastTotalFeePaymentIsTeam=false;
             milestone.payerForHolders=0x0;
+            if( ousterID == _milestoneID ) { //if this is the ouster milestone
+              canChangeTeam = true; //allow the funder to change the team
+            }
         }
     }
-    // TODO: Make a mechanism to send everything back to another contract.
 
+    /** @dev Change the team. Note that the holders would have to make
+    *   the funder a votable contract if they want a vote on who the new team will be.
+    *   @param _newTeam the new team.
+    */
+    function changeTeam(address _newTeam) public {
+      require(msg.sender == funder); //The sender must be the funder.
+      require(canChangeTeam);
+      team = _newTeam;
+      canChangeTeam = false; //This can only be called once.
+    }
 
 }
-
-
-
-
-
-
-

@@ -9,7 +9,7 @@
  */
 pragma solidity ^0.4.15;
  
-import "./BlockHashRNG.sol";
+import "./BlockhashRNG.sol";
 
 /** Random Number Generator returning the blockhash with a backup behaviour.
  *  Allows saving the random number for use in the future. 
