@@ -808,8 +808,13 @@ contract("MultipleArbitrableTransaction", function(accounts) {
     const contractHashEvent = multipleContract.ContractHash();
 
     let currentResolve;
+    let lastTransactionEvent = -1;
     const handler = contractHashEvent.watch((error, result) => {
-      currentResolve(result);
+      const eventTransaction = result.args._transactionId.toNumber();
+      if (eventTransaction > lastTransactionEvent) {
+        lastTransactionEvent = eventTransaction;
+        currentResolve(result);
+      }
     });
 
     const transaction1Promise = new Promise(resolve => {
@@ -905,8 +910,13 @@ contract("MultipleArbitrableTransaction", function(accounts) {
     const contractHashEvent = multipleContract.ContractHash();
 
     let currentResolve;
+    let lastTransactionEvent = -1;
     const handler = contractHashEvent.watch((error, result) => {
-      currentResolve(result);
+      const eventTransaction = result.args._transactionId.toNumber();
+      if (eventTransaction > lastTransactionEvent) {
+        lastTransactionEvent = eventTransaction;
+        currentResolve(result);
+      }
     });
 
     const transaction1Promise = new Promise(resolve => {
