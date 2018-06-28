@@ -1,11 +1,9 @@
-
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
 
 const {
   expectThrow
 } = require('../helpers/utils')
 const ArbitrableBlacklist = artifacts.require('./ArbitrableBlacklist.sol')
-const ExposedArbitrableBlacklist = artifacts.require('./ExposedArbitrableBlacklist.sol')
 const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
 const Item = artifacts.require('./ArbitrableBlacklist.sol')
 
@@ -15,8 +13,8 @@ contract('ArbitrableBlacklist', function(accounts) {
   let partyA = accounts[2]
   let partyB = accounts[3]
   let arbitratorExtraData = 0x08575
-  let arbitrationFee = 2
-  let stake = 2
+  let arbitrationFee = 128
+  let stake = 256
   let timeToChallenge = 0
   let contractHash = 0x6aa0bb2779ab006be0739900654a89f1f8a2d7373ed38490a7cbab9c9392e1ff
 
@@ -48,7 +46,7 @@ contract('ArbitrableBlacklist', function(accounts) {
       from: arbitrator
     })
 
-    arbitrableBlacklist = await ExposedArbitrableBlacklist.new(centralizedArbitrator.address, arbitratorExtraData, contractHash, stake, timeToChallenge, {
+    arbitrableBlacklist = await ArbitrableBlacklist.new(centralizedArbitrator.address, arbitratorExtraData, contractHash, stake, timeToChallenge, {
       from: arbitrator
     })
 
@@ -369,9 +367,9 @@ contract('ArbitrableBlacklist', function(accounts) {
         let submitterBalance = web3.eth.getBalance(submitter).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.BLACKLIST)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.BLACKLIST, {from: arbitrator})
 
-        assert.equal(web3.eth.getBalance(submitter), submitterBalance + itemBalance)
+        assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.BLACKLISTED)
       })
 
@@ -380,7 +378,7 @@ contract('ArbitrableBlacklist', function(accounts) {
         let challengerBalance = web3.eth.getBalance(challenger).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.CLEAR)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {from: arbitrator})
 
         assert.equal(web3.eth.getBalance(challenger), challengerBalance + itemBalance)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
@@ -394,8 +392,7 @@ contract('ArbitrableBlacklist', function(accounts) {
         let challengerBalance = web3.eth.getBalance(challenger).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.OTHER)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {from: arbitrator})
 
         assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + (itemBalance / 2))
         assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + (itemBalance / 2))
@@ -541,9 +538,12 @@ contract('ArbitrableBlacklist', function(accounts) {
         let submitterBalance = web3.eth.getBalance(submitter).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.BLACKLIST)
 
-        assert.equal(web3.eth.getBalance(submitter), submitterBalance + itemBalance)
+        const hash = await centralizedArbitrator.giveRuling(disputeID, RULING.BLACKLIST, {from: arbitrator})
+        const gasUsed = hash.receipt.gasUsed;
+        const gasCost = gasUsed*Math.pow(10,11); // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
+
+        assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance - gasCost)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.BLACKLISTED)
       })
 
@@ -552,9 +552,9 @@ contract('ArbitrableBlacklist', function(accounts) {
         let challengerBalance = web3.eth.getBalance(challenger).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.CLEAR)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {from: arbitrator})
 
-        assert.equal(web3.eth.getBalance(challenger), challengerBalance + itemBalance)
+        assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
       })
 
@@ -566,9 +566,11 @@ contract('ArbitrableBlacklist', function(accounts) {
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
         let disputeID = (await arbitrableBlacklist.items(ARBITRARY_STRING))[6].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.OTHER)
+        const hash = await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {from: arbitrator})
+        const gasUsed = hash.receipt.gasUsed;
+        const gasCost = gasUsed*Math.pow(10,11); // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
 
-        assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance / 2)
+        assert.equal(web3.eth.getBalance(submitter).toNumber() , submitterBalance + itemBalance / 2 - gasCost)
         assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance / 2)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT)
       })
@@ -579,14 +581,14 @@ contract('ArbitrableBlacklist', function(accounts) {
 
     beforeEach('prepare pre-conditions', async function() {
       await arbitrableBlacklist.requestBlacklisting(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyA,
         value: stake + arbitrationCost
       })
       await arbitrableBlacklist.executeRequest(ARBITRARY_STRING, {
-        from: arbitrator
+        from: partyA
       })
       await arbitrableBlacklist.requestClearing(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyB,
         value: stake + arbitrationCost
       })
     })
@@ -601,21 +603,21 @@ contract('ArbitrableBlacklist', function(accounts) {
 
     it('calling requestBlacklisting should revert', async () => {
       await expectThrow(arbitrableBlacklist.requestBlacklisting(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyA,
         value: stake + arbitrationCost
       }))
     })
 
     it('calling requestClearing should revert', async function() {
       await expectThrow(arbitrableBlacklist.requestClearing(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyB,
         value: stake + arbitrationCost
       }))
     })
 
     it('calling challengeBlacklisting should revert', async () => {
       await expectThrow(arbitrableBlacklist.challengeBlacklisting(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyB,
         value: stake + arbitrationCost
       }))
     })
@@ -624,12 +626,12 @@ contract('ArbitrableBlacklist', function(accounts) {
       let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
       await arbitrableBlacklist.challengeClearing(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyA,
         value: stake + arbitrationCost
       })
       let disputeID = (await arbitrableBlacklist.items(ARBITRARY_STRING))[6].toNumber();
 
-      assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[3].toString(), arbitrator)
+      assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[3].toString(), partyA)
       assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber(), itemBalance + stake)
       assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[5], true)
       assert.equal(web3.toUtf8(await arbitrableBlacklist.disputeIDToItem(disputeID)), ARBITRARY_STRING)
@@ -637,7 +639,7 @@ contract('ArbitrableBlacklist', function(accounts) {
 
     it('calling executeRequest should move item into the blacklisted state', async function() {
       await arbitrableBlacklist.executeRequest(ARBITRARY_STRING, {
-        from: arbitrator
+        from: partyA
       })
 
       assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
@@ -660,7 +662,7 @@ contract('ArbitrableBlacklist', function(accounts) {
         let challengerBalance = web3.eth.getBalance(challenger).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.BLACKLIST)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.BLACKLIST, {from: arbitrator})
 
         assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.BLACKLISTED)
@@ -671,7 +673,7 @@ contract('ArbitrableBlacklist', function(accounts) {
         let submitterBalance = web3.eth.getBalance(submitter).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.CLEAR)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {from: arbitrator})
 
         assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
@@ -685,7 +687,7 @@ contract('ArbitrableBlacklist', function(accounts) {
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
         let disputeID = (await arbitrableBlacklist.items(ARBITRARY_STRING))[6].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.OTHER)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {from: arbitrator})
 
         assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance / 2)
         assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance / 2)
@@ -698,7 +700,7 @@ contract('ArbitrableBlacklist', function(accounts) {
 
     beforeEach('prepare pre-conditions', async function() {
       await arbitrableBlacklist.requestClearing(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyB,
         value: stake + arbitrationCost
       })
     })
@@ -713,7 +715,7 @@ contract('ArbitrableBlacklist', function(accounts) {
 
     it('calling isPermitted on a disputed item should return false', async () => { //TODO
       await arbitrableBlacklist.challengeClearing(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyA,
         value: stake + arbitrationCost
       }) // To satisfy disputed pre-condition
 
@@ -722,21 +724,21 @@ contract('ArbitrableBlacklist', function(accounts) {
 
     it('calling requestBlacklisting should revert', async () => {
       await expectThrow(arbitrableBlacklist.requestBlacklisting(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyA,
         value: stake + arbitrationCost
       }))
     })
 
     it('calling requestClearing should revert', async function() {
       await expectThrow(arbitrableBlacklist.requestClearing(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyB,
         value: stake + arbitrationCost
       }))
     })
 
     it('calling challengeBlacklisting should revert', async () => {
       await expectThrow(arbitrableBlacklist.challengeBlacklisting(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyB,
         value: stake + arbitrationCost
       }))
     })
@@ -745,11 +747,11 @@ contract('ArbitrableBlacklist', function(accounts) {
       let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
       await arbitrableBlacklist.challengeClearing(ARBITRARY_STRING, {
-        from: arbitrator,
+        from: partyA,
         value: stake + arbitrationCost
       })
 
-      assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[3].toString(), arbitrator)
+      assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[3].toString(), partyA)
       assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber(), itemBalance + stake)
       let disputeID = (await arbitrableBlacklist.items(ARBITRARY_STRING))[6].toNumber();
       assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[5], true)
@@ -781,7 +783,7 @@ contract('ArbitrableBlacklist', function(accounts) {
         let challengerBalance = web3.eth.getBalance(challenger).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.BLACKLIST)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.BLACKLIST, {from: arbitrator})
 
         assert.equal(await web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.BLACKLISTED)
@@ -792,7 +794,7 @@ contract('ArbitrableBlacklist', function(accounts) {
         let submitterBalance = web3.eth.getBalance(submitter).toNumber();
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.CLEAR)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {from: arbitrator});
 
         assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance)
         assert.equal((await arbitrableBlacklist.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
@@ -806,7 +808,7 @@ contract('ArbitrableBlacklist', function(accounts) {
         let itemBalance = (await arbitrableBlacklist.items(ARBITRARY_STRING))[4].toNumber();
         let disputeID = (await arbitrableBlacklist.items(ARBITRARY_STRING))[6].toNumber();
 
-        await arbitrableBlacklist._executeRuling(disputeID, RULING.OTHER)
+        await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {from: arbitrator})
 
         assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance / 2)
         assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance / 2)
