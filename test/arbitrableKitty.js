@@ -1,7 +1,7 @@
 const { expectThrow, increaseTime } = require('../helpers/utils')
 
 const ArbitrableKitty = artifacts.require('ArbitrableKitty')
-const KittyCore = artifacts.require('KittyCoreTest')
+const KittyCore = artifacts.require('KittyCore')
 const GeneScienceMock = artifacts.require('GeneScienceMock')
 const SaleClockAuction = artifacts.require('SaleClockAuction')
 const SiringClockAuction = artifacts.require('SiringClockAuction')
