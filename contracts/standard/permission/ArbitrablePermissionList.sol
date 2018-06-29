@@ -5,7 +5,7 @@
  *  This code requires truffle tests.
  */
 
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import "../arbitration/Arbitrable.sol";
 import "./PermissionInterface.sol";
@@ -72,6 +72,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     // Items
     mapping(bytes32 => Item) public items;
     mapping(uint => bytes32) public disputeIDToItem;
+    bytes32[] public itemsList;
 
     /* Constructor */
 
@@ -118,6 +119,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.status = ItemStatus.Resubmitted;
         else
             revert(); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
+
+        if (item.lastAction == 0) itemsList.push(_value);
 
         item.submitter = msg.sender;
         item.balance += msg.value;
@@ -294,5 +297,46 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         item.balance = 0;
 
         emit ItemStatusChange(disputeIDToItem[_disputeID], item.status, item.disputed);
+    }
+
+    /* Interface Views */
+
+    /**
+     *  @dev Return the values of the items the query finds.
+     *  This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+     *  @param _cursor The pagination cursor.
+     *  @param _count The number of items to return.
+     *  @param _filter The filter to use.
+     *  @param _sort The sort order to use.
+     *  @return values The values of the items found.
+     */
+    function queryItems(uint _cursor, uint _count, bool[6] _filter, bool _sort) public view returns (bytes32[]) {
+        bytes32[] memory values = new bytes32[](_count);
+        uint index = 0;
+        require(_cursor < itemsList.length);
+
+        for (
+                uint i = _cursor == 0 ? (_sort ? 0 : 1) : (_sort ? _cursor + 1 : itemsList.length - _cursor + 1);
+                _sort ? i < itemsList.length : i <= itemsList.length;
+                i++
+            ) { // Oldest or newest first
+            Item storage item = items[itemsList[_sort ? i : itemsList.length - i]];
+            if (
+                item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
+                    (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending
+                    (_filter[1] && item.disputed) || // Challenged
+                    (_filter[2] && item.status == ItemStatus.Registered) || // Accepted
+                    (_filter[3] && item.status == ItemStatus.Cleared) || // Rejected
+                    (_filter[4] && item.submitter == msg.sender) || // My Submissions
+                    (_filter[5] && item.challenger == msg.sender) // My Challenges
+                )
+            ) {
+                values[index] = itemsList[_sort ? i : itemsList.length - i];
+                index++;
+                if (index == _count) break;
+            }
+        }
+        
+        return values;
     }
 }
