@@ -242,7 +242,7 @@ import "./Arbitrator.sol";
 
 
     /** @dev Transfer the transaction's amount to the seller if the timeout has passed
-     * @param _transactionId The index of the transaction.
+     *  @param _transactionId The index of the transaction.
      */
     function withdraw(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
