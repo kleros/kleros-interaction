@@ -21,7 +21,6 @@ contract('ArbitrableKitty', (accounts) => {
     OTHER_USER: accounts[3],
     TIMEOUT: 100,
     ARBITRATION_FEE: 20,
-    AMOUNT_OF_CHOICES: 3,
     EXTRA_DATA: 0x08575,
     CONTRACT_HASH: 0x6aa0bb2779ab006be0739900654a89f1f8a2d7373ed38490a7cbab9c9392e1ff,
     PARTY_A_WINS: 1,
@@ -111,7 +110,6 @@ contract('ArbitrableKitty', (accounts) => {
       PARTY_B,
       CONTRACT_HASH,
       TIMEOUT,
-      AMOUNT_OF_CHOICES,
       EXTRA_DATA,
       {from: PARTY_A}
     )

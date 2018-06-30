@@ -15,6 +15,7 @@ import "./TwoPartyArbitrable.sol";
  */
 contract ArbitrableTransaction is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Reimburse partyA;Pay partyB";
+    uint8 constant AMOUNT_OF_CHOICES = 2; // The number of ruling options available.
     
     uint public amount; // Amount sent by party A.
     
@@ -23,16 +24,14 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
-     *  @param _partyB The recipient of the transaction.
-     *  @param _amountOfChoices The number of ruling options available.
+     *  @param _partyB The recipient of the transaction.     
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
     constructor(
         Arbitrator _arbitrator, 
         bytes32 _hashContract, 
         uint _timeout, 
-        address _partyB,
-        uint8 _amountOfChoices,
+        address _partyB,        
         bytes _arbitratorExtraData
     ) 
         TwoPartyArbitrable(
@@ -40,7 +39,7 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
             _hashContract,
             _timeout,
             _partyB,
-            _amountOfChoices,
+            AMOUNT_OF_CHOICES,
             _arbitratorExtraData) 
         public 
         payable 

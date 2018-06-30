@@ -17,7 +17,8 @@ import "./TwoPartyArbitrable.sol";
  */
 contract Rental is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Rule for party A (renter);Rule for Party B (owner)";
-    
+    uint8 constant AMOUNT_OF_CHOICES = 2; // The number of ruling options available.
+
     uint public amount; // Amount sent by party A.
     uint public damagesClaimedByPartyA; // The amount party A agrees to pay to compensate damages.
     uint public damagesClaimedByPartyB; // The amount party B claims to compensate damages.
@@ -26,16 +27,14 @@ contract Rental is TwoPartyArbitrable {
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
-     *  @param _partyB The owner.
-     *  @param _amountOfChoices The number of ruling options available.
+     *  @param _partyB The owner.     
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
     constructor(
         Arbitrator _arbitrator,
         bytes32 _hashContract,
         uint _timeout,
-        address _partyB,
-        uint8 _amountOfChoices,
+        address _partyB,        
         bytes _arbitratorExtraData
     ) 
         TwoPartyArbitrable(
@@ -43,7 +42,7 @@ contract Rental is TwoPartyArbitrable {
             _hashContract,
             _timeout,
             _partyB,
-            _amountOfChoices,
+            AMOUNT_OF_CHOICES,
             _arbitratorExtraData
         ) 
         public

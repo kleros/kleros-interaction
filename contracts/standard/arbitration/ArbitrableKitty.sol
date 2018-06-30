@@ -5,7 +5,7 @@
  */
 
 
-pragma solidity 0.4.24;
+pragma solidity ^0.4.24;
 import "./TwoPartyArbitrable.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
 import "./CriptoKitties/KittyCore.sol";
@@ -45,6 +45,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
 
     string constant RULING_OPTIONS = "Give to partyA;Give to partyB;Grant shared custody";    
     uint8 constant SHARED_CUSTODY = 3;
+    uint8 constant AMOUNT_OF_CHOICES = 3; // The number of ruling options available.
 
     uint256 constant CUSTODY_TIME = 1 weeks;
     address public winner;    
@@ -115,8 +116,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _kittyCore CriptoKitty core smart contract.
      *  @param _partyB The partner sharing the kitty.
      *  @param _hashContract Keccak hash of the plain English contract.
-     *  @param _timeout Time after which a party automatically loose a dispute.
-     *  @param _amountOfChoices The number of ruling options available.
+     *  @param _timeout Time after which a party automatically loose a dispute.     
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
     constructor(
@@ -124,8 +124,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         KittyCore _kittyCore,
         address _partyB,
         bytes32 _hashContract,        
-        uint _timeout,
-        uint8 _amountOfChoices,
+        uint _timeout,        
         bytes _arbitratorExtraData
     ) 
     TwoPartyArbitrable(
@@ -133,7 +132,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         _hashContract,
         _timeout,
         _partyB,
-        _amountOfChoices,
+        AMOUNT_OF_CHOICES,
         _arbitratorExtraData
     ) 
         payable 
