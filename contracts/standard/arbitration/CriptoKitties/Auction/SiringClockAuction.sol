@@ -1,7 +1,7 @@
 /**
  *  @title Reverse auction modified for siring
  *  @author dapperlabs (https://github.com/dapperlabs) 
- *  This code was taken from https://github.com/dapperlabs bounty program at 
+ *  This code was taken from https://github.com/dapperlabs at
  *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
  */
 pragma solidity ^0.4.18;
