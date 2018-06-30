@@ -459,7 +459,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _ruling Ruling given by the arbitrator. 
      *  - 1 : Reimburse the partyA. 
      *  - 2 : Pay the partyB. 
-     *  - 3 : Keep fees.
+     *  - 3 : Split fees.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         super.executeRuling(_disputeID,_ruling);
@@ -468,14 +468,24 @@ contract ArbitrableKitty is TwoPartyArbitrable{
             rulingResult = RulingResult.PartyA;
             winner = partyA;
             emit PartyWonCustody(winner);
-        }
-        else if (_ruling==PARTY_B_WINS) {
+        } else if (_ruling==PARTY_B_WINS) {
             rulingResult = RulingResult.PartyB;
             winner = partyB;
             emit PartyWonCustody(winner);
-        }else if (_ruling==SHARED_CUSTODY) {
+        } else if (_ruling==SHARED_CUSTODY) {
             rulingResult = RulingResult.SharedCustody;
             rulingTime = now;
+            
+            // Give the arbitration fee back.
+            // Note that we use send to prevent a party from blocking the execution.
+            // We send the highest amount paid to avoid ETH to be stuck in 
+            // the contract if the arbitrator lowers its fee.
+            uint256 largestFee = partyAFee > partyBFee ? partyAFee : partyBFee;
+            uint256 halfFees = largestFee.div(2);
+
+            partyA.send(halfFees);
+            partyB.send(halfFees);
+
             emit SharedCustodyHasBeenGranted();
         }        
     }
@@ -490,7 +500,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         RulingResult custody = custodyTurn(rulingTime,now,CUSTODY_TIME);
         if(custody==RulingResult.PartyA && msg.sender==partyA){
             return true;
-        }else if(custody==RulingResult.PartyB && msg.sender==partyB){
+        } else if(custody==RulingResult.PartyB && msg.sender==partyB){
             return true;
         }
 

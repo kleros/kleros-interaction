@@ -470,6 +470,7 @@ contract('ArbitrableKitty', (accounts) => {
       const { SHARED_CUSTODY } = params
       const rulingResult = (await arbitrable.rulingResult()).toNumber()
       assert.equal(rulingResult, SHARED_CUSTODY, 'shared custody should have been granted')
+      assert.equal((await web3.eth.getBalance(arbitrable.address)).toNumber(),0,'should have split fees')
     })
 
     it("should return correct custody information", async () => {
