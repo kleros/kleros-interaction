@@ -1,3 +1,9 @@
+/**
+ *  @title Base contract for CryptoKitties. Holds all common structs, events and base variables.
+ *  @author Axiom Zen (https://www.axiomzen.co)
+ *  This code was taken from https://github.com/dapperlabs at 
+ *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
+ */
 pragma solidity ^0.4.18;
 
 import "./KittyAccessControl.sol";

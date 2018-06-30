@@ -1,3 +1,9 @@
+/**
+ *  @title A facet of KittyCore that manages special access privileges.
+ *  @author Axiom Zen (https://www.axiomzen.co)
+ *  This code was taken from https://github.com/dapperlabs at
+ *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
+ */
 pragma solidity ^0.4.18;
 
 /// @title A facet of KittyCore that manages special access privileges.

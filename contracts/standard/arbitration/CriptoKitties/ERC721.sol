@@ -1,3 +1,9 @@
+/**
+ *  @title Interface for contracts conforming to ERC-721: Non-Fungible Tokens
+ *  @author Dieter Shirley <dete@axiomzen.co> (https://github.com/dete) 
+ *  This code was taken from https://github.com/dapperlabs at 
+ *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
+ */
 pragma solidity ^0.4.18;
 
 
