@@ -457,9 +457,9 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  Overrides method in TwoPartyArbitrable to account for third ruling option: SHARED_CUSTODY
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. 
-     *  - 1 : Reimburse the partyA. 
-     *  - 2 : Pay the partyB. 
-     *  - 3 : Split fees.
+     *  - 1 : Grant full custody to and reimburse partyA.
+     *  - 2 : Grant full custody to and reimburse partyA.
+     *  - 3 : Grant shared custody and split biggest fee among parties.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         super.executeRuling(_disputeID,_ruling);
