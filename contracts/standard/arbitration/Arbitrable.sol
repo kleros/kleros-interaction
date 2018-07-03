@@ -55,9 +55,9 @@ contract Arbitrable{
      *  @param _contractHash Keccak256 hash of the plain text contract.
      */
     constructor(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash) {
-        arbitrator=_arbitrator;
-	arbitratorExtraData=_arbitratorExtraData;
-        ContractHash(_contractHash);
+        arbitrator = _arbitrator;
+        arbitratorExtraData = _arbitratorExtraData;
+        emit ContractHash(_contractHash);
     }
 
     /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
@@ -66,7 +66,7 @@ contract Arbitrable{
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) onlyArbitrator {
-        Ruling(Arbitrator(msg.sender),_disputeID,_ruling);
+        emit Ruling(Arbitrator(msg.sender),_disputeID,_ruling);
 
         executeRuling(_disputeID,_ruling);
     }

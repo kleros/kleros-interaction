@@ -113,7 +113,7 @@ contract ArbitrableDeposit is Arbitrable {
         if (claimantFee < arbitrationCost) { // The claimant still has to pay.
         // This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingClaimant;
-            HasToPayFee(Party.Claimant);
+            emit HasToPayFee(Party.Claimant);
         } else { // The claimant has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
@@ -128,10 +128,10 @@ contract ArbitrableDeposit is Arbitrable {
         require(claimantFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
 
-        lastInteraction=now;
+        lastInteraction = now;
         if (ownerFee < arbitrationCost) { // The owner still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingOwner;
-            HasToPayFee(Party.Claimant);
+            emit HasToPayFee(Party.Claimant);
         } else { // The owner has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
@@ -143,7 +143,7 @@ contract ArbitrableDeposit is Arbitrable {
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
         disputeID = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
-        Dispute(arbitrator,disputeID,RULING_OPTIONS);
+        emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
     }
 
     /** @dev Reimburse owner if claimant fails to pay the fee.

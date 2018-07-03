@@ -118,7 +118,7 @@ contract VersioningProxy {
 
         // Call handler and fire event
         handleStableChange(prevTag, prevAddress, _nextTag, nextAddress); // on-chain
-        OnStableChange(prevTag, prevAddress, _nextTag, nextAddress); // off-chain
+        emit OnStableChange(prevTag, prevAddress, _nextTag, nextAddress); // off-chain
 
         // Change proxy target
         implementation = nextAddress;

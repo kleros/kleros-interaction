@@ -69,7 +69,7 @@ contract TwoPartyArbitrable is Arbitrable {
         lastInteraction=now;
         if (partyBFee < arbitrationCost) { // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status=Status.WaitingPartyB;
-            HasToPayFee(Party.PartyB);
+            emit HasToPayFee(Party.PartyB);
         } else { // The partyB has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
@@ -88,7 +88,7 @@ contract TwoPartyArbitrable is Arbitrable {
         lastInteraction=now;
         if (partyAFee < arbitrationCost) { // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status=Status.WaitingPartyA;
-            HasToPayFee(Party.PartyA);
+            emit HasToPayFee(Party.PartyA);
         } else { // The partyA has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }

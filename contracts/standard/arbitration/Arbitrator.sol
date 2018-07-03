@@ -58,7 +58,7 @@ contract Arbitrator{
      *  @param _extraData Can be used to give extra info on the appeal.
      */
     function appeal(uint _disputeID, bytes _extraData) public requireAppealFee(_disputeID,_extraData) payable {
-        AppealDecision(_disputeID, Arbitrable(msg.sender));
+        emit AppealDecision(_disputeID, Arbitrable(msg.sender));
     }
 
     /** @dev Compute the cost of appeal. It is recommended not to increase it often, as it can be higly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
