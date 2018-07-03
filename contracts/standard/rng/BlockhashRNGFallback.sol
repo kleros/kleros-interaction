@@ -26,10 +26,10 @@ contract BlockHashRNGFallback is BlockHashRNG {
         if (_block<block.number) {
             uint rewardToSend=reward[_block];
             reward[_block]=0;
-            if (block.blockhash(_block)!=0x0) // Normal case.
-                randomNumber[_block]=uint(block.blockhash(_block));
+            if (blockhash(_block)!=0x0) // Normal case.
+                randomNumber[_block]=uint(blockhash(_block));
             else // The contract was not called in time. Fallback to returning previous blockhash.
-                randomNumber[_block]=uint(block.blockhash(block.number-1));
+                randomNumber[_block]=uint(blockhash(block.number-1));
             
             msg.sender.send(rewardToSend); // Note that the use of send is on purpose as we don't want to block in case the msg.sender has a fallback issue.
             
