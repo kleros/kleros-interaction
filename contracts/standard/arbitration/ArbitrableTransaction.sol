@@ -32,7 +32,7 @@ import "./TwoPartyArbitrable.sol";
 
     /** @dev Pay the party B. To be called when the good is delivered or the service rendered.
      */
-    function pay() onlyPartyA {
+    function pay() public onlyPartyA {
         partyB.transfer(amount);
         amount=0;
     }
@@ -40,7 +40,7 @@ import "./TwoPartyArbitrable.sol";
     /** @dev Reimburse party A. To be called if the good or service can't be fully provided.
      *  @param _amountReimbursed Amount to reimburse in wei.
      */
-    function reimburse(uint _amountReimbursed) onlyPartyB {
+    function reimburse(uint _amountReimbursed) public onlyPartyB {
         require(_amountReimbursed<=amount);
         partyA.transfer(_amountReimbursed);
         amount-=_amountReimbursed;

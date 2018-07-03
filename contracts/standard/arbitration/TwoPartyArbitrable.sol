@@ -60,7 +60,7 @@ contract TwoPartyArbitrable is Arbitrable {
      *  Note that the arbitrator can have createDispute throw, which will make this function throw and therefore lead to a party being timed-out.
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      */
-    function payArbitrationFeeByPartyA() payable onlyPartyA {
+    function payArbitrationFeeByPartyA() public payable onlyPartyA {
         uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
         partyAFee+=msg.value;
         require(partyAFee >= arbitrationCost); // Require that the total pay at least the arbitration cost.
@@ -79,7 +79,7 @@ contract TwoPartyArbitrable is Arbitrable {
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the party B. UNTRUSTED.
      *  Note that this function mirror payArbitrationFeeByPartyA.
      */
-    function payArbitrationFeeByPartyB() payable onlyPartyB {
+    function payArbitrationFeeByPartyB() public payable onlyPartyB {
         uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
         partyBFee+=msg.value;
         require(partyBFee >= arbitrationCost); // Require that the total pay at least the arbitration cost.
@@ -105,7 +105,7 @@ contract TwoPartyArbitrable is Arbitrable {
 
     /** @dev Reimburse partyA if partyB fails to pay the fee.
      */
-    function timeOutByPartyA() onlyPartyA {
+    function timeOutByPartyA() public onlyPartyA {
         require(status==Status.WaitingPartyB);
         require(now>=lastInteraction+timeout);
 
@@ -114,7 +114,7 @@ contract TwoPartyArbitrable is Arbitrable {
 
     /** @dev Pay partyB if partyA fails to pay the fee.
      */
-    function timeOutByPartyB() onlyPartyB {
+    function timeOutByPartyB() public onlyPartyB {
         require(status==Status.WaitingPartyA);
         require(now>=lastInteraction+timeout);
 
@@ -124,7 +124,7 @@ contract TwoPartyArbitrable is Arbitrable {
     /** @dev Submit a reference to evidence. EVENT.
      *  @param _evidence A link to an evidence using its URI.
      */
-    function submitEvidence(string _evidence) onlyParty {
+    function submitEvidence(string _evidence) public onlyParty {
         require(status>=Status.DisputeCreated);
         Evidence(arbitrator,disputeID,msg.sender,_evidence);
     }
@@ -134,7 +134,7 @@ contract TwoPartyArbitrable is Arbitrable {
      *  Note that no checks are required as the checks are done by the arbitrator.
      *  @param _extraData Extra data for the arbitrator appeal procedure.
      */
-    function appeal(bytes _extraData) onlyParty payable {
+    function appeal(bytes _extraData) public onlyParty payable {
         arbitrator.appeal.value(msg.value)(disputeID,_extraData);
     }
 

@@ -107,7 +107,7 @@ import "./Arbitrator.sol";
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      *  @param _transactionId The index of the transaction.
      */
-    function payArbitrationFeeBySeller(uint _transactionId) payable {
+    function payArbitrationFeeBySeller(uint _transactionId) public payable {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.seller);
 
@@ -130,7 +130,7 @@ import "./Arbitrator.sol";
      *  Note that this function mirror payArbitrationFeeBySeller.
      *  @param _transactionId The index of the transaction.
      */
-    function payArbitrationFeeByBuyer(uint _transactionId) payable {
+    function payArbitrationFeeByBuyer(uint _transactionId) public payable {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer);
 
@@ -163,7 +163,7 @@ import "./Arbitrator.sol";
     /** @dev Reimburse partyA if partyB fails to pay the fee.
      *  @param _transactionId The index of the transaction.
      */
-    function timeOutBySeller(uint _transactionId) {
+    function timeOutBySeller(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.seller);
 
@@ -177,7 +177,7 @@ import "./Arbitrator.sol";
     /** @dev Pay partyB if partyA fails to pay the fee.
      *  @param _transactionId The index of the transaction.
      */
-    function timeOutByBuyer(uint _transactionId) {
+    function timeOutByBuyer(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer);
 
@@ -192,7 +192,7 @@ import "./Arbitrator.sol";
      *  @param _transactionId The index of the transaction.
      *  @param _evidence A link to an evidence using its URI.
      */
-    function submitEvidence(uint _transactionId, string _evidence) {
+    function submitEvidence(uint _transactionId, string _evidence) public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer || msg.sender == transaction.seller);
 
