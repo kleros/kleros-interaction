@@ -60,7 +60,7 @@ contract FundingVault is Arbitrable {
      *  @param _additionalTimeToWithdraw The time in seconds which is added per ‱ of tokens disputing the claim.
      *  @param _timeout Maximum time to pay arbitration fees after the other side did.
      */
-    function FundingVault(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash, address _team, address _token, address _funder, uint _disputeThreshold, uint _claimToWithdrawTime, uint _additionalTimeToWithdraw, uint _timeout) public Arbitrable(_arbitrator,_arbitratorExtraData,_contractHash) {
+    constructor(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash, address _team, address _token, address _funder, uint _disputeThreshold, uint _claimToWithdrawTime, uint _additionalTimeToWithdraw, uint _timeout) public Arbitrable(_arbitrator,_arbitratorExtraData,_contractHash) {
         team=_team;
         token=MiniMeToken(_token);
         funder=_funder;

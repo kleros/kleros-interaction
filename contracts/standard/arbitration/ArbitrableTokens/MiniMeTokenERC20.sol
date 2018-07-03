@@ -23,7 +23,7 @@ contract MiniMeTokenERC20 is MiniMeToken {
      *  @param _tokenSymbol Token Symbol for the new token
      *  @param _transfersEnabled If true, tokens will be able to be transferred
      */
-    function MiniMeTokenERC20(
+    constructor(
         address _tokenFactory,
         address _parentToken,
         uint _parentSnapShotBlock,
@@ -40,7 +40,7 @@ contract MiniMeTokenERC20 is MiniMeToken {
         _tokenSymbol,
         _transfersEnabled
     ) public {}
-    
+
     /** @notice `msg.sender` approves `_spender` to spend `_amount` tokens on its behalf.
       * This is a ERC20 compliant version.
       * @param _spender The address of the account able to transfer the tokens

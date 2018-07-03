@@ -86,7 +86,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @param _stake The amount in Weis of deposit required for a submission or a challenge.
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      */
-    function ArbitrablePermissionList(
+    constructor(
         bytes32 _contractHash,
         bool _blacklist,
         bool _appendOnly,
@@ -336,7 +336,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                 if (index == _count) break;
             }
         }
-        
+
         return values;
     }
 }
