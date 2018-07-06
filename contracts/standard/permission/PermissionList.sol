@@ -1,6 +1,6 @@
 /**
  *  @title Permission List
- *  @author Clément Lesaege - <clement@lesaege.com>
+ *  @author Enrique Piqueras - <enrique@kleros.io>
  */
 
 pragma solidity ^0.4.15;
