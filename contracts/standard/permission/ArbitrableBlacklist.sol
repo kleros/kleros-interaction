@@ -60,7 +60,7 @@ contract ArbitrableBlacklist is PermissionInterface, Arbitrable {
      *  @param _stake The amount in weis of deposit required for a submission or a challenge.
      *  @param _timeToChallenge The time in second, others parties have to challenge
      */
-    function ArbitrableBlacklist(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash, uint _stake, uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData, _contractHash) public {
+    constructor(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash, uint _stake, uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData, _contractHash) public {
         arbitrator=_arbitrator;
         arbitratorExtraData=_arbitratorExtraData;
         stake=_stake;

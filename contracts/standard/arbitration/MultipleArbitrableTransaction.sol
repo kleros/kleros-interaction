@@ -15,16 +15,16 @@ import "./Arbitrator.sol";
  contract MultipleArbitrableTransaction {
     string constant RULING_OPTIONS = "Reimburse buyer;Pay seller";
 
-    
-    
+
+
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant BUYER_WINS = 1;
     uint8 constant SELLER_WINS = 2;
-    
+
     enum Party {Seller, Buyer}
-    
+
     enum Status {NoDispute, WaitingSeller, WaitingBuyer, DisputeCreated, Resolved}
-    
+
     struct Transaction {
         address seller;
         address buyer;
@@ -44,10 +44,10 @@ import "./Arbitrator.sol";
     mapping (bytes32 => uint) public disputeTxMap;
 
 
-    
+
     /** @dev Constructor.
      */
-    function MultipleArbitrableTransaction() public {
+    constructor() public {
     }
 
     /** @dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.
@@ -65,7 +65,7 @@ import "./Arbitrator.sol";
      *  @param _ruling The ruling which was given.
      */
     event Ruling(uint indexed _transactionId, Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
-    
+
     /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
@@ -73,20 +73,20 @@ import "./Arbitrator.sol";
      *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.
      */
     event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
-    
+
     /** @dev To be emmited at contract creation. Contains the hash of the plain text contract. This will allow any party to show what was the original contract.
      *  This event is used as cheap way of storing it.
      *  @param _transactionId The index of the transaction.
      *  @param _contractHash Keccak256 hash of the plain text contract.
      */
     event ContractHash(uint indexed _transactionId, bytes32 _contractHash);
-    
+
     /** @dev Indicate that a party has to pay a fee or would otherwise be considered as loosing.
      *  @param _transactionId The index of the transaction.
      *  @param _party The party who has to pay.
      */
     event HasToPayFee(uint indexed _transactionId, Party _party);
-    
+
     /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
      *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
@@ -98,7 +98,7 @@ import "./Arbitrator.sol";
         require(msg.sender==address(transaction.arbitrator));
 
         emit Ruling(transactionId, Arbitrator(msg.sender),_disputeID,_ruling);
-        
+
         executeRuling(_disputeID,_ruling);
     }
 
@@ -107,7 +107,7 @@ import "./Arbitrator.sol";
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      *  @param _transactionId The index of the transaction.
      */
-    function payArbitrationFeeBySeller(uint _transactionId) payable {
+    function payArbitrationFeeBySeller(uint _transactionId) public payable {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.seller);
 
@@ -116,7 +116,7 @@ import "./Arbitrator.sol";
         transaction.sellerFee += msg.value;
         require(transaction.sellerFee >= arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(transaction.status < Status.DisputeCreated); // Make sure a dispute has not been created yet.
-        
+
         transaction.lastInteraction = now;
         if (transaction.buyerFee < arbitrationCost) { // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             transaction.status = Status.WaitingBuyer;
@@ -125,12 +125,12 @@ import "./Arbitrator.sol";
             raiseDispute(_transactionId, arbitrationCost);
         }
     }
-    
+
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the buyer. UNTRUSTED.
      *  Note that this function mirror payArbitrationFeeBySeller.
      *  @param _transactionId The index of the transaction.
      */
-    function payArbitrationFeeByBuyer(uint _transactionId) payable {
+    function payArbitrationFeeByBuyer(uint _transactionId) public payable {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer);
 
@@ -138,7 +138,7 @@ import "./Arbitrator.sol";
         transaction.buyerFee += msg.value;
         require(transaction.buyerFee >= arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(transaction.status < Status.DisputeCreated); // Make sure a dispute has not been created yet.
-        
+
         transaction.lastInteraction = now;
         if (transaction.sellerFee < arbitrationCost) { // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             transaction.status = Status.WaitingSeller;
@@ -147,7 +147,7 @@ import "./Arbitrator.sol";
             raiseDispute(_transactionId, arbitrationCost);
         }
     }
-    
+
     /** @dev Create a dispute. UNTRUSTED.
      *  @param _transactionId The index of the transaction.
      *  @param _arbitrationCost Amount to pay the arbitrator.
@@ -159,47 +159,47 @@ import "./Arbitrator.sol";
         disputeTxMap[keccak256(transaction.arbitrator, transaction.disputeId)] = _transactionId;
         emit Dispute(_transactionId, transaction.arbitrator, transaction.disputeId,RULING_OPTIONS);
     }
-    
+
     /** @dev Reimburse partyA if partyB fails to pay the fee.
      *  @param _transactionId The index of the transaction.
      */
-    function timeOutBySeller(uint _transactionId) {
+    function timeOutBySeller(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.seller);
 
 
         require(transaction.status==Status.WaitingBuyer);
         require(now>=transaction.lastInteraction+transaction.timeout);
-        
+
         executeRuling(transaction.disputeId, SELLER_WINS);
     }
-    
+
     /** @dev Pay partyB if partyA fails to pay the fee.
      *  @param _transactionId The index of the transaction.
      */
-    function timeOutByBuyer(uint _transactionId) {
+    function timeOutByBuyer(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer);
 
 
         require(transaction.status == Status.WaitingSeller);
         require(now>=transaction.lastInteraction+transaction.timeout);
-        
+
         executeRuling(transaction.disputeId,BUYER_WINS);
     }
-    
+
     /** @dev Submit a reference to evidence. EVENT.
      *  @param _transactionId The index of the transaction.
      *  @param _evidence A link to an evidence using its URI.
      */
-    function submitEvidence(uint _transactionId, string _evidence) {
+    function submitEvidence(uint _transactionId, string _evidence) public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer || msg.sender == transaction.seller);
-        
+
         require(transaction.status>=Status.DisputeCreated);
         emit Evidence(transaction.arbitrator,transaction.disputeId,msg.sender,_evidence);
     }
-    
+
     /** @dev Appeal an appealable ruling.
      *  Transfer the funds to the arbitrator.
      *  Note that no checks are required as the checks are done by the arbitrator.
@@ -209,10 +209,10 @@ import "./Arbitrator.sol";
     function appeal(uint _transactionId, bytes _extraData) payable public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer || msg.sender == transaction.seller);
-        
+
         transaction.arbitrator.appeal.value(msg.value)(transaction.disputeId,_extraData);
     }
-    
+
 
 
     /** @dev
@@ -223,7 +223,7 @@ import "./Arbitrator.sol";
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
     function createTransaction(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _seller, bytes _arbitratorExtraData) payable public returns (uint transactionIndex) {
-        transactions.push(Transaction({ 
+        transactions.push(Transaction({
             seller: _seller,
             buyer: msg.sender,
             amount: msg.value,
@@ -253,9 +253,9 @@ import "./Arbitrator.sol";
         transaction.seller.send(transaction.amount);
         transaction.amount = 0;
 
-        transaction.status = Status.Resolved;    
+        transaction.status = Status.Resolved;
     }
-    
+
     /** @dev Reimburse party A. To be called if the good or service can't be fully provided.
      *  @param _transactionId The index of the transaction.
      *  @param _amountReimbursed Amount to reimburse in wei.
@@ -264,11 +264,11 @@ import "./Arbitrator.sol";
         Transaction storage transaction = transactions[_transactionId];
         require(transaction.seller == msg.sender);
         require(_amountReimbursed <= transaction.amount);
-        
+
         transaction.buyer.transfer(_amountReimbursed);
         transaction.amount -= _amountReimbursed;
     }
-    
+
     /** @dev Execute a ruling of a dispute. It reimburse the fee to the winning party.
      *  This need to be extended by contract inheriting from it.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
@@ -277,10 +277,10 @@ import "./Arbitrator.sol";
     function executeRuling(uint _disputeID, uint _ruling) internal {
         uint transactionId = disputeTxMap[keccak256(msg.sender,_disputeID)];
         Transaction storage transaction = transactions[transactionId];
-        
+
         require(_disputeID == transaction.disputeId);
         require(_ruling <= AMOUNT_OF_CHOICES);
-        
+
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
         if (_ruling == SELLER_WINS) {

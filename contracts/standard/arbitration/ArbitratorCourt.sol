@@ -70,7 +70,7 @@ contract ArbitratorCourt is Arbitrator {
      *  @param _parentName The name of the `parent`.
      *  @param _parentAddress The address of the `parent`.
      */
-    function ArbitratorCourt(uint256 _maxLocalAppeals, string _parentName, Arbitrator _parentAddress) public {
+    constructor(uint256 _maxLocalAppeals, string _parentName, Arbitrator _parentAddress) public {
         maxLocalAppeals = _maxLocalAppeals;
         parent = Court({ name: _parentName, _address: _parentAddress });
     }
