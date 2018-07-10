@@ -44,7 +44,6 @@ contract('ArbitrablePermissionList', function(accounts) {
 
     for (const appendOnly of [true, false]) {
     for (const blacklist of [true, false]) {
-      console.log(appendOnly + blacklist);
       describe('When appendOnly=' + appendOnly + ' and blacklist=' + blacklist, function() {
 
         beforeEach('setup contract for each test', async () => {
@@ -76,7 +75,6 @@ contract('ArbitrablePermissionList', function(accounts) {
           assert.equal(await arbitrablePermissionList.arbitratorExtraData(), arbitratorExtraData)
 
         });
-
 
         describe('msg.value restrictions', function() {
           describe('Should revert when msg.value < stake+arbitratorCost', function() {
