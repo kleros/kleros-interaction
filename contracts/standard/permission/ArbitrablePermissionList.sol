@@ -235,6 +235,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
         require(now - item.lastAction >= timeToChallenge);
+        require(!item.disputed);
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
