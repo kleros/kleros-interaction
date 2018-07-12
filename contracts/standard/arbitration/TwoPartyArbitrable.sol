@@ -25,7 +25,6 @@ contract TwoPartyArbitrable is Arbitrable {
     uint public disputeID;
     enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
     Status public status;
-    string public metaEvidence;
 
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant PARTY_A_WINS = 1;
@@ -55,8 +54,7 @@ contract TwoPartyArbitrable is Arbitrable {
         timeout=_timeout;
         partyA=msg.sender;
         partyB=_partyB;
-        metaEvidence=_metaEvidence;
-        emit MetaEvidence(_metaEvidence);
+        emit MetaEvidence(0, _metaEvidence);
     }
 
 
@@ -105,7 +103,7 @@ contract TwoPartyArbitrable is Arbitrable {
         status=Status.DisputeCreated;
         disputeID=arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
         emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
-        emit LinkMetaEvidence(arbitrator,disputeID,metaEvidence);
+        emit LinkMetaEvidence(arbitrator,disputeID,0);
     }
 
     /** @dev Reimburse partyA if partyB fails to pay the fee.
