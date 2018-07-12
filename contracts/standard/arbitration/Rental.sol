@@ -28,8 +28,9 @@ import "./TwoPartyArbitrable.sol";
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _partyB The owner.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     *  @param _metaEvidence Link to meta-evidence JSON.
      */
-    constructor(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) public TwoPartyArbitrable(_arbitrator,_hashContract,_timeout,_partyB,_arbitratorExtraData) payable {
+    constructor(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData, string _metaEvidence) public TwoPartyArbitrable(_arbitrator,_hashContract,_timeout,_partyB,_arbitratorExtraData, _metaEvidence) payable {
         amount+=msg.value;
     }
 

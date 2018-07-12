@@ -36,6 +36,18 @@ contract Arbitrable{
      */
     event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
+    /** @dev To be emmited when meta-evidence is submitted.
+     *  @param _evidence A link to the meta-evidence JSON.
+     */
+    event MetaEvidence(string indexed _evidence);
+
+    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID
+     *  @param _arbitrator The arbitrator of the contract.
+     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _evidence A link to the meta-evidence JSON.
+     */
+    event LinkMetaEvidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, string _evidence);
+
     /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due tp gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.

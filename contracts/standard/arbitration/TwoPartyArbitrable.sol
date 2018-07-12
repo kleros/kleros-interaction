@@ -25,6 +25,7 @@ contract TwoPartyArbitrable is Arbitrable {
     uint public disputeID;
     enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
     Status public status;
+    string public metaEvidence;
 
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant PARTY_A_WINS = 1;
@@ -48,11 +49,14 @@ contract TwoPartyArbitrable is Arbitrable {
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _partyB The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     *  @param _metaEvidence Link to the meta-evidence.
      */
-    constructor(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData) Arbitrable(_arbitrator,_arbitratorExtraData,_hashContract) {
+    constructor(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData, string _metaEvidence) Arbitrable(_arbitrator,_arbitratorExtraData,_hashContract) {
         timeout=_timeout;
         partyA=msg.sender;
         partyB=_partyB;
+        metaEvidence=_metaEvidence;
+        emit MetaEvidence(_metaEvidence);
     }
 
 
@@ -100,7 +104,8 @@ contract TwoPartyArbitrable is Arbitrable {
     function raiseDispute(uint _arbitrationCost) internal {
         status=Status.DisputeCreated;
         disputeID=arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
-        Dispute(arbitrator,disputeID,RULING_OPTIONS);
+        emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
+        emit LinkMetaEvidence(arbitrator,disputeID,metaEvidence);
     }
 
     /** @dev Reimburse partyA if partyB fails to pay the fee.
@@ -126,7 +131,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function submitEvidence(string _evidence) public onlyParty {
         require(status>=Status.DisputeCreated);
-        Evidence(arbitrator,disputeID,msg.sender,_evidence);
+        emit Evidence(arbitrator,disputeID,msg.sender,_evidence);
     }
 
     /** @dev Appeal an appealable ruling.
