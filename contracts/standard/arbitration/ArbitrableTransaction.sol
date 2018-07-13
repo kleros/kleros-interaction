@@ -21,13 +21,12 @@ import "./TwoPartyArbitrable.sol";
 
     /** @dev Constructor. Choose the arbitrator. Should be called by party A (the payer).
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _partyB The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _metaEvidence Link to meta-evidence JSON.
      */
-    constructor(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData, string _metaEvidence) TwoPartyArbitrable(_arbitrator,_hashContract,_timeout,_partyB,_arbitratorExtraData, _metaEvidence) payable {
+    constructor(Arbitrator _arbitrator, uint _timeout, address _partyB, bytes _arbitratorExtraData, string _metaEvidence) TwoPartyArbitrable(_arbitrator,_timeout,_partyB,_arbitratorExtraData, _metaEvidence) payable public {
         amount+=msg.value;
     }
 

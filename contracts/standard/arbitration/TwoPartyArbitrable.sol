@@ -44,13 +44,12 @@ contract TwoPartyArbitrable is Arbitrable {
 
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _partyB The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _metaEvidence Link to the meta-evidence.
      */
-    constructor(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _partyB, bytes _arbitratorExtraData, string _metaEvidence) Arbitrable(_arbitrator,_arbitratorExtraData,_hashContract) {
+    constructor(Arbitrator _arbitrator, uint _timeout, address _partyB, bytes _arbitratorExtraData, string _metaEvidence) Arbitrable(_arbitrator,_arbitratorExtraData) public {
         timeout=_timeout;
         partyA=msg.sender;
         partyB=_partyB;
