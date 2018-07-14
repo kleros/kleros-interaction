@@ -42,7 +42,7 @@ contract('ArbitrablePermissionList', function(accounts) {
   const ARBITRARY_NUMBER = 123;
   const ARBITRARY_STRING = "abc";
 
-    for (const appendOnly of [true, false]) {
+  for (const appendOnly of [true, false]) {
     for (const blacklist of [true, false]) {
       describe('When appendOnly=' + appendOnly + ' and blacklist=' + blacklist, function() {
 
@@ -300,8 +300,7 @@ contract('ArbitrablePermissionList', function(accounts) {
         }
 
 
-        if(!appendOnly)
-        {
+        if (!appendOnly) {
           describe('When item in resubmitted state', function() {
 
             beforeEach('prepare pre-conditions', async function() {
@@ -773,26 +772,26 @@ contract('ArbitrablePermissionList', function(accounts) {
               });
 
               it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
-                  const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
-                  const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
-                  const submitterBalance = web3.eth.getBalance(submitter);
-                  const challengerBalance = web3.eth.getBalance(challenger);
-                  const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
-                  const disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6];
+                const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
+                const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
+                const submitterBalance = web3.eth.getBalance(submitter);
+                const challengerBalance = web3.eth.getBalance(challenger);
+                const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
+                const disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6];
 
-                  await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
-                      from: arbitrator
-                  });
+                await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
+                  from: arbitrator
+                });
 
-                  const actualBalanceOfSubmitter = web3.eth.getBalance(submitter);
-                  const actualBalanceOfChallenger = web3.eth.getBalance(challenger);
-                  const expectedBalanceOfSubmitter = itemBalance.dividedBy(2).plus(submitterBalance);
-                  const expectedBalanceOfChallenger = itemBalance.dividedBy(2).plus(challengerBalance);
+                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter);
+                const actualBalanceOfChallenger = web3.eth.getBalance(challenger);
+                const expectedBalanceOfSubmitter = itemBalance.dividedBy(2).plus(submitterBalance);
+                const expectedBalanceOfChallenger = itemBalance.dividedBy(2).plus(challengerBalance);
 
-                  assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Difference: " + actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter));
-                  assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Difference: " + actualBalanceOfChallenger.minus(expectedBalanceOfChallenger));
+                assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Difference: " + actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter));
+                assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Difference: " + actualBalanceOfChallenger.minus(expectedBalanceOfChallenger));
 
-                  assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT);
+                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT);
               })
             })
           });
@@ -913,26 +912,26 @@ contract('ArbitrablePermissionList', function(accounts) {
               });
 
               it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
-                  const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
-                  const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
-                  const submitterBalance = web3.eth.getBalance(submitter);
-                  const challengerBalance = web3.eth.getBalance(challenger);
-                  const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
-                  const disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6];
+                const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
+                const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
+                const submitterBalance = web3.eth.getBalance(submitter);
+                const challengerBalance = web3.eth.getBalance(challenger);
+                const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
+                const disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6];
 
-                  await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
-                      from: arbitrator
-                  });
+                await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
+                  from: arbitrator
+                });
 
-                  const actualBalanceOfSubmitter = web3.eth.getBalance(submitter);
-                  const actualBalanceOfChallenger = web3.eth.getBalance(challenger);
-                  const expectedBalanceOfSubmitter = itemBalance.dividedBy(2).plus(submitterBalance).plus(new BigNumber(stake)).plus(new BigNumber(arbitrationFee).dividedBy(2));
-                  const expectedBalanceOfChallenger = itemBalance.dividedBy(2).plus(challengerBalance).plus(new BigNumber(stake)).plus(new BigNumber(arbitrationFee).dividedBy(2));;
+                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter);
+                const actualBalanceOfChallenger = web3.eth.getBalance(challenger);
+                const expectedBalanceOfSubmitter = itemBalance.dividedBy(2).plus(submitterBalance).plus(new BigNumber(stake)).plus(new BigNumber(arbitrationFee).dividedBy(2));
+                const expectedBalanceOfChallenger = itemBalance.dividedBy(2).plus(challengerBalance).plus(new BigNumber(stake)).plus(new BigNumber(arbitrationFee).dividedBy(2));;
 
-                  assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Difference: " + actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter));
-                  assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Difference: " + actualBalanceOfChallenger.minus(expectedBalanceOfChallenger));
+                assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Difference: " + actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter));
+                assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Difference: " + actualBalanceOfChallenger.minus(expectedBalanceOfChallenger));
 
-                  assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT);
+                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT);
               })
             })
           })
