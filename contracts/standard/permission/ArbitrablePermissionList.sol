@@ -57,8 +57,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /* Storage */
 
     // Settings
-    bool blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
-    bool appendOnly; // True if the list should be append only.
+    bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
+    bool public appendOnly; // True if the list should be append only.
     Arbitrator public arbitrator;
     bytes public arbitratorExtraData;
     uint public stake;
