@@ -16,7 +16,7 @@ import "./Arbitrable.sol";
  *  - Redefine executeRuling while still calling super.executeRuling to implement the results of the arbitration.
  */
 contract TwoPartyArbitrable is Arbitrable {
-    uint public timeout; // Time in second a party can take before being considered unresponding and lose the dispute.
+    uint public timeout; // Time window, in seconds, that a party has to respond within to avoid being considered unresponsive and losing the dispute.
     address public partyA;
     address public partyB;
     uint public partyAFee; // Total fees paid by the partyA.
@@ -26,7 +26,7 @@ contract TwoPartyArbitrable is Arbitrable {
     enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
     Status public status;
 
-    uint8 constant AMOUNT_OF_CHOICES = 2;
+    uint8 constant NUMBER_OF_CHOICES = 2;
     uint8 constant PARTY_A_WINS = 1;
     uint8 constant PARTY_B_WINS = 2;
     string constant RULING_OPTIONS = "Party A wins;Party B wins"; // A plain English of what rulings do. Need to be redefined by the child class.
@@ -37,7 +37,7 @@ contract TwoPartyArbitrable is Arbitrable {
 
     enum Party {PartyA, PartyB}
 
-    /** @dev Indicate that a party has to pay a fee or would otherwise be considered as loosing.
+    /** @dev Indicate that if a party doesn't pay a fee they automatically lose.
      *  @param _party The party who has to pay.
      */
     event HasToPayFee(Party _party);
@@ -45,7 +45,7 @@ contract TwoPartyArbitrable is Arbitrable {
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _hashContract Keccak hash of the plain English contract.
-     *  @param _timeout Time after which a party automatically loose a dispute.
+     *  @param _timeout Time after which a party automatically loses a dispute.
      *  @param _partyB The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
@@ -99,7 +99,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function raiseDispute(uint _arbitrationCost) internal {
         status=Status.DisputeCreated;
-        disputeID=arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
+        disputeID=arbitrator.createDispute.value(_arbitrationCost)(NUMBER_OF_CHOICES,arbitratorExtraData);
         Dispute(arbitrator,disputeID,RULING_OPTIONS);
     }
 
@@ -138,14 +138,14 @@ contract TwoPartyArbitrable is Arbitrable {
         arbitrator.appeal.value(msg.value)(disputeID,_extraData);
     }
 
-    /** @dev Execute a ruling of a dispute. It reimburse the fee to the winning party.
-     *  This need to be extended by contract inheriting from it.
+    /** @dev Execute a ruling of a dispute. It transfers the fee to the winning party.
+     *  This needs to be extended by contracts inheriting from this one.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the partyA. 2 : Pay the partyB.
+     *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse partyA. 2 : Pay partyB.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         require(_disputeID==disputeID);
-        require(_ruling<=AMOUNT_OF_CHOICES);
+        require(_ruling<=NUMBER_OF_CHOICES);
 
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
