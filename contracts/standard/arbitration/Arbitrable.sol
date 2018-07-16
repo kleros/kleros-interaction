@@ -36,8 +36,6 @@ contract Arbitrable{
      */
     event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
     
-    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
-=======
 
     /** @dev To be emmited when meta-evidence is submitted.
      *  @param _metaEvidenceID Unique identifier of meta-evidence.
