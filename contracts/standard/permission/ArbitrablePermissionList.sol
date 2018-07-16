@@ -301,21 +301,41 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /* Interface Views */
 
     /**
+     *  @dev Return the number of items in the list.
+     *  @return The number of items in the list.
+     */
+    function itemsCount() public view returns (uint count) {
+        count = itemsList.length;
+    }
+
+    /**
      *  @dev Return the values of the items the query finds.
      *  This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @param _cursor The pagination cursor.
      *  @param _count The number of items to return.
      *  @param _filter The filter to use.
      *  @param _sort The sort order to use.
-     *  @return values The values of the items found.
+     *  @return The values of the items found and wether there are more items for the current filter and sort.
      */
-    function queryItems(uint _cursor, uint _count, bool[6] _filter, bool _sort) public view returns (bytes32[]) {
-        bytes32[] memory values = new bytes32[](_count);
-        uint index = 0;
-        require(_cursor < itemsList.length);
+    function queryItems(bytes32 _cursor, uint _count, bool[6] _filter, bool _sort) public view returns (bytes32[] values, bool hasMore) {
+        uint _cursorIndex;
+        values = new bytes32[](_count);
+        uint _index = 0;
+
+        if (_cursor == 0)
+            _cursorIndex = 0;
+        else {
+            for (uint j = 0; j < itemsList.length; j++) {
+                if (itemsList[j] == _cursor) {
+                    _cursorIndex = j;
+                    break;
+                }
+            }
+            require(_cursorIndex != 0);
+        }
 
         for (
-                uint i = _cursor == 0 ? (_sort ? 0 : 1) : (_sort ? _cursor + 1 : itemsList.length - _cursor + 1);
+                uint i = _cursorIndex == 0 ? (_sort ? 0 : 1) : (_sort ? _cursorIndex + 1 : itemsList.length - _cursorIndex + 1);
                 _sort ? i < itemsList.length : i <= itemsList.length;
                 i++
             ) { // Oldest or newest first
@@ -330,12 +350,14 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                     (_filter[5] && item.challenger == msg.sender) // My Challenges
                 )
             ) {
-                values[index] = itemsList[_sort ? i : itemsList.length - i];
-                index++;
-                if (index == _count) break;
+                if (_index < _count) {
+                    values[_index] = itemsList[_sort ? i : itemsList.length - i];
+                    _index++;
+                } else {
+                    hasMore = true;
+                    break;
+                }
             }
         }
-
-        return values;
     }
 }
