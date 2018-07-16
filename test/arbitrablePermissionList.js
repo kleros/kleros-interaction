@@ -42,6 +42,98 @@ contract('ArbitrablePermissionList', function(accounts) {
   const ARBITRARY_NUMBER = 123;
   const ARBITRARY_STRING = "abc";
 
+  describe.only('queryItems', function(){
+    before('setup contract for each test', async () => {
+      centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {
+        from: arbitrator
+      });
+
+      blacklist = true;
+      appendOnly = false;
+
+      arbitrablePermissionList = await ArbitrablePermissionList.new(
+        contractHash,
+        blacklist,
+        appendOnly,
+        centralizedArbitrator.address,
+        arbitratorExtraData,
+        stake,
+        timeToChallenge, {
+          from: arbitrator
+        }
+      );
+
+      arbitrationCost = (await centralizedArbitrator.arbitrationCost.call("as", {
+        from: arbitrator
+      })).toNumber();
+    });
+
+    before('populate the list', async function (){
+      await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+        from: partyA,
+        value: stake + arbitrationCost
+      })
+    })
+
+    it('should succesfully retrieve mySubmissions', async function(){
+      const cursor = 0;
+      const count = 1;
+
+      const pending = false;
+      const challenged = false;
+      const accepted = false;
+      const rejected = false;
+      const mySubmissions = true;
+      const myChallenges = false;
+
+      const filter = [pending, challenged, accepted, rejected, mySubmissions, myChallenges];
+      const sort = true;
+
+      const item = await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA});
+
+      assert.equal(web3.toUtf8(item[0]), ARBITRARY_STRING);
+    })
+
+    it('should succesfully retrieve pending', async function(){
+      const cursor = 0;
+      const count = 1;
+
+      const pending = true;
+      const challenged = false;
+      const accepted = false;
+      const rejected = false;
+      const mySubmissions = false;
+      const myChallenges = false;
+
+      const filter = [pending, challenged, accepted, rejected, mySubmissions, myChallenges];
+      const sort = true;
+
+      const item = await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA});
+
+      assert.equal(web3.toUtf8(item[0]), ARBITRARY_STRING);
+    })
+
+    it('should revert when not cursor < itemsList.length', async function(){
+
+      const cursor = 1;
+      const count = 1;
+
+      const pending = true;
+      const challenged = false;
+      const accepted = false;
+      const rejected = false;
+      const mySubmissions = false;
+      const myChallenges = false;
+
+      const filter = [pending, challenged, accepted, rejected, mySubmissions, myChallenges];
+      const sort = true;
+
+      await expectThrow(arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA}));
+
+    })
+
+  })
+
   for (const appendOnly of [true, false]) {
     for (const blacklist of [true, false]) {
       describe('When appendOnly=' + appendOnly + ' and blacklist=' + blacklist, function() {
@@ -69,7 +161,7 @@ contract('ArbitrablePermissionList', function(accounts) {
         });
 
         it('should be constructed correctly', async () => {
-
+          assert.equal(await arbitrablePermissionList.arbitrator(), centralizedArbitrator.address);
           assert.equal(await arbitrablePermissionList.stake(), stake);
           assert.equal(await arbitrablePermissionList.timeToChallenge(), timeToChallenge);
           assert.equal(await arbitrablePermissionList.arbitratorExtraData(), arbitratorExtraData)
