@@ -62,15 +62,15 @@ import "./Arbitrator.sol";
     event Ruling(uint indexed _transactionId, Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
     /** @dev To be emmited when meta-evidence is submitted.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      *  @param _evidence A link to the meta-evidence JSON.
      */
     event MetaEvidence(uint indexed _transactionId, string _evidence);
 
-    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID
+    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _transactionId The index of the transaction
+     *  @param _transactionId The index of the transaction.
      */
     event LinkMetaEvidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _transactionId);
 
