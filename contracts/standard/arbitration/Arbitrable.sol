@@ -49,7 +49,7 @@ contract Arbitrable{
      */
     event LinkMetaEvidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
 
-    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due tp gas considerations).
+    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
