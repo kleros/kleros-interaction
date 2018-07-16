@@ -52,7 +52,7 @@ contract VersioningProxy {
      *  @param _firstTag The version tag of the first version of the managed contract.
      *  @param _firstAddress The address of the first verion of the managed contract.
      */
-    function VersioningProxy(bytes32 _firstTag, address _firstAddress) public {
+    constructor(bytes32 _firstTag, address _firstAddress) public {
         implementation = _firstAddress;
         publish(_firstTag, _firstAddress);
     }
@@ -112,13 +112,13 @@ contract VersioningProxy {
         // Save current tag and address for handlers
         bytes32 prevTag = stable.tag;
         address prevAddress = stable._address;
-    
+
         // Set 'stable'
         stable = Deployment({tag: _nextTag, _address: nextAddress});
 
         // Call handler and fire event
         handleStableChange(prevTag, prevAddress, _nextTag, nextAddress); // on-chain
-        OnStableChange(prevTag, prevAddress, _nextTag, nextAddress); // off-chain
+        emit OnStableChange(prevTag, prevAddress, _nextTag, nextAddress); // off-chain
 
         // Change proxy target
         implementation = nextAddress;

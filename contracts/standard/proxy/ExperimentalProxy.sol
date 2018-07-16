@@ -18,7 +18,7 @@ contract ExperimentalProxy {
      * @param _storageIsEternal Wether this contract should store all storage. I.e. Use 'delegatecall'.
      * @param _implementation The initial 'implementation' contract address.
      */
-    function ExperimentalProxy(bool _storageIsEternal, address _implementation) public {
+    constructor(bool _storageIsEternal, address _implementation) public {
         storageIsEternal = _storageIsEternal;
         implementation = _implementation;
     }
@@ -43,7 +43,7 @@ contract ExperimentalProxy {
         assembly {
             // Start of payload raw data (skip over size slot)
             let _dataPtr := add(_data, 0x20)
-            
+
             // Payload's size
             let _dataSize := mload(_data)
 
@@ -62,11 +62,11 @@ contract ExperimentalProxy {
 
             let _retPtr := mload(0x40) // Start of free memory
             let _retDataPtr := add(_retPtr, 0x20) // Make space for 'bytes' size
-    
+
             // Build `_retData` 'bytes'
             mstore(_retPtr, _retSize) // Copy size
             returndatacopy(_retDataPtr, 0, _retSize) // Copy returned data
-    
+
             // Figure out wether to revert or continue with the returned data
             switch _result
             case 0 { // Error

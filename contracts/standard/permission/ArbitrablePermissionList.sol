@@ -78,7 +78,6 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Constructs the arbitrable permission list and sets the type.
-     *  @param _contractHash Keccak256 hash of the plain contract.
      *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
      *  @param _appendOnly True if the list should be append only.
      *  @param _arbitrator The chosen arbitrator.
@@ -86,14 +85,13 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @param _stake The amount in Weis of deposit required for a submission or a challenge.
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      */
-    function ArbitrablePermissionList(
-        bytes32 _contractHash,
+    constructor(
         bool _blacklist,
         bool _appendOnly,
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
         uint _stake,
-        uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData, _contractHash) public {
+        uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData) public {
         blacklist = _blacklist;
         appendOnly = _appendOnly;
         arbitrator = _arbitrator;
@@ -235,6 +233,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
         require(now - item.lastAction >= timeToChallenge);
+        require(!item.disputed);
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
@@ -336,7 +335,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                 if (index == _count) break;
             }
         }
-        
+
         return values;
     }
 }

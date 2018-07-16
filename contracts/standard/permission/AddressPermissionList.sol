@@ -22,10 +22,10 @@ contract AddressPermissionList is PermissionList {
      *  @dev Constructs the address permission list and sets the type.
      *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
      */
-    function AddressPermissionList(bool _blacklist) PermissionList(_blacklist) public {}
+    constructor(bool _blacklist) PermissionList(_blacklist) public {}
 
     /* Public Views */
-    
+
     /**
      *  @dev Return true if the address is allowed.
      *  @param _value The address we want to check.

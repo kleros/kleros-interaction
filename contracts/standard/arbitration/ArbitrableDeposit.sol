@@ -10,7 +10,7 @@ import "./Arbitrable.sol";
 
 
 /** @title Arbitrable Deposit
- *  This is a a contract which allow for an owner deposit. Anyone besides the owner can seek arbitration/file a claim as a claimant. 
+ *  This is a a contract which allow for an owner deposit. Anyone besides the owner can seek arbitration/file a claim as a claimant.
  * To develop a contract inheriting from this one, you need to:
  *  - Redefine RULING_OPTIONS to explain the consequences of the possible rulings.
  *  - Redefine executeRuling while still calling super.executeRuling to implement the results of the arbitration.
@@ -27,11 +27,11 @@ contract ArbitrableDeposit is Arbitrable {
     uint public claimAmount; // Claim amount a claimant proposes.
     uint public claimRate; // Rate of a claim the claimant must deposit as an integer.
     uint internal claimResponseAmount; // Amount which the Owner responds to the claimant's asking claim.
-    uint public claimDepositAmount; // Total amount a claimant must deposit. 
+    uint public claimDepositAmount; // Total amount a claimant must deposit.
 
     enum Status {NoDispute, WaitingOwner, WaitingClaimant, DisputeCreated, Resolved}
     Status public status;
-    
+
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant OWNER_WINS = 1;
     uint8 constant CLAIMANT_WINS = 2;
@@ -50,11 +50,10 @@ contract ArbitrableDeposit is Arbitrable {
 
     /** @dev Constructor. Choose the arbitrator
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _hashContract Keccak256 hash of the plain text contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    function ArbitrableDeposit (Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, bytes _arbitratorExtraData, uint _claimRate) Arbitrable(_arbitrator, _arbitratorExtraData, _hashContract) public payable {
+    constructor(Arbitrator _arbitrator, uint _timeout, bytes _arbitratorExtraData, uint _claimRate) Arbitrable(_arbitrator, _arbitratorExtraData) public payable {
         timeout = _timeout;
         claimRate = _claimRate;
         status = Status.NoDispute;
@@ -65,15 +64,15 @@ contract ArbitrableDeposit is Arbitrable {
 
     /** @dev Owner deposit to contract. To be called when the owner makes a deposit.
      */
-    function deposit(uint _amount) onlyOwner {
+    function deposit(uint _amount) public onlyOwner {
         amount += _amount;
         address(this).transfer(_amount);
     }
-    
+
     /** @dev File a claim against owner. To be called when someone makes a claim.
      *  @param _claimAmount The proposed claim amount by the claimant.
-     */    
-    function makeClaim(uint _claimAmount) onlyNotOwner {
+     */
+    function makeClaim(uint _claimAmount) public onlyNotOwner {
         require(_claimAmount >= 0 && _claimAmount <= amount);
         claimant = msg.sender;
         claimAmount = _claimAmount;
@@ -81,12 +80,12 @@ contract ArbitrableDeposit is Arbitrable {
         address(this).transfer(claimDepositAmount);
         status = Status.WaitingOwner;
     }
-    
+
     /** @dev Owner response to claimant. To be called when the owner initates a
-     *  a response. 
+     *  a response.
      *  @param _responseAmount The counter-offer amount the Owner proposes to a claimant.
-     */ 
-    function claimResponse(uint _responseAmount) onlyOwner { 
+     */
+    function claimResponse(uint _responseAmount) public onlyOwner {
         require(_responseAmount >= 0 && _responseAmount <= claimDepositAmount);
         claimResponseAmount = _responseAmount;
         if (_responseAmount == claimDepositAmount) {
@@ -103,35 +102,35 @@ contract ArbitrableDeposit is Arbitrable {
      *  Note that the arbitrator can have createDispute throw, which will make this function throw and therefore lead to a party being timed-out.
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      */
-    function payArbitrationFeeByOwner() payable onlyOwner{
+    function payArbitrationFeeByOwner() public payable onlyOwner{
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         ownerFee += msg.value;
         require(ownerFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
-        
+
         lastInteraction = now;
-        if (claimantFee < arbitrationCost) { // The claimant still has to pay. 
+        if (claimantFee < arbitrationCost) { // The claimant still has to pay.
         // This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingClaimant;
-            HasToPayFee(Party.Claimant);
+            emit HasToPayFee(Party.Claimant);
         } else { // The claimant has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
     }
-    
+
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the claimant. UNTRUSTED.
      *  Note that this function mirror payArbitrationFeeByOwner.
      */
-    function payArbitrationFeeByClaimant() payable onlyClaimant {
+    function payArbitrationFeeByClaimant() public payable onlyClaimant {
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         claimantFee += msg.value;
         require(claimantFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
-        
-        lastInteraction=now;
+
+        lastInteraction = now;
         if (ownerFee < arbitrationCost) { // The owner still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingOwner;
-            HasToPayFee(Party.Claimant);
+            emit HasToPayFee(Party.Claimant);
         } else { // The owner has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
@@ -143,24 +142,24 @@ contract ArbitrableDeposit is Arbitrable {
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
         disputeID = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
-        Dispute(arbitrator,disputeID,RULING_OPTIONS);
+        emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
     }
 
     /** @dev Reimburse owner if claimant fails to pay the fee.
      */
-    function timeOutByOwner() onlyOwner {
+    function timeOutByOwner() public onlyOwner {
         require(status==Status.WaitingClaimant);
         require(now >= lastInteraction + timeout);
-        
+
         executeRuling(disputeID,OWNER_WINS);
     }
-    
+
     /** @dev Pay claimant if owner fails to pay the fee.
      */
-    function timeOutByClaimant() onlyClaimant {
+    function timeOutByClaimant() public onlyClaimant {
         require(status==Status.WaitingOwner);
         require(now >= lastInteraction+timeout);
-        
+
         executeRuling(disputeID,CLAIMANT_WINS);
     }
 
@@ -172,12 +171,12 @@ contract ArbitrableDeposit is Arbitrable {
     function executeRuling(uint _disputeID, uint _ruling) internal {
         require(_disputeID==disputeID);
         require(_ruling<=AMOUNT_OF_CHOICES);
-        
+
         if (_ruling==OWNER_WINS) {
             owner.transfer(amount + claimAmount);
             claimant.transfer(claimResponseAmount);
         } else if (_ruling==CLAIMANT_WINS)
             claimant.transfer(amount);
         amount = 0;
-    } 
+    }
 }

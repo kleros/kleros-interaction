@@ -18,16 +18,16 @@ contract LockedToken is MintableToken {
     uint constant LOCK_DIVISOR = 1E6;
     mapping (address => uint) public lastUnlock; // Last time tokens were unlocked.
     mapping (address => uint) public amountLocked; // The amount of tokens locked.
-    
+
     /** @dev Constructor.
      *  @param _lockMultiplierPerMillionPerMonth The amount we must multiply the locked portion each month.
      *  It is (1-unlockRatioPerYear)^(1/12) * 1E6. Note that we should compute that offchain to avoid integer rounding.
      *  So for 10% unlock per year, it is 991258.
      */
-    function LockedToken(uint _lockMultiplierPerMillionPerMonth) public {
+    constructor(uint _lockMultiplierPerMillionPerMonth) public {
         lockMultiplierPerMillionPerMonth=_lockMultiplierPerMillionPerMonth;
     }
-    
+
     /** @dev Mint tokens.
      *  @param _to The address that will receive the minted tokens.
      *  @param _amount The amount of tokens to mint.
@@ -39,8 +39,8 @@ contract LockedToken is MintableToken {
         amountLocked[_to].add(_amount);
         return true;
     }
-    
-    /** @dev Unlock the tokens which can. 
+
+    /** @dev Unlock the tokens which can.
      *  Note that this function is O(log(t)) where t is the last time of unlock.
      *  You can call partiallUnlock with a maxUnlock to avoid gas issues.
      *  But note that it is likely to never be necessary as the cost of this function, if not high even for multiple years.
@@ -49,8 +49,8 @@ contract LockedToken is MintableToken {
     function unlock(address _to) public {
         partialUnlock(_to,uint(-1));
     }
-    
-    /** @dev Unlock the tokens which can. 
+
+    /** @dev Unlock the tokens which can.
      *  This function is O(_maxUnlock). You may need to call it multiple times.
      *  @param _to The address to unlock tokens from.
      */
@@ -65,7 +65,7 @@ contract LockedToken is MintableToken {
             amountLocked[_to]=newLocked;
         }
     }
-    
+
     /** @dev Transfer token for a specified address.
      *  @param _to The address to transfer to.
      *  @param _value The amount to be transferred.
@@ -73,11 +73,11 @@ contract LockedToken is MintableToken {
     function transfer(address _to, uint256 _value) public returns (bool) {
         unlock(msg.sender);
         require(balances[msg.sender].sub(amountLocked[msg.sender])>=_value);
-        
+
         assert(super.transfer(_to,_value));
         return true;
     }
-    
+
     /** @dev Transfer tokens from one address to another
      *  @param _from address The address which you want to send tokens from
      *  @param _to address The address which you want to transfer to
@@ -86,11 +86,9 @@ contract LockedToken is MintableToken {
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
         unlock(_from);
         require(balances[_from].sub(amountLocked[_from])>=_value);
-        
+
         assert(super.transferFrom(_from,_to,_value));
         return true;
     }
-    
+
 }
-
-
