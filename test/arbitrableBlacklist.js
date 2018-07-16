@@ -16,7 +16,6 @@ contract('ArbitrableBlacklist', function(accounts) {
   let arbitrationFee = 128
   let stake = 256
   let timeToChallenge = 0
-  let contractHash = 0x6aa0bb2779ab006be0739900654a89f1f8a2d7373ed38490a7cbab9c9392e1ff
 
   let centralizedArbitrator
   let arbitrableBlacklist
@@ -46,7 +45,7 @@ contract('ArbitrableBlacklist', function(accounts) {
       from: arbitrator
     })
 
-    arbitrableBlacklist = await ArbitrableBlacklist.new(centralizedArbitrator.address, arbitratorExtraData, contractHash, stake, timeToChallenge, {
+    arbitrableBlacklist = await ArbitrableBlacklist.new(centralizedArbitrator.address, arbitratorExtraData, stake, timeToChallenge, {
       from: arbitrator
     })
 

@@ -78,7 +78,6 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Constructs the arbitrable permission list and sets the type.
-     *  @param _contractHash Keccak256 hash of the plain contract.
      *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
      *  @param _appendOnly True if the list should be append only.
      *  @param _arbitrator The chosen arbitrator.
@@ -87,13 +86,12 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      */
     constructor(
-        bytes32 _contractHash,
         bool _blacklist,
         bool _appendOnly,
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
         uint _stake,
-        uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData, _contractHash) public {
+        uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData) public {
         blacklist = _blacklist;
         appendOnly = _appendOnly;
         arbitrator = _arbitrator;
