@@ -35,7 +35,6 @@ contract Arbitrable{
      *  @param _ruling The ruling which was given.
      */
     event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
-    
 
     /** @dev To be emmited when meta-evidence is submitted.
      *  @param _metaEvidenceID Unique identifier of meta-evidence.
