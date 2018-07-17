@@ -14,9 +14,6 @@ import "./Arbitrator.sol";
  */
  contract MultipleArbitrableTransaction {
     string constant RULING_OPTIONS = "Reimburse buyer;Pay seller";
-
-
-
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant BUYER_WINS = 1;
     uint8 constant SELLER_WINS = 2;
@@ -43,8 +40,6 @@ import "./Arbitrator.sol";
 
     mapping (bytes32 => uint) public disputeTxMap;
 
-
-
     /** @dev Constructor.
      */
     constructor() public {
@@ -66,6 +61,19 @@ import "./Arbitrator.sol";
      */
     event Ruling(uint indexed _transactionId, Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
+    /** @dev To be emmited when meta-evidence is submitted.
+     *  @param _transactionId The index of the transaction.
+     *  @param _evidence A link to the meta-evidence JSON.
+     */
+    event MetaEvidence(uint indexed _transactionId, string _evidence);
+
+    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID.
+     *  @param _arbitrator The arbitrator of the contract.
+     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _transactionId The index of the transaction.
+     */
+    event LinkMetaEvidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _transactionId);
+
     /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
@@ -73,13 +81,6 @@ import "./Arbitrator.sol";
      *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.
      */
     event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
-
-    /** @dev To be emmited at contract creation. Contains the hash of the plain text contract. This will allow any party to show what was the original contract.
-     *  This event is used as cheap way of storing it.
-     *  @param _transactionId The index of the transaction.
-     *  @param _contractHash Keccak256 hash of the plain text contract.
-     */
-    event ContractHash(uint indexed _transactionId, bytes32 _contractHash);
 
     /** @dev Indicate that a party has to pay a fee or would otherwise be considered as loosing.
      *  @param _transactionId The index of the transaction.
@@ -158,6 +159,7 @@ import "./Arbitrator.sol";
         transaction.disputeId = transaction.arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,transaction.arbitratorExtraData);
         disputeTxMap[keccak256(transaction.arbitrator, transaction.disputeId)] = _transactionId;
         emit Dispute(_transactionId, transaction.arbitrator, transaction.disputeId,RULING_OPTIONS);
+        emit LinkMetaEvidence(transaction.arbitrator,transaction.disputeId,_transactionId);
     }
 
     /** @dev Reimburse partyA if partyB fails to pay the fee.
@@ -213,16 +215,14 @@ import "./Arbitrator.sol";
         transaction.arbitrator.appeal.value(msg.value)(transaction.disputeId,_extraData);
     }
 
-
-
     /** @dev
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _seller The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     *  @param _metaEvidence Link to the meta-evidence.
      */
-    function createTransaction(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, address _seller, bytes _arbitratorExtraData) payable public returns (uint transactionIndex) {
+    function createTransaction(Arbitrator _arbitrator, uint _timeout, address _seller, bytes _arbitratorExtraData, string _metaEvidence) payable public returns (uint transactionIndex) {
         transactions.push(Transaction({
             seller: _seller,
             buyer: msg.sender,
@@ -236,7 +236,7 @@ import "./Arbitrator.sol";
             lastInteraction: now,
             status: Status.NoDispute
         }));
-        emit ContractHash(transactions.length - 1, _hashContract);
+        emit MetaEvidence(transactions.length - 1, _metaEvidence);
         return transactions.length - 1;
     }
 

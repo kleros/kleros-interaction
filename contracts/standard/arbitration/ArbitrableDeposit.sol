@@ -50,11 +50,10 @@ contract ArbitrableDeposit is Arbitrable {
 
     /** @dev Constructor. Choose the arbitrator
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _hashContract Keccak256 hash of the plain text contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    constructor(Arbitrator _arbitrator, bytes32 _hashContract, uint _timeout, bytes _arbitratorExtraData, uint _claimRate) Arbitrable(_arbitrator, _arbitratorExtraData, _hashContract) public payable {
+    constructor(Arbitrator _arbitrator, uint _timeout, bytes _arbitratorExtraData, uint _claimRate) Arbitrable(_arbitrator, _arbitratorExtraData) public payable {
         timeout = _timeout;
         claimRate = _claimRate;
         status = Status.NoDispute;

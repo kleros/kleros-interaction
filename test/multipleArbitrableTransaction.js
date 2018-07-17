@@ -6,21 +6,21 @@ const MultipleArbitrableTransaction = artifacts.require(
 const CentralizedArbitrator = artifacts.require("./CentralizedArbitrator.sol");
 
 contract("MultipleArbitrableTransaction", function(accounts) {
-  let payer = accounts[0];
-  let payee = accounts[1];
-  let arbitrator = accounts[2];
-  let other = accounts[3];
-  let amount = 1000;
-  let timeout = 100;
-  let arbitrationFee = 20;
-  let gasPrice = 5000000000;
-  let contractHash = 0x6aa0bb2779ab006be0739900654a89f1f8a2d7373ed38490a7cbab9c9392e1ff;
+  let payer = accounts[0]
+  let payee = accounts[1]
+  let arbitrator = accounts[2]
+  let other = accounts[3]
+  let amount = 1000
+  let timeout = 100
+  let arbitrationFee = 20
+  let gasPrice = 5000000000
+  const metaEvidenceUri = 'https://kleros.io'
 
   async function getLastTransaction(multipleContract, callback) {
-    const contractHashEvent = multipleContract.ContractHash();
+    const metaEvidenceEvent = multipleContract.MetaEvidence();
     const awaitable = new Promise((resolve, reject) => {
-      const handler = contractHashEvent.watch((error, result) => {
-        contractHashEvent.stopWatching();
+      const handler = metaEvidenceEvent.watch((error, result) => {
+        metaEvidenceEvent.stopWatching();
         if (!error) {
           resolve(result);
         } else {
@@ -41,10 +41,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           0x0,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -84,10 +84,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         async () => {
           await multipleContract.createTransaction(
             0x0,
-            contractHash,
             timeout,
             payee,
             0x0,
+            metaEvidenceUri,
             { from: payer, value: amount }
           );
         }
@@ -128,10 +128,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           0x0,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -166,10 +166,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           0x0,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -199,10 +199,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           0x0,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -223,10 +223,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           0x0,
-          contractHash,
           0 /* timeout */,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -266,10 +266,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           0x0,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -309,10 +309,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           0x0,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -334,10 +334,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           0x0,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -365,10 +365,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -407,10 +407,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -449,10 +449,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -499,10 +499,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -546,10 +546,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -590,10 +590,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -637,10 +637,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -682,10 +682,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -726,10 +726,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -770,10 +770,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       async () => {
         await multipleContract.createTransaction(
           centralizedArbitrator.address,
-          contractHash,
           timeout,
           payee,
           0x0,
+          metaEvidenceUri,
           { from: payer, value: amount }
         );
       }
@@ -805,11 +805,11 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       from: payer
     });
 
-    const contractHashEvent = multipleContract.ContractHash();
+    const metaEvidenceEvent = multipleContract.MetaEvidence();
 
     let currentResolve;
     let lastTransactionEvent = -1;
-    const handler = contractHashEvent.watch((error, result) => {
+    const handler = metaEvidenceEvent.watch((error, result) => {
       const eventTransaction = result.args._transactionId.toNumber();
       if (eventTransaction > lastTransactionEvent) {
         lastTransactionEvent = eventTransaction;
@@ -822,10 +822,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
       multipleContract.createTransaction(
         centralizedArbitrator.address,
-        contractHash,
         timeout,
         payee,
         0x0,
+        metaEvidenceUri,
         { from: payer, value: amount }
       );
     });
@@ -839,10 +839,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
       multipleContract.createTransaction(
         centralizedArbitrator.address,
-        contractHash,
         timeout,
         payee,
         0x0,
+        metaEvidenceUri,
         { from: payer, value: amount }
       );
     });
@@ -851,7 +851,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
     let arbitrableTransactionId2 = lastTransaction2.args._transactionId.toNumber();
 
-    contractHashEvent.stopWatching();
+    metaEvidenceEvent.stopWatching();
 
     await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId2, {
       from: payer,
@@ -907,11 +907,11 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       from: payer
     });
 
-    const contractHashEvent = multipleContract.ContractHash();
+    const metaEvidenceEvent = multipleContract.MetaEvidence();
 
     let currentResolve;
     let lastTransactionEvent = -1;
-    const handler = contractHashEvent.watch((error, result) => {
+    const handler = metaEvidenceEvent.watch((error, result) => {
       const eventTransaction = result.args._transactionId.toNumber();
       if (eventTransaction > lastTransactionEvent) {
         lastTransactionEvent = eventTransaction;
@@ -924,10 +924,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
       multipleContract.createTransaction(
         centralizedArbitrator1.address,
-        contractHash,
         timeout,
         payee,
         0x0,
+        metaEvidenceUri,
         { from: payer, value: amount }
       );
     });
@@ -941,10 +941,10 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
       multipleContract.createTransaction(
         centralizedArbitrator2.address,
-        contractHash,
         timeout,
         payee,
         0x0,
+        metaEvidenceUri,
         { from: payer, value: amount }
       );
     });
@@ -953,7 +953,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
     let arbitrableTransactionId2 = lastTransaction2.args._transactionId.toNumber();
 
-    contractHashEvent.stopWatching();
+    metaEvidenceEvent.stopWatching();
 
     await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId2, {
       from: payer,

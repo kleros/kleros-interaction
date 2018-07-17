@@ -42,7 +42,7 @@ contract('ArbitrablePermissionList', function(accounts) {
   const ARBITRARY_NUMBER = 123;
   const ARBITRARY_STRING = "abc";
 
-  describe.only('queryItems', function(){
+  describe('queryItems', function(){
     before('setup contract for each test', async () => {
       centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {
         from: arbitrator
@@ -52,7 +52,6 @@ contract('ArbitrablePermissionList', function(accounts) {
       appendOnly = false;
 
       arbitrablePermissionList = await ArbitrablePermissionList.new(
-        contractHash,
         blacklist,
         appendOnly,
         centralizedArbitrator.address,
@@ -89,7 +88,7 @@ contract('ArbitrablePermissionList', function(accounts) {
       const filter = [pending, challenged, accepted, rejected, mySubmissions, myChallenges];
       const sort = true;
 
-      const item = await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA});
+      const item = (await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA}))[0];
 
       assert.equal(web3.toUtf8(item[0]), ARBITRARY_STRING);
     })
@@ -108,7 +107,7 @@ contract('ArbitrablePermissionList', function(accounts) {
       const filter = [pending, challenged, accepted, rejected, mySubmissions, myChallenges];
       const sort = true;
 
-      const item = await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA});
+      const item = (await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA}))[0];
 
       assert.equal(web3.toUtf8(item[0]), ARBITRARY_STRING);
     })
@@ -144,7 +143,6 @@ contract('ArbitrablePermissionList', function(accounts) {
           });
 
           arbitrablePermissionList = await ArbitrablePermissionList.new(
-            contractHash,
             blacklist,
             appendOnly,
             centralizedArbitrator.address,

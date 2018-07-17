@@ -36,7 +36,20 @@ contract Arbitrable{
      */
     event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
-    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due tp gas considerations).
+    /** @dev To be emmited when meta-evidence is submitted.
+     *  @param _metaEvidenceID Unique identifier of meta-evidence.
+     *  @param _evidence A link to the meta-evidence JSON.
+     */
+    event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
+
+    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID
+     *  @param _arbitrator The arbitrator of the contract.
+     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _metaEvidenceID Unique identifier of meta-evidence.
+     */
+    event LinkMetaEvidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
+
+    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
@@ -44,20 +57,13 @@ contract Arbitrable{
      */
     event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
 
-    /** @dev To be emmited at contract creation. Contains the hash of the plain text contract. This will allow any party to show what was the original contract.
-     *  This event is used as cheap way of storing it.
-     *  @param _contractHash Keccak256 hash of the plain text contract.
-     */
-    event ContractHash(bytes32 _contractHash);
-
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _contractHash Keccak256 hash of the plain text contract.
+     *  @param _arbitratorExtraData Extra data for the arbitrator.
      */
-    constructor(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash) {
+    constructor(Arbitrator _arbitrator, bytes _arbitratorExtraData) public {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
-        emit ContractHash(_contractHash);
     }
 
     /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
