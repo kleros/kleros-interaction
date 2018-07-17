@@ -93,35 +93,35 @@
       "type": "function"
     }
   ],
-  "bytecode": "0x608060405234801561001057600080fd5b5060405160208061027b8339810180604052810190808051906020019092919050505080600081905550506102318061004a6000396000f30060806040526004361061006d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680631c73601e146100725780637b9c34e0146100b35780638381f58a146100d3578063c1cbbca7146100fe578063ca4742f11461011e575b600080fd5b34801561007e57600080fd5b5061009d6004803603810190808035906020019092919050505061015f565b6040518082815260200191505060405180910390f35b6100d1600480360381019080803590602001909291905050506101e5565b005b3480156100df57600080fd5b506100e86101f1565b6040518082815260200191505060405180910390f35b61011c600480360381019080803590602001909291905050506101f7565b005b34801561012a57600080fd5b50610149600480360381019080803590602001909291905050506101fa565b6040518082815260200191505060405180910390f35b60008061016b836101fa565b9050600081141561017f57600091506101df565b3381604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166c010000000000000000000000000281526014018281526020019250505060405180910390206001900491505b50919050565b6101ee816101f7565b50565b60005481565b50565b6000805490509190505600a165627a7a72305820f22e51198c5f42dd216077bf7fce0c106bbe4ad6acd3463af728a817e9f131bb0029",
-  "deployedBytecode": "0x60806040526004361061006d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680631c73601e146100725780637b9c34e0146100b35780638381f58a146100d3578063c1cbbca7146100fe578063ca4742f11461011e575b600080fd5b34801561007e57600080fd5b5061009d6004803603810190808035906020019092919050505061015f565b6040518082815260200191505060405180910390f35b6100d1600480360381019080803590602001909291905050506101e5565b005b3480156100df57600080fd5b506100e86101f1565b6040518082815260200191505060405180910390f35b61011c600480360381019080803590602001909291905050506101f7565b005b34801561012a57600080fd5b50610149600480360381019080803590602001909291905050506101fa565b6040518082815260200191505060405180910390f35b60008061016b836101fa565b9050600081141561017f57600091506101df565b3381604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166c010000000000000000000000000281526014018281526020019250505060405180910390206001900491505b50919050565b6101ee816101f7565b50565b60005481565b50565b6000805490509190505600a165627a7a72305820f22e51198c5f42dd216077bf7fce0c106bbe4ad6acd3463af728a817e9f131bb0029",
-  "sourceMap": "251:768:24:-;;;395:74;8:9:-1;5:2;;;30:1;27;20:12;5:2;395:74:24;;;;;;;;;;;;;;;;;;;;;;;;;;;;;455:7;446:6;:16;;;;395:74;251:768;;;;;;",
-  "deployedSourceMap": "251:768:24:-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1163:229:25;;8:9:-1;5:2;;;30:1;27;20:12;5:2;1163:229:25;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;438:75;;;;;;;;;;;;;;;;;;;;;;;;;;284:18:24;;8:9:-1;5:2;;;30:1;27;20:12;5:2;284:18:24;;;;;;;;;;;;;;;;;;;;;;;635:50;;;;;;;;;;;;;;;;;;;;;;;;;;922:92;;8:9:-1;5:2;;;30:1;27;20:12;5:2;922:92:24;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1163:229:25;1228:7;1247:11;1259:13;1265:6;1259:5;:13::i;:::-;1247:25;;1294:1;1286:6;:9;1282:103;;;1316:1;1309:8;;;;1282:103;1366:10;1377:6;1356:28;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1351:34;;;1344:41;;1163:229;;;;;:::o;438:75::-;488:18;499:6;488:10;:18::i;:::-;438:75;:::o;284:18:24:-;;;;:::o;635:50::-;;:::o;922:92::-;975:7;1001:6;;994:13;;922:92;;;:::o",
-  "source": "/**\n *  @title Constant Number Generator\n *  @author Clément Lesaege - <clement@lesaege.com>\n *  @dev A Random Number Generator which always return the same number. Usefull in order to make tests.\n */\n\nimport \"./RNG.sol\";\n\npragma solidity ^0.4.15;\n\n contract ConstantNG is RNG{\n\n    uint public number;\n\n    /** @dev Constructor.\n     *  @param _number The number to always return.\n     */\n    function ConstantNG(uint _number) public {\n        number = _number;\n    }\n\n    /** @dev Contribute to the reward of a random number. All the ETH will be lost forever.\n     *  @param _block Block the random number is linked to.\n     */\n    function contribute(uint _block) public payable {}\n\n\n    /** @dev Get the \"random number\" (which is always the same).\n     *  @param _block Block the random number is linked to.\n     *  @return RN Random Number. If the number is not ready or has not been required 0 instead.\n     */\n    function getRN(uint _block) public constant returns (uint RN) {\n        return number;\n    }\n\n\n }\n",
+  "bytecode": "0x608060405234801561001057600080fd5b5060405160208061027b8339810180604052810190808051906020019092919050505080600081905550506102318061004a6000396000f30060806040526004361061006d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680631c73601e146100725780637b9c34e0146100b35780638381f58a146100d3578063c1cbbca7146100fe578063ca4742f11461011e575b600080fd5b34801561007e57600080fd5b5061009d6004803603810190808035906020019092919050505061015f565b6040518082815260200191505060405180910390f35b6100d1600480360381019080803590602001909291905050506101e5565b005b3480156100df57600080fd5b506100e86101f1565b6040518082815260200191505060405180910390f35b61011c600480360381019080803590602001909291905050506101f7565b005b34801561012a57600080fd5b50610149600480360381019080803590602001909291905050506101fa565b6040518082815260200191505060405180910390f35b60008061016b836101fa565b9050600081141561017f57600091506101df565b3381604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166c010000000000000000000000000281526014018281526020019250505060405180910390206001900491505b50919050565b6101ee816101f7565b50565b60005481565b50565b6000805490509190505600a165627a7a723058201ac768be786c1a9b3cb1a766221d55df40586c09c8c78422c8b70ae99a656eb60029",
+  "deployedBytecode": "0x60806040526004361061006d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680631c73601e146100725780637b9c34e0146100b35780638381f58a146100d3578063c1cbbca7146100fe578063ca4742f11461011e575b600080fd5b34801561007e57600080fd5b5061009d6004803603810190808035906020019092919050505061015f565b6040518082815260200191505060405180910390f35b6100d1600480360381019080803590602001909291905050506101e5565b005b3480156100df57600080fd5b506100e86101f1565b6040518082815260200191505060405180910390f35b61011c600480360381019080803590602001909291905050506101f7565b005b34801561012a57600080fd5b50610149600480360381019080803590602001909291905050506101fa565b6040518082815260200191505060405180910390f35b60008061016b836101fa565b9050600081141561017f57600091506101df565b3381604051808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166c010000000000000000000000000281526014018281526020019250505060405180910390206001900491505b50919050565b6101ee816101f7565b50565b60005481565b50565b6000805490509190505600a165627a7a723058201ac768be786c1a9b3cb1a766221d55df40586c09c8c78422c8b70ae99a656eb60029",
+  "sourceMap": "251:760:26:-;;;395:66;8:9:-1;5:2;;;30:1;27;20:12;5:2;395:66:26;;;;;;;;;;;;;;;;;;;;;;;;;;;;;447:7;438:6;:16;;;;395:66;251:760;;;;;;",
+  "deployedSourceMap": "251:760:26:-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1156:229:27;;8:9:-1;5:2;;;30:1;27;20:12;5:2;1156:229:27;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;432:82;;;;;;;;;;;;;;;;;;;;;;;;;;284:18:26;;8:9:-1;5:2;;;30:1;27;20:12;5:2;284:18:26;;;;;;;;;;;;;;;;;;;;;;;627:50;;;;;;;;;;;;;;;;;;;;;;;;;;914:92;;8:9:-1;5:2;;;30:1;27;20:12;5:2;914:92:26;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1156:229:27;1221:7;1240:11;1252:13;1258:6;1252:5;:13::i;:::-;1240:25;;1287:1;1279:6;:9;1275:103;;;1309:1;1302:8;;;;1275:103;1359:10;1370:6;1349:28;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1344:34;;;1337:41;;1156:229;;;;;:::o;432:82::-;489:18;500:6;489:10;:18::i;:::-;432:82;:::o;284:18:26:-;;;;:::o;627:50::-;;:::o;914:92::-;967:7;993:6;;986:13;;914:92;;;:::o",
+  "source": "/**\n *  @title Constant Number Generator\n *  @author Clément Lesaege - <clement@lesaege.com>\n *  @dev A Random Number Generator which always return the same number. Usefull in order to make tests.\n */\n\nimport \"./RNG.sol\";\n\npragma solidity ^0.4.15;\n\n contract ConstantNG is RNG{\n\n    uint public number;\n\n    /** @dev Constructor.\n     *  @param _number The number to always return.\n     */\n    constructor(uint _number) public {\n        number = _number;\n    }\n\n    /** @dev Contribute to the reward of a random number. All the ETH will be lost forever.\n     *  @param _block Block the random number is linked to.\n     */\n    function contribute(uint _block) public payable {}\n\n\n    /** @dev Get the \"random number\" (which is always the same).\n     *  @param _block Block the random number is linked to.\n     *  @return RN Random Number. If the number is not ready or has not been required 0 instead.\n     */\n    function getRN(uint _block) public constant returns (uint RN) {\n        return number;\n    }\n\n\n }\n",
   "sourcePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/rng/ConstantNG.sol",
   "ast": {
     "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/rng/ConstantNG.sol",
     "exportedSymbols": {
       "ConstantNG": [
-        5452
+        7089
       ]
     },
-    "id": 5453,
+    "id": 7090,
     "nodeType": "SourceUnit",
     "nodes": [
       {
         "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/rng/RNG.sol",
         "file": "./RNG.sol",
-        "id": 5420,
+        "id": 7057,
         "nodeType": "ImportDirective",
-        "scope": 5453,
-        "sourceUnit": 5506,
-        "src": "203:19:24",
+        "scope": 7090,
+        "sourceUnit": 7143,
+        "src": "203:19:26",
         "symbolAliases": [],
         "unitAlias": ""
       },
       {
-        "id": 5421,
+        "id": 7058,
         "literals": [
           "solidity",
           "^",
@@ -129,7 +129,7 @@
           ".15"
         ],
         "nodeType": "PragmaDirective",
-        "src": "224:24:24"
+        "src": "224:24:26"
       },
       {
         "baseContracts": [
@@ -137,42 +137,42 @@
             "arguments": null,
             "baseName": {
               "contractScope": null,
-              "id": 5422,
+              "id": 7059,
               "name": "RNG",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 5505,
-              "src": "274:3:24",
+              "referencedDeclaration": 7142,
+              "src": "274:3:26",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_RNG_$5505",
+                "typeIdentifier": "t_contract$_RNG_$7142",
                 "typeString": "contract RNG"
               }
             },
-            "id": 5423,
+            "id": 7060,
             "nodeType": "InheritanceSpecifier",
-            "src": "274:3:24"
+            "src": "274:3:26"
           }
         ],
         "contractDependencies": [
-          5505
+          7142
         ],
         "contractKind": "contract",
         "documentation": null,
         "fullyImplemented": true,
-        "id": 5452,
+        "id": 7089,
         "linearizedBaseContracts": [
-          5452,
-          5505
+          7089,
+          7142
         ],
         "name": "ConstantNG",
         "nodeType": "ContractDefinition",
         "nodes": [
           {
             "constant": false,
-            "id": 5425,
+            "id": 7062,
             "name": "number",
             "nodeType": "VariableDeclaration",
-            "scope": 5452,
-            "src": "284:18:24",
+            "scope": 7089,
+            "src": "284:18:26",
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
@@ -180,10 +180,10 @@
               "typeString": "uint256"
             },
             "typeName": {
-              "id": 5424,
+              "id": 7061,
               "name": "uint",
               "nodeType": "ElementaryTypeName",
-              "src": "284:4:24",
+              "src": "284:4:26",
               "typeDescriptions": {
                 "typeIdentifier": "t_uint256",
                 "typeString": "uint256"
@@ -194,26 +194,26 @@
           },
           {
             "body": {
-              "id": 5434,
+              "id": 7071,
               "nodeType": "Block",
-              "src": "436:33:24",
+              "src": "428:33:26",
               "statements": [
                 {
                   "expression": {
                     "argumentTypes": null,
-                    "id": 5432,
+                    "id": 7069,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
                       "argumentTypes": null,
-                      "id": 5430,
+                      "id": 7067,
                       "name": "number",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 5425,
-                      "src": "446:6:24",
+                      "referencedDeclaration": 7062,
+                      "src": "438:6:26",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
                         "typeString": "uint256"
@@ -223,48 +223,48 @@
                     "operator": "=",
                     "rightHandSide": {
                       "argumentTypes": null,
-                      "id": 5431,
+                      "id": 7068,
                       "name": "_number",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 5427,
-                      "src": "455:7:24",
+                      "referencedDeclaration": 7064,
+                      "src": "447:7:26",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
                         "typeString": "uint256"
                       }
                     },
-                    "src": "446:16:24",
+                    "src": "438:16:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
                     }
                   },
-                  "id": 5433,
+                  "id": 7070,
                   "nodeType": "ExpressionStatement",
-                  "src": "446:16:24"
+                  "src": "438:16:26"
                 }
               ]
             },
             "documentation": "@dev Constructor.\n @param _number The number to always return.",
-            "id": 5435,
+            "id": 7072,
             "implemented": true,
             "isConstructor": true,
             "isDeclaredConst": false,
             "modifiers": [],
-            "name": "ConstantNG",
+            "name": "",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 5428,
+              "id": 7065,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 5427,
+                  "id": 7064,
                   "name": "_number",
                   "nodeType": "VariableDeclaration",
-                  "scope": 5435,
-                  "src": "415:12:24",
+                  "scope": 7072,
+                  "src": "407:12:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -272,10 +272,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 5426,
+                    "id": 7063,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "415:4:24",
+                    "src": "407:4:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -285,30 +285,30 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "414:14:24"
+              "src": "406:14:26"
             },
             "payable": false,
             "returnParameters": {
-              "id": 5429,
+              "id": 7066,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "436:0:24"
+              "src": "428:0:26"
             },
-            "scope": 5452,
-            "src": "395:74:24",
+            "scope": 7089,
+            "src": "395:66:26",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
           },
           {
             "body": {
-              "id": 5440,
+              "id": 7077,
               "nodeType": "Block",
-              "src": "683:2:24",
+              "src": "675:2:26",
               "statements": []
             },
             "documentation": "@dev Contribute to the reward of a random number. All the ETH will be lost forever.\n @param _block Block the random number is linked to.",
-            "id": 5441,
+            "id": 7078,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
@@ -316,16 +316,16 @@
             "name": "contribute",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 5438,
+              "id": 7075,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 5437,
+                  "id": 7074,
                   "name": "_block",
                   "nodeType": "VariableDeclaration",
-                  "scope": 5441,
-                  "src": "655:11:24",
+                  "scope": 7078,
+                  "src": "647:11:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -333,10 +333,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 5436,
+                    "id": 7073,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "655:4:24",
+                    "src": "647:4:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -346,50 +346,50 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "654:13:24"
+              "src": "646:13:26"
             },
             "payable": true,
             "returnParameters": {
-              "id": 5439,
+              "id": 7076,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "683:0:24"
+              "src": "675:0:26"
             },
-            "scope": 5452,
-            "src": "635:50:24",
+            "scope": 7089,
+            "src": "627:50:26",
             "stateMutability": "payable",
-            "superFunction": 5459,
+            "superFunction": 7096,
             "visibility": "public"
           },
           {
             "body": {
-              "id": 5450,
+              "id": 7087,
               "nodeType": "Block",
-              "src": "984:30:24",
+              "src": "976:30:26",
               "statements": [
                 {
                   "expression": {
                     "argumentTypes": null,
-                    "id": 5448,
+                    "id": 7085,
                     "name": "number",
                     "nodeType": "Identifier",
                     "overloadedDeclarations": [],
-                    "referencedDeclaration": 5425,
-                    "src": "1001:6:24",
+                    "referencedDeclaration": 7062,
+                    "src": "993:6:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
                     }
                   },
-                  "functionReturnParameters": 5447,
-                  "id": 5449,
+                  "functionReturnParameters": 7084,
+                  "id": 7086,
                   "nodeType": "Return",
-                  "src": "994:13:24"
+                  "src": "986:13:26"
                 }
               ]
             },
             "documentation": "@dev Get the \"random number\" (which is always the same).\n @param _block Block the random number is linked to.\n @return RN Random Number. If the number is not ready or has not been required 0 instead.",
-            "id": 5451,
+            "id": 7088,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": true,
@@ -397,16 +397,16 @@
             "name": "getRN",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 5444,
+              "id": 7081,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 5443,
+                  "id": 7080,
                   "name": "_block",
                   "nodeType": "VariableDeclaration",
-                  "scope": 5451,
-                  "src": "937:11:24",
+                  "scope": 7088,
+                  "src": "929:11:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -414,10 +414,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 5442,
+                    "id": 7079,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "937:4:24",
+                    "src": "929:4:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -427,20 +427,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "936:13:24"
+              "src": "928:13:26"
             },
             "payable": false,
             "returnParameters": {
-              "id": 5447,
+              "id": 7084,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 5446,
+                  "id": 7083,
                   "name": "RN",
                   "nodeType": "VariableDeclaration",
-                  "scope": 5451,
-                  "src": "975:7:24",
+                  "scope": 7088,
+                  "src": "967:7:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -448,10 +448,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 5445,
+                    "id": 7082,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "975:4:24",
+                    "src": "967:4:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -461,44 +461,44 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "974:9:24"
+              "src": "966:9:26"
             },
-            "scope": 5452,
-            "src": "922:92:24",
+            "scope": 7089,
+            "src": "914:92:26",
             "stateMutability": "view",
-            "superFunction": 5476,
+            "superFunction": 7113,
             "visibility": "public"
           }
         ],
-        "scope": 5453,
-        "src": "251:768:24"
+        "scope": 7090,
+        "src": "251:760:26"
       }
     ],
-    "src": "203:817:24"
+    "src": "203:809:26"
   },
   "legacyAST": {
     "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/rng/ConstantNG.sol",
     "exportedSymbols": {
       "ConstantNG": [
-        5452
+        7089
       ]
     },
-    "id": 5453,
+    "id": 7090,
     "nodeType": "SourceUnit",
     "nodes": [
       {
         "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/rng/RNG.sol",
         "file": "./RNG.sol",
-        "id": 5420,
+        "id": 7057,
         "nodeType": "ImportDirective",
-        "scope": 5453,
-        "sourceUnit": 5506,
-        "src": "203:19:24",
+        "scope": 7090,
+        "sourceUnit": 7143,
+        "src": "203:19:26",
         "symbolAliases": [],
         "unitAlias": ""
       },
       {
-        "id": 5421,
+        "id": 7058,
         "literals": [
           "solidity",
           "^",
@@ -506,7 +506,7 @@
           ".15"
         ],
         "nodeType": "PragmaDirective",
-        "src": "224:24:24"
+        "src": "224:24:26"
       },
       {
         "baseContracts": [
@@ -514,42 +514,42 @@
             "arguments": null,
             "baseName": {
               "contractScope": null,
-              "id": 5422,
+              "id": 7059,
               "name": "RNG",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 5505,
-              "src": "274:3:24",
+              "referencedDeclaration": 7142,
+              "src": "274:3:26",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_RNG_$5505",
+                "typeIdentifier": "t_contract$_RNG_$7142",
                 "typeString": "contract RNG"
               }
             },
-            "id": 5423,
+            "id": 7060,
             "nodeType": "InheritanceSpecifier",
-            "src": "274:3:24"
+            "src": "274:3:26"
           }
         ],
         "contractDependencies": [
-          5505
+          7142
         ],
         "contractKind": "contract",
         "documentation": null,
         "fullyImplemented": true,
-        "id": 5452,
+        "id": 7089,
         "linearizedBaseContracts": [
-          5452,
-          5505
+          7089,
+          7142
         ],
         "name": "ConstantNG",
         "nodeType": "ContractDefinition",
         "nodes": [
           {
             "constant": false,
-            "id": 5425,
+            "id": 7062,
             "name": "number",
             "nodeType": "VariableDeclaration",
-            "scope": 5452,
-            "src": "284:18:24",
+            "scope": 7089,
+            "src": "284:18:26",
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
@@ -557,10 +557,10 @@
               "typeString": "uint256"
             },
             "typeName": {
-              "id": 5424,
+              "id": 7061,
               "name": "uint",
               "nodeType": "ElementaryTypeName",
-              "src": "284:4:24",
+              "src": "284:4:26",
               "typeDescriptions": {
                 "typeIdentifier": "t_uint256",
                 "typeString": "uint256"
@@ -571,26 +571,26 @@
           },
           {
             "body": {
-              "id": 5434,
+              "id": 7071,
               "nodeType": "Block",
-              "src": "436:33:24",
+              "src": "428:33:26",
               "statements": [
                 {
                   "expression": {
                     "argumentTypes": null,
-                    "id": 5432,
+                    "id": 7069,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
                       "argumentTypes": null,
-                      "id": 5430,
+                      "id": 7067,
                       "name": "number",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 5425,
-                      "src": "446:6:24",
+                      "referencedDeclaration": 7062,
+                      "src": "438:6:26",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
                         "typeString": "uint256"
@@ -600,48 +600,48 @@
                     "operator": "=",
                     "rightHandSide": {
                       "argumentTypes": null,
-                      "id": 5431,
+                      "id": 7068,
                       "name": "_number",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 5427,
-                      "src": "455:7:24",
+                      "referencedDeclaration": 7064,
+                      "src": "447:7:26",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
                         "typeString": "uint256"
                       }
                     },
-                    "src": "446:16:24",
+                    "src": "438:16:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
                     }
                   },
-                  "id": 5433,
+                  "id": 7070,
                   "nodeType": "ExpressionStatement",
-                  "src": "446:16:24"
+                  "src": "438:16:26"
                 }
               ]
             },
             "documentation": "@dev Constructor.\n @param _number The number to always return.",
-            "id": 5435,
+            "id": 7072,
             "implemented": true,
             "isConstructor": true,
             "isDeclaredConst": false,
             "modifiers": [],
-            "name": "ConstantNG",
+            "name": "",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 5428,
+              "id": 7065,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 5427,
+                  "id": 7064,
                   "name": "_number",
                   "nodeType": "VariableDeclaration",
-                  "scope": 5435,
-                  "src": "415:12:24",
+                  "scope": 7072,
+                  "src": "407:12:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -649,10 +649,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 5426,
+                    "id": 7063,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "415:4:24",
+                    "src": "407:4:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -662,30 +662,30 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "414:14:24"
+              "src": "406:14:26"
             },
             "payable": false,
             "returnParameters": {
-              "id": 5429,
+              "id": 7066,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "436:0:24"
+              "src": "428:0:26"
             },
-            "scope": 5452,
-            "src": "395:74:24",
+            "scope": 7089,
+            "src": "395:66:26",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
           },
           {
             "body": {
-              "id": 5440,
+              "id": 7077,
               "nodeType": "Block",
-              "src": "683:2:24",
+              "src": "675:2:26",
               "statements": []
             },
             "documentation": "@dev Contribute to the reward of a random number. All the ETH will be lost forever.\n @param _block Block the random number is linked to.",
-            "id": 5441,
+            "id": 7078,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
@@ -693,16 +693,16 @@
             "name": "contribute",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 5438,
+              "id": 7075,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 5437,
+                  "id": 7074,
                   "name": "_block",
                   "nodeType": "VariableDeclaration",
-                  "scope": 5441,
-                  "src": "655:11:24",
+                  "scope": 7078,
+                  "src": "647:11:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -710,10 +710,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 5436,
+                    "id": 7073,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "655:4:24",
+                    "src": "647:4:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -723,50 +723,50 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "654:13:24"
+              "src": "646:13:26"
             },
             "payable": true,
             "returnParameters": {
-              "id": 5439,
+              "id": 7076,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "683:0:24"
+              "src": "675:0:26"
             },
-            "scope": 5452,
-            "src": "635:50:24",
+            "scope": 7089,
+            "src": "627:50:26",
             "stateMutability": "payable",
-            "superFunction": 5459,
+            "superFunction": 7096,
             "visibility": "public"
           },
           {
             "body": {
-              "id": 5450,
+              "id": 7087,
               "nodeType": "Block",
-              "src": "984:30:24",
+              "src": "976:30:26",
               "statements": [
                 {
                   "expression": {
                     "argumentTypes": null,
-                    "id": 5448,
+                    "id": 7085,
                     "name": "number",
                     "nodeType": "Identifier",
                     "overloadedDeclarations": [],
-                    "referencedDeclaration": 5425,
-                    "src": "1001:6:24",
+                    "referencedDeclaration": 7062,
+                    "src": "993:6:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
                     }
                   },
-                  "functionReturnParameters": 5447,
-                  "id": 5449,
+                  "functionReturnParameters": 7084,
+                  "id": 7086,
                   "nodeType": "Return",
-                  "src": "994:13:24"
+                  "src": "986:13:26"
                 }
               ]
             },
             "documentation": "@dev Get the \"random number\" (which is always the same).\n @param _block Block the random number is linked to.\n @return RN Random Number. If the number is not ready or has not been required 0 instead.",
-            "id": 5451,
+            "id": 7088,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": true,
@@ -774,16 +774,16 @@
             "name": "getRN",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 5444,
+              "id": 7081,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 5443,
+                  "id": 7080,
                   "name": "_block",
                   "nodeType": "VariableDeclaration",
-                  "scope": 5451,
-                  "src": "937:11:24",
+                  "scope": 7088,
+                  "src": "929:11:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -791,10 +791,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 5442,
+                    "id": 7079,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "937:4:24",
+                    "src": "929:4:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -804,20 +804,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "936:13:24"
+              "src": "928:13:26"
             },
             "payable": false,
             "returnParameters": {
-              "id": 5447,
+              "id": 7084,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 5446,
+                  "id": 7083,
                   "name": "RN",
                   "nodeType": "VariableDeclaration",
-                  "scope": 5451,
-                  "src": "975:7:24",
+                  "scope": 7088,
+                  "src": "967:7:26",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -825,10 +825,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 5445,
+                    "id": 7082,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "975:4:24",
+                    "src": "967:4:26",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -838,26 +838,26 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "974:9:24"
+              "src": "966:9:26"
             },
-            "scope": 5452,
-            "src": "922:92:24",
+            "scope": 7089,
+            "src": "914:92:26",
             "stateMutability": "view",
-            "superFunction": 5476,
+            "superFunction": 7113,
             "visibility": "public"
           }
         ],
-        "scope": 5453,
-        "src": "251:768:24"
+        "scope": 7090,
+        "src": "251:760:26"
       }
     ],
-    "src": "203:817:24"
+    "src": "203:809:26"
   },
   "compiler": {
     "name": "solc",
-    "version": "0.4.23+commit.124ca40d.Emscripten.clang"
+    "version": "0.4.24+commit.e67f0147.Emscripten.clang"
   },
   "networks": {},
-  "schemaVersion": "2.0.0",
-  "updatedAt": "2018-06-26T20:15:53.363Z"
+  "schemaVersion": "2.0.1",
+  "updatedAt": "2018-07-17T16:56:20.275Z"
 }
