@@ -48,11 +48,19 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Called when the item's status changes or when it is contested/resolved.
-     *  @param _value The value of the item.
-     *  @param _newStatus The new status of the item.
-     *  @param _newDisputed The new disputed state of the item.
+     *  @param submitter Address of the submitter, if any.
+     *  @param challenger Address of the challenger, if any.
+     *  @param value The value of the item.
+     *  @param newStatus The new status of the item.
+     *  @param newDisputed The new disputed state of the item.
      */
-    event ItemStatusChange(bytes32 indexed _value, ItemStatus _newStatus, bool _newDisputed);
+    event ItemStatusChange(
+        address indexed submitter,
+        address indexed challenger,
+        bytes32 indexed value,
+        ItemStatus newStatus,
+        bool newDisputed
+    );
 
     /* Storage */
 
@@ -124,7 +132,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         item.balance += msg.value;
         item.lastAction = now;
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /**
@@ -148,7 +156,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         item.balance += msg.value;
         item.lastAction = now;
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /**
@@ -181,7 +189,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.lastAction = now;
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /**
@@ -214,7 +222,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.lastAction = now;
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /**
@@ -244,7 +252,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /* Public Views */
@@ -295,7 +303,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         item.disputed = false;
         item.balance = 0;
 
-        emit ItemStatusChange(disputeIDToItem[_disputeID], item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, disputeIDToItem[_disputeID], item.status, item.disputed);
     }
 
     /* Interface Views */

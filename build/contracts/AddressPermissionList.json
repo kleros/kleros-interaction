@@ -145,24 +145,24 @@
       "type": "function"
     }
   ],
-  "bytecode": "0x608060405234801561001057600080fd5b5060405160208061073d8339810180604052810190808051906020019092919050505080336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555080600060146101000a81548160ff021916908315150217905550505061069e8061009f6000396000f300608060405260043610610083576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680633fd8cc4e14610088578063446bffba146100e3578063715018a6146101145780638da5cb5b1461012b57806395bc267314610182578063beabdb7b146101b3578063f2fde38b146101fc575b600080fd5b34801561009457600080fd5b506100c9600480360381019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919050505061023f565b604051808215151515815260200191505060405180910390f35b3480156100ef57600080fd5b506101126004803603810190808035600019169060200190929190505050610295565b005b34801561012057600080fd5b50610129610326565b005b34801561013757600080fd5b50610140610428565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b34801561018e57600080fd5b506101b1600480360381019080803560001916906020019092919050505061044d565b005b3480156101bf57600080fd5b506101e260048036038101908080356000191690602001909291905050506104df565b604051808215151515815260200191505060405180910390f35b34801561020857600080fd5b5061023d600480360381019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610511565b005b6000600260008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900460ff169050919050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156102f057600080fd5b6001806000836000191660001916815260200190815260200160002060006101000a81548160ff02191690831515021790555050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561038157600080fd5b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff167ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482060405160405180910390a260008060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156104a857600080fd5b600060016000836000191660001916815260200190815260200160002060006101000a81548160ff02191690831515021790555050565b600060016000836000191660001916815260200190815260200160002060009054906101000a900460ff169050919050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561056c57600080fd5b61057581610578565b50565b600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16141515156105b457600080fd5b8073ffffffffffffffffffffffffffffffffffffffff166000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e060405160405180910390a3806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550505600a165627a7a72305820bb216ce6867935cacb537b7f5c1244fc297aa38dbfff87b8bca230905d2acfb30029",
-  "deployedBytecode": "0x608060405260043610610083576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680633fd8cc4e14610088578063446bffba146100e3578063715018a6146101145780638da5cb5b1461012b57806395bc267314610182578063beabdb7b146101b3578063f2fde38b146101fc575b600080fd5b34801561009457600080fd5b506100c9600480360381019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919050505061023f565b604051808215151515815260200191505060405180910390f35b3480156100ef57600080fd5b506101126004803603810190808035600019169060200190929190505050610295565b005b34801561012057600080fd5b50610129610326565b005b34801561013757600080fd5b50610140610428565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b34801561018e57600080fd5b506101b1600480360381019080803560001916906020019092919050505061044d565b005b3480156101bf57600080fd5b506101e260048036038101908080356000191690602001909291905050506104df565b604051808215151515815260200191505060405180910390f35b34801561020857600080fd5b5061023d600480360381019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610511565b005b6000600260008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900460ff169050919050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156102f057600080fd5b6001806000836000191660001916815260200190815260200160002060006101000a81548160ff02191690831515021790555050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561038157600080fd5b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff167ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482060405160405180910390a260008060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156104a857600080fd5b600060016000836000191660001916815260200190815260200160002060006101000a81548160ff02191690831515021790555050565b600060016000836000191660001916815260200190815260200160002060009054906101000a900460ff169050919050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561056c57600080fd5b61057581610578565b50565b600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16141515156105b457600080fd5b8073ffffffffffffffffffffffffffffffffffffffff166000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e060405160405180910390a3806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550505600a165627a7a72305820bb216ce6867935cacb537b7f5c1244fc297aa38dbfff87b8bca230905d2acfb30029",
-  "sourceMap": "282:798:14:-;;;659:84;8:9:-1;5:2;;;30:1;27;20:12;5:2;659:84:14;;;;;;;;;;;;;;;;;;;;;;;;;;;;;722:10;575::31;567:5;;:18;;;;;;;;;;;;;;;;;;900:10:18;888:9;;:22;;;;;;;;;;;;;;;;;;830:87;659:84:14;282:798;;;;;;",
-  "deployedSourceMap": "282:798:14:-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;970:108;;8:9:-1;5:2;;;30:1;27;20:12;5:2;970:108:14;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;945:82:18;;8:9:-1;5:2;;;30:1;27;20:12;5:2;945:82:18;;;;;;;;;;;;;;;;;;;;;;;;;;;;;827:111:31;;8:9:-1;5:2;;;30:1;27;20:12;5:2;827:111:31;;;;;;238:20;;8:9:-1;5:2;;;30:1;27;20:12;5:2;238:20:31;;;;;;;;;;;;;;;;;;;;;;;;;;;1037:86:18;;8:9:-1;5:2;;;30:1;27;20:12;5:2;1037:86:18;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1344:108;;8:9:-1;5:2;;;30:1;27;20:12;5:2;1344:108:18;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1100:103:31;;8:9:-1;5:2;;;30:1;27;20:12;5:2;1100:103:31;;;;;;;;;;;;;;;;;;;;;;;;;;;;970:108:14;1028:12;1059:4;:12;1064:6;1059:12;;;;;;;;;;;;;;;;;;;;;;;;;1052:19;;970:108;;;:::o;945:82:18:-;719:5:31;;;;;;;;;;;705:19;;:10;:19;;;697:28;;;;;;;;1016:4:18;1001;:12;1006:6;1001:12;;;;;;;;;;;;;;;;;;:19;;;;;;;;;;;;;;;;;;945:82;:::o;827:111:31:-;719:5;;;;;;;;;;;705:19;;:10;:19;;;697:28;;;;;;;;903:5;;;;;;;;;;;884:25;;;;;;;;;;;;931:1;915:5;;:18;;;;;;;;;;;;;;;;;;827:111::o;238:20::-;;;;;;;;;;;;;:::o;1037:86:18:-;719:5:31;;;;;;;;;;;705:19;;:10;:19;;;697:28;;;;;;;;1111:5:18;1096:4;:12;1101:6;1096:12;;;;;;;;;;;;;;;;;;:20;;;;;;;;;;;;;;;;;;1037:86;:::o;1344:108::-;1402:12;1433:4;:12;1438:6;1433:12;;;;;;;;;;;;;;;;;;;;;;;;;;;1426:19;;1344:108;;;:::o;1100:103:31:-;719:5;;;;;;;;;;;705:19;;:10;:19;;;697:28;;;;;;;;1169:29;1188:9;1169:18;:29::i;:::-;1100:103;:::o;1338:171::-;1429:1;1408:23;;:9;:23;;;;1400:32;;;;;;;;1471:9;1443:38;;1464:5;;;;;;;;;;;1443:38;;;;;;;;;;;;1495:9;1487:5;;:17;;;;;;;;;;;;;;;;;;1338:171;:::o",
-  "source": "/**\n *  @title Address Permission List\n *  @author Clément Lesaege - <clement@lesaege.com>\n */\n\npragma solidity ^0.4.15;\n\nimport \"./PermissionList.sol\";\n\n/**\n *  @title Address Permission List\n *  This is a permission list for addresses. The owner can add or remove addresses.\n */\ncontract AddressPermissionList is PermissionList {\n    /* Storage */\n\n    mapping(address => bool) list; // True if the address is registered.\n\n    /* Constructor */\n\n    /**\n     *  @dev Constructs the address permission list and sets the type.\n     *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.\n     */\n    function AddressPermissionList(bool _blacklist) PermissionList(_blacklist) public {}\n\n    /* Public Views */\n    \n    /**\n     *  @dev Return true if the address is allowed.\n     *  @param _value The address we want to check.\n     *  @return allowed True if the address is allowed, false otherwise.\n     */\n    function isPermitted(address _value) public view returns (bool allowed) {\n        return list[_value];\n    }\n}\n",
+  "bytecode": "0x608060405234801561001057600080fd5b5060405160208061073d8339810180604052810190808051906020019092919050505080336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555080600060146101000a81548160ff021916908315150217905550505061069e8061009f6000396000f300608060405260043610610083576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680633fd8cc4e14610088578063446bffba146100e3578063715018a6146101145780638da5cb5b1461012b57806395bc267314610182578063beabdb7b146101b3578063f2fde38b146101fc575b600080fd5b34801561009457600080fd5b506100c9600480360381019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919050505061023f565b604051808215151515815260200191505060405180910390f35b3480156100ef57600080fd5b506101126004803603810190808035600019169060200190929190505050610295565b005b34801561012057600080fd5b50610129610326565b005b34801561013757600080fd5b50610140610428565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b34801561018e57600080fd5b506101b1600480360381019080803560001916906020019092919050505061044d565b005b3480156101bf57600080fd5b506101e260048036038101908080356000191690602001909291905050506104df565b604051808215151515815260200191505060405180910390f35b34801561020857600080fd5b5061023d600480360381019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610511565b005b6000600260008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900460ff169050919050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156102f057600080fd5b6001806000836000191660001916815260200190815260200160002060006101000a81548160ff02191690831515021790555050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561038157600080fd5b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff167ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482060405160405180910390a260008060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156104a857600080fd5b600060016000836000191660001916815260200190815260200160002060006101000a81548160ff02191690831515021790555050565b600060016000836000191660001916815260200190815260200160002060009054906101000a900460ff169050919050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561056c57600080fd5b61057581610578565b50565b600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16141515156105b457600080fd5b8073ffffffffffffffffffffffffffffffffffffffff166000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e060405160405180910390a3806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550505600a165627a7a72305820f373aab10c6a6a1262038a74b7def3dfe338c3eef64388bb2aca713c688a53480029",
+  "deployedBytecode": "0x608060405260043610610083576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680633fd8cc4e14610088578063446bffba146100e3578063715018a6146101145780638da5cb5b1461012b57806395bc267314610182578063beabdb7b146101b3578063f2fde38b146101fc575b600080fd5b34801561009457600080fd5b506100c9600480360381019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919050505061023f565b604051808215151515815260200191505060405180910390f35b3480156100ef57600080fd5b506101126004803603810190808035600019169060200190929190505050610295565b005b34801561012057600080fd5b50610129610326565b005b34801561013757600080fd5b50610140610428565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b34801561018e57600080fd5b506101b1600480360381019080803560001916906020019092919050505061044d565b005b3480156101bf57600080fd5b506101e260048036038101908080356000191690602001909291905050506104df565b604051808215151515815260200191505060405180910390f35b34801561020857600080fd5b5061023d600480360381019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610511565b005b6000600260008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900460ff169050919050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156102f057600080fd5b6001806000836000191660001916815260200190815260200160002060006101000a81548160ff02191690831515021790555050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561038157600080fd5b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff167ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482060405160405180910390a260008060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161415156104a857600080fd5b600060016000836000191660001916815260200190815260200160002060006101000a81548160ff02191690831515021790555050565b600060016000836000191660001916815260200190815260200160002060009054906101000a900460ff169050919050565b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561056c57600080fd5b61057581610578565b50565b600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16141515156105b457600080fd5b8073ffffffffffffffffffffffffffffffffffffffff166000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e060405160405180910390a3806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550505600a165627a7a72305820f373aab10c6a6a1262038a74b7def3dfe338c3eef64388bb2aca713c688a53480029",
+  "sourceMap": "282:775:16:-;;;659:65;8:9:-1;5:2;;;30:1;27;20:12;5:2;659:65:16;;;;;;;;;;;;;;;;;;;;;;;;;;;;;703:10;575::32;567:5;;:18;;;;;;;;;;;;;;;;;;881:10:20;869:9;;:22;;;;;;;;;;;;;;;;;;823:75;659:65:16;282:775;;;;;;",
+  "deployedSourceMap": "282:775:16:-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;947:108;;8:9:-1;5:2;;;30:1;27;20:12;5:2;947:108:16;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;922:82:20;;8:9:-1;5:2;;;30:1;27;20:12;5:2;922:82:20;;;;;;;;;;;;;;;;;;;;;;;;;;;;;827:111:32;;8:9:-1;5:2;;;30:1;27;20:12;5:2;827:111:32;;;;;;238:20;;8:9:-1;5:2;;;30:1;27;20:12;5:2;238:20:32;;;;;;;;;;;;;;;;;;;;;;;;;;;1010:86:20;;8:9:-1;5:2;;;30:1;27;20:12;5:2;1010:86:20;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1313:108;;8:9:-1;5:2;;;30:1;27;20:12;5:2;1313:108:20;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;1100:103:32;;8:9:-1;5:2;;;30:1;27;20:12;5:2;1100:103:32;;;;;;;;;;;;;;;;;;;;;;;;;;;;947:108:16;1005:12;1036:4;:12;1041:6;1036:12;;;;;;;;;;;;;;;;;;;;;;;;;1029:19;;947:108;;;:::o;922:82:20:-;719:5:32;;;;;;;;;;;705:19;;:10;:19;;;697:28;;;;;;;;993:4:20;978;:12;983:6;978:12;;;;;;;;;;;;;;;;;;:19;;;;;;;;;;;;;;;;;;922:82;:::o;827:111:32:-;719:5;;;;;;;;;;;705:19;;:10;:19;;;697:28;;;;;;;;903:5;;;;;;;;;;;884:25;;;;;;;;;;;;931:1;915:5;;:18;;;;;;;;;;;;;;;;;;827:111::o;238:20::-;;;;;;;;;;;;;:::o;1010:86:20:-;719:5:32;;;;;;;;;;;705:19;;:10;:19;;;697:28;;;;;;;;1084:5:20;1069:4;:12;1074:6;1069:12;;;;;;;;;;;;;;;;;;:20;;;;;;;;;;;;;;;;;;1010:86;:::o;1313:108::-;1371:12;1402:4;:12;1407:6;1402:12;;;;;;;;;;;;;;;;;;;;;;;;;;;1395:19;;1313:108;;;:::o;1100:103:32:-;719:5;;;;;;;;;;;705:19;;:10;:19;;;697:28;;;;;;;;1169:29;1188:9;1169:18;:29::i;:::-;1100:103;:::o;1338:171::-;1429:1;1408:23;;:9;:23;;;;1400:32;;;;;;;;1471:9;1443:38;;1464:5;;;;;;;;;;;1443:38;;;;;;;;;;;;1495:9;1487:5;;:17;;;;;;;;;;;;;;;;;;1338:171;:::o",
+  "source": "/**\n *  @title Address Permission List\n *  @author Clément Lesaege - <clement@lesaege.com>\n */\n\npragma solidity ^0.4.15;\n\nimport \"./PermissionList.sol\";\n\n/**\n *  @title Address Permission List\n *  This is a permission list for addresses. The owner can add or remove addresses.\n */\ncontract AddressPermissionList is PermissionList {\n    /* Storage */\n\n    mapping(address => bool) list; // True if the address is registered.\n\n    /* Constructor */\n\n    /**\n     *  @dev Constructs the address permission list and sets the type.\n     *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.\n     */\n    constructor(bool _blacklist) PermissionList(_blacklist) public {}\n\n    /* Public Views */\n\n    /**\n     *  @dev Return true if the address is allowed.\n     *  @param _value The address we want to check.\n     *  @return allowed True if the address is allowed, false otherwise.\n     */\n    function isPermitted(address _value) public view returns (bool allowed) {\n        return list[_value];\n    }\n}\n",
   "sourcePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/permission/AddressPermissionList.sol",
   "ast": {
     "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/permission/AddressPermissionList.sol",
     "exportedSymbols": {
       "AddressPermissionList": [
-        2965
+        4309
       ]
     },
-    "id": 2966,
+    "id": 4310,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 2936,
+        "id": 4280,
         "literals": [
           "solidity",
           "^",
@@ -170,16 +170,16 @@
           ".15"
         ],
         "nodeType": "PragmaDirective",
-        "src": "97:24:14"
+        "src": "97:24:16"
       },
       {
         "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/permission/PermissionList.sol",
         "file": "./PermissionList.sol",
-        "id": 2937,
+        "id": 4281,
         "nodeType": "ImportDirective",
-        "scope": 2966,
-        "sourceUnit": 4762,
-        "src": "123:30:14",
+        "scope": 4310,
+        "sourceUnit": 6404,
+        "src": "123:30:16",
         "symbolAliases": [],
         "unitAlias": ""
       },
@@ -189,46 +189,46 @@
             "arguments": null,
             "baseName": {
               "contractScope": null,
-              "id": 2938,
+              "id": 4282,
               "name": "PermissionList",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 4761,
-              "src": "316:14:14",
+              "referencedDeclaration": 6403,
+              "src": "316:14:16",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_PermissionList_$4761",
+                "typeIdentifier": "t_contract$_PermissionList_$6403",
                 "typeString": "contract PermissionList"
               }
             },
-            "id": 2939,
+            "id": 4283,
             "nodeType": "InheritanceSpecifier",
-            "src": "316:14:14"
+            "src": "316:14:16"
           }
         ],
         "contractDependencies": [
-          4696,
-          4761,
-          6930
+          6338,
+          6403,
+          8462
         ],
         "contractKind": "contract",
         "documentation": " @title Address Permission List\n This is a permission list for addresses. The owner can add or remove addresses.",
         "fullyImplemented": true,
-        "id": 2965,
+        "id": 4309,
         "linearizedBaseContracts": [
-          2965,
-          4761,
-          4696,
-          6930
+          4309,
+          6403,
+          6338,
+          8462
         ],
         "name": "AddressPermissionList",
         "nodeType": "ContractDefinition",
         "nodes": [
           {
             "constant": false,
-            "id": 2943,
+            "id": 4287,
             "name": "list",
             "nodeType": "VariableDeclaration",
-            "scope": 2965,
-            "src": "356:29:14",
+            "scope": 4309,
+            "src": "356:29:16",
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
@@ -236,28 +236,28 @@
               "typeString": "mapping(address => bool)"
             },
             "typeName": {
-              "id": 2942,
+              "id": 4286,
               "keyType": {
-                "id": 2940,
+                "id": 4284,
                 "name": "address",
                 "nodeType": "ElementaryTypeName",
-                "src": "364:7:14",
+                "src": "364:7:16",
                 "typeDescriptions": {
                   "typeIdentifier": "t_address",
                   "typeString": "address"
                 }
               },
               "nodeType": "Mapping",
-              "src": "356:24:14",
+              "src": "356:24:16",
               "typeDescriptions": {
                 "typeIdentifier": "t_mapping$_t_address_$_t_bool_$",
                 "typeString": "mapping(address => bool)"
               },
               "valueType": {
-                "id": 2941,
+                "id": 4285,
                 "name": "bool",
                 "nodeType": "ElementaryTypeName",
-                "src": "375:4:14",
+                "src": "375:4:16",
                 "typeDescriptions": {
                   "typeIdentifier": "t_bool",
                   "typeString": "bool"
@@ -269,13 +269,13 @@
           },
           {
             "body": {
-              "id": 2951,
+              "id": 4295,
               "nodeType": "Block",
-              "src": "741:2:14",
+              "src": "722:2:16",
               "statements": []
             },
             "documentation": " @dev Constructs the address permission list and sets the type.\n @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.",
-            "id": 2952,
+            "id": 4296,
             "implemented": true,
             "isConstructor": true,
             "isDeclaredConst": false,
@@ -284,49 +284,49 @@
                 "arguments": [
                   {
                     "argumentTypes": null,
-                    "id": 2948,
+                    "id": 4292,
                     "name": "_blacklist",
                     "nodeType": "Identifier",
                     "overloadedDeclarations": [],
-                    "referencedDeclaration": 2945,
-                    "src": "722:10:14",
+                    "referencedDeclaration": 4289,
+                    "src": "703:10:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
                     }
                   }
                 ],
-                "id": 2949,
+                "id": 4293,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 2947,
+                  "id": 4291,
                   "name": "PermissionList",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 4761,
-                  "src": "707:14:14",
+                  "referencedDeclaration": 6403,
+                  "src": "688:14:16",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_type$_t_contract$_PermissionList_$4761_$",
+                    "typeIdentifier": "t_type$_t_contract$_PermissionList_$6403_$",
                     "typeString": "type(contract PermissionList)"
                   }
                 },
                 "nodeType": "ModifierInvocation",
-                "src": "707:26:14"
+                "src": "688:26:16"
               }
             ],
-            "name": "AddressPermissionList",
+            "name": "",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 2946,
+              "id": 4290,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 2945,
+                  "id": 4289,
                   "name": "_blacklist",
                   "nodeType": "VariableDeclaration",
-                  "scope": 2952,
-                  "src": "690:15:14",
+                  "scope": 4296,
+                  "src": "671:15:16",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -334,10 +334,10 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 2944,
+                    "id": 4288,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
-                    "src": "690:4:14",
+                    "src": "671:4:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
@@ -347,52 +347,52 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "689:17:14"
+              "src": "670:17:16"
             },
             "payable": false,
             "returnParameters": {
-              "id": 2950,
+              "id": 4294,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "741:0:14"
+              "src": "722:0:16"
             },
-            "scope": 2965,
-            "src": "659:84:14",
+            "scope": 4309,
+            "src": "659:65:16",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
           },
           {
             "body": {
-              "id": 2963,
+              "id": 4307,
               "nodeType": "Block",
-              "src": "1042:36:14",
+              "src": "1019:36:16",
               "statements": [
                 {
                   "expression": {
                     "argumentTypes": null,
                     "baseExpression": {
                       "argumentTypes": null,
-                      "id": 2959,
+                      "id": 4303,
                       "name": "list",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 2943,
-                      "src": "1059:4:14",
+                      "referencedDeclaration": 4287,
+                      "src": "1036:4:16",
                       "typeDescriptions": {
                         "typeIdentifier": "t_mapping$_t_address_$_t_bool_$",
                         "typeString": "mapping(address => bool)"
                       }
                     },
-                    "id": 2961,
+                    "id": 4305,
                     "indexExpression": {
                       "argumentTypes": null,
-                      "id": 2960,
+                      "id": 4304,
                       "name": "_value",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 2954,
-                      "src": "1064:6:14",
+                      "referencedDeclaration": 4298,
+                      "src": "1041:6:16",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
                         "typeString": "address"
@@ -403,21 +403,21 @@
                     "isPure": false,
                     "lValueRequested": false,
                     "nodeType": "IndexAccess",
-                    "src": "1059:12:14",
+                    "src": "1036:12:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
                     }
                   },
-                  "functionReturnParameters": 2958,
-                  "id": 2962,
+                  "functionReturnParameters": 4302,
+                  "id": 4306,
                   "nodeType": "Return",
-                  "src": "1052:19:14"
+                  "src": "1029:19:16"
                 }
               ]
             },
             "documentation": " @dev Return true if the address is allowed.\n @param _value The address we want to check.\n @return allowed True if the address is allowed, false otherwise.",
-            "id": 2964,
+            "id": 4308,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": true,
@@ -425,16 +425,16 @@
             "name": "isPermitted",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 2955,
+              "id": 4299,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 2954,
+                  "id": 4298,
                   "name": "_value",
                   "nodeType": "VariableDeclaration",
-                  "scope": 2964,
-                  "src": "991:14:14",
+                  "scope": 4308,
+                  "src": "968:14:16",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -442,10 +442,10 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 2953,
+                    "id": 4297,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "991:7:14",
+                    "src": "968:7:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -455,20 +455,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "990:16:14"
+              "src": "967:16:16"
             },
             "payable": false,
             "returnParameters": {
-              "id": 2958,
+              "id": 4302,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 2957,
+                  "id": 4301,
                   "name": "allowed",
                   "nodeType": "VariableDeclaration",
-                  "scope": 2964,
-                  "src": "1028:12:14",
+                  "scope": 4308,
+                  "src": "1005:12:16",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -476,10 +476,10 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 2956,
+                    "id": 4300,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1028:4:14",
+                    "src": "1005:4:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
@@ -489,33 +489,33 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "1027:14:14"
+              "src": "1004:14:16"
             },
-            "scope": 2965,
-            "src": "970:108:14",
+            "scope": 4309,
+            "src": "947:108:16",
             "stateMutability": "view",
             "superFunction": null,
             "visibility": "public"
           }
         ],
-        "scope": 2966,
-        "src": "282:798:14"
+        "scope": 4310,
+        "src": "282:775:16"
       }
     ],
-    "src": "97:984:14"
+    "src": "97:961:16"
   },
   "legacyAST": {
     "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/permission/AddressPermissionList.sol",
     "exportedSymbols": {
       "AddressPermissionList": [
-        2965
+        4309
       ]
     },
-    "id": 2966,
+    "id": 4310,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 2936,
+        "id": 4280,
         "literals": [
           "solidity",
           "^",
@@ -523,16 +523,16 @@
           ".15"
         ],
         "nodeType": "PragmaDirective",
-        "src": "97:24:14"
+        "src": "97:24:16"
       },
       {
         "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/permission/PermissionList.sol",
         "file": "./PermissionList.sol",
-        "id": 2937,
+        "id": 4281,
         "nodeType": "ImportDirective",
-        "scope": 2966,
-        "sourceUnit": 4762,
-        "src": "123:30:14",
+        "scope": 4310,
+        "sourceUnit": 6404,
+        "src": "123:30:16",
         "symbolAliases": [],
         "unitAlias": ""
       },
@@ -542,46 +542,46 @@
             "arguments": null,
             "baseName": {
               "contractScope": null,
-              "id": 2938,
+              "id": 4282,
               "name": "PermissionList",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 4761,
-              "src": "316:14:14",
+              "referencedDeclaration": 6403,
+              "src": "316:14:16",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_PermissionList_$4761",
+                "typeIdentifier": "t_contract$_PermissionList_$6403",
                 "typeString": "contract PermissionList"
               }
             },
-            "id": 2939,
+            "id": 4283,
             "nodeType": "InheritanceSpecifier",
-            "src": "316:14:14"
+            "src": "316:14:16"
           }
         ],
         "contractDependencies": [
-          4696,
-          4761,
-          6930
+          6338,
+          6403,
+          8462
         ],
         "contractKind": "contract",
         "documentation": " @title Address Permission List\n This is a permission list for addresses. The owner can add or remove addresses.",
         "fullyImplemented": true,
-        "id": 2965,
+        "id": 4309,
         "linearizedBaseContracts": [
-          2965,
-          4761,
-          4696,
-          6930
+          4309,
+          6403,
+          6338,
+          8462
         ],
         "name": "AddressPermissionList",
         "nodeType": "ContractDefinition",
         "nodes": [
           {
             "constant": false,
-            "id": 2943,
+            "id": 4287,
             "name": "list",
             "nodeType": "VariableDeclaration",
-            "scope": 2965,
-            "src": "356:29:14",
+            "scope": 4309,
+            "src": "356:29:16",
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
@@ -589,28 +589,28 @@
               "typeString": "mapping(address => bool)"
             },
             "typeName": {
-              "id": 2942,
+              "id": 4286,
               "keyType": {
-                "id": 2940,
+                "id": 4284,
                 "name": "address",
                 "nodeType": "ElementaryTypeName",
-                "src": "364:7:14",
+                "src": "364:7:16",
                 "typeDescriptions": {
                   "typeIdentifier": "t_address",
                   "typeString": "address"
                 }
               },
               "nodeType": "Mapping",
-              "src": "356:24:14",
+              "src": "356:24:16",
               "typeDescriptions": {
                 "typeIdentifier": "t_mapping$_t_address_$_t_bool_$",
                 "typeString": "mapping(address => bool)"
               },
               "valueType": {
-                "id": 2941,
+                "id": 4285,
                 "name": "bool",
                 "nodeType": "ElementaryTypeName",
-                "src": "375:4:14",
+                "src": "375:4:16",
                 "typeDescriptions": {
                   "typeIdentifier": "t_bool",
                   "typeString": "bool"
@@ -622,13 +622,13 @@
           },
           {
             "body": {
-              "id": 2951,
+              "id": 4295,
               "nodeType": "Block",
-              "src": "741:2:14",
+              "src": "722:2:16",
               "statements": []
             },
             "documentation": " @dev Constructs the address permission list and sets the type.\n @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.",
-            "id": 2952,
+            "id": 4296,
             "implemented": true,
             "isConstructor": true,
             "isDeclaredConst": false,
@@ -637,49 +637,49 @@
                 "arguments": [
                   {
                     "argumentTypes": null,
-                    "id": 2948,
+                    "id": 4292,
                     "name": "_blacklist",
                     "nodeType": "Identifier",
                     "overloadedDeclarations": [],
-                    "referencedDeclaration": 2945,
-                    "src": "722:10:14",
+                    "referencedDeclaration": 4289,
+                    "src": "703:10:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
                     }
                   }
                 ],
-                "id": 2949,
+                "id": 4293,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 2947,
+                  "id": 4291,
                   "name": "PermissionList",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 4761,
-                  "src": "707:14:14",
+                  "referencedDeclaration": 6403,
+                  "src": "688:14:16",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_type$_t_contract$_PermissionList_$4761_$",
+                    "typeIdentifier": "t_type$_t_contract$_PermissionList_$6403_$",
                     "typeString": "type(contract PermissionList)"
                   }
                 },
                 "nodeType": "ModifierInvocation",
-                "src": "707:26:14"
+                "src": "688:26:16"
               }
             ],
-            "name": "AddressPermissionList",
+            "name": "",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 2946,
+              "id": 4290,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 2945,
+                  "id": 4289,
                   "name": "_blacklist",
                   "nodeType": "VariableDeclaration",
-                  "scope": 2952,
-                  "src": "690:15:14",
+                  "scope": 4296,
+                  "src": "671:15:16",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -687,10 +687,10 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 2944,
+                    "id": 4288,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
-                    "src": "690:4:14",
+                    "src": "671:4:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
@@ -700,52 +700,52 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "689:17:14"
+              "src": "670:17:16"
             },
             "payable": false,
             "returnParameters": {
-              "id": 2950,
+              "id": 4294,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "741:0:14"
+              "src": "722:0:16"
             },
-            "scope": 2965,
-            "src": "659:84:14",
+            "scope": 4309,
+            "src": "659:65:16",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
           },
           {
             "body": {
-              "id": 2963,
+              "id": 4307,
               "nodeType": "Block",
-              "src": "1042:36:14",
+              "src": "1019:36:16",
               "statements": [
                 {
                   "expression": {
                     "argumentTypes": null,
                     "baseExpression": {
                       "argumentTypes": null,
-                      "id": 2959,
+                      "id": 4303,
                       "name": "list",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 2943,
-                      "src": "1059:4:14",
+                      "referencedDeclaration": 4287,
+                      "src": "1036:4:16",
                       "typeDescriptions": {
                         "typeIdentifier": "t_mapping$_t_address_$_t_bool_$",
                         "typeString": "mapping(address => bool)"
                       }
                     },
-                    "id": 2961,
+                    "id": 4305,
                     "indexExpression": {
                       "argumentTypes": null,
-                      "id": 2960,
+                      "id": 4304,
                       "name": "_value",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 2954,
-                      "src": "1064:6:14",
+                      "referencedDeclaration": 4298,
+                      "src": "1041:6:16",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
                         "typeString": "address"
@@ -756,21 +756,21 @@
                     "isPure": false,
                     "lValueRequested": false,
                     "nodeType": "IndexAccess",
-                    "src": "1059:12:14",
+                    "src": "1036:12:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
                     }
                   },
-                  "functionReturnParameters": 2958,
-                  "id": 2962,
+                  "functionReturnParameters": 4302,
+                  "id": 4306,
                   "nodeType": "Return",
-                  "src": "1052:19:14"
+                  "src": "1029:19:16"
                 }
               ]
             },
             "documentation": " @dev Return true if the address is allowed.\n @param _value The address we want to check.\n @return allowed True if the address is allowed, false otherwise.",
-            "id": 2964,
+            "id": 4308,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": true,
@@ -778,16 +778,16 @@
             "name": "isPermitted",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 2955,
+              "id": 4299,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 2954,
+                  "id": 4298,
                   "name": "_value",
                   "nodeType": "VariableDeclaration",
-                  "scope": 2964,
-                  "src": "991:14:14",
+                  "scope": 4308,
+                  "src": "968:14:16",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -795,10 +795,10 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 2953,
+                    "id": 4297,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "991:7:14",
+                    "src": "968:7:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -808,20 +808,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "990:16:14"
+              "src": "967:16:16"
             },
             "payable": false,
             "returnParameters": {
-              "id": 2958,
+              "id": 4302,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 2957,
+                  "id": 4301,
                   "name": "allowed",
                   "nodeType": "VariableDeclaration",
-                  "scope": 2964,
-                  "src": "1028:12:14",
+                  "scope": 4308,
+                  "src": "1005:12:16",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -829,10 +829,10 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 2956,
+                    "id": 4300,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1028:4:14",
+                    "src": "1005:4:16",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
@@ -842,26 +842,26 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "1027:14:14"
+              "src": "1004:14:16"
             },
-            "scope": 2965,
-            "src": "970:108:14",
+            "scope": 4309,
+            "src": "947:108:16",
             "stateMutability": "view",
             "superFunction": null,
             "visibility": "public"
           }
         ],
-        "scope": 2966,
-        "src": "282:798:14"
+        "scope": 4310,
+        "src": "282:775:16"
       }
     ],
-    "src": "97:984:14"
+    "src": "97:961:16"
   },
   "compiler": {
     "name": "solc",
-    "version": "0.4.23+commit.124ca40d.Emscripten.clang"
+    "version": "0.4.24+commit.e67f0147.Emscripten.clang"
   },
   "networks": {},
-  "schemaVersion": "2.0.0",
-  "updatedAt": "2018-06-26T20:15:53.352Z"
+  "schemaVersion": "2.0.1",
+  "updatedAt": "2018-07-17T16:56:20.235Z"
 }

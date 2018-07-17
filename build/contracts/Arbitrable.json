@@ -38,10 +38,6 @@
         {
           "name": "_arbitratorExtraData",
           "type": "bytes"
-        },
-        {
-          "name": "_contractHash",
-          "type": "bytes32"
         }
       ],
       "payable": false,
@@ -97,6 +93,45 @@
       "inputs": [
         {
           "indexed": true,
+          "name": "_metaEvidenceID",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_evidence",
+          "type": "string"
+        }
+      ],
+      "name": "MetaEvidence",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "_arbitrator",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "_disputeID",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "_metaEvidenceID",
+          "type": "uint256"
+        }
+      ],
+      "name": "LinkMetaEvidence",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
           "name": "_arbitrator",
           "type": "address"
         },
@@ -117,18 +152,6 @@
         }
       ],
       "name": "Evidence",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "name": "_contractHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "ContractHash",
       "type": "event"
     },
     {
@@ -154,20 +177,20 @@
   "deployedBytecode": "0x",
   "sourceMap": "",
   "deployedSourceMap": "",
-  "source": "/**\n *  @title Arbitrable\n *  @author Clément Lesaege - <clement@lesaege.com>\n *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.\n */\n\npragma solidity ^0.4.15;\n\nimport \"./Arbitrator.sol\";\n\n/** @title Arbitrable\n *  Arbitrable abstract contract.\n *  When developing arbitrable contracts, we need to:\n *  -Define the action taken when a ruling is received by the contract. We should do so in executeRuling.\n *  -Allow dispute creation. For this a function must:\n *      -Call arbitrator.createDispute.value(_fee)(_choices,_extraData);\n *      -Create the event Dispute(_arbitrator,_disputeID,_rulingOptions);\n */\ncontract Arbitrable{\n    Arbitrator public arbitrator;\n    bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.\n    \n    modifier onlyArbitrator {require(msg.sender==address(arbitrator)); _;}\n    \n    /** @dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.\n     *  @param _arbitrator The arbitrator of the contract.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _rulingOptions Map ruling IDs to short description of the ruling in a CSV format using \";\" as a delimiter. Note that ruling IDs start a 1. For example \"Send funds to buyer;Send funds to seller\", means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.\n     */\n    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string _rulingOptions);\n    \n    /** @dev To be raised when a ruling is given.\n     *  @param _arbitrator The arbitrator giving the ruling.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _ruling The ruling which was given.\n     */\n    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);\n    \n    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due tp gas considerations).\n     *  @param _arbitrator The arbitrator of the contract.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.\n     *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link (\"http://X\"), IPFS (\"ipfs:/X\") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.\n     */\n    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);\n    \n    /** @dev To be emmited at contract creation. Contains the hash of the plain text contract. This will allow any party to show what was the original contract.\n     *  This event is used as cheap way of storing it.\n     *  @param _contractHash Keccak256 hash of the plain text contract.\n     */\n    event ContractHash(bytes32 _contractHash);\n    \n    /** @dev Constructor. Choose the arbitrator.\n     *  @param _arbitrator The arbitrator of the contract.\n     *  @param _contractHash Keccak256 hash of the plain text contract.\n     */\n    function Arbitrable(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash) {\n        arbitrator=_arbitrator;\n\tarbitratorExtraData=_arbitratorExtraData;\n        ContractHash(_contractHash);\n    }\n    \n    /** @dev Give a ruling for a dispute. Must be call by the arbitrator.\n     *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".\n     */\n    function rule(uint _disputeID, uint _ruling) onlyArbitrator {\n        Ruling(Arbitrator(msg.sender),_disputeID,_ruling);\n        \n        executeRuling(_disputeID,_ruling);\n    }\n    \n    \n    /** @dev Execute a ruling of a dispute.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".\n     */\n    function executeRuling(uint _disputeID, uint _ruling) internal;\n}\n\n\n",
+  "source": "/**\n *  @title Arbitrable\n *  @author Clément Lesaege - <clement@lesaege.com>\n *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.\n */\n\npragma solidity ^0.4.15;\n\nimport \"./Arbitrator.sol\";\n\n/** @title Arbitrable\n *  Arbitrable abstract contract.\n *  When developing arbitrable contracts, we need to:\n *  -Define the action taken when a ruling is received by the contract. We should do so in executeRuling.\n *  -Allow dispute creation. For this a function must:\n *      -Call arbitrator.createDispute.value(_fee)(_choices,_extraData);\n *      -Create the event Dispute(_arbitrator,_disputeID,_rulingOptions);\n */\ncontract Arbitrable{\n    Arbitrator public arbitrator;\n    bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.\n\n    modifier onlyArbitrator {require(msg.sender==address(arbitrator)); _;}\n\n    /** @dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.\n     *  @param _arbitrator The arbitrator of the contract.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _rulingOptions Map ruling IDs to short description of the ruling in a CSV format using \";\" as a delimiter. Note that ruling IDs start a 1. For example \"Send funds to buyer;Send funds to seller\", means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.\n     */\n    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string _rulingOptions);\n\n    /** @dev To be raised when a ruling is given.\n     *  @param _arbitrator The arbitrator giving the ruling.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _ruling The ruling which was given.\n     */\n    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);\n\n    /** @dev To be emmited when meta-evidence is submitted.\n     *  @param _metaEvidenceID Unique identifier of meta-evidence.\n     *  @param _evidence A link to the meta-evidence JSON.\n     */\n    event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);\n\n    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID\n     *  @param _arbitrator The arbitrator of the contract.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _metaEvidenceID Unique identifier of meta-evidence.\n     */\n    event LinkMetaEvidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);\n\n    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).\n     *  @param _arbitrator The arbitrator of the contract.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.\n     *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link (\"http://X\"), IPFS (\"ipfs:/X\") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.\n     */\n    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);\n\n    /** @dev Constructor. Choose the arbitrator.\n     *  @param _arbitrator The arbitrator of the contract.\n     *  @param _arbitratorExtraData Extra data for the arbitrator.\n     */\n    constructor(Arbitrator _arbitrator, bytes _arbitratorExtraData) public {\n        arbitrator = _arbitrator;\n        arbitratorExtraData = _arbitratorExtraData;\n    }\n\n    /** @dev Give a ruling for a dispute. Must be called by the arbitrator.\n     *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".\n     */\n    function rule(uint _disputeID, uint _ruling) public onlyArbitrator {\n        emit Ruling(Arbitrator(msg.sender),_disputeID,_ruling);\n\n        executeRuling(_disputeID,_ruling);\n    }\n\n\n    /** @dev Execute a ruling of a dispute.\n     *  @param _disputeID ID of the dispute in the Arbitrator contract.\n     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".\n     */\n    function executeRuling(uint _disputeID, uint _ruling) internal;\n}\n",
   "sourcePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/arbitration/Arbitrable.sol",
   "ast": {
     "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/arbitration/Arbitrable.sol",
     "exportedSymbols": {
       "Arbitrable": [
-        104
+        166
       ]
     },
-    "id": 105,
+    "id": 167,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 2,
+        "id": 60,
         "literals": [
           "solidity",
           "^",
@@ -175,16 +198,16 @@
           ".15"
         ],
         "nodeType": "PragmaDirective",
-        "src": "156:24:1"
+        "src": "156:24:2"
       },
       {
         "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/arbitration/Arbitrator.sol",
         "file": "./Arbitrator.sol",
-        "id": 3,
+        "id": 61,
         "nodeType": "ImportDirective",
-        "scope": 105,
-        "sourceUnit": 225,
-        "src": "182:26:1",
+        "scope": 167,
+        "sourceUnit": 2374,
+        "src": "182:26:2",
         "symbolAliases": [],
         "unitAlias": ""
       },
@@ -194,35 +217,35 @@
         "contractKind": "contract",
         "documentation": "@title Arbitrable\n Arbitrable abstract contract.\n When developing arbitrable contracts, we need to:\n -Define the action taken when a ruling is received by the contract. We should do so in executeRuling.\n -Allow dispute creation. For this a function must:\n     -Call arbitrator.createDispute.value(_fee)(_choices,_extraData);\n     -Create the event Dispute(_arbitrator,_disputeID,_rulingOptions);",
         "fullyImplemented": false,
-        "id": 104,
+        "id": 166,
         "linearizedBaseContracts": [
-          104
+          166
         ],
         "name": "Arbitrable",
         "nodeType": "ContractDefinition",
         "nodes": [
           {
             "constant": false,
-            "id": 5,
+            "id": 63,
             "name": "arbitrator",
             "nodeType": "VariableDeclaration",
-            "scope": 104,
-            "src": "657:28:1",
+            "scope": 166,
+            "src": "657:28:2",
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
-              "typeIdentifier": "t_contract$_Arbitrator_$224",
+              "typeIdentifier": "t_contract$_Arbitrator_$2373",
               "typeString": "contract Arbitrator"
             },
             "typeName": {
               "contractScope": null,
-              "id": 4,
+              "id": 62,
               "name": "Arbitrator",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 224,
-              "src": "657:10:1",
+              "referencedDeclaration": 2373,
+              "src": "657:10:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Arbitrator_$224",
+                "typeIdentifier": "t_contract$_Arbitrator_$2373",
                 "typeString": "contract Arbitrator"
               }
             },
@@ -231,11 +254,11 @@
           },
           {
             "constant": false,
-            "id": 7,
+            "id": 65,
             "name": "arbitratorExtraData",
             "nodeType": "VariableDeclaration",
-            "scope": 104,
-            "src": "691:32:1",
+            "scope": 166,
+            "src": "691:32:2",
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
@@ -243,10 +266,10 @@
               "typeString": "bytes"
             },
             "typeName": {
-              "id": 6,
+              "id": 64,
               "name": "bytes",
               "nodeType": "ElementaryTypeName",
-              "src": "691:5:1",
+              "src": "691:5:2",
               "typeDescriptions": {
                 "typeIdentifier": "t_bytes_storage_ptr",
                 "typeString": "bytes"
@@ -257,9 +280,9 @@
           },
           {
             "body": {
-              "id": 19,
+              "id": 77,
               "nodeType": "Block",
-              "src": "824:46:1",
+              "src": "820:46:2",
               "statements": [
                 {
                   "expression": {
@@ -271,7 +294,7 @@
                           "typeIdentifier": "t_address",
                           "typeString": "address"
                         },
-                        "id": 15,
+                        "id": 73,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": false,
@@ -280,18 +303,18 @@
                           "argumentTypes": null,
                           "expression": {
                             "argumentTypes": null,
-                            "id": 10,
+                            "id": 68,
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 1416,
-                            "src": "833:3:1",
+                            "referencedDeclaration": 9001,
+                            "src": "829:3:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_magic_message",
                               "typeString": "msg"
                             }
                           },
-                          "id": 11,
+                          "id": 69,
                           "isConstant": false,
                           "isLValue": false,
                           "isPure": false,
@@ -299,7 +322,7 @@
                           "memberName": "sender",
                           "nodeType": "MemberAccess",
                           "referencedDeclaration": null,
-                          "src": "833:10:1",
+                          "src": "829:10:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
@@ -312,14 +335,14 @@
                           "arguments": [
                             {
                               "argumentTypes": null,
-                              "id": 13,
+                              "id": 71,
                               "name": "arbitrator",
                               "nodeType": "Identifier",
                               "overloadedDeclarations": [],
-                              "referencedDeclaration": 5,
-                              "src": "853:10:1",
+                              "referencedDeclaration": 63,
+                              "src": "849:10:2",
                               "typeDescriptions": {
-                                "typeIdentifier": "t_contract$_Arbitrator_$224",
+                                "typeIdentifier": "t_contract$_Arbitrator_$2373",
                                 "typeString": "contract Arbitrator"
                               }
                             }
@@ -327,24 +350,24 @@
                           "expression": {
                             "argumentTypes": [
                               {
-                                "typeIdentifier": "t_contract$_Arbitrator_$224",
+                                "typeIdentifier": "t_contract$_Arbitrator_$2373",
                                 "typeString": "contract Arbitrator"
                               }
                             ],
-                            "id": 12,
+                            "id": 70,
                             "isConstant": false,
                             "isLValue": false,
                             "isPure": true,
                             "lValueRequested": false,
                             "nodeType": "ElementaryTypeNameExpression",
-                            "src": "845:7:1",
+                            "src": "841:7:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_type$_t_address_$",
                               "typeString": "type(address)"
                             },
                             "typeName": "address"
                           },
-                          "id": 14,
+                          "id": 72,
                           "isConstant": false,
                           "isLValue": false,
                           "isPure": false,
@@ -352,13 +375,13 @@
                           "lValueRequested": false,
                           "names": [],
                           "nodeType": "FunctionCall",
-                          "src": "845:19:1",
+                          "src": "841:19:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
                           }
                         },
-                        "src": "833:31:1",
+                        "src": "829:31:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_bool",
                           "typeString": "bool"
@@ -372,21 +395,21 @@
                           "typeString": "bool"
                         }
                       ],
-                      "id": 9,
+                      "id": 67,
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        1419,
-                        1420
+                        9004,
+                        9005
                       ],
-                      "referencedDeclaration": 1419,
-                      "src": "825:7:1",
+                      "referencedDeclaration": 9004,
+                      "src": "821:7:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
                         "typeString": "function (bool) pure"
                       }
                     },
-                    "id": 16,
+                    "id": 74,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -394,69 +417,69 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "825:40:1",
+                    "src": "821:40:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 17,
+                  "id": 75,
                   "nodeType": "ExpressionStatement",
-                  "src": "825:40:1"
+                  "src": "821:40:2"
                 },
                 {
-                  "id": 18,
+                  "id": 76,
                   "nodeType": "PlaceholderStatement",
-                  "src": "867:1:1"
+                  "src": "863:1:2"
                 }
               ]
             },
             "documentation": null,
-            "id": 20,
+            "id": 78,
             "name": "onlyArbitrator",
             "nodeType": "ModifierDefinition",
             "parameters": {
-              "id": 8,
+              "id": 66,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "824:0:1"
+              "src": "820:0:2"
             },
-            "src": "800:70:1",
+            "src": "796:70:2",
             "visibility": "internal"
           },
           {
             "anonymous": false,
             "documentation": "@dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.\n @param _arbitrator The arbitrator of the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _rulingOptions Map ruling IDs to short description of the ruling in a CSV format using \";\" as a delimiter. Note that ruling IDs start a 1. For example \"Send funds to buyer;Send funds to seller\", means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.",
-            "id": 28,
+            "id": 86,
             "name": "Dispute",
             "nodeType": "EventDefinition",
             "parameters": {
-              "id": 27,
+              "id": 85,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 22,
+                  "id": 80,
                   "indexed": true,
                   "name": "_arbitrator",
                   "nodeType": "VariableDeclaration",
-                  "scope": 28,
-                  "src": "1469:30:1",
+                  "scope": 86,
+                  "src": "1461:30:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_contract$_Arbitrator_$224",
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
                     "typeString": "contract Arbitrator"
                   },
                   "typeName": {
                     "contractScope": null,
-                    "id": 21,
+                    "id": 79,
                     "name": "Arbitrator",
                     "nodeType": "UserDefinedTypeName",
-                    "referencedDeclaration": 224,
-                    "src": "1469:10:1",
+                    "referencedDeclaration": 2373,
+                    "src": "1461:10:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
                       "typeString": "contract Arbitrator"
                     }
                   },
@@ -465,12 +488,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 24,
+                  "id": 82,
                   "indexed": true,
                   "name": "_disputeID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 28,
-                  "src": "1501:23:1",
+                  "scope": 86,
+                  "src": "1493:23:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -478,10 +501,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 23,
+                    "id": 81,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1501:4:1",
+                    "src": "1493:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -492,12 +515,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 26,
+                  "id": 84,
                   "indexed": false,
                   "name": "_rulingOptions",
                   "nodeType": "VariableDeclaration",
-                  "scope": 28,
-                  "src": "1526:21:1",
+                  "scope": 86,
+                  "src": "1518:21:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -505,10 +528,10 @@
                     "typeString": "string"
                   },
                   "typeName": {
-                    "id": 25,
+                    "id": 83,
                     "name": "string",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1526:6:1",
+                    "src": "1518:6:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_string_storage_ptr",
                       "typeString": "string"
@@ -518,43 +541,43 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "1468:80:1"
+              "src": "1460:80:2"
             },
-            "src": "1455:94:1"
+            "src": "1447:94:2"
           },
           {
             "anonymous": false,
             "documentation": "@dev To be raised when a ruling is given.\n @param _arbitrator The arbitrator giving the ruling.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _ruling The ruling which was given.",
-            "id": 36,
+            "id": 94,
             "name": "Ruling",
             "nodeType": "EventDefinition",
             "parameters": {
-              "id": 35,
+              "id": 93,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 30,
+                  "id": 88,
                   "indexed": true,
                   "name": "_arbitrator",
                   "nodeType": "VariableDeclaration",
-                  "scope": 36,
-                  "src": "1814:30:1",
+                  "scope": 94,
+                  "src": "1802:30:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_contract$_Arbitrator_$224",
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
                     "typeString": "contract Arbitrator"
                   },
                   "typeName": {
                     "contractScope": null,
-                    "id": 29,
+                    "id": 87,
                     "name": "Arbitrator",
                     "nodeType": "UserDefinedTypeName",
-                    "referencedDeclaration": 224,
-                    "src": "1814:10:1",
+                    "referencedDeclaration": 2373,
+                    "src": "1802:10:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
                       "typeString": "contract Arbitrator"
                     }
                   },
@@ -563,12 +586,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 32,
+                  "id": 90,
                   "indexed": true,
                   "name": "_disputeID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 36,
-                  "src": "1846:23:1",
+                  "scope": 94,
+                  "src": "1834:23:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -576,10 +599,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 31,
+                    "id": 89,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1846:4:1",
+                    "src": "1834:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -590,12 +613,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 34,
+                  "id": 92,
                   "indexed": false,
                   "name": "_ruling",
                   "nodeType": "VariableDeclaration",
-                  "scope": 36,
-                  "src": "1871:12:1",
+                  "scope": 94,
+                  "src": "1859:12:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -603,10 +626,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 33,
+                    "id": 91,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1871:4:1",
+                    "src": "1859:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -616,57 +639,28 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "1813:71:1"
+              "src": "1801:71:2"
             },
-            "src": "1801:84:1"
+            "src": "1789:84:2"
           },
           {
             "anonymous": false,
-            "documentation": "@dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due tp gas considerations).\n @param _arbitrator The arbitrator of the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.\n @param _evidence A link to evidence or if it is short the evidence itself. Can be web link (\"http://X\"), IPFS (\"ipfs:/X\") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.",
-            "id": 46,
-            "name": "Evidence",
+            "documentation": "@dev To be emmited when meta-evidence is submitted.\n @param _metaEvidenceID Unique identifier of meta-evidence.\n @param _evidence A link to the meta-evidence JSON.",
+            "id": 100,
+            "name": "MetaEvidence",
             "nodeType": "EventDefinition",
             "parameters": {
-              "id": 45,
+              "id": 99,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 38,
+                  "id": 96,
                   "indexed": true,
-                  "name": "_arbitrator",
+                  "name": "_metaEvidenceID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 46,
-                  "src": "2658:30:1",
-                  "stateVariable": false,
-                  "storageLocation": "default",
-                  "typeDescriptions": {
-                    "typeIdentifier": "t_contract$_Arbitrator_$224",
-                    "typeString": "contract Arbitrator"
-                  },
-                  "typeName": {
-                    "contractScope": null,
-                    "id": 37,
-                    "name": "Arbitrator",
-                    "nodeType": "UserDefinedTypeName",
-                    "referencedDeclaration": 224,
-                    "src": "2658:10:1",
-                    "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
-                      "typeString": "contract Arbitrator"
-                    }
-                  },
-                  "value": null,
-                  "visibility": "internal"
-                },
-                {
-                  "constant": false,
-                  "id": 40,
-                  "indexed": true,
-                  "name": "_disputeID",
-                  "nodeType": "VariableDeclaration",
-                  "scope": 46,
-                  "src": "2690:23:1",
+                  "scope": 100,
+                  "src": "2092:28:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -674,10 +668,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 39,
+                    "id": 95,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "2690:4:1",
+                    "src": "2092:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -688,12 +682,208 @@
                 },
                 {
                   "constant": false,
-                  "id": 42,
+                  "id": 98,
+                  "indexed": false,
+                  "name": "_evidence",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 100,
+                  "src": "2122:16:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_string_memory_ptr",
+                    "typeString": "string"
+                  },
+                  "typeName": {
+                    "id": 97,
+                    "name": "string",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2122:6:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_string_storage_ptr",
+                      "typeString": "string"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "2091:48:2"
+            },
+            "src": "2073:67:2"
+          },
+          {
+            "anonymous": false,
+            "documentation": "@dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID\n @param _arbitrator The arbitrator of the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _metaEvidenceID Unique identifier of meta-evidence.",
+            "id": 108,
+            "name": "LinkMetaEvidence",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 107,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 102,
+                  "indexed": true,
+                  "name": "_arbitrator",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 108,
+                  "src": "2479:30:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
+                    "typeString": "contract Arbitrator"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 101,
+                    "name": "Arbitrator",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 2373,
+                    "src": "2479:10:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
+                      "typeString": "contract Arbitrator"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 104,
+                  "indexed": true,
+                  "name": "_disputeID",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 108,
+                  "src": "2511:23:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 103,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2511:4:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 106,
+                  "indexed": false,
+                  "name": "_metaEvidenceID",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 108,
+                  "src": "2536:20:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 105,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2536:4:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "2478:79:2"
+            },
+            "src": "2456:102:2"
+          },
+          {
+            "anonymous": false,
+            "documentation": "@dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).\n @param _arbitrator The arbitrator of the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.\n @param _evidence A link to evidence or if it is short the evidence itself. Can be web link (\"http://X\"), IPFS (\"ipfs:/X\") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.",
+            "id": 118,
+            "name": "Evidence",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 117,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 110,
+                  "indexed": true,
+                  "name": "_arbitrator",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 118,
+                  "src": "3327:30:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
+                    "typeString": "contract Arbitrator"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 109,
+                    "name": "Arbitrator",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 2373,
+                    "src": "3327:10:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
+                      "typeString": "contract Arbitrator"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 112,
+                  "indexed": true,
+                  "name": "_disputeID",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 118,
+                  "src": "3359:23:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 111,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "3359:4:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 114,
                   "indexed": false,
                   "name": "_party",
                   "nodeType": "VariableDeclaration",
-                  "scope": 46,
-                  "src": "2715:14:1",
+                  "scope": 118,
+                  "src": "3384:14:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -701,10 +891,10 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 41,
+                    "id": 113,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "2715:7:1",
+                    "src": "3384:7:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -715,12 +905,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 44,
+                  "id": 116,
                   "indexed": false,
                   "name": "_evidence",
                   "nodeType": "VariableDeclaration",
-                  "scope": 46,
-                  "src": "2731:16:1",
+                  "scope": 118,
+                  "src": "3400:16:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -728,10 +918,10 @@
                     "typeString": "string"
                   },
                   "typeName": {
-                    "id": 43,
+                    "id": 115,
                     "name": "string",
                     "nodeType": "ElementaryTypeName",
-                    "src": "2731:6:1",
+                    "src": "3400:6:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_string_storage_ptr",
                       "typeString": "string"
@@ -741,76 +931,34 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "2657:91:1"
+              "src": "3326:91:2"
             },
-            "src": "2643:106:1"
-          },
-          {
-            "anonymous": false,
-            "documentation": "@dev To be emmited at contract creation. Contains the hash of the plain text contract. This will allow any party to show what was the original contract.\n This event is used as cheap way of storing it.\n @param _contractHash Keccak256 hash of the plain text contract.",
-            "id": 50,
-            "name": "ContractHash",
-            "nodeType": "EventDefinition",
-            "parameters": {
-              "id": 49,
-              "nodeType": "ParameterList",
-              "parameters": [
-                {
-                  "constant": false,
-                  "id": 48,
-                  "indexed": false,
-                  "name": "_contractHash",
-                  "nodeType": "VariableDeclaration",
-                  "scope": 50,
-                  "src": "3074:21:1",
-                  "stateVariable": false,
-                  "storageLocation": "default",
-                  "typeDescriptions": {
-                    "typeIdentifier": "t_bytes32",
-                    "typeString": "bytes32"
-                  },
-                  "typeName": {
-                    "id": 47,
-                    "name": "bytes32",
-                    "nodeType": "ElementaryTypeName",
-                    "src": "3074:7:1",
-                    "typeDescriptions": {
-                      "typeIdentifier": "t_bytes32",
-                      "typeString": "bytes32"
-                    }
-                  },
-                  "value": null,
-                  "visibility": "internal"
-                }
-              ],
-              "src": "3073:23:1"
-            },
-            "src": "3055:42:1"
+            "src": "3312:106:2"
           },
           {
             "body": {
-              "id": 71,
+              "id": 133,
               "nodeType": "Block",
-              "src": "3390:119:1",
+              "src": "3678:93:2",
               "statements": [
                 {
                   "expression": {
                     "argumentTypes": null,
-                    "id": 61,
+                    "id": 127,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
                       "argumentTypes": null,
-                      "id": 59,
+                      "id": 125,
                       "name": "arbitrator",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 5,
-                      "src": "3400:10:1",
+                      "referencedDeclaration": 63,
+                      "src": "3688:10:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_Arbitrator_$224",
+                        "typeIdentifier": "t_contract$_Arbitrator_$2373",
                         "typeString": "contract Arbitrator"
                       }
                     },
@@ -818,43 +966,43 @@
                     "operator": "=",
                     "rightHandSide": {
                       "argumentTypes": null,
-                      "id": 60,
+                      "id": 126,
                       "name": "_arbitrator",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 52,
-                      "src": "3411:11:1",
+                      "referencedDeclaration": 120,
+                      "src": "3701:11:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_Arbitrator_$224",
+                        "typeIdentifier": "t_contract$_Arbitrator_$2373",
                         "typeString": "contract Arbitrator"
                       }
                     },
-                    "src": "3400:22:1",
+                    "src": "3688:24:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
                       "typeString": "contract Arbitrator"
                     }
                   },
-                  "id": 62,
+                  "id": 128,
                   "nodeType": "ExpressionStatement",
-                  "src": "3400:22:1"
+                  "src": "3688:24:2"
                 },
                 {
                   "expression": {
                     "argumentTypes": null,
-                    "id": 65,
+                    "id": 131,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
                       "argumentTypes": null,
-                      "id": 63,
+                      "id": 129,
                       "name": "arbitratorExtraData",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7,
-                      "src": "3425:19:1",
+                      "referencedDeclaration": 65,
+                      "src": "3722:19:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bytes_storage",
                         "typeString": "bytes storage ref"
@@ -864,117 +1012,63 @@
                     "operator": "=",
                     "rightHandSide": {
                       "argumentTypes": null,
-                      "id": 64,
+                      "id": 130,
                       "name": "_arbitratorExtraData",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 54,
-                      "src": "3445:20:1",
+                      "referencedDeclaration": 122,
+                      "src": "3744:20:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bytes_memory_ptr",
                         "typeString": "bytes memory"
                       }
                     },
-                    "src": "3425:40:1",
+                    "src": "3722:42:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes_storage",
                       "typeString": "bytes storage ref"
                     }
                   },
-                  "id": 66,
+                  "id": 132,
                   "nodeType": "ExpressionStatement",
-                  "src": "3425:40:1"
-                },
-                {
-                  "expression": {
-                    "argumentTypes": null,
-                    "arguments": [
-                      {
-                        "argumentTypes": null,
-                        "id": 68,
-                        "name": "_contractHash",
-                        "nodeType": "Identifier",
-                        "overloadedDeclarations": [],
-                        "referencedDeclaration": 56,
-                        "src": "3488:13:1",
-                        "typeDescriptions": {
-                          "typeIdentifier": "t_bytes32",
-                          "typeString": "bytes32"
-                        }
-                      }
-                    ],
-                    "expression": {
-                      "argumentTypes": [
-                        {
-                          "typeIdentifier": "t_bytes32",
-                          "typeString": "bytes32"
-                        }
-                      ],
-                      "id": 67,
-                      "name": "ContractHash",
-                      "nodeType": "Identifier",
-                      "overloadedDeclarations": [],
-                      "referencedDeclaration": 50,
-                      "src": "3475:12:1",
-                      "typeDescriptions": {
-                        "typeIdentifier": "t_function_event_nonpayable$_t_bytes32_$returns$__$",
-                        "typeString": "function (bytes32)"
-                      }
-                    },
-                    "id": 69,
-                    "isConstant": false,
-                    "isLValue": false,
-                    "isPure": false,
-                    "kind": "functionCall",
-                    "lValueRequested": false,
-                    "names": [],
-                    "nodeType": "FunctionCall",
-                    "src": "3475:27:1",
-                    "typeDescriptions": {
-                      "typeIdentifier": "t_tuple$__$",
-                      "typeString": "tuple()"
-                    }
-                  },
-                  "id": 70,
-                  "nodeType": "ExpressionStatement",
-                  "src": "3475:27:1"
+                  "src": "3722:42:2"
                 }
               ]
             },
-            "documentation": "@dev Constructor. Choose the arbitrator.\n @param _arbitrator The arbitrator of the contract.\n @param _contractHash Keccak256 hash of the plain text contract.",
-            "id": 72,
+            "documentation": "@dev Constructor. Choose the arbitrator.\n @param _arbitrator The arbitrator of the contract.\n @param _arbitratorExtraData Extra data for the arbitrator.",
+            "id": 134,
             "implemented": true,
             "isConstructor": true,
             "isDeclaredConst": false,
             "modifiers": [],
-            "name": "Arbitrable",
+            "name": "",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 57,
+              "id": 123,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 52,
+                  "id": 120,
                   "name": "_arbitrator",
                   "nodeType": "VariableDeclaration",
-                  "scope": 72,
-                  "src": "3315:22:1",
+                  "scope": 134,
+                  "src": "3619:22:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_contract$_Arbitrator_$224",
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
                     "typeString": "contract Arbitrator"
                   },
                   "typeName": {
                     "contractScope": null,
-                    "id": 51,
+                    "id": 119,
                     "name": "Arbitrator",
                     "nodeType": "UserDefinedTypeName",
-                    "referencedDeclaration": 224,
-                    "src": "3315:10:1",
+                    "referencedDeclaration": 2373,
+                    "src": "3619:10:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
                       "typeString": "contract Arbitrator"
                     }
                   },
@@ -983,11 +1077,11 @@
                 },
                 {
                   "constant": false,
-                  "id": 54,
+                  "id": 122,
                   "name": "_arbitratorExtraData",
                   "nodeType": "VariableDeclaration",
-                  "scope": 72,
-                  "src": "3339:26:1",
+                  "scope": 134,
+                  "src": "3643:26:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -995,10 +1089,10 @@
                     "typeString": "bytes"
                   },
                   "typeName": {
-                    "id": 53,
+                    "id": 121,
                     "name": "bytes",
                     "nodeType": "ElementaryTypeName",
-                    "src": "3339:5:1",
+                    "src": "3643:5:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes_storage_ptr",
                       "typeString": "bytes"
@@ -1006,57 +1100,31 @@
                   },
                   "value": null,
                   "visibility": "internal"
-                },
-                {
-                  "constant": false,
-                  "id": 56,
-                  "name": "_contractHash",
-                  "nodeType": "VariableDeclaration",
-                  "scope": 72,
-                  "src": "3367:21:1",
-                  "stateVariable": false,
-                  "storageLocation": "default",
-                  "typeDescriptions": {
-                    "typeIdentifier": "t_bytes32",
-                    "typeString": "bytes32"
-                  },
-                  "typeName": {
-                    "id": 55,
-                    "name": "bytes32",
-                    "nodeType": "ElementaryTypeName",
-                    "src": "3367:7:1",
-                    "typeDescriptions": {
-                      "typeIdentifier": "t_bytes32",
-                      "typeString": "bytes32"
-                    }
-                  },
-                  "value": null,
-                  "visibility": "internal"
                 }
               ],
-              "src": "3314:75:1"
+              "src": "3618:52:2"
             },
             "payable": false,
             "returnParameters": {
-              "id": 58,
+              "id": 124,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3390:0:1"
+              "src": "3678:0:2"
             },
-            "scope": 104,
-            "src": "3295:214:1",
+            "scope": 166,
+            "src": "3607:164:2",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
           },
           {
             "body": {
-              "id": 95,
+              "id": 157,
               "nodeType": "Block",
-              "src": "3972:118:1",
+              "src": "4239:115:2",
               "statements": [
                 {
-                  "expression": {
+                  "eventCall": {
                     "argumentTypes": null,
                     "arguments": [
                       {
@@ -1066,18 +1134,18 @@
                             "argumentTypes": null,
                             "expression": {
                               "argumentTypes": null,
-                              "id": 83,
+                              "id": 145,
                               "name": "msg",
                               "nodeType": "Identifier",
                               "overloadedDeclarations": [],
-                              "referencedDeclaration": 1416,
-                              "src": "4000:3:1",
+                              "referencedDeclaration": 9001,
+                              "src": "4272:3:2",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_magic_message",
                                 "typeString": "msg"
                               }
                             },
-                            "id": 84,
+                            "id": 146,
                             "isConstant": false,
                             "isLValue": false,
                             "isPure": false,
@@ -1085,7 +1153,7 @@
                             "memberName": "sender",
                             "nodeType": "MemberAccess",
                             "referencedDeclaration": null,
-                            "src": "4000:10:1",
+                            "src": "4272:10:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_address",
                               "typeString": "address"
@@ -1099,18 +1167,18 @@
                               "typeString": "address"
                             }
                           ],
-                          "id": 82,
+                          "id": 144,
                           "name": "Arbitrator",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 224,
-                          "src": "3989:10:1",
+                          "referencedDeclaration": 2373,
+                          "src": "4261:10:2",
                           "typeDescriptions": {
-                            "typeIdentifier": "t_type$_t_contract$_Arbitrator_$224_$",
+                            "typeIdentifier": "t_type$_t_contract$_Arbitrator_$2373_$",
                             "typeString": "type(contract Arbitrator)"
                           }
                         },
-                        "id": 85,
+                        "id": 147,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": false,
@@ -1118,20 +1186,20 @@
                         "lValueRequested": false,
                         "names": [],
                         "nodeType": "FunctionCall",
-                        "src": "3989:22:1",
+                        "src": "4261:22:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_Arbitrator_$224",
+                          "typeIdentifier": "t_contract$_Arbitrator_$2373",
                           "typeString": "contract Arbitrator"
                         }
                       },
                       {
                         "argumentTypes": null,
-                        "id": 86,
+                        "id": 148,
                         "name": "_disputeID",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 74,
-                        "src": "4012:10:1",
+                        "referencedDeclaration": 136,
+                        "src": "4284:10:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -1139,12 +1207,12 @@
                       },
                       {
                         "argumentTypes": null,
-                        "id": 87,
+                        "id": 149,
                         "name": "_ruling",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 76,
-                        "src": "4023:7:1",
+                        "referencedDeclaration": 138,
+                        "src": "4295:7:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -1154,7 +1222,7 @@
                     "expression": {
                       "argumentTypes": [
                         {
-                          "typeIdentifier": "t_contract$_Arbitrator_$224",
+                          "typeIdentifier": "t_contract$_Arbitrator_$2373",
                           "typeString": "contract Arbitrator"
                         },
                         {
@@ -1166,18 +1234,18 @@
                           "typeString": "uint256"
                         }
                       ],
-                      "id": 81,
+                      "id": 143,
                       "name": "Ruling",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 36,
-                      "src": "3982:6:1",
+                      "referencedDeclaration": 94,
+                      "src": "4254:6:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_function_event_nonpayable$_t_contract$_Arbitrator_$224_$_t_uint256_$_t_uint256_$returns$__$",
+                        "typeIdentifier": "t_function_event_nonpayable$_t_contract$_Arbitrator_$2373_$_t_uint256_$_t_uint256_$returns$__$",
                         "typeString": "function (contract Arbitrator,uint256,uint256)"
                       }
                     },
-                    "id": 88,
+                    "id": 150,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -1185,15 +1253,15 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "3982:49:1",
+                    "src": "4254:49:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 89,
-                  "nodeType": "ExpressionStatement",
-                  "src": "3982:49:1"
+                  "id": 151,
+                  "nodeType": "EmitStatement",
+                  "src": "4249:54:2"
                 },
                 {
                   "expression": {
@@ -1201,12 +1269,12 @@
                     "arguments": [
                       {
                         "argumentTypes": null,
-                        "id": 91,
+                        "id": 153,
                         "name": "_disputeID",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 74,
-                        "src": "4064:10:1",
+                        "referencedDeclaration": 136,
+                        "src": "4328:10:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -1214,12 +1282,12 @@
                       },
                       {
                         "argumentTypes": null,
-                        "id": 92,
+                        "id": 154,
                         "name": "_ruling",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 76,
-                        "src": "4075:7:1",
+                        "referencedDeclaration": 138,
+                        "src": "4339:7:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -1237,18 +1305,18 @@
                           "typeString": "uint256"
                         }
                       ],
-                      "id": 90,
+                      "id": 152,
                       "name": "executeRuling",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 103,
-                      "src": "4050:13:1",
+                      "referencedDeclaration": 165,
+                      "src": "4314:13:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_uint256_$returns$__$",
                         "typeString": "function (uint256,uint256)"
                       }
                     },
-                    "id": 93,
+                    "id": 155,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -1256,57 +1324,57 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "4050:33:1",
+                    "src": "4314:33:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 94,
+                  "id": 156,
                   "nodeType": "ExpressionStatement",
-                  "src": "4050:33:1"
+                  "src": "4314:33:2"
                 }
               ]
             },
-            "documentation": "@dev Give a ruling for a dispute. Must be call by the arbitrator.\n The purpose of this function is to ensure that the address calling it has the right to rule on the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".",
-            "id": 96,
+            "documentation": "@dev Give a ruling for a dispute. Must be called by the arbitrator.\n The purpose of this function is to ensure that the address calling it has the right to rule on the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".",
+            "id": 158,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
             "modifiers": [
               {
                 "arguments": null,
-                "id": 79,
+                "id": 141,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 78,
+                  "id": 140,
                   "name": "onlyArbitrator",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 20,
-                  "src": "3957:14:1",
+                  "referencedDeclaration": 78,
+                  "src": "4224:14:2",
                   "typeDescriptions": {
                     "typeIdentifier": "t_modifier$__$",
                     "typeString": "modifier ()"
                   }
                 },
                 "nodeType": "ModifierInvocation",
-                "src": "3957:14:1"
+                "src": "4224:14:2"
               }
             ],
             "name": "rule",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 77,
+              "id": 139,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 74,
+                  "id": 136,
                   "name": "_disputeID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 96,
-                  "src": "3926:15:1",
+                  "scope": 158,
+                  "src": "4186:15:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1314,10 +1382,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 73,
+                    "id": 135,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "3926:4:1",
+                    "src": "4186:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1328,11 +1396,11 @@
                 },
                 {
                   "constant": false,
-                  "id": 76,
+                  "id": 138,
                   "name": "_ruling",
                   "nodeType": "VariableDeclaration",
-                  "scope": 96,
-                  "src": "3943:12:1",
+                  "scope": 158,
+                  "src": "4203:12:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1340,10 +1408,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 75,
+                    "id": 137,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "3943:4:1",
+                    "src": "4203:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1353,17 +1421,17 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "3925:31:1"
+              "src": "4185:31:2"
             },
             "payable": false,
             "returnParameters": {
-              "id": 80,
+              "id": 142,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3972:0:1"
+              "src": "4239:0:2"
             },
-            "scope": 104,
-            "src": "3912:178:1",
+            "scope": 166,
+            "src": "4172:182:2",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
@@ -1371,7 +1439,7 @@
           {
             "body": null,
             "documentation": "@dev Execute a ruling of a dispute.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".",
-            "id": 103,
+            "id": 165,
             "implemented": false,
             "isConstructor": false,
             "isDeclaredConst": false,
@@ -1379,16 +1447,16 @@
             "name": "executeRuling",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 101,
+              "id": 163,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 98,
+                  "id": 160,
                   "name": "_disputeID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 103,
-                  "src": "4374:15:1",
+                  "scope": 165,
+                  "src": "4630:15:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1396,10 +1464,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 97,
+                    "id": 159,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "4374:4:1",
+                    "src": "4630:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1410,11 +1478,11 @@
                 },
                 {
                   "constant": false,
-                  "id": 100,
+                  "id": 162,
                   "name": "_ruling",
                   "nodeType": "VariableDeclaration",
-                  "scope": 103,
-                  "src": "4391:12:1",
+                  "scope": 165,
+                  "src": "4647:12:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1422,10 +1490,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 99,
+                    "id": 161,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "4391:4:1",
+                    "src": "4647:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1435,40 +1503,40 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "4373:31:1"
+              "src": "4629:31:2"
             },
             "payable": false,
             "returnParameters": {
-              "id": 102,
+              "id": 164,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "4413:0:1"
+              "src": "4669:0:2"
             },
-            "scope": 104,
-            "src": "4351:63:1",
+            "scope": 166,
+            "src": "4607:63:2",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "internal"
           }
         ],
-        "scope": 105,
-        "src": "632:3784:1"
+        "scope": 167,
+        "src": "632:4040:2"
       }
     ],
-    "src": "156:4263:1"
+    "src": "156:4517:2"
   },
   "legacyAST": {
     "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/arbitration/Arbitrable.sol",
     "exportedSymbols": {
       "Arbitrable": [
-        104
+        166
       ]
     },
-    "id": 105,
+    "id": 167,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 2,
+        "id": 60,
         "literals": [
           "solidity",
           "^",
@@ -1476,16 +1544,16 @@
           ".15"
         ],
         "nodeType": "PragmaDirective",
-        "src": "156:24:1"
+        "src": "156:24:2"
       },
       {
         "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/arbitration/Arbitrator.sol",
         "file": "./Arbitrator.sol",
-        "id": 3,
+        "id": 61,
         "nodeType": "ImportDirective",
-        "scope": 105,
-        "sourceUnit": 225,
-        "src": "182:26:1",
+        "scope": 167,
+        "sourceUnit": 2374,
+        "src": "182:26:2",
         "symbolAliases": [],
         "unitAlias": ""
       },
@@ -1495,35 +1563,35 @@
         "contractKind": "contract",
         "documentation": "@title Arbitrable\n Arbitrable abstract contract.\n When developing arbitrable contracts, we need to:\n -Define the action taken when a ruling is received by the contract. We should do so in executeRuling.\n -Allow dispute creation. For this a function must:\n     -Call arbitrator.createDispute.value(_fee)(_choices,_extraData);\n     -Create the event Dispute(_arbitrator,_disputeID,_rulingOptions);",
         "fullyImplemented": false,
-        "id": 104,
+        "id": 166,
         "linearizedBaseContracts": [
-          104
+          166
         ],
         "name": "Arbitrable",
         "nodeType": "ContractDefinition",
         "nodes": [
           {
             "constant": false,
-            "id": 5,
+            "id": 63,
             "name": "arbitrator",
             "nodeType": "VariableDeclaration",
-            "scope": 104,
-            "src": "657:28:1",
+            "scope": 166,
+            "src": "657:28:2",
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
-              "typeIdentifier": "t_contract$_Arbitrator_$224",
+              "typeIdentifier": "t_contract$_Arbitrator_$2373",
               "typeString": "contract Arbitrator"
             },
             "typeName": {
               "contractScope": null,
-              "id": 4,
+              "id": 62,
               "name": "Arbitrator",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 224,
-              "src": "657:10:1",
+              "referencedDeclaration": 2373,
+              "src": "657:10:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Arbitrator_$224",
+                "typeIdentifier": "t_contract$_Arbitrator_$2373",
                 "typeString": "contract Arbitrator"
               }
             },
@@ -1532,11 +1600,11 @@
           },
           {
             "constant": false,
-            "id": 7,
+            "id": 65,
             "name": "arbitratorExtraData",
             "nodeType": "VariableDeclaration",
-            "scope": 104,
-            "src": "691:32:1",
+            "scope": 166,
+            "src": "691:32:2",
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
@@ -1544,10 +1612,10 @@
               "typeString": "bytes"
             },
             "typeName": {
-              "id": 6,
+              "id": 64,
               "name": "bytes",
               "nodeType": "ElementaryTypeName",
-              "src": "691:5:1",
+              "src": "691:5:2",
               "typeDescriptions": {
                 "typeIdentifier": "t_bytes_storage_ptr",
                 "typeString": "bytes"
@@ -1558,9 +1626,9 @@
           },
           {
             "body": {
-              "id": 19,
+              "id": 77,
               "nodeType": "Block",
-              "src": "824:46:1",
+              "src": "820:46:2",
               "statements": [
                 {
                   "expression": {
@@ -1572,7 +1640,7 @@
                           "typeIdentifier": "t_address",
                           "typeString": "address"
                         },
-                        "id": 15,
+                        "id": 73,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": false,
@@ -1581,18 +1649,18 @@
                           "argumentTypes": null,
                           "expression": {
                             "argumentTypes": null,
-                            "id": 10,
+                            "id": 68,
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 1416,
-                            "src": "833:3:1",
+                            "referencedDeclaration": 9001,
+                            "src": "829:3:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_magic_message",
                               "typeString": "msg"
                             }
                           },
-                          "id": 11,
+                          "id": 69,
                           "isConstant": false,
                           "isLValue": false,
                           "isPure": false,
@@ -1600,7 +1668,7 @@
                           "memberName": "sender",
                           "nodeType": "MemberAccess",
                           "referencedDeclaration": null,
-                          "src": "833:10:1",
+                          "src": "829:10:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
@@ -1613,14 +1681,14 @@
                           "arguments": [
                             {
                               "argumentTypes": null,
-                              "id": 13,
+                              "id": 71,
                               "name": "arbitrator",
                               "nodeType": "Identifier",
                               "overloadedDeclarations": [],
-                              "referencedDeclaration": 5,
-                              "src": "853:10:1",
+                              "referencedDeclaration": 63,
+                              "src": "849:10:2",
                               "typeDescriptions": {
-                                "typeIdentifier": "t_contract$_Arbitrator_$224",
+                                "typeIdentifier": "t_contract$_Arbitrator_$2373",
                                 "typeString": "contract Arbitrator"
                               }
                             }
@@ -1628,24 +1696,24 @@
                           "expression": {
                             "argumentTypes": [
                               {
-                                "typeIdentifier": "t_contract$_Arbitrator_$224",
+                                "typeIdentifier": "t_contract$_Arbitrator_$2373",
                                 "typeString": "contract Arbitrator"
                               }
                             ],
-                            "id": 12,
+                            "id": 70,
                             "isConstant": false,
                             "isLValue": false,
                             "isPure": true,
                             "lValueRequested": false,
                             "nodeType": "ElementaryTypeNameExpression",
-                            "src": "845:7:1",
+                            "src": "841:7:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_type$_t_address_$",
                               "typeString": "type(address)"
                             },
                             "typeName": "address"
                           },
-                          "id": 14,
+                          "id": 72,
                           "isConstant": false,
                           "isLValue": false,
                           "isPure": false,
@@ -1653,13 +1721,13 @@
                           "lValueRequested": false,
                           "names": [],
                           "nodeType": "FunctionCall",
-                          "src": "845:19:1",
+                          "src": "841:19:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_address",
                             "typeString": "address"
                           }
                         },
-                        "src": "833:31:1",
+                        "src": "829:31:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_bool",
                           "typeString": "bool"
@@ -1673,21 +1741,21 @@
                           "typeString": "bool"
                         }
                       ],
-                      "id": 9,
+                      "id": 67,
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        1419,
-                        1420
+                        9004,
+                        9005
                       ],
-                      "referencedDeclaration": 1419,
-                      "src": "825:7:1",
+                      "referencedDeclaration": 9004,
+                      "src": "821:7:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
                         "typeString": "function (bool) pure"
                       }
                     },
-                    "id": 16,
+                    "id": 74,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -1695,69 +1763,69 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "825:40:1",
+                    "src": "821:40:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 17,
+                  "id": 75,
                   "nodeType": "ExpressionStatement",
-                  "src": "825:40:1"
+                  "src": "821:40:2"
                 },
                 {
-                  "id": 18,
+                  "id": 76,
                   "nodeType": "PlaceholderStatement",
-                  "src": "867:1:1"
+                  "src": "863:1:2"
                 }
               ]
             },
             "documentation": null,
-            "id": 20,
+            "id": 78,
             "name": "onlyArbitrator",
             "nodeType": "ModifierDefinition",
             "parameters": {
-              "id": 8,
+              "id": 66,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "824:0:1"
+              "src": "820:0:2"
             },
-            "src": "800:70:1",
+            "src": "796:70:2",
             "visibility": "internal"
           },
           {
             "anonymous": false,
             "documentation": "@dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.\n @param _arbitrator The arbitrator of the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _rulingOptions Map ruling IDs to short description of the ruling in a CSV format using \";\" as a delimiter. Note that ruling IDs start a 1. For example \"Send funds to buyer;Send funds to seller\", means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.",
-            "id": 28,
+            "id": 86,
             "name": "Dispute",
             "nodeType": "EventDefinition",
             "parameters": {
-              "id": 27,
+              "id": 85,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 22,
+                  "id": 80,
                   "indexed": true,
                   "name": "_arbitrator",
                   "nodeType": "VariableDeclaration",
-                  "scope": 28,
-                  "src": "1469:30:1",
+                  "scope": 86,
+                  "src": "1461:30:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_contract$_Arbitrator_$224",
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
                     "typeString": "contract Arbitrator"
                   },
                   "typeName": {
                     "contractScope": null,
-                    "id": 21,
+                    "id": 79,
                     "name": "Arbitrator",
                     "nodeType": "UserDefinedTypeName",
-                    "referencedDeclaration": 224,
-                    "src": "1469:10:1",
+                    "referencedDeclaration": 2373,
+                    "src": "1461:10:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
                       "typeString": "contract Arbitrator"
                     }
                   },
@@ -1766,12 +1834,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 24,
+                  "id": 82,
                   "indexed": true,
                   "name": "_disputeID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 28,
-                  "src": "1501:23:1",
+                  "scope": 86,
+                  "src": "1493:23:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1779,10 +1847,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 23,
+                    "id": 81,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1501:4:1",
+                    "src": "1493:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1793,12 +1861,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 26,
+                  "id": 84,
                   "indexed": false,
                   "name": "_rulingOptions",
                   "nodeType": "VariableDeclaration",
-                  "scope": 28,
-                  "src": "1526:21:1",
+                  "scope": 86,
+                  "src": "1518:21:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1806,10 +1874,10 @@
                     "typeString": "string"
                   },
                   "typeName": {
-                    "id": 25,
+                    "id": 83,
                     "name": "string",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1526:6:1",
+                    "src": "1518:6:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_string_storage_ptr",
                       "typeString": "string"
@@ -1819,43 +1887,43 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "1468:80:1"
+              "src": "1460:80:2"
             },
-            "src": "1455:94:1"
+            "src": "1447:94:2"
           },
           {
             "anonymous": false,
             "documentation": "@dev To be raised when a ruling is given.\n @param _arbitrator The arbitrator giving the ruling.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _ruling The ruling which was given.",
-            "id": 36,
+            "id": 94,
             "name": "Ruling",
             "nodeType": "EventDefinition",
             "parameters": {
-              "id": 35,
+              "id": 93,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 30,
+                  "id": 88,
                   "indexed": true,
                   "name": "_arbitrator",
                   "nodeType": "VariableDeclaration",
-                  "scope": 36,
-                  "src": "1814:30:1",
+                  "scope": 94,
+                  "src": "1802:30:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_contract$_Arbitrator_$224",
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
                     "typeString": "contract Arbitrator"
                   },
                   "typeName": {
                     "contractScope": null,
-                    "id": 29,
+                    "id": 87,
                     "name": "Arbitrator",
                     "nodeType": "UserDefinedTypeName",
-                    "referencedDeclaration": 224,
-                    "src": "1814:10:1",
+                    "referencedDeclaration": 2373,
+                    "src": "1802:10:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
                       "typeString": "contract Arbitrator"
                     }
                   },
@@ -1864,12 +1932,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 32,
+                  "id": 90,
                   "indexed": true,
                   "name": "_disputeID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 36,
-                  "src": "1846:23:1",
+                  "scope": 94,
+                  "src": "1834:23:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1877,10 +1945,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 31,
+                    "id": 89,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1846:4:1",
+                    "src": "1834:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1891,12 +1959,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 34,
+                  "id": 92,
                   "indexed": false,
                   "name": "_ruling",
                   "nodeType": "VariableDeclaration",
-                  "scope": 36,
-                  "src": "1871:12:1",
+                  "scope": 94,
+                  "src": "1859:12:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1904,10 +1972,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 33,
+                    "id": 91,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "1871:4:1",
+                    "src": "1859:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1917,57 +1985,28 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "1813:71:1"
+              "src": "1801:71:2"
             },
-            "src": "1801:84:1"
+            "src": "1789:84:2"
           },
           {
             "anonymous": false,
-            "documentation": "@dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due tp gas considerations).\n @param _arbitrator The arbitrator of the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.\n @param _evidence A link to evidence or if it is short the evidence itself. Can be web link (\"http://X\"), IPFS (\"ipfs:/X\") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.",
-            "id": 46,
-            "name": "Evidence",
+            "documentation": "@dev To be emmited when meta-evidence is submitted.\n @param _metaEvidenceID Unique identifier of meta-evidence.\n @param _evidence A link to the meta-evidence JSON.",
+            "id": 100,
+            "name": "MetaEvidence",
             "nodeType": "EventDefinition",
             "parameters": {
-              "id": 45,
+              "id": 99,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 38,
+                  "id": 96,
                   "indexed": true,
-                  "name": "_arbitrator",
+                  "name": "_metaEvidenceID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 46,
-                  "src": "2658:30:1",
-                  "stateVariable": false,
-                  "storageLocation": "default",
-                  "typeDescriptions": {
-                    "typeIdentifier": "t_contract$_Arbitrator_$224",
-                    "typeString": "contract Arbitrator"
-                  },
-                  "typeName": {
-                    "contractScope": null,
-                    "id": 37,
-                    "name": "Arbitrator",
-                    "nodeType": "UserDefinedTypeName",
-                    "referencedDeclaration": 224,
-                    "src": "2658:10:1",
-                    "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
-                      "typeString": "contract Arbitrator"
-                    }
-                  },
-                  "value": null,
-                  "visibility": "internal"
-                },
-                {
-                  "constant": false,
-                  "id": 40,
-                  "indexed": true,
-                  "name": "_disputeID",
-                  "nodeType": "VariableDeclaration",
-                  "scope": 46,
-                  "src": "2690:23:1",
+                  "scope": 100,
+                  "src": "2092:28:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -1975,10 +2014,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 39,
+                    "id": 95,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "2690:4:1",
+                    "src": "2092:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -1989,12 +2028,208 @@
                 },
                 {
                   "constant": false,
-                  "id": 42,
+                  "id": 98,
+                  "indexed": false,
+                  "name": "_evidence",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 100,
+                  "src": "2122:16:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_string_memory_ptr",
+                    "typeString": "string"
+                  },
+                  "typeName": {
+                    "id": 97,
+                    "name": "string",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2122:6:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_string_storage_ptr",
+                      "typeString": "string"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "2091:48:2"
+            },
+            "src": "2073:67:2"
+          },
+          {
+            "anonymous": false,
+            "documentation": "@dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID\n @param _arbitrator The arbitrator of the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _metaEvidenceID Unique identifier of meta-evidence.",
+            "id": 108,
+            "name": "LinkMetaEvidence",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 107,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 102,
+                  "indexed": true,
+                  "name": "_arbitrator",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 108,
+                  "src": "2479:30:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
+                    "typeString": "contract Arbitrator"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 101,
+                    "name": "Arbitrator",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 2373,
+                    "src": "2479:10:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
+                      "typeString": "contract Arbitrator"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 104,
+                  "indexed": true,
+                  "name": "_disputeID",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 108,
+                  "src": "2511:23:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 103,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2511:4:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 106,
+                  "indexed": false,
+                  "name": "_metaEvidenceID",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 108,
+                  "src": "2536:20:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 105,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2536:4:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "2478:79:2"
+            },
+            "src": "2456:102:2"
+          },
+          {
+            "anonymous": false,
+            "documentation": "@dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).\n @param _arbitrator The arbitrator of the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.\n @param _evidence A link to evidence or if it is short the evidence itself. Can be web link (\"http://X\"), IPFS (\"ipfs:/X\") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.",
+            "id": 118,
+            "name": "Evidence",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 117,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 110,
+                  "indexed": true,
+                  "name": "_arbitrator",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 118,
+                  "src": "3327:30:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
+                    "typeString": "contract Arbitrator"
+                  },
+                  "typeName": {
+                    "contractScope": null,
+                    "id": 109,
+                    "name": "Arbitrator",
+                    "nodeType": "UserDefinedTypeName",
+                    "referencedDeclaration": 2373,
+                    "src": "3327:10:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
+                      "typeString": "contract Arbitrator"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 112,
+                  "indexed": true,
+                  "name": "_disputeID",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 118,
+                  "src": "3359:23:2",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 111,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "3359:4:2",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 114,
                   "indexed": false,
                   "name": "_party",
                   "nodeType": "VariableDeclaration",
-                  "scope": 46,
-                  "src": "2715:14:1",
+                  "scope": 118,
+                  "src": "3384:14:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -2002,10 +2237,10 @@
                     "typeString": "address"
                   },
                   "typeName": {
-                    "id": 41,
+                    "id": 113,
                     "name": "address",
                     "nodeType": "ElementaryTypeName",
-                    "src": "2715:7:1",
+                    "src": "3384:7:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_address",
                       "typeString": "address"
@@ -2016,12 +2251,12 @@
                 },
                 {
                   "constant": false,
-                  "id": 44,
+                  "id": 116,
                   "indexed": false,
                   "name": "_evidence",
                   "nodeType": "VariableDeclaration",
-                  "scope": 46,
-                  "src": "2731:16:1",
+                  "scope": 118,
+                  "src": "3400:16:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -2029,10 +2264,10 @@
                     "typeString": "string"
                   },
                   "typeName": {
-                    "id": 43,
+                    "id": 115,
                     "name": "string",
                     "nodeType": "ElementaryTypeName",
-                    "src": "2731:6:1",
+                    "src": "3400:6:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_string_storage_ptr",
                       "typeString": "string"
@@ -2042,76 +2277,34 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "2657:91:1"
+              "src": "3326:91:2"
             },
-            "src": "2643:106:1"
-          },
-          {
-            "anonymous": false,
-            "documentation": "@dev To be emmited at contract creation. Contains the hash of the plain text contract. This will allow any party to show what was the original contract.\n This event is used as cheap way of storing it.\n @param _contractHash Keccak256 hash of the plain text contract.",
-            "id": 50,
-            "name": "ContractHash",
-            "nodeType": "EventDefinition",
-            "parameters": {
-              "id": 49,
-              "nodeType": "ParameterList",
-              "parameters": [
-                {
-                  "constant": false,
-                  "id": 48,
-                  "indexed": false,
-                  "name": "_contractHash",
-                  "nodeType": "VariableDeclaration",
-                  "scope": 50,
-                  "src": "3074:21:1",
-                  "stateVariable": false,
-                  "storageLocation": "default",
-                  "typeDescriptions": {
-                    "typeIdentifier": "t_bytes32",
-                    "typeString": "bytes32"
-                  },
-                  "typeName": {
-                    "id": 47,
-                    "name": "bytes32",
-                    "nodeType": "ElementaryTypeName",
-                    "src": "3074:7:1",
-                    "typeDescriptions": {
-                      "typeIdentifier": "t_bytes32",
-                      "typeString": "bytes32"
-                    }
-                  },
-                  "value": null,
-                  "visibility": "internal"
-                }
-              ],
-              "src": "3073:23:1"
-            },
-            "src": "3055:42:1"
+            "src": "3312:106:2"
           },
           {
             "body": {
-              "id": 71,
+              "id": 133,
               "nodeType": "Block",
-              "src": "3390:119:1",
+              "src": "3678:93:2",
               "statements": [
                 {
                   "expression": {
                     "argumentTypes": null,
-                    "id": 61,
+                    "id": 127,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
                       "argumentTypes": null,
-                      "id": 59,
+                      "id": 125,
                       "name": "arbitrator",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 5,
-                      "src": "3400:10:1",
+                      "referencedDeclaration": 63,
+                      "src": "3688:10:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_Arbitrator_$224",
+                        "typeIdentifier": "t_contract$_Arbitrator_$2373",
                         "typeString": "contract Arbitrator"
                       }
                     },
@@ -2119,43 +2312,43 @@
                     "operator": "=",
                     "rightHandSide": {
                       "argumentTypes": null,
-                      "id": 60,
+                      "id": 126,
                       "name": "_arbitrator",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 52,
-                      "src": "3411:11:1",
+                      "referencedDeclaration": 120,
+                      "src": "3701:11:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_Arbitrator_$224",
+                        "typeIdentifier": "t_contract$_Arbitrator_$2373",
                         "typeString": "contract Arbitrator"
                       }
                     },
-                    "src": "3400:22:1",
+                    "src": "3688:24:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
                       "typeString": "contract Arbitrator"
                     }
                   },
-                  "id": 62,
+                  "id": 128,
                   "nodeType": "ExpressionStatement",
-                  "src": "3400:22:1"
+                  "src": "3688:24:2"
                 },
                 {
                   "expression": {
                     "argumentTypes": null,
-                    "id": 65,
+                    "id": 131,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
                     "lValueRequested": false,
                     "leftHandSide": {
                       "argumentTypes": null,
-                      "id": 63,
+                      "id": 129,
                       "name": "arbitratorExtraData",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7,
-                      "src": "3425:19:1",
+                      "referencedDeclaration": 65,
+                      "src": "3722:19:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bytes_storage",
                         "typeString": "bytes storage ref"
@@ -2165,117 +2358,63 @@
                     "operator": "=",
                     "rightHandSide": {
                       "argumentTypes": null,
-                      "id": 64,
+                      "id": 130,
                       "name": "_arbitratorExtraData",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 54,
-                      "src": "3445:20:1",
+                      "referencedDeclaration": 122,
+                      "src": "3744:20:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_bytes_memory_ptr",
                         "typeString": "bytes memory"
                       }
                     },
-                    "src": "3425:40:1",
+                    "src": "3722:42:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes_storage",
                       "typeString": "bytes storage ref"
                     }
                   },
-                  "id": 66,
+                  "id": 132,
                   "nodeType": "ExpressionStatement",
-                  "src": "3425:40:1"
-                },
-                {
-                  "expression": {
-                    "argumentTypes": null,
-                    "arguments": [
-                      {
-                        "argumentTypes": null,
-                        "id": 68,
-                        "name": "_contractHash",
-                        "nodeType": "Identifier",
-                        "overloadedDeclarations": [],
-                        "referencedDeclaration": 56,
-                        "src": "3488:13:1",
-                        "typeDescriptions": {
-                          "typeIdentifier": "t_bytes32",
-                          "typeString": "bytes32"
-                        }
-                      }
-                    ],
-                    "expression": {
-                      "argumentTypes": [
-                        {
-                          "typeIdentifier": "t_bytes32",
-                          "typeString": "bytes32"
-                        }
-                      ],
-                      "id": 67,
-                      "name": "ContractHash",
-                      "nodeType": "Identifier",
-                      "overloadedDeclarations": [],
-                      "referencedDeclaration": 50,
-                      "src": "3475:12:1",
-                      "typeDescriptions": {
-                        "typeIdentifier": "t_function_event_nonpayable$_t_bytes32_$returns$__$",
-                        "typeString": "function (bytes32)"
-                      }
-                    },
-                    "id": 69,
-                    "isConstant": false,
-                    "isLValue": false,
-                    "isPure": false,
-                    "kind": "functionCall",
-                    "lValueRequested": false,
-                    "names": [],
-                    "nodeType": "FunctionCall",
-                    "src": "3475:27:1",
-                    "typeDescriptions": {
-                      "typeIdentifier": "t_tuple$__$",
-                      "typeString": "tuple()"
-                    }
-                  },
-                  "id": 70,
-                  "nodeType": "ExpressionStatement",
-                  "src": "3475:27:1"
+                  "src": "3722:42:2"
                 }
               ]
             },
-            "documentation": "@dev Constructor. Choose the arbitrator.\n @param _arbitrator The arbitrator of the contract.\n @param _contractHash Keccak256 hash of the plain text contract.",
-            "id": 72,
+            "documentation": "@dev Constructor. Choose the arbitrator.\n @param _arbitrator The arbitrator of the contract.\n @param _arbitratorExtraData Extra data for the arbitrator.",
+            "id": 134,
             "implemented": true,
             "isConstructor": true,
             "isDeclaredConst": false,
             "modifiers": [],
-            "name": "Arbitrable",
+            "name": "",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 57,
+              "id": 123,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 52,
+                  "id": 120,
                   "name": "_arbitrator",
                   "nodeType": "VariableDeclaration",
-                  "scope": 72,
-                  "src": "3315:22:1",
+                  "scope": 134,
+                  "src": "3619:22:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_contract$_Arbitrator_$224",
+                    "typeIdentifier": "t_contract$_Arbitrator_$2373",
                     "typeString": "contract Arbitrator"
                   },
                   "typeName": {
                     "contractScope": null,
-                    "id": 51,
+                    "id": 119,
                     "name": "Arbitrator",
                     "nodeType": "UserDefinedTypeName",
-                    "referencedDeclaration": 224,
-                    "src": "3315:10:1",
+                    "referencedDeclaration": 2373,
+                    "src": "3619:10:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_Arbitrator_$224",
+                      "typeIdentifier": "t_contract$_Arbitrator_$2373",
                       "typeString": "contract Arbitrator"
                     }
                   },
@@ -2284,11 +2423,11 @@
                 },
                 {
                   "constant": false,
-                  "id": 54,
+                  "id": 122,
                   "name": "_arbitratorExtraData",
                   "nodeType": "VariableDeclaration",
-                  "scope": 72,
-                  "src": "3339:26:1",
+                  "scope": 134,
+                  "src": "3643:26:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -2296,10 +2435,10 @@
                     "typeString": "bytes"
                   },
                   "typeName": {
-                    "id": 53,
+                    "id": 121,
                     "name": "bytes",
                     "nodeType": "ElementaryTypeName",
-                    "src": "3339:5:1",
+                    "src": "3643:5:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes_storage_ptr",
                       "typeString": "bytes"
@@ -2307,57 +2446,31 @@
                   },
                   "value": null,
                   "visibility": "internal"
-                },
-                {
-                  "constant": false,
-                  "id": 56,
-                  "name": "_contractHash",
-                  "nodeType": "VariableDeclaration",
-                  "scope": 72,
-                  "src": "3367:21:1",
-                  "stateVariable": false,
-                  "storageLocation": "default",
-                  "typeDescriptions": {
-                    "typeIdentifier": "t_bytes32",
-                    "typeString": "bytes32"
-                  },
-                  "typeName": {
-                    "id": 55,
-                    "name": "bytes32",
-                    "nodeType": "ElementaryTypeName",
-                    "src": "3367:7:1",
-                    "typeDescriptions": {
-                      "typeIdentifier": "t_bytes32",
-                      "typeString": "bytes32"
-                    }
-                  },
-                  "value": null,
-                  "visibility": "internal"
                 }
               ],
-              "src": "3314:75:1"
+              "src": "3618:52:2"
             },
             "payable": false,
             "returnParameters": {
-              "id": 58,
+              "id": 124,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3390:0:1"
+              "src": "3678:0:2"
             },
-            "scope": 104,
-            "src": "3295:214:1",
+            "scope": 166,
+            "src": "3607:164:2",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
           },
           {
             "body": {
-              "id": 95,
+              "id": 157,
               "nodeType": "Block",
-              "src": "3972:118:1",
+              "src": "4239:115:2",
               "statements": [
                 {
-                  "expression": {
+                  "eventCall": {
                     "argumentTypes": null,
                     "arguments": [
                       {
@@ -2367,18 +2480,18 @@
                             "argumentTypes": null,
                             "expression": {
                               "argumentTypes": null,
-                              "id": 83,
+                              "id": 145,
                               "name": "msg",
                               "nodeType": "Identifier",
                               "overloadedDeclarations": [],
-                              "referencedDeclaration": 1416,
-                              "src": "4000:3:1",
+                              "referencedDeclaration": 9001,
+                              "src": "4272:3:2",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_magic_message",
                                 "typeString": "msg"
                               }
                             },
-                            "id": 84,
+                            "id": 146,
                             "isConstant": false,
                             "isLValue": false,
                             "isPure": false,
@@ -2386,7 +2499,7 @@
                             "memberName": "sender",
                             "nodeType": "MemberAccess",
                             "referencedDeclaration": null,
-                            "src": "4000:10:1",
+                            "src": "4272:10:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_address",
                               "typeString": "address"
@@ -2400,18 +2513,18 @@
                               "typeString": "address"
                             }
                           ],
-                          "id": 82,
+                          "id": 144,
                           "name": "Arbitrator",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 224,
-                          "src": "3989:10:1",
+                          "referencedDeclaration": 2373,
+                          "src": "4261:10:2",
                           "typeDescriptions": {
-                            "typeIdentifier": "t_type$_t_contract$_Arbitrator_$224_$",
+                            "typeIdentifier": "t_type$_t_contract$_Arbitrator_$2373_$",
                             "typeString": "type(contract Arbitrator)"
                           }
                         },
-                        "id": 85,
+                        "id": 147,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": false,
@@ -2419,20 +2532,20 @@
                         "lValueRequested": false,
                         "names": [],
                         "nodeType": "FunctionCall",
-                        "src": "3989:22:1",
+                        "src": "4261:22:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_Arbitrator_$224",
+                          "typeIdentifier": "t_contract$_Arbitrator_$2373",
                           "typeString": "contract Arbitrator"
                         }
                       },
                       {
                         "argumentTypes": null,
-                        "id": 86,
+                        "id": 148,
                         "name": "_disputeID",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 74,
-                        "src": "4012:10:1",
+                        "referencedDeclaration": 136,
+                        "src": "4284:10:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -2440,12 +2553,12 @@
                       },
                       {
                         "argumentTypes": null,
-                        "id": 87,
+                        "id": 149,
                         "name": "_ruling",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 76,
-                        "src": "4023:7:1",
+                        "referencedDeclaration": 138,
+                        "src": "4295:7:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -2455,7 +2568,7 @@
                     "expression": {
                       "argumentTypes": [
                         {
-                          "typeIdentifier": "t_contract$_Arbitrator_$224",
+                          "typeIdentifier": "t_contract$_Arbitrator_$2373",
                           "typeString": "contract Arbitrator"
                         },
                         {
@@ -2467,18 +2580,18 @@
                           "typeString": "uint256"
                         }
                       ],
-                      "id": 81,
+                      "id": 143,
                       "name": "Ruling",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 36,
-                      "src": "3982:6:1",
+                      "referencedDeclaration": 94,
+                      "src": "4254:6:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_function_event_nonpayable$_t_contract$_Arbitrator_$224_$_t_uint256_$_t_uint256_$returns$__$",
+                        "typeIdentifier": "t_function_event_nonpayable$_t_contract$_Arbitrator_$2373_$_t_uint256_$_t_uint256_$returns$__$",
                         "typeString": "function (contract Arbitrator,uint256,uint256)"
                       }
                     },
-                    "id": 88,
+                    "id": 150,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -2486,15 +2599,15 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "3982:49:1",
+                    "src": "4254:49:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 89,
-                  "nodeType": "ExpressionStatement",
-                  "src": "3982:49:1"
+                  "id": 151,
+                  "nodeType": "EmitStatement",
+                  "src": "4249:54:2"
                 },
                 {
                   "expression": {
@@ -2502,12 +2615,12 @@
                     "arguments": [
                       {
                         "argumentTypes": null,
-                        "id": 91,
+                        "id": 153,
                         "name": "_disputeID",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 74,
-                        "src": "4064:10:1",
+                        "referencedDeclaration": 136,
+                        "src": "4328:10:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -2515,12 +2628,12 @@
                       },
                       {
                         "argumentTypes": null,
-                        "id": 92,
+                        "id": 154,
                         "name": "_ruling",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 76,
-                        "src": "4075:7:1",
+                        "referencedDeclaration": 138,
+                        "src": "4339:7:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
@@ -2538,18 +2651,18 @@
                           "typeString": "uint256"
                         }
                       ],
-                      "id": 90,
+                      "id": 152,
                       "name": "executeRuling",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 103,
-                      "src": "4050:13:1",
+                      "referencedDeclaration": 165,
+                      "src": "4314:13:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_internal_nonpayable$_t_uint256_$_t_uint256_$returns$__$",
                         "typeString": "function (uint256,uint256)"
                       }
                     },
-                    "id": 93,
+                    "id": 155,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -2557,57 +2670,57 @@
                     "lValueRequested": false,
                     "names": [],
                     "nodeType": "FunctionCall",
-                    "src": "4050:33:1",
+                    "src": "4314:33:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_tuple$__$",
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 94,
+                  "id": 156,
                   "nodeType": "ExpressionStatement",
-                  "src": "4050:33:1"
+                  "src": "4314:33:2"
                 }
               ]
             },
-            "documentation": "@dev Give a ruling for a dispute. Must be call by the arbitrator.\n The purpose of this function is to ensure that the address calling it has the right to rule on the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".",
-            "id": 96,
+            "documentation": "@dev Give a ruling for a dispute. Must be called by the arbitrator.\n The purpose of this function is to ensure that the address calling it has the right to rule on the contract.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".",
+            "id": 158,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
             "modifiers": [
               {
                 "arguments": null,
-                "id": 79,
+                "id": 141,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 78,
+                  "id": 140,
                   "name": "onlyArbitrator",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 20,
-                  "src": "3957:14:1",
+                  "referencedDeclaration": 78,
+                  "src": "4224:14:2",
                   "typeDescriptions": {
                     "typeIdentifier": "t_modifier$__$",
                     "typeString": "modifier ()"
                   }
                 },
                 "nodeType": "ModifierInvocation",
-                "src": "3957:14:1"
+                "src": "4224:14:2"
               }
             ],
             "name": "rule",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 77,
+              "id": 139,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 74,
+                  "id": 136,
                   "name": "_disputeID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 96,
-                  "src": "3926:15:1",
+                  "scope": 158,
+                  "src": "4186:15:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -2615,10 +2728,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 73,
+                    "id": 135,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "3926:4:1",
+                    "src": "4186:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -2629,11 +2742,11 @@
                 },
                 {
                   "constant": false,
-                  "id": 76,
+                  "id": 138,
                   "name": "_ruling",
                   "nodeType": "VariableDeclaration",
-                  "scope": 96,
-                  "src": "3943:12:1",
+                  "scope": 158,
+                  "src": "4203:12:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -2641,10 +2754,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 75,
+                    "id": 137,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "3943:4:1",
+                    "src": "4203:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -2654,17 +2767,17 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "3925:31:1"
+              "src": "4185:31:2"
             },
             "payable": false,
             "returnParameters": {
-              "id": 80,
+              "id": 142,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "3972:0:1"
+              "src": "4239:0:2"
             },
-            "scope": 104,
-            "src": "3912:178:1",
+            "scope": 166,
+            "src": "4172:182:2",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
@@ -2672,7 +2785,7 @@
           {
             "body": null,
             "documentation": "@dev Execute a ruling of a dispute.\n @param _disputeID ID of the dispute in the Arbitrator contract.\n @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for \"Not able/wanting to make a decision\".",
-            "id": 103,
+            "id": 165,
             "implemented": false,
             "isConstructor": false,
             "isDeclaredConst": false,
@@ -2680,16 +2793,16 @@
             "name": "executeRuling",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 101,
+              "id": 163,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 98,
+                  "id": 160,
                   "name": "_disputeID",
                   "nodeType": "VariableDeclaration",
-                  "scope": 103,
-                  "src": "4374:15:1",
+                  "scope": 165,
+                  "src": "4630:15:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -2697,10 +2810,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 97,
+                    "id": 159,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "4374:4:1",
+                    "src": "4630:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -2711,11 +2824,11 @@
                 },
                 {
                   "constant": false,
-                  "id": 100,
+                  "id": 162,
                   "name": "_ruling",
                   "nodeType": "VariableDeclaration",
-                  "scope": 103,
-                  "src": "4391:12:1",
+                  "scope": 165,
+                  "src": "4647:12:2",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -2723,10 +2836,10 @@
                     "typeString": "uint256"
                   },
                   "typeName": {
-                    "id": 99,
+                    "id": 161,
                     "name": "uint",
                     "nodeType": "ElementaryTypeName",
-                    "src": "4391:4:1",
+                    "src": "4647:4:2",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
@@ -2736,33 +2849,33 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "4373:31:1"
+              "src": "4629:31:2"
             },
             "payable": false,
             "returnParameters": {
-              "id": 102,
+              "id": 164,
               "nodeType": "ParameterList",
               "parameters": [],
-              "src": "4413:0:1"
+              "src": "4669:0:2"
             },
-            "scope": 104,
-            "src": "4351:63:1",
+            "scope": 166,
+            "src": "4607:63:2",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "internal"
           }
         ],
-        "scope": 105,
-        "src": "632:3784:1"
+        "scope": 167,
+        "src": "632:4040:2"
       }
     ],
-    "src": "156:4263:1"
+    "src": "156:4517:2"
   },
   "compiler": {
     "name": "solc",
-    "version": "0.4.23+commit.124ca40d.Emscripten.clang"
+    "version": "0.4.24+commit.e67f0147.Emscripten.clang"
   },
   "networks": {},
-  "schemaVersion": "2.0.0",
-  "updatedAt": "2018-07-13T16:46:19.462Z"
+  "schemaVersion": "2.0.1",
+  "updatedAt": "2018-07-17T16:56:20.215Z"
 }

@@ -31,14 +31,14 @@
     "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/permission/PermissionInterface.sol",
     "exportedSymbols": {
       "PermissionInterface": [
-        1401
+        6338
       ]
     },
-    "id": 1402,
+    "id": 6339,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 1393,
+        "id": 6330,
         "literals": [
           "solidity",
           "^",
@@ -46,7 +46,7 @@
           ".15"
         ],
         "nodeType": "PragmaDirective",
-        "src": "94:24:6"
+        "src": "94:24:19"
       },
       {
         "baseContracts": [],
@@ -54,9 +54,9 @@
         "contractKind": "interface",
         "documentation": " @title Permission Interface\n This is a permission interface for arbitrary values. The values can be cast to the required types.",
         "fullyImplemented": false,
-        "id": 1401,
+        "id": 6338,
         "linearizedBaseContracts": [
-          1401
+          6338
         ],
         "name": "PermissionInterface",
         "nodeType": "ContractDefinition",
@@ -64,7 +64,7 @@
           {
             "body": null,
             "documentation": " @dev Return true if the value is allowed.\n @param _value The value we want to check.\n @return allowed True if the value is allowed, false otherwise.",
-            "id": 1400,
+            "id": 6337,
             "implemented": false,
             "isConstructor": false,
             "isDeclaredConst": true,
@@ -72,16 +72,16 @@
             "name": "isPermitted",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 1396,
+              "id": 6333,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 1395,
+                  "id": 6332,
                   "name": "_value",
                   "nodeType": "VariableDeclaration",
-                  "scope": 1400,
-                  "src": "526:14:6",
+                  "scope": 6337,
+                  "src": "526:14:19",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -89,10 +89,10 @@
                     "typeString": "bytes32"
                   },
                   "typeName": {
-                    "id": 1394,
+                    "id": 6331,
                     "name": "bytes32",
                     "nodeType": "ElementaryTypeName",
-                    "src": "526:7:6",
+                    "src": "526:7:19",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes32",
                       "typeString": "bytes32"
@@ -102,20 +102,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "525:16:6"
+              "src": "525:16:19"
             },
             "payable": false,
             "returnParameters": {
-              "id": 1399,
+              "id": 6336,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 1398,
+                  "id": 6335,
                   "name": "allowed",
                   "nodeType": "VariableDeclaration",
-                  "scope": 1400,
-                  "src": "565:12:6",
+                  "scope": 6337,
+                  "src": "565:12:19",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -123,10 +123,10 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 1397,
+                    "id": 6334,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
-                    "src": "565:4:6",
+                    "src": "565:4:19",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
@@ -136,33 +136,33 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "564:14:6"
+              "src": "564:14:19"
             },
-            "scope": 1401,
-            "src": "505:74:6",
+            "scope": 6338,
+            "src": "505:74:19",
             "stateMutability": "view",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 1402,
-        "src": "263:318:6"
+        "scope": 6339,
+        "src": "263:318:19"
       }
     ],
-    "src": "94:488:6"
+    "src": "94:488:19"
   },
   "legacyAST": {
     "absolutePath": "/Users/epiqueras/Work/kleros/kleros-interaction/contracts/standard/permission/PermissionInterface.sol",
     "exportedSymbols": {
       "PermissionInterface": [
-        1401
+        6338
       ]
     },
-    "id": 1402,
+    "id": 6339,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 1393,
+        "id": 6330,
         "literals": [
           "solidity",
           "^",
@@ -170,7 +170,7 @@
           ".15"
         ],
         "nodeType": "PragmaDirective",
-        "src": "94:24:6"
+        "src": "94:24:19"
       },
       {
         "baseContracts": [],
@@ -178,9 +178,9 @@
         "contractKind": "interface",
         "documentation": " @title Permission Interface\n This is a permission interface for arbitrary values. The values can be cast to the required types.",
         "fullyImplemented": false,
-        "id": 1401,
+        "id": 6338,
         "linearizedBaseContracts": [
-          1401
+          6338
         ],
         "name": "PermissionInterface",
         "nodeType": "ContractDefinition",
@@ -188,7 +188,7 @@
           {
             "body": null,
             "documentation": " @dev Return true if the value is allowed.\n @param _value The value we want to check.\n @return allowed True if the value is allowed, false otherwise.",
-            "id": 1400,
+            "id": 6337,
             "implemented": false,
             "isConstructor": false,
             "isDeclaredConst": true,
@@ -196,16 +196,16 @@
             "name": "isPermitted",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 1396,
+              "id": 6333,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 1395,
+                  "id": 6332,
                   "name": "_value",
                   "nodeType": "VariableDeclaration",
-                  "scope": 1400,
-                  "src": "526:14:6",
+                  "scope": 6337,
+                  "src": "526:14:19",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -213,10 +213,10 @@
                     "typeString": "bytes32"
                   },
                   "typeName": {
-                    "id": 1394,
+                    "id": 6331,
                     "name": "bytes32",
                     "nodeType": "ElementaryTypeName",
-                    "src": "526:7:6",
+                    "src": "526:7:19",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bytes32",
                       "typeString": "bytes32"
@@ -226,20 +226,20 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "525:16:6"
+              "src": "525:16:19"
             },
             "payable": false,
             "returnParameters": {
-              "id": 1399,
+              "id": 6336,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 1398,
+                  "id": 6335,
                   "name": "allowed",
                   "nodeType": "VariableDeclaration",
-                  "scope": 1400,
-                  "src": "565:12:6",
+                  "scope": 6337,
+                  "src": "565:12:19",
                   "stateVariable": false,
                   "storageLocation": "default",
                   "typeDescriptions": {
@@ -247,10 +247,10 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 1397,
+                    "id": 6334,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
-                    "src": "565:4:6",
+                    "src": "565:4:19",
                     "typeDescriptions": {
                       "typeIdentifier": "t_bool",
                       "typeString": "bool"
@@ -260,26 +260,26 @@
                   "visibility": "internal"
                 }
               ],
-              "src": "564:14:6"
+              "src": "564:14:19"
             },
-            "scope": 1401,
-            "src": "505:74:6",
+            "scope": 6338,
+            "src": "505:74:19",
             "stateMutability": "view",
             "superFunction": null,
             "visibility": "external"
           }
         ],
-        "scope": 1402,
-        "src": "263:318:6"
+        "scope": 6339,
+        "src": "263:318:19"
       }
     ],
-    "src": "94:488:6"
+    "src": "94:488:19"
   },
   "compiler": {
     "name": "solc",
-    "version": "0.4.23+commit.124ca40d.Emscripten.clang"
+    "version": "0.4.24+commit.e67f0147.Emscripten.clang"
   },
   "networks": {},
-  "schemaVersion": "2.0.0",
-  "updatedAt": "2018-07-13T16:46:19.466Z"
+  "schemaVersion": "2.0.1",
+  "updatedAt": "2018-07-17T16:56:20.250Z"
 }
