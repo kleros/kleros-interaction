@@ -17,10 +17,18 @@ import "./Arbitrable.sol";
  */
 contract Arbitrator{
 
+    uint public maxAppeals; // Number of times a dispute can be appealed.
     enum DisputeStatus {Waiting, Appealable, Solved}
 
     modifier requireArbitrationFee(bytes _extraData) {require(msg.value>=arbitrationCost(_extraData)); _;}
     modifier requireAppealFee(uint _disputeID, bytes _extraData) {require(msg.value>=appealCost(_disputeID, _extraData)); _;}
+
+    /** @dev Constructor.
+     *  @param _maxAppeals Number of times a dispute can be appealed.
+     */
+    constructor(uint _maxAppeals) public {
+      maxAppeals = _maxAppeals;
+    }
 
     /** @dev To be raised when a dispute can be appealed.
      *  @param _disputeID ID of the dispute.
