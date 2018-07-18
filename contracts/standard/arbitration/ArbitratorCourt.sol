@@ -48,7 +48,6 @@ contract ArbitratorCourt is Arbitrator {
     address public owner = msg.sender;
 
     // Courts
-    uint256 maxLocalAppeals;
     Court parent; // Appeal to this arbitrator if it is set, otherwise reject appeal and finalize decision.
     Court[] subCourts;
 
@@ -66,12 +65,10 @@ contract ArbitratorCourt is Arbitrator {
 
     /**
      *  @notice Constructs the arbitrator court with an initial parent and the maximum number of local appeals.
-     *  @param _maxLocalAppeals The maximum number of local appeals.
      *  @param _parentName The name of the `parent`.
      *  @param _parentAddress The address of the `parent`.
      */
-    constructor(uint256 _maxLocalAppeals, string _parentName, Arbitrator _parentAddress) public {
-        maxLocalAppeals = _maxLocalAppeals;
+    constructor(string _parentName, Arbitrator _parentAddress) public {
         parent = Court({ name: _parentName, _address: _parentAddress });
     }
 
