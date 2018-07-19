@@ -37,8 +37,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         uint lastAction; // Time of the last action.
         address submitter; // Address of the submitter, if any.
         address challenger; // Address of the challenger, if any.
-        // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
-        uint balance;
+        uint balance; // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
         bool disputed; // True if a dispute is taking place.
         uint disputeID; // ID of the dispute, if any.
     }
@@ -51,14 +50,14 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @param challenger Address of the challenger, if any.
      *  @param value The value of the item.
      *  @param newStatus The new status of the item.
-     *  @param newDisputed The new disputed state of the item.
+     *  @param disputed The item is being disputed.
      */
     event ItemStatusChange(
         address indexed submitter,
         address indexed challenger,
         bytes32 indexed value,
         ItemStatus newStatus,
-        bool newDisputed
+        bool disputed
     );
 
     /* Storage */
@@ -110,10 +109,10 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /* Public */
 
     /**
-     *  @dev Request an item to be registered.
+     *  @dev Request for an item to be registered.
      *  @param _value The value of the item to register.
      */
-    function requestRegistering(bytes32 _value) public payable {
+    function requestRegisterItem(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -138,7 +137,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @dev Request an item to be cleared.
      *  @param _value The value of the item to clear.
      */
-    function requestClearing(bytes32 _value) public payable {
+    function requestClearItem(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(!appendOnly);
@@ -159,10 +158,10 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     }
 
     /**
-     *  @dev Challenge a registering request.
+     *  @dev Challenge a registration request.
      *  @param _value The value of the item subject to the registering request.
      */
-    function challengeRegistering(bytes32 _value) public payable {
+    function challengeRegisterItem(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -195,7 +194,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @dev Challenge a clearing request.
      *  @param _value The value of the item subject to the clearing request.
      */
-    function challengeClearing(bytes32 _value) public payable {
+    function challengeClearItem(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -263,9 +262,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function isPermitted(bytes32 _value) public view returns (bool allowed) {
         Item storage item = items[_value];
-        bool _registered = item.status <= ItemStatus.Resubmitted ||
+        bool _offList = item.status <= ItemStatus.Resubmitted ||
             (item.status == ItemStatus.PreventiveClearingRequested && !item.disputed);
-        return blacklist ? !_registered : _registered;
+        return blacklist ? _offList : !_offList; // Items off of blacklist should return as true.
     }
 
     /* Internal */
