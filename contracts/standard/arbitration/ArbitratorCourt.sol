@@ -64,7 +64,7 @@ contract ArbitratorCourt is Arbitrator {
     /* Constructor */
 
     /**
-     *  @notice Constructs the arbitrator court with an initial parent and the maximum number of local appeals.
+     *  @notice Constructs the arbitrator court with an initial parent.
      *  @param _parentName The name of the `parent`.
      *  @param _parentAddress The address of the `parent`.
      */
