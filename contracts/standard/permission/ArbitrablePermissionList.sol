@@ -2,7 +2,6 @@
  *  @title Arbitrable Permission List
  *  @author Clément Lesaege - <clement@lesaege.com>
  *  This code hasn't undertaken bug bounty programs yet.
- *  This code requires truffle tests.
  */
 
 pragma solidity ^0.4.23;
