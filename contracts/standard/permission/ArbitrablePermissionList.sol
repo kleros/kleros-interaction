@@ -49,14 +49,14 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @param submitter Address of the submitter, if any.
      *  @param challenger Address of the challenger, if any.
      *  @param value The value of the item.
-     *  @param newStatus The new status of the item.
+     *  @param status The status of the item.
      *  @param disputed The item is being disputed.
      */
     event ItemStatusChange(
         address indexed submitter,
         address indexed challenger,
         bytes32 indexed value,
-        ItemStatus newStatus,
+        ItemStatus status,
         bool disputed
     );
 
@@ -112,7 +112,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @dev Request for an item to be registered.
      *  @param _value The value of the item to register.
      */
-    function requestRegisterItem(bytes32 _value) public payable {
+    function requestRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -137,7 +137,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @dev Request an item to be cleared.
      *  @param _value The value of the item to clear.
      */
-    function requestClearItem(bytes32 _value) public payable {
+    function requestClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(!appendOnly);
@@ -161,7 +161,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @dev Challenge a registration request.
      *  @param _value The value of the item subject to the registering request.
      */
-    function challengeRegisterItem(bytes32 _value) public payable {
+    function challengeRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -194,7 +194,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @dev Challenge a clearing request.
      *  @param _value The value of the item subject to the clearing request.
      */
-    function challengeClearItem(bytes32 _value) public payable {
+    function challengeClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -262,9 +262,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function isPermitted(bytes32 _value) public view returns (bool allowed) {
         Item storage item = items[_value];
-        bool _offList = item.status <= ItemStatus.Resubmitted ||
+        bool _excluded = item.status <= ItemStatus.Resubmitted ||
             (item.status == ItemStatus.PreventiveClearingRequested && !item.disputed);
-        return blacklist ? _offList : !_offList; // Items off of blacklist should return as true.
+        return blacklist ? _excluded : !_excluded; // Items excluded from blacklist should return true.
     }
 
     /* Internal */
