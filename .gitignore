@@ -18,6 +18,9 @@ local.properties
 .loadpath
 .recommenders
 
+# Truffle build directory
+build/
+
 # External tool builders
 .externalToolBuilders/
 
