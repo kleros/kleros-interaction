@@ -68,7 +68,7 @@ contract('ArbitrablePermissionList', function(accounts) {
     });
 
     before('populate the list', async function (){
-      await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+      await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
         from: partyA,
         value: stake + arbitrationCost
       })
@@ -169,8 +169,8 @@ contract('ArbitrablePermissionList', function(accounts) {
         describe('msg.value restrictions', function() {
           describe('Should revert when msg.value < stake+arbitratorCost', function() {
 
-            it('requestRegistering', async () => {
-              await expectThrow(arbitrablePermissionList.requestRegistering(
+            it('requestRegistration', async () => {
+              await expectThrow(arbitrablePermissionList.requestRegistration(
                 ARBITRARY_STRING, {
                   from: arbitrator,
                   value: stake + arbitrationCost - 1
@@ -185,8 +185,8 @@ contract('ArbitrablePermissionList', function(accounts) {
                 }))
             });
 
-            it('challengeRegistering', async () => {
-              await expectThrow(arbitrablePermissionList.challengeRegistering(
+            it('challengeRegistration', async () => {
+              await expectThrow(arbitrablePermissionList.challengeRegistration(
                 ARBITRARY_STRING, {
                   from: arbitrator,
                   value: stake + arbitrationCost - 1
@@ -194,7 +194,7 @@ contract('ArbitrablePermissionList', function(accounts) {
             });
 
             it('challengeClearing', async () => {
-              await expectThrow(arbitrablePermissionList.challengeRegistering(
+              await expectThrow(arbitrablePermissionList.challengeRegistration(
                 ARBITRARY_STRING, {
                   from: arbitrator,
                   value: stake + arbitrationCost - 1
@@ -206,12 +206,12 @@ contract('ArbitrablePermissionList', function(accounts) {
         describe('When item.disputed', function() {
 
           beforeEach('prepare pre-conditions to satisfy other requirements', async function() {
-            await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+            await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             }); // To satisfy `require(item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)`
 
-            await arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+            await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             }) // To dissatisfy `require(!item.disputed)`
@@ -222,8 +222,8 @@ contract('ArbitrablePermissionList', function(accounts) {
 
             assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[5], true)
           });
-          it('challengeRegistering', async () => {
-            await expectThrow(arbitrablePermissionList.challengeRegistering(
+          it('challengeRegistration', async () => {
+            await expectThrow(arbitrablePermissionList.challengeRegistration(
               ARBITRARY_STRING, {
                 from: arbitrator,
                 value: stake + arbitrationCost
@@ -245,8 +245,8 @@ contract('ArbitrablePermissionList', function(accounts) {
             assert.ok((await arbitrablePermissionList.items(ARBITRARY_STRING))[0] < ITEM_STATUS.CLEARING_REQUESTED)
           });
 
-          it('challengeRegistering', async function() {
-            await expectThrow(arbitrablePermissionList.challengeRegistering(
+          it('challengeRegistration', async function() {
+            await expectThrow(arbitrablePermissionList.challengeRegistration(
               ARBITRARY_STRING, {
                 from: arbitrator,
                 value: stake + arbitrationCost
@@ -270,12 +270,12 @@ contract('ArbitrablePermissionList', function(accounts) {
 
           });
 
-          it('calling isPermitted should return ' + (!blacklist), async () => {
-            assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
+          it('calling isPermitted should return ' + (blacklist), async () => {
+            assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), blacklist)
           });
 
-          it('calling requestRegistering should move item into the submitted state', async () => {
-            await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+          it('calling requestRegistration should move item into the submitted state', async () => {
+            await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             });
@@ -303,7 +303,7 @@ contract('ArbitrablePermissionList', function(accounts) {
 
 
           it('calling challangeBlacklisting should revert', async () => {
-            await expectThrow(arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+            await expectThrow(arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             }))
@@ -327,7 +327,7 @@ contract('ArbitrablePermissionList', function(accounts) {
           describe('When item in cleared state', function() {
 
             beforeEach('prepare pre-conditions', async function() {
-              await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+              await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
                 from: arbitrator,
                 value: stake + arbitrationCost
               });
@@ -347,12 +347,12 @@ contract('ArbitrablePermissionList', function(accounts) {
               assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0], ITEM_STATUS.CLEARED)
             });
 
-            it('calling isPermitted should return ' + (!blacklist), async () => {
-              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
+            it('calling isPermitted should return ' + (blacklist), async () => {
+              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), blacklist)
             });
 
-            it('calling requestRegistering should move item into the resubmitted state', async () => {
-              await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+            it('calling requestRegistration should move item into the resubmitted state', async () => {
+              await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
                 from: arbitrator,
                 value: stake + arbitrationCost
               });
@@ -368,7 +368,7 @@ contract('ArbitrablePermissionList', function(accounts) {
             });
 
             it('calling challangeBlacklisting should revert', async () => {
-              await expectThrow(arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+              await expectThrow(arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
                 from: arbitrator,
                 value: stake + arbitrationCost
               }))
@@ -394,7 +394,7 @@ contract('ArbitrablePermissionList', function(accounts) {
           describe('When item in resubmitted state', function() {
 
             beforeEach('prepare pre-conditions', async function() {
-              await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+              await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
                 from: partyA,
                 value: stake + arbitrationCost
               });
@@ -408,7 +408,7 @@ contract('ArbitrablePermissionList', function(accounts) {
               await arbitrablePermissionList.executeRequest(ARBITRARY_STRING, {
                 from: partyB
               });
-              await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+              await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
                 from: partyA,
                 value: stake + arbitrationCost
               })
@@ -419,12 +419,12 @@ contract('ArbitrablePermissionList', function(accounts) {
 
             });
 
-            it('calling isPermitted should return true ' + (!blacklist), async () => {
-              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
+            it('calling isPermitted should return true ' + (blacklist), async () => {
+              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), blacklist)
             });
 
-            it('calling requestRegistering should revert', async () => {
-              await expectThrow(arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+            it('calling requestRegistration should revert', async () => {
+              await expectThrow(arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
                 from: arbitrator,
                 value: stake + arbitrationCost
               }))
@@ -440,7 +440,7 @@ contract('ArbitrablePermissionList', function(accounts) {
             it('calling challengeBlacklisting should create a dispute', async function() {
               let itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4].toNumber();
 
-              await arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+              await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
                 from: arbitrator,
                 value: stake + arbitrationCost
               });
@@ -471,7 +471,7 @@ contract('ArbitrablePermissionList', function(accounts) {
               let disputeID;
 
               beforeEach('create a dispute', async function() {
-                await arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+                await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
                   from: partyB,
                   value: stake + arbitrationCost
                 });
@@ -543,7 +543,7 @@ contract('ArbitrablePermissionList', function(accounts) {
         describe('When item in registered state', function() {
 
           beforeEach('prepare pre-conditions', async function() {
-            await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+            await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             });
@@ -556,12 +556,12 @@ contract('ArbitrablePermissionList', function(accounts) {
             assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0], ITEM_STATUS.REGISTERED)
           });
 
-          it('calling isPermitted should return ' + (blacklist), async () => {
-            assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), blacklist)
+          it('calling isPermitted should return ' + (!blacklist), async () => {
+            assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
           });
 
-          it('calling requestRegistering should revert', async () => {
-            await expectThrow(arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+          it('calling requestRegistration should revert', async () => {
+            await expectThrow(arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             }))
@@ -587,8 +587,8 @@ contract('ArbitrablePermissionList', function(accounts) {
             })
           }
 
-          it('calling challengeRegistering should revert', async () => {
-            await expectThrow(arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+          it('calling challengeRegistration should revert', async () => {
+            await expectThrow(arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             }))
@@ -611,7 +611,7 @@ contract('ArbitrablePermissionList', function(accounts) {
         describe('When item in submitted state', function() {
 
           beforeEach('prepare pre-conditions', async function() {
-            await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+            await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             })
@@ -621,12 +621,12 @@ contract('ArbitrablePermissionList', function(accounts) {
             assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.SUBMITTED)
           });
 
-          it('calling isPermitted should return ' + (blacklist), async () => {
-            assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), blacklist)
+          it('calling isPermitted should return ' + (!blacklist), async () => {
+            assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
           });
 
-          it('calling requestRegistering should revert', async () => {
-            await expectThrow(arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+          it('calling requestRegistration should revert', async () => {
+            await expectThrow(arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             }))
@@ -642,7 +642,7 @@ contract('ArbitrablePermissionList', function(accounts) {
           it('calling challangeBlacklisting should create a dispute', async function() {
             let itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4].toNumber();
 
-            await arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+            await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
               from: arbitrator,
               value: stake + arbitrationCost
             });
@@ -674,7 +674,7 @@ contract('ArbitrablePermissionList', function(accounts) {
             let disputeID;
 
             beforeEach('create a dispute', async function() {
-              await arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+              await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
                 from: partyB,
                 value: stake + arbitrationCost
               });
@@ -748,7 +748,7 @@ contract('ArbitrablePermissionList', function(accounts) {
           describe('When item in clearing requested state', function() {
 
             beforeEach('prepare pre-conditions', async function() {
-              await arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+              await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
                 from: partyA,
                 value: stake + arbitrationCost
               });
@@ -765,12 +765,12 @@ contract('ArbitrablePermissionList', function(accounts) {
               assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARING_REQUESTED)
             });
 
-            it('calling isPermitted should return ' + (blacklist), async () => {
-              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), blacklist)
+            it('calling isPermitted should return ' + (!blacklist), async () => {
+              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
             });
 
-            it('calling requestRegistering should revert', async () => {
-              await expectThrow(arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+            it('calling requestRegistration should revert', async () => {
+              await expectThrow(arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
                 from: partyA,
                 value: stake + arbitrationCost
               }))
@@ -783,8 +783,8 @@ contract('ArbitrablePermissionList', function(accounts) {
               }))
             });
 
-            it('calling challengeRegistering should revert', async () => {
-              await expectThrow(arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+            it('calling challengeRegistration should revert', async () => {
+              await expectThrow(arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
                 from: partyB,
                 value: stake + arbitrationCost
               }))
@@ -900,8 +900,8 @@ contract('ArbitrablePermissionList', function(accounts) {
               assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.PREVENTIVE_CLEARING_REQUESTED)
             });
 
-            it('calling isPermitted on a not-disputed item should return ' + (!blacklist), async () => {
-              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
+            it('calling isPermitted on a not-disputed item should return ' + (blacklist), async () => {
+              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), blacklist)
             });
 
             it('calling isPermitted on a disputed item should return ' + (blacklist), async () => {
@@ -910,11 +910,11 @@ contract('ArbitrablePermissionList', function(accounts) {
                 value: stake + arbitrationCost
               }); // To satisfy disputed pre-condition
 
-              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), blacklist)
+              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
             });
 
-            it('calling requestRegistering should revert', async () => {
-              await expectThrow(arbitrablePermissionList.requestRegistering(ARBITRARY_STRING, {
+            it('calling requestRegistration should revert', async () => {
+              await expectThrow(arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
                 from: partyA,
                 value: stake + arbitrationCost
               }))
@@ -927,8 +927,8 @@ contract('ArbitrablePermissionList', function(accounts) {
               }))
             });
 
-            it('calling challengeRegistering should revert', async () => {
-              await expectThrow(arbitrablePermissionList.challengeRegistering(ARBITRARY_STRING, {
+            it('calling challengeRegistration should revert', async () => {
+              await expectThrow(arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
                 from: partyB,
                 value: stake + arbitrationCost
               }))
