@@ -18,7 +18,7 @@ contract ArbitratorCourt is Arbitrator {
     /* Events */
 
     /**
-     * @notice Called whenever the `parent` court changes for off-chain handling.
+     * @dev Called whenever the `parent` court changes for off-chain handling.
      * @param _prevParentName The previous `parent`'s name.
      * @param _prevParentAddress The previous `parent`'s address.
      * @param _nextParentName The next `parent`'s name.
@@ -27,7 +27,7 @@ contract ArbitratorCourt is Arbitrator {
     event OnParentChange(string _prevParentName, Arbitrator _prevParentAddress, string _nextParentName, Arbitrator _nextParentAddress);
 
     /**
-     * @notice Called whenever a sub court is added.
+     * @dev Called whenever a sub court is added.
      * @param _subCourtIndex The subcourt's index in this court.
      * @param _subCourtName The subcourt's name.
      * @param _subCourtAddress The subcourt's address.
@@ -35,7 +35,7 @@ contract ArbitratorCourt is Arbitrator {
     event OnSubCourtAdd(uint256 _subCourtIndex, string _subCourtName, Arbitrator _subCourtAddress);
 
     /**
-     * @notice Called whenever a sub court is removed.
+     * @dev Called whenever a sub court is removed.
      * @param _subCourtIndex The subcourt's index in this court.
      * @param _subCourtName The subcourt's name.
      * @param _subCourtAddress The subcourt's address.
@@ -64,7 +64,7 @@ contract ArbitratorCourt is Arbitrator {
     /* Constructor */
 
     /**
-     *  @notice Constructs the arbitrator court with an initial parent.
+     *  @dev Constructs the arbitrator court with an initial parent.
      *  @param _parentName The name of the `parent`.
      *  @param _parentAddress The address of the `parent`.
      */
@@ -75,7 +75,7 @@ contract ArbitratorCourt is Arbitrator {
     /* External */
 
     /**
-     * @notice Sets the `parent` court.
+     * @dev Sets the `parent` court.
      * @param _nextParentName The next `parent`'s name.
      * @param _nextParentAddress The next `parent`'s address.
      */
@@ -88,7 +88,7 @@ contract ArbitratorCourt is Arbitrator {
     }
 
     /**
-     * @notice Adds a new sub court.
+     * @dev Adds a new sub court.
      * @param _subCourtName The subcourt's name.
      * @param _subCourtAddress The subcourt's address.
      */
@@ -98,7 +98,7 @@ contract ArbitratorCourt is Arbitrator {
     }
 
     /**
-     * @notice Removes a sub court.
+     * @dev Removes a sub court.
      * @param _subCourtIndex The subcourt's index.
      */
     function removeSubCourt(uint256 _subCourtIndex) external onlyOwner {
