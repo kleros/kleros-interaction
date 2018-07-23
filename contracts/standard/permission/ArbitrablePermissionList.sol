@@ -111,8 +111,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /**
      *  @dev Request for an item to be registered.
      *  @param _value The value of the item to register.
+     *  @param _metaEvidence The URL of the meta evidence object.
      */
-    function requestRegistration(bytes32 _value) public payable {
+    function requestRegistration(bytes32 _value, string _metaEvidence) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -124,7 +125,10 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         else
             revert(); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
 
-        if (item.lastAction == 0) itemsList.push(_value);
+        if (item.lastAction == 0) {
+            itemsList.push(_value);
+            emit MetaEvidence(uint(_value), _metaEvidence);
+        }
 
         item.submitter = msg.sender;
         item.balance += msg.value;
@@ -136,8 +140,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /**
      *  @dev Request an item to be cleared.
      *  @param _value The value of the item to clear.
+     *  @param _metaEvidence The URL of the meta evidence object.
      */
-    function requestClearing(bytes32 _value) public payable {
+    function requestClearing(bytes32 _value, string _metaEvidence) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(!appendOnly);
@@ -149,6 +154,11 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.status = ItemStatus.PreventiveClearingRequested;
         else
             revert(); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
+        
+        if (item.lastAction == 0) {
+            itemsList.push(_value);
+            emit MetaEvidence(uint(_value), _metaEvidence);
+        }
 
         item.submitter = msg.sender;
         item.balance += msg.value;
@@ -174,6 +184,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
+            emit LinkMetaEvidence(arbitrator, item.disputeID, uint(_value));
         } else { // In the case the arbitration fees increase so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.Resubmitted)
                 item.status = ItemStatus.Cleared;
@@ -207,6 +218,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
+            emit LinkMetaEvidence(arbitrator, item.disputeID, uint(_value));
         } else { // In the case the arbitration fees increase so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.ClearingRequested)
                 item.status = ItemStatus.Registered;
