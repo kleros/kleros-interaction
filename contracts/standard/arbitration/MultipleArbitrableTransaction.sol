@@ -17,7 +17,7 @@ import "./Arbitrator.sol";
 
 
 
-    uint8 constant AMOUNT_OF_CHOICES = 2;
+    uint8 constant NUMBER_OF_CHOICES = 2;
     uint8 constant BUYER_WINS = 1;
     uint8 constant SELLER_WINS = 2;
 
@@ -155,7 +155,7 @@ import "./Arbitrator.sol";
     function raiseDispute(uint _transactionId, uint _arbitrationCost) internal {
         Transaction storage transaction = transactions[_transactionId];
         transaction.status = Status.DisputeCreated;
-        transaction.disputeId = transaction.arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,transaction.arbitratorExtraData);
+        transaction.disputeId = transaction.arbitrator.createDispute.value(_arbitrationCost)(NUMBER_OF_CHOICES,transaction.arbitratorExtraData);
         disputeTxMap[keccak256(transaction.arbitrator, transaction.disputeId)] = _transactionId;
         emit Dispute(_transactionId, transaction.arbitrator, transaction.disputeId,RULING_OPTIONS);
     }
@@ -279,7 +279,7 @@ import "./Arbitrator.sol";
         Transaction storage transaction = transactions[transactionId];
 
         require(_disputeID == transaction.disputeId);
-        require(_ruling <= AMOUNT_OF_CHOICES);
+        require(_ruling <= NUMBER_OF_CHOICES);
 
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
