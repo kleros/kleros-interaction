@@ -65,8 +65,6 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     // Settings
     bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
     bool public appendOnly; // True if the list should be append only.
-    Arbitrator public arbitrator;
-    bytes public arbitratorExtraData;
     uint public stake;
     uint public timeToChallenge;
 
@@ -84,24 +82,25 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Constructs the arbitrable permission list and sets the type.
-     *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
-     *  @param _appendOnly True if the list should be append only.
      *  @param _arbitrator The chosen arbitrator.
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
+     *  @param _metaEvidence The URL of the meta evidence object.
+     *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
+     *  @param _appendOnly True if the list should be append only.
      *  @param _stake The amount in Weis of deposit required for a submission or a challenge.
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      */
     constructor(
-        bool _blacklist,
-        bool _appendOnly,
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
+        string _metaEvidence,
+        bool _blacklist,
+        bool _appendOnly,
         uint _stake,
         uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData) public {
+        emit MetaEvidence(0, _metaEvidence);
         blacklist = _blacklist;
         appendOnly = _appendOnly;
-        arbitrator = _arbitrator;
-        arbitratorExtraData = _arbitratorExtraData;
         stake = _stake;
         timeToChallenge = _timeToChallenge;
     }
@@ -111,9 +110,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /**
      *  @dev Request for an item to be registered.
      *  @param _value The value of the item to register.
-     *  @param _metaEvidence The URL of the meta evidence object.
      */
-    function requestRegistration(bytes32 _value, string _metaEvidence) public payable {
+    function requestRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -127,7 +125,6 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         if (item.lastAction == 0) {
             itemsList.push(_value);
-            emit MetaEvidence(uint(_value), _metaEvidence);
         }
 
         item.submitter = msg.sender;
@@ -140,9 +137,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /**
      *  @dev Request an item to be cleared.
      *  @param _value The value of the item to clear.
-     *  @param _metaEvidence The URL of the meta evidence object.
      */
-    function requestClearing(bytes32 _value, string _metaEvidence) public payable {
+    function requestClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(!appendOnly);
@@ -157,7 +153,6 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         
         if (item.lastAction == 0) {
             itemsList.push(_value);
-            emit MetaEvidence(uint(_value), _metaEvidence);
         }
 
         item.submitter = msg.sender;
@@ -184,7 +179,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
-            emit LinkMetaEvidence(arbitrator, item.disputeID, uint(_value));
+            emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
         } else { // In the case the arbitration fees increase so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.Resubmitted)
                 item.status = ItemStatus.Cleared;
@@ -218,7 +213,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
-            emit LinkMetaEvidence(arbitrator, item.disputeID, uint(_value));
+            emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
         } else { // In the case the arbitration fees increase so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.ClearingRequested)
                 item.status = ItemStatus.Registered;
