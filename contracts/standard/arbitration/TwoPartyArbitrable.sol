@@ -26,7 +26,7 @@ contract TwoPartyArbitrable is Arbitrable {
     enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
     Status public status;
 
-    uint8 constant AMOUNT_OF_CHOICES = 2;
+    uint8 constant NUMBER_OF_CHOICES = 2;
     uint8 constant PARTY_A_WINS = 1;
     uint8 constant PARTY_B_WINS = 2;
     string constant RULING_OPTIONS = "Party A wins;Party B wins"; // A plain English of what rulings do. Need to be redefined by the child class.
