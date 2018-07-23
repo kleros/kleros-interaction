@@ -99,7 +99,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function raiseDispute(uint _arbitrationCost) internal {
         status=Status.DisputeCreated;
-        disputeID=arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
+        disputeID=arbitrator.createDispute.value(_arbitrationCost)(NUMBER_OF_CHOICES,arbitratorExtraData);
         Dispute(arbitrator,disputeID,RULING_OPTIONS);
     }
 
@@ -145,7 +145,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         require(_disputeID==disputeID);
-        require(_ruling<=AMOUNT_OF_CHOICES);
+        require(_ruling<=NUMBER_OF_CHOICES);
 
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
