@@ -73,7 +73,7 @@ contract ArbitrableDeposit is Arbitrable {
      *  @param _claimAmount The proposed claim amount by the claimant.
      */
     function makeClaim(uint _claimAmount) public onlyNotOwner {
-        require(_claimAmount >= 0 && _claimAmount <= amount);
+        require(_claimAmount <= amount);
         claimant = msg.sender;
         claimAmount = _claimAmount;
         claimDepositAmount = (_claimAmount * claimRate)/100;
@@ -86,7 +86,7 @@ contract ArbitrableDeposit is Arbitrable {
      *  @param _responseAmount The counter-offer amount the Owner proposes to a claimant.
      */
     function claimResponse(uint _responseAmount) public onlyOwner {
-        require(_responseAmount >= 0 && _responseAmount <= claimDepositAmount);
+        require(_responseAmount <= claimDepositAmount);
         claimResponseAmount = _responseAmount;
         if (_responseAmount == claimDepositAmount) {
             claimant.transfer(_responseAmount);
