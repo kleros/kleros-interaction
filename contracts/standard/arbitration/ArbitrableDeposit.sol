@@ -32,7 +32,7 @@ contract ArbitrableDeposit is Arbitrable {
     enum Status {NoDispute, WaitingOwner, WaitingClaimant, DisputeCreated, Resolved}
     Status public status;
 
-    uint8 constant AMOUNT_OF_CHOICES = 2;
+    uint8 constant NUMBER_OF_CHOICES = 2;
     uint8 constant OWNER_WINS = 1;
     uint8 constant CLAIMANT_WINS = 2;
     string constant RULING_OPTIONS = "Owner wins;Claimant wins"; // A plain English of what rulings do. Need to be redefined by the child class.
@@ -142,7 +142,7 @@ contract ArbitrableDeposit is Arbitrable {
      */
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
-        disputeID = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
+        disputeID = arbitrator.createDispute.value(_arbitrationCost)(NUMBER_OF_CHOICES,arbitratorExtraData);
         emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
     }
 
@@ -171,7 +171,7 @@ contract ArbitrableDeposit is Arbitrable {
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         require(_disputeID==disputeID);
-        require(_ruling<=AMOUNT_OF_CHOICES);
+        require(_ruling<=NUMBER_OF_CHOICES);
 
         if (_ruling==OWNER_WINS) {
             owner.transfer(amount + claimAmount);
