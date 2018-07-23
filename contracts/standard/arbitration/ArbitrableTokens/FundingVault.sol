@@ -45,7 +45,7 @@ contract FundingVault is Arbitrable {
     uint ousterID; //The ID of the milestone created at construction. To be disputed when the funders claim the team is not doing their job.
     bool canChangeTeam; //True if the holders have attempted an oust and won the dispute. Allows the funder to select a new team (only once).
 
-    uint8 constant AMOUNT_OF_CHOICES = 2;
+    uint8 constant NUMBER_OF_CHOICES = 2;
     uint8 constant TEAM_WINS = 1;
     uint8 constant HOLDERS_WINS = 2;
 
@@ -204,7 +204,7 @@ contract FundingVault is Arbitrable {
         Milestone storage milestone=milestones[_milestoneID];
         milestone.disputed=true;
         milestone.feeTeam-=_arbitrationCost; // Remove the fee from the team pool for accounting. Note that at this point it does not matter which fee variable we decrement.
-        milestone.disputeID=arbitrator.createDispute(AMOUNT_OF_CHOICES,arbitratorExtraData);
+        milestone.disputeID=arbitrator.createDispute(NUMBER_OF_CHOICES,arbitratorExtraData);
         disputeIDToMilstoneID[milestone.disputeID]=_milestoneID;
     }
 
