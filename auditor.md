@@ -12,3 +12,10 @@ ArbitrablePermissionList implements an arbitrator curated registry.
 ### Notes on security
 - In some cases we use `send` instead of `transfer` on purpose to prevent someone from blocking the contract.
 - We avoid using SafeMath in numeric operation, as it is redundant.
+
+## BlockhashRNGFallback
+BlockHashRNGFallback implements a random number generator.
+
+### Notes
+- The blockhash will become unreachable after 256 blocks so we give parties an incentive to save it. Rewards are paid from a reward pool
+- Anyone can contribute to the reward pool
