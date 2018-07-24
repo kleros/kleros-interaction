@@ -18,33 +18,27 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
     uint8 constant AMOUNT_OF_CHOICES = 2; // The number of ruling options available.
     
     uint public amount; // Amount sent by party A.
-    
-    
+
+
     /** @dev Constructor. Choose the arbitrator. Should be called by party A (the payer).
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _partyB The recipient of the transaction.     
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     *  @param _metaEvidence Link to meta-evidence JSON.
      */
     constructor(
         Arbitrator _arbitrator, 
-        bytes32 _hashContract, 
         uint _timeout, 
-        address _partyB,        
-        bytes _arbitratorExtraData
+        address _partyB, 
+        bytes _arbitratorExtraData, 
+        string _metaEvidence
     ) 
-        TwoPartyArbitrable(
-            _arbitrator,
-            _hashContract,
-            _timeout,
-            _partyB,
-            AMOUNT_OF_CHOICES,
-            _arbitratorExtraData) 
-        public 
+        TwoPartyArbitrable(_arbitrator,_timeout,_partyB,AMOUNT_OF_CHOICES,_arbitratorExtraData, _metaEvidence) 
         payable 
+        public 
     {
-        amount += msg.value;
+        amount+=msg.value;
     }
 
     /** @dev Pay the party B. To be called when the good is delivered or the service rendered.
@@ -53,7 +47,7 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
         partyB.transfer(amount);
         amount = 0;
     }
-    
+
     /** @dev Reimburse party A. To be called if the good or service can't be fully provided.
      *  @param _amountReimbursed Amount to reimburse in wei.
      */
@@ -62,7 +56,7 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
         partyA.transfer(_amountReimbursed);
         amount -= _amountReimbursed;
     }
-    
+
     /** @dev Execute a ruling of a dispute. It reimburse the fee to the winning party.
      *  This need to be extended by contract inheriting from it.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
@@ -74,8 +68,9 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
             partyA.send(amount);
         else if (_ruling==PARTY_B_WINS)
             partyB.send(amount);
-            
-        amount = 0;
-    }    
-    
-}
+
+        amount=0;
+    }
+
+
+ }

@@ -51,7 +51,6 @@ contract FundingVault is Arbitrable {
 
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _contractHash Keccak256 hash of the plain text contract.
      *  @param _team The address of the team who will be able to claim milestone completion.
      *  @param _token The token whose holders are able to dispute milestone claims.
      *  @param _funder The party putting funds in the vault.
@@ -60,7 +59,7 @@ contract FundingVault is Arbitrable {
      *  @param _additionalTimeToWithdraw The time in seconds which is added per ‱ of tokens disputing the claim.
      *  @param _timeout Maximum time to pay arbitration fees after the other side did.
      */
-    function FundingVault(Arbitrator _arbitrator, bytes _arbitratorExtraData, bytes32 _contractHash, address _team, address _token, address _funder, uint _disputeThreshold, uint _claimToWithdrawTime, uint _additionalTimeToWithdraw, uint _timeout) public Arbitrable(_arbitrator,_arbitratorExtraData,_contractHash) {
+    constructor(Arbitrator _arbitrator, bytes _arbitratorExtraData, address _team, address _token, address _funder, uint _disputeThreshold, uint _claimToWithdrawTime, uint _additionalTimeToWithdraw, uint _timeout) public Arbitrable(_arbitrator,_arbitratorExtraData) {
         team=_team;
         token=MiniMeToken(_token);
         funder=_funder;

@@ -123,17 +123,17 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         Arbitrator _arbitrator,
         KittyCore _kittyCore,
         address _partyB,
-        bytes32 _hashContract,        
         uint _timeout,        
-        bytes _arbitratorExtraData
+        bytes _arbitratorExtraData,
+        string _metaEvidence
     ) 
     TwoPartyArbitrable(
         _arbitrator,
-        _hashContract,
         _timeout,
         _partyB,
         AMOUNT_OF_CHOICES,
-        _arbitratorExtraData
+        _arbitratorExtraData,
+        _metaEvidence
     ) 
         payable 
         public

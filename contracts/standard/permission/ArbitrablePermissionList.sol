@@ -2,10 +2,9 @@
  *  @title Arbitrable Permission List
  *  @author Clément Lesaege - <clement@lesaege.com>
  *  This code hasn't undertaken bug bounty programs yet.
- *  This code requires truffle tests.
  */
 
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 import "../arbitration/Arbitrable.sol";
 import "./PermissionInterface.sol";
@@ -38,8 +37,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         uint lastAction; // Time of the last action.
         address submitter; // Address of the submitter, if any.
         address challenger; // Address of the challenger, if any.
-        // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
-        uint balance;
+        uint balance; // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
         bool disputed; // True if a dispute is taking place.
         uint disputeID; // ID of the dispute, if any.
     }
@@ -48,19 +46,25 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Called when the item's status changes or when it is contested/resolved.
-     *  @param _value The value of the item.
-     *  @param _newStatus The new status of the item.
-     *  @param _newDisputed The new disputed state of the item.
+     *  @param submitter Address of the submitter, if any.
+     *  @param challenger Address of the challenger, if any.
+     *  @param value The value of the item.
+     *  @param status The status of the item.
+     *  @param disputed The item is being disputed.
      */
-    event ItemStatusChange(bytes32 indexed _value, ItemStatus _newStatus, bool _newDisputed);
+    event ItemStatusChange(
+        address indexed submitter,
+        address indexed challenger,
+        bytes32 indexed value,
+        ItemStatus status,
+        bool disputed
+    );
 
     /* Storage */
 
     // Settings
-    bool blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
-    bool appendOnly; // True if the list should be append only.
-    Arbitrator public arbitrator;
-    bytes public arbitratorExtraData;
+    bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
+    bool public appendOnly; // True if the list should be append only.
     uint public stake;
     uint public timeToChallenge;
 
@@ -72,31 +76,31 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     // Items
     mapping(bytes32 => Item) public items;
     mapping(uint => bytes32) public disputeIDToItem;
+    bytes32[] public itemsList;
 
     /* Constructor */
 
     /**
      *  @dev Constructs the arbitrable permission list and sets the type.
-     *  @param _contractHash Keccak256 hash of the plain contract.
-     *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
-     *  @param _appendOnly True if the list should be append only.
      *  @param _arbitrator The chosen arbitrator.
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
+     *  @param _metaEvidence The URL of the meta evidence object.
+     *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
+     *  @param _appendOnly True if the list should be append only.
      *  @param _stake The amount in Weis of deposit required for a submission or a challenge.
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      */
-    function ArbitrablePermissionList(
-        bytes32 _contractHash,
-        bool _blacklist,
-        bool _appendOnly,
+    constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
+        string _metaEvidence,
+        bool _blacklist,
+        bool _appendOnly,
         uint _stake,
-        uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData, _contractHash) public {
+        uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData) public {
+        emit MetaEvidence(0, _metaEvidence);
         blacklist = _blacklist;
         appendOnly = _appendOnly;
-        arbitrator = _arbitrator;
-        arbitratorExtraData = _arbitratorExtraData;
         stake = _stake;
         timeToChallenge = _timeToChallenge;
     }
@@ -104,10 +108,10 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /* Public */
 
     /**
-     *  @dev Request an item to be registered.
+     *  @dev Request for an item to be registered.
      *  @param _value The value of the item to register.
      */
-    function requestRegistering(bytes32 _value) public payable {
+    function requestRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -119,11 +123,15 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         else
             revert(); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
 
+        if (item.lastAction == 0) {
+            itemsList.push(_value);
+        }
+
         item.submitter = msg.sender;
         item.balance += msg.value;
         item.lastAction = now;
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /**
@@ -142,19 +150,23 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.status = ItemStatus.PreventiveClearingRequested;
         else
             revert(); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
+        
+        if (item.lastAction == 0) {
+            itemsList.push(_value);
+        }
 
         item.submitter = msg.sender;
         item.balance += msg.value;
         item.lastAction = now;
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /**
-     *  @dev Challenge a registering request.
+     *  @dev Challenge a registration request.
      *  @param _value The value of the item subject to the registering request.
      */
-    function challengeRegistering(bytes32 _value) public payable {
+    function challengeRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost);
@@ -167,6 +179,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
+            emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
         } else { // In the case the arbitration fees increase so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.Resubmitted)
                 item.status = ItemStatus.Cleared;
@@ -180,7 +193,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.lastAction = now;
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /**
@@ -200,6 +213,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
+            emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
         } else { // In the case the arbitration fees increase so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.ClearingRequested)
                 item.status = ItemStatus.Registered;
@@ -213,7 +227,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.lastAction = now;
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /**
@@ -232,6 +246,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
         require(now - item.lastAction >= timeToChallenge);
+        require(!item.disputed);
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
@@ -242,7 +257,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
-        emit ItemStatusChange(_value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
 
     /* Public Views */
@@ -254,9 +269,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function isPermitted(bytes32 _value) public view returns (bool allowed) {
         Item storage item = items[_value];
-        bool _registered = item.status <= ItemStatus.Resubmitted ||
+        bool _excluded = item.status <= ItemStatus.Resubmitted ||
             (item.status == ItemStatus.PreventiveClearingRequested && !item.disputed);
-        return blacklist ? !_registered : _registered;
+        return blacklist ? _excluded : !_excluded; // Items excluded from blacklist should return true.
     }
 
     /* Internal */
@@ -293,6 +308,69 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         item.disputed = false;
         item.balance = 0;
 
-        emit ItemStatusChange(disputeIDToItem[_disputeID], item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, disputeIDToItem[_disputeID], item.status, item.disputed);
+    }
+
+    /* Interface Views */
+
+    /**
+     *  @dev Return the number of items in the list.
+     *  @return The number of items in the list.
+     */
+    function itemsCount() public view returns (uint count) {
+        count = itemsList.length;
+    }
+
+    /**
+     *  @dev Return the values of the items the query finds.
+     *  This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+     *  @param _cursor The pagination cursor.
+     *  @param _count The number of items to return.
+     *  @param _filter The filter to use.
+     *  @param _sort The sort order to use.
+     *  @return The values of the items found and wether there are more items for the current filter and sort.
+     */
+    function queryItems(bytes32 _cursor, uint _count, bool[6] _filter, bool _sort) public view returns (bytes32[] values, bool hasMore) {
+        uint _cursorIndex;
+        values = new bytes32[](_count);
+        uint _index = 0;
+
+        if (_cursor == 0)
+            _cursorIndex = 0;
+        else {
+            for (uint j = 0; j < itemsList.length; j++) {
+                if (itemsList[j] == _cursor) {
+                    _cursorIndex = j;
+                    break;
+                }
+            }
+            require(_cursorIndex != 0);
+        }
+
+        for (
+                uint i = _cursorIndex == 0 ? (_sort ? 0 : 1) : (_sort ? _cursorIndex + 1 : itemsList.length - _cursorIndex + 1);
+                _sort ? i < itemsList.length : i <= itemsList.length;
+                i++
+            ) { // Oldest or newest first
+            Item storage item = items[itemsList[_sort ? i : itemsList.length - i]];
+            if (
+                item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
+                    (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending
+                    (_filter[1] && item.disputed) || // Challenged
+                    (_filter[2] && item.status == ItemStatus.Registered) || // Accepted
+                    (_filter[3] && item.status == ItemStatus.Cleared) || // Rejected
+                    (_filter[4] && item.submitter == msg.sender) || // My Submissions
+                    (_filter[5] && item.challenger == msg.sender) // My Challenges
+                )
+            ) {
+                if (_index < _count) {
+                    values[_index] = itemsList[_sort ? i : itemsList.length - i];
+                    _index++;
+                } else {
+                    hasMore = true;
+                    break;
+                }
+            }
+        }
     }
 }

@@ -28,7 +28,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      * @notice Constructs the arbitrator versioning proxy with the first arbitrator contract version address and tags it v0.0.1.
      * @param _firstAddress The address of the first arbitrator contract version.
      */
-    function ArbitratorVersioningProxy(Arbitrator _firstAddress) VersioningProxy("0.0.1", _firstAddress) public {}
+    constructor(Arbitrator _firstAddress) VersioningProxy("0.0.1", _firstAddress) public {}
 
     /* Public */
 
@@ -58,7 +58,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
             uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
             disputes[_disputeID] = Dispute({ arbitrator: Arbitrator(implementation), disputeID: _arbitratorDisputeID, choices: _choices });
         }
-        
+
         Arbitrator(implementation).appeal.value(msg.value)(disputes[_disputeID].disputeID, _extraData);
     }
 
