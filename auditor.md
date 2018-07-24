@@ -1,5 +1,5 @@
 ## ArbitrablePermissionList
-ArbitrablePermissionList implements an arbitrator curated registry.
+ArbitrablePermissionList implements an arbitrator (see [ERC792](https://github.com/ethereum/EIPs/issues/792)) curated registry.
 
 ### Notes
 - Anyone can post an item with a deposit.
@@ -17,4 +17,4 @@ BlockHashRNGFallback implements a random number generator which stores the block
 
 ### Notes
 - The blockhash will become unreachable after 256 blocks so we give parties an incentive to save it. Rewards are paid from a reward pool
-- Anyone can contribute to the reward pool
+- Anyone can contribute to the reward pool.
