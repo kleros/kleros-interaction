@@ -299,7 +299,12 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
             item.status = ItemStatus.Cleared;
         } else { // Split the balance 50-50 and give the item the initial status.
-            item.status = ItemStatus.Absent;
+            if (item.status==ItemStatus.Resubmitted)
+                item.status==ItemStatus.Cleared;
+            else if (item.status==ItemStatus.ClearingRequested)
+                item.status==ItemStatus.Submitted;
+            else
+                item.status==ItemStatus.Absent;
             item.submitter.send(item.balance / 2);
             item.challenger.send(item.balance / 2);
         }
