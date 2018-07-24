@@ -70,7 +70,6 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     // Ruling Options
     uint8 constant REGISTER = 1;
     uint8 constant CLEAR = 2;
-    string constant RULING_OPTIONS = "Register;Clear";
 
     // Items
     mapping(bytes32 => Item) public items;
