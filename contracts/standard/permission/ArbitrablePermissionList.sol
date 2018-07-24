@@ -64,8 +64,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     // Settings
     bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
     bool public appendOnly; // True if the list should be append only.
-    uint public stake;
-    uint public timeToChallenge;
+    uint public stake; // The stake to put to submit/clear/challenge and item in addition of arbitration fees.
+    uint public timeToChallenge; // The time before which an action is executable if not challenged.
 
     // Ruling Options
     uint8 constant REGISTER = 1;
