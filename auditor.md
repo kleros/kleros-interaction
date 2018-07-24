@@ -16,5 +16,7 @@ ArbitrablePermissionList implements an arbitrator (see [ERC792](https://github.c
 BlockHashRNGFallback implements a random number generator which stores the blockhash as a pseudo-random number throughout time. If the requested random number is not set by 256 blocks the contract returns the random number for the previous block. This avoids returning zero when data is not available and blocking forever contracts waiting for this random number.
 
 ### Notes
-- The blockhash will become unreachable after 256 blocks so we give parties an incentive to save it. Rewards are paid from a reward pool
+- The blockhash will become unreachable after 256 blocks so we give parties an incentive to save it. Rewards are paid from a reward pool.
 - Anyone can contribute to the reward pool.
+- The blockhash can be slightly manipulated by the miners (by block withholding and building upon the block of their choice in case of fork). This attack would allow miners to "reroll" the number but not to fix it to a particular value.
+This makes it not suited for applications like gambling. But for others like drawing juror, it may be sufficient. As the number of jurors increases, it would be harder and harder to manipulate the RNG to create a set of juror statistically different from the underlying juror pool.
