@@ -27,7 +27,7 @@ pragma solidity ^0.4.15;
     function getRN(uint _block) public constant returns (uint RN);
 
     /** @dev Get a uncorrelated random number. Act like getRN but give a different number for each sender.
-     *  This is to avoid all users having the same number for a block which could pose issues.
+     *  This is to prevent users from getting correlated numbers.
      *  @param _block Block the random number is linked to.
      *  @return RN Random Number. If the number is not ready or has not been required 0 instead.
      */
