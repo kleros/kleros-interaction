@@ -2,7 +2,7 @@
  *  @title Random Number Generator usign blockhash
  *  @author Clément Lesaege - <clement@lesaege.com>
  *
- *  This contract implement the RNG standard and giving parties incentives in saving the blockhash to avoid it to become unreachable after 256 blocks.
+ *  This contract implements the RNG standard and gives parties incentives to save the blockhash to avoid it to become unreachable after 256 blocks.
  *
  */
 pragma solidity ^0.4.15;
@@ -16,7 +16,7 @@ import "./RNG.sol";
  */
 contract BlockHashRNG is RNG {
 
-    mapping (uint => uint) public randomNumber; // RN[block] is the random number for this block 0 otherwise.
+    mapping (uint => uint) public randomNumber; // randomNumber[block] is the random number for this block, 0 otherwise.
     mapping (uint => uint) public reward; // reward[block] is the amount to be paid to the party w.
 
 
