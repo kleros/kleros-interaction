@@ -13,7 +13,7 @@ ArbitrablePermissionList implements an arbitrator curated registry.
 - We avoid using SafeMath in numeric operation, as it is redundant.
 
 ## BlockhashRNGFallback
-BlockHashRNGFallback implements a random number generator which stores the randomness throughout time. If the requested random number is not in the last 256 blocks the contract returns the random number for the previous block `block.number - 1`. This avoids returning zero when data is not available.
+BlockHashRNGFallback implements a random number generator which stores the blockhash as a pseudo-random number throughout time. If the requested random number is not set by 256 blocks the contract returns the random number for the previous block. This avoids returning zero when data is not available and blocking forever contracts waiting for this random number.
 
 ### Notes
 - The blockhash will become unreachable after 256 blocks so we give parties an incentive to save it. Rewards are paid from a reward pool
