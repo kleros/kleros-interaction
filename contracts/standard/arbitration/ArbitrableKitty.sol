@@ -115,9 +115,9 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _kittyCore CriptoKitty core smart contract.
      *  @param _partyB The partner sharing the kitty.
-     *  @param _hashContract Keccak hash of the plain English contract.
      *  @param _timeout Time after which a party automatically loose a dispute.     
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     *  @param _metaEvidence Link to the meta-evidence.
      */
     constructor(
         Arbitrator _arbitrator,

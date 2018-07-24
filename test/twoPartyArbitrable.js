@@ -184,8 +184,6 @@ contract('TwoPartyArbitrable', function (accounts) {
   })
 
   it('Should fail if someone else tries to submit', async () => {
-    let centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    let arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, contractHash, timeout, partyB, amountOfChoices, 0x0, {from: partyA})
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
     const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
