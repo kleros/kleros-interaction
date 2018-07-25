@@ -2,9 +2,9 @@
  *  @title Random Number Generator using blockhash with fallback.
  *  @author Clément Lesaege - <clement@lesaege.com>
  *  
- *  This contract implement the RNG standard and giving parties incentives in saving the blockhash to avoid it to become unreachable after 256 blocks.
+ *  This contract implements the RNG standard and gives parties incentives to save the blockhash to avoid it to become unreachable after 256 blocks.
  *  In case no one called it within the 256 blocks, it returns the previous blockhash.
- *  This contract must be used when returning 0 is more problematic than returning another blockhash.
+ *  This contract must be used when returning 0 is a worse failure mode than returning another blockhash.
  *  Note that if someone calls it within the timeframe, this contracts acts exactly as BlockHashRNG.
  */
 pragma solidity ^0.4.15;

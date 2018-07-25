@@ -110,5 +110,4 @@ contract Rental is TwoPartyArbitrable {
         damagesClaimedByPartyB=0;
     }
 
-
- }
+}

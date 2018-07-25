@@ -14,6 +14,7 @@ contract('TwoPartyArbitrable', function (accounts) {
   const metaEvidenceUri = 'https://kleros.io'
   const amountOfChoices = 2
 
+
   // Constructor
   it('Should set the correct values', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})

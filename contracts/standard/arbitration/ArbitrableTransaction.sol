@@ -16,7 +16,7 @@ import "./TwoPartyArbitrable.sol";
 contract ArbitrableTransaction is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Reimburse partyA;Pay partyB";
     uint8 constant AMOUNT_OF_CHOICES = 2; // The number of ruling options available.
-    
+
     uint public amount; // Amount sent by party A.
 
 
@@ -72,5 +72,4 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
         amount=0;
     }
 
-
- }
+}

@@ -37,9 +37,9 @@ contract ArbitrableDeposit is Arbitrable {
     uint8 constant CLAIMANT_WINS = 2;
     string constant RULING_OPTIONS = "Owner wins;Claimant wins"; // A plain English of what rulings do. Need to be redefined by the child class.
 
-    modifier onlyOwner{ require(msg.sender==address(owner)); _; }
-    modifier onlyNotOwner{ require(msg.sender!=address(owner)); _;}
-    modifier onlyClaimant{ require(msg.sender==address(claimant)); _;}
+    modifier onlyOwner{ require(msg.sender == address(owner)); _; }
+    modifier onlyNotOwner{ require(msg.sender != address(owner)); _;}
+    modifier onlyClaimant{ require(msg.sender == address(claimant)); _;}
 
     enum Party {Owner, Claimant}
 
@@ -64,9 +64,9 @@ contract ArbitrableDeposit is Arbitrable {
 
     /** @dev Owner deposit to contract. To be called when the owner makes a deposit.
      */
-    function deposit(uint _amount) public onlyOwner {
-        amount += _amount;
-        address(this).transfer(_amount);
+    function deposit() public payable onlyOwner {
+        amount += msg.value;
+        address(this).send(msg.value);
     }
 
     /** @dev File a claim against owner. To be called when someone makes a claim.
@@ -76,7 +76,7 @@ contract ArbitrableDeposit is Arbitrable {
         require(_claimAmount <= amount);
         claimant = msg.sender;
         claimAmount = _claimAmount;
-        claimDepositAmount = (_claimAmount * claimRate)/100;
+        claimDepositAmount = (_claimAmount * claimRate) / 100;
         address(this).transfer(claimDepositAmount);
         status = Status.WaitingOwner;
     }
@@ -106,7 +106,7 @@ contract ArbitrableDeposit is Arbitrable {
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         ownerFee += msg.value;
         require(ownerFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
-        require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
+        require(status < Status.DisputeCreated); // Make sure a dispute has not been created yet.
 
         lastInteraction = now;
         if (claimantFee < arbitrationCost) { // The claimant still has to pay.
@@ -142,14 +142,14 @@ contract ArbitrableDeposit is Arbitrable {
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
         disputeID = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
-        emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
+        emit Dispute(arbitrator, disputeID, RULING_OPTIONS);
     }
 
     /** @dev Reimburse owner if claimant fails to pay the fee.
      */
     function timeOutByOwner() public onlyOwner {
-        require(status==Status.WaitingClaimant);
-        require(now >= lastInteraction + timeout);
+        require(status == Status.WaitingClaimant);
+        require(now >= lastInteraction+timeout);
 
         executeRuling(disputeID,OWNER_WINS);
     }
@@ -157,10 +157,10 @@ contract ArbitrableDeposit is Arbitrable {
     /** @dev Pay claimant if owner fails to pay the fee.
      */
     function timeOutByClaimant() public onlyClaimant {
-        require(status==Status.WaitingOwner);
+        require(status == Status.WaitingOwner);
         require(now >= lastInteraction+timeout);
 
-        executeRuling(disputeID,CLAIMANT_WINS);
+        executeRuling(disputeID, CLAIMANT_WINS);
     }
 
     /** @dev Execute a ruling of a dispute. Pays parties respective amounts based on ruling.
@@ -169,13 +169,13 @@ contract ArbitrableDeposit is Arbitrable {
      *  @param _ruling Ruling given by the arbitrator. 1 : Allow owner deposit. 2 : Pay claimant.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        require(_disputeID==disputeID);
-        require(_ruling<=AMOUNT_OF_CHOICES);
+        require(_disputeID == disputeID);
+        require(_ruling <= AMOUNT_OF_CHOICES);
 
-        if (_ruling==OWNER_WINS) {
+        if (_ruling == OWNER_WINS) {
             owner.transfer(amount + claimAmount);
             claimant.transfer(claimResponseAmount);
-        } else if (_ruling==CLAIMANT_WINS)
+        } else if (_ruling == CLAIMANT_WINS)
             claimant.transfer(amount);
         amount = 0;
     }

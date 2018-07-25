@@ -26,7 +26,7 @@ contract TwoPartyArbitrable is Arbitrable {
     uint public disputeID;
     enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
     Status public status;
-    
+
     uint8 constant PARTY_A_WINS = 1;
     uint8 constant PARTY_B_WINS = 2;
     string constant RULING_OPTIONS = "Party A wins;Party B wins"; // A plain English of what rulings do. Need to be redefined by the child class.
@@ -75,19 +75,16 @@ contract TwoPartyArbitrable is Arbitrable {
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      */
     function payArbitrationFeeByPartyA() public payable onlyPartyA {
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
         partyAFee += msg.value;
-        require(partyAFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
+        require(partyAFee >= arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
-        
+
         lastInteraction = now;
-        if (partyBFee < arbitrationCost) {
-            // The partyB still has to pay. This can also happens if he has paid, 
-            // but arbitrationCost has increased.
+        if (partyBFee < arbitrationCost) { // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingPartyB;
             emit HasToPayFee(Party.PartyB);
-        } else { 
-            // The partyB has also paid the fee. We create the dispute
+        } else { // The partyB has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
     }
@@ -97,18 +94,16 @@ contract TwoPartyArbitrable is Arbitrable {
      *  Note that this function mirror payArbitrationFeeByPartyA.
      */
     function payArbitrationFeeByPartyB() public payable onlyPartyB {
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
         partyBFee += msg.value;
         require(partyBFee >= arbitrationCost); // Require that the total pay at least the arbitration cost.
         require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
 
-        lastInteraction = now;
-        if (partyAFee < arbitrationCost) { 
-            // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
+        lastInteraction=now;
+        if (partyAFee < arbitrationCost) { // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingPartyA;
             emit HasToPayFee(Party.PartyA);
-        } else { 
-            // The partyA has also paid the fee. We create the dispute
+        } else { // The partyA has also paid the fee. We create the dispute
             raiseDispute(arbitrationCost);
         }
     }

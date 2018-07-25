@@ -1032,4 +1032,5 @@ contract('ArbitrablePermissionList', function(accounts) {
       })
     }
   }
+
 });
