@@ -22,13 +22,6 @@ contract Arbitrable{
 
     modifier onlyArbitrator {require(msg.sender==address(arbitrator)); _;}
 
-    /** @dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.
-     *  @param _arbitrator The arbitrator of the contract.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _rulingOptions Map ruling IDs to short description of the ruling in a CSV format using ";" as a delimiter. Note that ruling IDs start a 1. For example "Send funds to buyer;Send funds to seller", means that ruling 1 will make the contract send funds to the buyer and 2 to the seller.
-     */
-    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, string _rulingOptions);
-
     /** @dev To be raised when a ruling is given.
      *  @param _arbitrator The arbitrator giving the ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.

@@ -158,7 +158,6 @@ import "./Arbitrator.sol";
         transaction.status = Status.DisputeCreated;
         transaction.disputeId = transaction.arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,transaction.arbitratorExtraData);
         disputeTxMap[keccak256(transaction.arbitrator, transaction.disputeId)] = _transactionId;
-        emit Dispute(_transactionId, transaction.arbitrator, transaction.disputeId,RULING_OPTIONS);
         emit LinkMetaEvidence(transaction.arbitrator,transaction.disputeId,_transactionId);
     }
 
