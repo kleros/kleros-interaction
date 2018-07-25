@@ -52,10 +52,11 @@ contract('ArbitrablePermissionList', function(accounts) {
       appendOnly = false;
 
       arbitrablePermissionList = await ArbitrablePermissionList.new(
-        blacklist,
-        appendOnly,
         centralizedArbitrator.address,
         arbitratorExtraData,
+        "Test",
+        blacklist,
+        appendOnly,
         stake,
         timeToChallenge, {
           from: arbitrator
@@ -143,10 +144,11 @@ contract('ArbitrablePermissionList', function(accounts) {
           });
 
           arbitrablePermissionList = await ArbitrablePermissionList.new(
-            blacklist,
-            appendOnly,
             centralizedArbitrator.address,
             arbitratorExtraData,
+            "Test",
+            blacklist,
+            appendOnly,
             stake,
             timeToChallenge, {
               from: arbitrator
@@ -513,7 +515,7 @@ contract('ArbitrablePermissionList', function(accounts) {
                 assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
               });
 
-              it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
+              it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the resubmitted state', async function() {
 
                 const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
                 const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
@@ -533,7 +535,7 @@ contract('ArbitrablePermissionList', function(accounts) {
                 assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Actual: " + actualBalanceOfSubmitter + "\t0Expected: " + expectedBalanceOfSubmitter)
                 assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "1Differece: " + actualBalanceOfChallenger.minus(expectedBalanceOfChallenger))
 
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT)
+                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.RESUBMITTED)
 
               })
             })
@@ -718,7 +720,7 @@ contract('ArbitrablePermissionList', function(accounts) {
               assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
             });
 
-            it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
+            it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the submitted state', async function() {
               const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
               const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
               const submitterBalance = web3.eth.getBalance(submitter);
@@ -739,7 +741,7 @@ contract('ArbitrablePermissionList', function(accounts) {
 
               assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Actual: " + actualBalanceOfSubmitter + "\tExpected: " + expectedBalanceOfSubmitter)
               assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Actual: " + actualBalanceOfChallenger + "\tExpected: " + expectedBalanceOfChallenger)
-              assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT)
+              assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.SUBMITTED)
             })
           })
         });
@@ -861,7 +863,7 @@ contract('ArbitrablePermissionList', function(accounts) {
                 assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
               });
 
-              it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
+              it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the submitted state', async function() {
                 const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
                 const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
                 const submitterBalance = web3.eth.getBalance(submitter);
@@ -881,7 +883,7 @@ contract('ArbitrablePermissionList', function(accounts) {
                 assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Difference: " + actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter));
                 assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Difference: " + actualBalanceOfChallenger.minus(expectedBalanceOfChallenger));
 
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT);
+                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARING_REQUESTED);
               })
             })
           });
@@ -1001,7 +1003,7 @@ contract('ArbitrablePermissionList', function(accounts) {
                 assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
               });
 
-              it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
+              it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the preventive clearing requested state', async function() {
                 const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
                 const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
                 const submitterBalance = web3.eth.getBalance(submitter);
@@ -1021,7 +1023,7 @@ contract('ArbitrablePermissionList', function(accounts) {
                 assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Difference: " + actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter));
                 assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Difference: " + actualBalanceOfChallenger.minus(expectedBalanceOfChallenger));
 
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT);
+                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.PREVENTIVE_CLEARING_REQUESTED);
               })
             })
           })

@@ -12,8 +12,7 @@ import "./PermissionInterface.sol";
 /**
  *  @title Arbitrable Permission List
  *  @dev This is an arbitrator curated registry. Anyone can post an item with a deposit. If no one complains within a defined time period, the item is added to the registry.
- *  Someone can complain and also post a deposit, if, someone does, a dispute is created. The winner of the dispute gets the deposit of the other party and the item is added or removed accordingly.
- *  During the time of the dispute, the item is shown as blacklisted unless it already won a previous dispute. This follows the philosophy that it is better to show the user a warning about a potentially harmless listing than to take the risk of the user being scammed or exposed to inappropriate content without warning.
+ *  Anyone can complain and also post a deposit. If someone does, a dispute is created. The winner of the dispute gets the deposit of the other party and the item is added or removed accordingly.
  *  To make a request, parties have to deposit a stake and the arbitration fees. If the arbitration fees change between the submitter's payment and the challenger's payment, a part of the submitter stake can be used as an arbitration fee deposit.
  *  In case the arbitrator refuses to rule, the item is put in the initial absent status and the balance is split equally between parties.
  */
@@ -35,7 +34,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     struct Item {
         ItemStatus status; // Status of the item.
         uint lastAction; // Time of the last action.
-        address submitter; // Address of the submitter, if any.
+        address submitter; // Address of the submitter of the item status change request, if any.
         address challenger; // Address of the challenger, if any.
         uint balance; // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
         bool disputed; // True if a dispute is taking place.
@@ -65,13 +64,12 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     // Settings
     bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
     bool public appendOnly; // True if the list should be append only.
-    uint public stake;
-    uint public timeToChallenge;
+    uint public stake; // The stake to put to submit/clear/challenge and item in addition of arbitration fees.
+    uint public timeToChallenge; // The time before which an action is executable if not challenged.
 
     // Ruling Options
     uint8 constant REGISTER = 1;
     uint8 constant CLEAR = 2;
-    string constant RULING_OPTIONS = "Register;Clear";
 
     // Items
     mapping(bytes32 => Item) public items;
@@ -87,7 +85,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @param _metaEvidence The URL of the meta evidence object.
      *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
      *  @param _appendOnly True if the list should be append only.
-     *  @param _stake The amount in Weis of deposit required for a submission or a challenge.
+     *  @param _stake The amount in Weis of deposit required for a submission or a challenge in addition of the arbitration fees.
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      */
     constructor(
@@ -180,7 +178,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
             emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
-        } else { // In the case the arbitration fees increase so much that the deposit of the requester is not high enough. Cancel the request.
+        } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.Resubmitted)
                 item.status = ItemStatus.Cleared;
             else
@@ -214,7 +212,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
             emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
-        } else { // In the case the arbitration fees increase so much that the deposit of the requester is not high enough. Cancel the request.
+        } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.ClearingRequested)
                 item.status = ItemStatus.Registered;
             else
@@ -263,7 +261,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /* Public Views */
 
     /**
-     *  @dev Return true if the item is allowed. We take a conservative approach and return false if the status of the item is contested and it has not won a previous dispute.
+     *  @dev Return true if the item is allowed. 
+     *  We consider the item to be in the list if its status is contested and it has not won a dispute previously.
      *  @param _value The value of the item to check.
      *  @return allowed True if the item is allowed, false otherwise.
      */
@@ -300,7 +299,12 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
             item.status = ItemStatus.Cleared;
         } else { // Split the balance 50-50 and give the item the initial status.
-            item.status = ItemStatus.Absent;
+            if (item.status==ItemStatus.Resubmitted)
+                item.status==ItemStatus.Cleared;
+            else if (item.status==ItemStatus.ClearingRequested)
+                item.status==ItemStatus.Submitted;
+            else
+                item.status==ItemStatus.Absent;
             item.submitter.send(item.balance / 2);
             item.challenger.send(item.balance / 2);
         }

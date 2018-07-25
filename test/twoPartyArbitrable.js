@@ -12,11 +12,12 @@ contract('TwoPartyArbitrable', function (accounts) {
   const arbitrationFee = 20
   const gasPrice = 5000000000
   const metaEvidenceUri = 'https://kleros.io'
+  const amountOfChoices = 2
 
   // Constructor
   it('Should set the correct values', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x08575, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x08575, metaEvidenceUri, {from: partyA})
     assert.equal(await arbitrable.timeout(), timeout)
     assert.equal(await arbitrable.partyA(), partyA)
     assert.equal(await arbitrable.partyB(), partyB)
@@ -26,7 +27,7 @@ contract('TwoPartyArbitrable', function (accounts) {
   // payArbitrationFeeByPartyA and payArbitrationFeeByPartyB
   it('Should create a dispute when A and B pay', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x08575, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x08575, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     const dispute = await centralizedArbitrator.disputes(0)
@@ -37,7 +38,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it('Should create a dispute when B and A pay', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x08575, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x08575, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     const dispute = await centralizedArbitrator.disputes(0)
@@ -48,7 +49,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it('Should not be possible to pay less', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x08575, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x08575, metaEvidenceUri, {from: partyA})
     await expectThrow(arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee - 1}))
     await expectThrow(arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee - 1}))
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
@@ -59,7 +60,7 @@ contract('TwoPartyArbitrable', function (accounts) {
   // meta-evidence
   it('Should create MetaEvidence event on contract creation', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     const metaEvidenceEvents = await new Promise((resolve, reject) => {
       arbitrable.MetaEvidence({}, {
           fromBlock: 0,
@@ -78,7 +79,7 @@ contract('TwoPartyArbitrable', function (accounts) {
   
   it('Should link MetaEvidence event on dispute creation', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     const metaEvidenceEvents = await new Promise((resolve, reject) => {
       arbitrable.MetaEvidence({}, {
           fromBlock: 0,
@@ -118,7 +119,7 @@ contract('TwoPartyArbitrable', function (accounts) {
   // timeOutByPartyA and timeOutByPartyB
   it('Should reimburse partyA in case of timeout of partyB', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     increaseTime(timeout + 1)
     const partyABalanceBeforeReimbursment = web3.eth.getBalance(partyA)
@@ -130,7 +131,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it("Shouldn't work before timeout for partyA", async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await expectThrow(arbitrable.timeOutByPartyA({from: partyA, gasPrice: gasPrice}))
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     increaseTime(1)
@@ -139,7 +140,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it('Should reimburse partyB in case of timeout of partyA', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     increaseTime(timeout + 1)
     const partyBBalanceBeforeReimbursment = web3.eth.getBalance(partyB)
@@ -151,7 +152,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it("Shouldn't work before timeout for partyB", async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await expectThrow(arbitrable.timeOutByPartyB({from: partyB, gasPrice: gasPrice}))
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     increaseTime(1)
@@ -161,7 +162,7 @@ contract('TwoPartyArbitrable', function (accounts) {
   // submitEvidence
   it('Should create events when evidence is submitted by partyA', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     const tx = await arbitrable.submitEvidence('ipfs:/X', {from: partyA})
@@ -173,7 +174,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it('Should create events when evidence is submitted by partyB', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     const tx = await arbitrable.submitEvidence('ipfs:/X', {from: partyB})
@@ -185,7 +186,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it('Should fail if someone else tries to submit', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     await expectThrow(arbitrable.submitEvidence('ipfs:/X', {from: other}))
@@ -197,7 +198,7 @@ contract('TwoPartyArbitrable', function (accounts) {
   // executeRuling
   it('Should reimburse the partyA (including arbitration fee) when the arbitrator decides so', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     const partyABalanceBeforeReimbursment = web3.eth.getBalance(partyA)
@@ -208,7 +209,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it('Should pay the partyB and reimburse him the arbitration fee when the arbitrator decides so', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     const partyBBalanceBeforePay = web3.eth.getBalance(partyB)
@@ -219,7 +220,7 @@ contract('TwoPartyArbitrable', function (accounts) {
 
   it('It should do nothing if the arbitrator decides so', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {from: arbitrator})
-    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, 0x0, metaEvidenceUri, {from: partyA})
+    const arbitrable = await TwoPartyArbitrable.new(centralizedArbitrator.address, timeout, partyB, amountOfChoices, 0x0, metaEvidenceUri, {from: partyA})
     await arbitrable.payArbitrationFeeByPartyA({from: partyA, value: arbitrationFee})
     await arbitrable.payArbitrationFeeByPartyB({from: partyB, value: arbitrationFee})
     const partyBBalanceBeforePay = web3.eth.getBalance(partyB)

@@ -26,8 +26,7 @@ contract TwoPartyArbitrable is Arbitrable {
     uint public disputeID;
     enum Status {NoDispute, WaitingPartyA, WaitingPartyB, DisputeCreated, Resolved}
     Status public status;
-
-    uint8 constant AMOUNT_OF_CHOICES = 2;
+    
     uint8 constant PARTY_A_WINS = 1;
     uint8 constant PARTY_B_WINS = 2;
     string constant RULING_OPTIONS = "Party A wins;Party B wins"; // A plain English of what rulings do. Need to be redefined by the child class.
@@ -62,9 +61,9 @@ contract TwoPartyArbitrable is Arbitrable {
         Arbitrable(_arbitrator,_arbitratorExtraData) 
         public 
     {
-        timeout=_timeout;
-        partyA=msg.sender;
-        partyB=_partyB;
+        timeout = _timeout;
+        partyA = msg.sender;
+        partyB = _partyB;
         amountOfChoices = _amountOfChoices;
         emit MetaEvidence(0, _metaEvidence);
     }
@@ -106,7 +105,7 @@ contract TwoPartyArbitrable is Arbitrable {
         lastInteraction = now;
         if (partyAFee < arbitrationCost) { 
             // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
-            status=Status.WaitingPartyA;
+            status = Status.WaitingPartyA;
             emit HasToPayFee(Party.PartyA);
         } else { 
             // The partyA has also paid the fee. We create the dispute
@@ -119,7 +118,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
-        disputeID = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
+        disputeID = arbitrator.createDispute.value(_arbitrationCost)(amountOfChoices,arbitratorExtraData);
         emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
         emit LinkMetaEvidence(arbitrator,disputeID,0);
     }
@@ -166,7 +165,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         require(_disputeID==disputeID);
-        require(_ruling<=AMOUNT_OF_CHOICES);
+        require(_ruling<=amountOfChoices);
 
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.

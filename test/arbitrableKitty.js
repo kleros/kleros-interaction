@@ -22,7 +22,7 @@ contract('ArbitrableKitty', (accounts) => {
     TIMEOUT: 100,
     ARBITRATION_FEE: 20,
     EXTRA_DATA: 0x08575,
-    CONTRACT_HASH: 0x6aa0bb2779ab006be0739900654a89f1f8a2d7373ed38490a7cbab9c9392e1ff,
+    META_EVIDENCE: 'https://kleros.io',
     PARTY_A_WINS: 1,
     PARTY_B_WINS: 2,
     SHARED_CUSTODY: 3,
@@ -42,7 +42,7 @@ contract('ArbitrableKitty', (accounts) => {
     params.kittyId = await mintKitty(4000, params.PARTY_A)
 
     // Deploy arbitrable contract
-    arbitrable = await deployArbitrableKitty(params, arbitrator, kittyCore, { from: PARTY_A })
+    arbitrable = await deployArbitrableKitty(params, arbitrator, kittyCore)
 
     // Transfer kitty to contract
     await kittyCore.transfer(arbitrable.address, params.kittyId, { from: PARTY_A })
@@ -102,15 +102,15 @@ contract('ArbitrableKitty', (accounts) => {
   }
 
   const deployArbitrableKitty = async (params, arbitrator, kittyCore) => {
-    const { CONTRACT_HASH, TIMEOUT, PARTY_B, EXTRA_DATA, PARTY_A, AMOUNT_OF_CHOICES } = params
+    const { META_EVIDENCE, TIMEOUT, PARTY_B, EXTRA_DATA, PARTY_A } = params
 
     return ArbitrableKitty.new(
       arbitrator.address,
       kittyCore.address,
       PARTY_B,
-      CONTRACT_HASH,
       TIMEOUT,
       EXTRA_DATA,
+      META_EVIDENCE,
       {from: PARTY_A}
     )
   }
@@ -462,7 +462,7 @@ contract('ArbitrableKitty', (accounts) => {
       await arbitrable.payArbitrationFeeByPartyA({from: PARTY_A, value: ARBITRATION_FEE})
       await arbitrable.payArbitrationFeeByPartyB({from: PARTY_B, value: ARBITRATION_FEE})
 
-      // Grant shared custody
+      // // Grant shared custody
       await arbitrator.giveRuling(0, SHARED_CUSTODY, { from: ARBITRATOR })
     })
 
@@ -480,11 +480,11 @@ contract('ArbitrableKitty', (accounts) => {
       assert.isFalse(await arbitrable.underSendersCustody({ from: PARTY_A }),"should not be available yet")
 
       increaseTime(1)
-      
+
       assert.isTrue(await arbitrable.underSendersCustody({ from: PARTY_A }),"should be under A's custody")
       assert.isFalse(await arbitrable.underSendersCustody({ from: PARTY_B }),"should be under A's custody")
 
-      increaseTime(60 * 60 * 24 * 7)      
+      increaseTime(60 * 60 * 24 * 7)
       assert.isTrue(await arbitrable.underSendersCustody({ from: PARTY_B }),"should be under B's custody")
       assert.isFalse(await arbitrable.underSendersCustody({ from: PARTY_A }),"should be under B's custody")
     })
@@ -530,7 +530,7 @@ contract('ArbitrableKitty', (accounts) => {
         await mintKitty(2000, OTHER_USER),
         OTHER_USER
       )
-      
+
       await expectThrow(
         arbitrable.bidOnSiringAuction(otherKittyId, kittyId, { from: PARTY_A, value: 200 })
       )
@@ -544,12 +544,13 @@ contract('ArbitrableKitty', (accounts) => {
 
       await arbitrable.giveBirth(kittyId, { from: PARTY_B })
     })
+
   })
 
   describe('Custody math checker', () => {
     beforeEach(deployAndPrepare)
 
-    it('should calculate modulus correctly', async () => {      
+    it('should calculate modulus correctly', async () => {
       assert.equal((await arbitrable.modulus(21999,1661)).toNumber(),406)
       assert.equal((await arbitrable.modulus(2,4)).toNumber(),2)
       await expectThrow(
@@ -565,4 +566,5 @@ contract('ArbitrableKitty', (accounts) => {
       assert.equal((await arbitrable.custodyTurn(10000,10300,300)).toNumber(),partyB)
     })
   })
+
 })
