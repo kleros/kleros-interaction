@@ -25,11 +25,7 @@
   },
   "homepage": "https://github.com/kleros/kleros-interaction#readme",
   "devDependencies": {
-<<<<<<< HEAD
     "truffle": "^4.1.13",
-=======
-    "truffle": "^4.1.12",
->>>>>>> b847a3376da31e1630cd78bec338257ea68c2976
     "web3": "^1.0.0-beta.22"
   },
   "dependencies": {

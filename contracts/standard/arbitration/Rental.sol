@@ -26,7 +26,7 @@ contract Rental is TwoPartyArbitrable {
     /** @dev Constructor. Choose the arbitrator. Should be called by party A (the payer).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
-     *  @param _partyB The owner.     
+     *  @param _partyB The owner.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _metaEvidence Link to meta-evidence JSON.
      */
