@@ -332,10 +332,10 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function itemsCounts() public view returns (uint pending, uint challenged, uint accepted, uint rejected) {
         for (uint i = 0; i < itemsList.length; i++) {
             Item storage item = items[itemsList[i]];
-            if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted) pending++;
             if (item.disputed) challenged++;
-            if (item.status == ItemStatus.Registered) accepted++;
-            if (item.status == ItemStatus.Cleared) rejected++;
+            else if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted) pending++;
+            else if (item.status == ItemStatus.Registered) accepted++;
+            else if (item.status == ItemStatus.Cleared) rejected++;
         }
     }
 
