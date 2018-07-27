@@ -177,7 +177,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
-            emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
+            emit Dispute(arbitrator, item.disputeID, 0);
         } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.Resubmitted)
                 item.status = ItemStatus.Cleared;
@@ -211,7 +211,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
-            emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
+            emit Dispute(arbitrator, item.disputeID, 0);
         } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.ClearingRequested)
                 item.status = ItemStatus.Registered;
