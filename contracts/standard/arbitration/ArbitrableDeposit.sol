@@ -52,7 +52,7 @@ contract ArbitrableDeposit is Arbitrable {
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
-     *  @param _metaEvidence Link to the meta evidence
+     *  @param _metaEvidence Link to the meta evidence.
      */
     constructor(Arbitrator _arbitrator, uint _timeout, bytes _arbitratorExtraData, uint _claimRate, string _metaEvidence) Arbitrable(_arbitrator, _arbitratorExtraData) public payable {
         timeout = _timeout;
