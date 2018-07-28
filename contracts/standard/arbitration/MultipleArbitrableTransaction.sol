@@ -214,7 +214,7 @@ import "./Arbitrator.sol";
         transaction.arbitrator.appeal.value(msg.value)(transaction.disputeId,_extraData);
     }
 
-    /** @dev
+    /** @dev Create a transaction.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _seller The recipient of the transaction.
