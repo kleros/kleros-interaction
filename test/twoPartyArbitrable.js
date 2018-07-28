@@ -100,7 +100,7 @@ contract('TwoPartyArbitrable', function (accounts) {
     const dispute = await centralizedArbitrator.disputes(0)
     assert.equal(dispute[0], arbitrable.address, 'No dispute created')
     const metaEvidenceLinkEvents = await new Promise((resolve, reject) => {
-      arbitrable.LinkMetaEvidence({}, {
+      arbitrable.Dispute({}, {
           fromBlock: 0,
           toBlock: 'latest'
         })

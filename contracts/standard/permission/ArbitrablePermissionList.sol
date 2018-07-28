@@ -64,6 +64,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     // Settings
     bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
     bool public appendOnly; // True if the list should be append only.
+    bool public rechallengePossible; // True if items winning their disputes can be challenged again.
     uint public stake; // The stake to put to submit/clear/challenge and item in addition of arbitration fees.
     uint public timeToChallenge; // The time before which an action is executable if not challenged.
 
@@ -85,6 +86,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      *  @param _metaEvidence The URL of the meta evidence object.
      *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
      *  @param _appendOnly True if the list should be append only.
+     *  @param _rechallengePossible True if it is possible to challenge again a submission which has won a dispute.
      *  @param _stake The amount in Weis of deposit required for a submission or a challenge in addition of the arbitration fees.
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      */
@@ -94,11 +96,13 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         string _metaEvidence,
         bool _blacklist,
         bool _appendOnly,
+        bool _rechallengePossible,
         uint _stake,
         uint _timeToChallenge) Arbitrable(_arbitrator, _arbitratorExtraData) public {
         emit MetaEvidence(0, _metaEvidence);
         blacklist = _blacklist;
         appendOnly = _appendOnly;
+        rechallengePossible = _rechallengePossible;
         stake = _stake;
         timeToChallenge = _timeToChallenge;
     }
@@ -177,7 +181,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
-            emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
+            emit Dispute(arbitrator, item.disputeID, 0);
         } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.Resubmitted)
                 item.status = ItemStatus.Cleared;
@@ -211,7 +215,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
-            emit LinkMetaEvidence(arbitrator, item.disputeID, 0);
+            emit Dispute(arbitrator, item.disputeID, 0);
         } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.ClearingRequested)
                 item.status = ItemStatus.Registered;
@@ -285,12 +289,21 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         require(item.disputed);
 
         if (_ruling == REGISTER) {
-            if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-                item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-            else
-                item.challenger.send(item.balance);
-
-            item.status = ItemStatus.Registered;
+            if (rechallengePossible && item.status==ItemStatus.Submitted) {
+                uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
+                if (arbitratorCost + stake < item.balance) { // Check that the balance is enough.
+                    uint toSend = item.balance - (arbitratorCost + stake);
+                    item.submitter.send(toSend); // Keep the arbitration cost and the stake and send the remaining to the submitter.
+                    item.balance -= toSend;
+                }
+            } else {
+                if (item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)
+                    item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+                else
+                    item.challenger.send(item.balance);
+                    
+                item.status = ItemStatus.Registered;
+            }
         } else if (_ruling == CLEAR) {
             if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
                 item.submitter.send(item.balance);
@@ -300,17 +313,20 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.status = ItemStatus.Cleared;
         } else { // Split the balance 50-50 and give the item the initial status.
             if (item.status==ItemStatus.Resubmitted)
-                item.status==ItemStatus.Cleared;
+                item.status = ItemStatus.Cleared;
             else if (item.status==ItemStatus.ClearingRequested)
-                item.status==ItemStatus.Submitted;
+                item.status = ItemStatus.Registered;
             else
-                item.status==ItemStatus.Absent;
+                item.status = ItemStatus.Absent;
             item.submitter.send(item.balance / 2);
             item.challenger.send(item.balance / 2);
         }
-
+        
         item.disputed = false;
-        item.balance = 0;
+        if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER) 
+            item.lastAction=now; // If the item can be rechallenged, update the time and keep the remaining balance.
+        else
+            item.balance = 0;
 
         emit ItemStatusChange(item.submitter, item.challenger, disputeIDToItem[_disputeID], item.status, item.disputed);
     }
@@ -323,6 +339,20 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function itemsCount() public view returns (uint count) {
         count = itemsList.length;
+    }
+
+    /**
+     *  @dev Return the numbers of items in the list per status.
+     *  @return The numbers of items in the list per status.
+     */
+    function itemsCounts() public view returns (uint pending, uint challenged, uint accepted, uint rejected) {
+        for (uint i = 0; i < itemsList.length; i++) {
+            Item storage item = items[itemsList[i]];
+            if (item.disputed) challenged++;
+            else if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted) pending++;
+            else if (item.status == ItemStatus.Registered) accepted++;
+            else if (item.status == ItemStatus.Cleared) rejected++;
+        }
     }
 
     /**

@@ -114,8 +114,7 @@ contract TwoPartyArbitrable is Arbitrable {
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
         disputeID = arbitrator.createDispute.value(_arbitrationCost)(amountOfChoices,arbitratorExtraData);
-        emit Dispute(arbitrator,disputeID,RULING_OPTIONS);
-        emit LinkMetaEvidence(arbitrator,disputeID,0);
+        emit Dispute(arbitrator,disputeID,0);
     }
 
     /** @dev Reimburse partyA if partyB fails to pay the fee.

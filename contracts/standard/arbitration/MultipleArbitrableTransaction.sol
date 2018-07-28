@@ -72,7 +72,7 @@ import "./Arbitrator.sol";
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _transactionId The index of the transaction.
      */
-    event LinkMetaEvidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _transactionId);
+    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _transactionId);
 
     /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
@@ -158,8 +158,7 @@ import "./Arbitrator.sol";
         transaction.status = Status.DisputeCreated;
         transaction.disputeId = transaction.arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,transaction.arbitratorExtraData);
         disputeTxMap[keccak256(transaction.arbitrator, transaction.disputeId)] = _transactionId;
-        emit Dispute(_transactionId, transaction.arbitrator, transaction.disputeId,RULING_OPTIONS);
-        emit LinkMetaEvidence(transaction.arbitrator,transaction.disputeId,_transactionId);
+        emit Dispute(transaction.arbitrator,transaction.disputeId,_transactionId);
     }
 
     /** @dev Reimburse partyA if partyB fails to pay the fee.
@@ -215,7 +214,7 @@ import "./Arbitrator.sol";
         transaction.arbitrator.appeal.value(msg.value)(transaction.disputeId,_extraData);
     }
 
-    /** @dev
+    /** @dev Create a transaction.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _seller The recipient of the transaction.

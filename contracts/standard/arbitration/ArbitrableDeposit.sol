@@ -52,14 +52,16 @@ contract ArbitrableDeposit is Arbitrable {
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     *  @param _metaEvidence Link to the meta evidence.
      */
-    constructor(Arbitrator _arbitrator, uint _timeout, bytes _arbitratorExtraData, uint _claimRate) Arbitrable(_arbitrator, _arbitratorExtraData) public payable {
+    constructor(Arbitrator _arbitrator, uint _timeout, bytes _arbitratorExtraData, uint _claimRate, string _metaEvidence) Arbitrable(_arbitrator, _arbitratorExtraData) public payable {
         timeout = _timeout;
         claimRate = _claimRate;
         status = Status.NoDispute;
         amount += msg.value;
         owner = msg.sender;
         address(this).transfer(amount);
+        emit MetaEvidence(0, _metaEvidence);
     }
 
     /** @dev Owner deposit to contract. To be called when the owner makes a deposit.
@@ -142,7 +144,7 @@ contract ArbitrableDeposit is Arbitrable {
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
         disputeID = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
-        emit Dispute(arbitrator, disputeID, RULING_OPTIONS);
+        emit Dispute(arbitrator, disputeID, 0);
     }
 
     /** @dev Reimburse owner if claimant fails to pay the fee.
