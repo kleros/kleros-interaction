@@ -31,7 +31,7 @@ contract BlockHashRNG is RNG {
      *  @param _block Block the random number is linked to.
      *  @return RN Random Number. If the number is not ready or has not been requested 0 instead.
      */
-    function getRN(uint _block) public constant returns (uint RN) {
+    function getRN(uint _block) public returns (uint RN) {
         RN=randomNumber[_block];
         if (RN==0){
             saveRN(_block);
@@ -50,7 +50,7 @@ contract BlockHashRNG is RNG {
             reward[_block] = 0;
             randomNumber[_block] = uint(blockhash(_block));
 
-            msg.sender.send(rewardToSend); // Note that the use of send is on purpose as we don't want to block in case the msg.sender has a fallback issue.
+            msg.sender.send(rewardToSend); // Note that the use of send is on purpose as we don't want to block in case msg.sender has a fallback issue.
 
         }
     }
