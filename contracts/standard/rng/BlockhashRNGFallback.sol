@@ -23,13 +23,11 @@ contract BlockHashRNGFallback is BlockHashRNG {
      *  @param _block Block the random number is linked to.
      */
     function saveRN(uint _block) public {
-        if (_block<block.number) {
-            if (randomNumber[_block] == 0) { // If the random number is not already set.
-                if (blockhash(_block)!=0x0) // Normal case.
-                    randomNumber[_block]=uint(blockhash(_block));
-                else // The contract was not called in time. Fallback to returning previous blockhash.
-                    randomNumber[_block]=uint(blockhash(block.number-1));
-            }            
+        if (_block<block.number && randomNumber[_block]==0) {// If the random number is not already set and can be.
+            if (blockhash(_block)!=0x0) // Normal case.
+                randomNumber[_block]=uint(blockhash(_block));
+            else // The contract was not called in time. Fallback to returning previous blockhash.
+                randomNumber[_block]=uint(blockhash(block.number-1));
         }
         if (randomNumber[_block] != 0) { // If the random number is set.
             uint rewardToSend=reward[_block];
