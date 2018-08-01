@@ -29,7 +29,7 @@ pragma solidity ^0.4.15;
      *  @param _block Block the random number is linked to.
      *  @return RN Random Number. If the number is not ready or has not been required 0 instead.
      */
-    function getRN(uint _block) public constant returns (uint RN) {
+    function getRN(uint _block) public returns (uint RN) {
         return number;
     }
 
