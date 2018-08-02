@@ -42,7 +42,7 @@ contract('ArbitrablePermissionList', function(accounts) {
   const ARBITRARY_NUMBER = 123;
   const ARBITRARY_STRING = "abc";
 
-  describe('queryItems', function(){
+  describe('queryItems', function() {
     before('setup contract for each test', async () => {
       centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {
         from: arbitrator
@@ -70,14 +70,14 @@ contract('ArbitrablePermissionList', function(accounts) {
       })).toNumber();
     });
 
-    before('populate the list', async function (){
+    before('populate the list', async function() {
       await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
         from: partyA,
         value: stake + arbitrationCost
       })
     })
 
-    it('should succesfully retrieve mySubmissions', async function(){
+    it('should succesfully retrieve mySubmissions', async function() {
       const cursor = 0;
       const count = 1;
 
@@ -91,12 +91,14 @@ contract('ArbitrablePermissionList', function(accounts) {
       const filter = [pending, challenged, accepted, rejected, mySubmissions, myChallenges];
       const sort = true;
 
-      const item = (await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA}))[0];
+      const item = (await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {
+        from: partyA
+      }))[0];
 
       assert.equal(web3.toUtf8(item[0]), ARBITRARY_STRING);
     })
 
-    it('should succesfully retrieve pending', async function(){
+    it('should succesfully retrieve pending', async function() {
       const cursor = 0;
       const count = 1;
 
@@ -110,12 +112,14 @@ contract('ArbitrablePermissionList', function(accounts) {
       const filter = [pending, challenged, accepted, rejected, mySubmissions, myChallenges];
       const sort = true;
 
-      const item = (await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA}))[0];
+      const item = (await arbitrablePermissionList.queryItems(cursor, count, filter, sort, {
+        from: partyA
+      }))[0];
 
       assert.equal(web3.toUtf8(item[0]), ARBITRARY_STRING);
     })
 
-    it('should revert when not cursor < itemsList.length', async function(){
+    it('should revert when not cursor < itemsList.length', async function() {
 
       const cursor = 1;
       const count = 1;
@@ -130,7 +134,9 @@ contract('ArbitrablePermissionList', function(accounts) {
       const filter = [pending, challenged, accepted, rejected, mySubmissions, myChallenges];
       const sort = true;
 
-      await expectThrow(arbitrablePermissionList.queryItems(cursor, count, filter, sort, {from: partyA}));
+      await expectThrow(arbitrablePermissionList.queryItems(cursor, count, filter, sort, {
+        from: partyA
+      }));
 
     })
 
@@ -138,135 +144,137 @@ contract('ArbitrablePermissionList', function(accounts) {
 
   for (const appendOnly of [true, false]) {
     for (const blacklist of [true, false]) {
-        for (const rechallengePossible of [false]) { // TODO: test with rechallengePossible.
-          describe('When appendOnly=' + appendOnly + ', blacklist=' + blacklist + ', rechallengePossible='+rechallengePossible, function() {
+      for (const rechallengePossible of [true, false]) {
+        describe('When appendOnly=' + appendOnly + ', blacklist=' + blacklist + ', rechallengePossible=' + rechallengePossible, function() {
 
-            beforeEach('setup contract for each test', async () => {
-              centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {
+          beforeEach('setup contract for each test', async () => {
+            centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {
+              from: arbitrator
+            });
+
+            arbitrablePermissionList = await ArbitrablePermissionList.new(
+              centralizedArbitrator.address,
+              arbitratorExtraData,
+              "Test",
+              blacklist,
+              appendOnly,
+              rechallengePossible,
+              stake,
+              timeToChallenge, {
                 from: arbitrator
+              }
+            );
+
+            arbitrationCost = (await centralizedArbitrator.arbitrationCost.call("as", {
+              from: arbitrator
+            })).toNumber();
+          });
+
+          it('should be constructed correctly', async () => {
+            assert.equal(await arbitrablePermissionList.arbitrator(), centralizedArbitrator.address);
+            assert.equal(await arbitrablePermissionList.stake(), stake);
+            assert.equal(await arbitrablePermissionList.timeToChallenge(), timeToChallenge);
+            assert.equal(await arbitrablePermissionList.arbitratorExtraData(), arbitratorExtraData)
+
+          });
+
+          describe('msg.value restrictions', function() {
+            describe('Should revert when msg.value < stake+arbitratorCost', function() {
+
+              it('requestRegistration', async () => {
+                await expectThrow(arbitrablePermissionList.requestRegistration(
+                  ARBITRARY_STRING, {
+                    from: arbitrator,
+                    value: stake + arbitrationCost - 1
+                  }))
               });
 
-              arbitrablePermissionList = await ArbitrablePermissionList.new(
-                centralizedArbitrator.address,
-                arbitratorExtraData,
-                "Test",
-                blacklist,
-                appendOnly,
-                rechallengePossible,
-                stake,
-                timeToChallenge, {
-                  from: arbitrator
-                }
-              );
-
-              arbitrationCost = (await centralizedArbitrator.arbitrationCost.call("as", {
-                from: arbitrator
-              })).toNumber();
-            });
-
-            it('should be constructed correctly', async () => {
-              assert.equal(await arbitrablePermissionList.arbitrator(), centralizedArbitrator.address);
-              assert.equal(await arbitrablePermissionList.stake(), stake);
-              assert.equal(await arbitrablePermissionList.timeToChallenge(), timeToChallenge);
-              assert.equal(await arbitrablePermissionList.arbitratorExtraData(), arbitratorExtraData)
-
-            });
-
-            describe('msg.value restrictions', function() {
-              describe('Should revert when msg.value < stake+arbitratorCost', function() {
-
-                it('requestRegistration', async () => {
-                  await expectThrow(arbitrablePermissionList.requestRegistration(
-                    ARBITRARY_STRING, {
-                      from: arbitrator,
-                      value: stake + arbitrationCost - 1
-                    }))
-                });
-
-                it('requestClearing', async () => {
-                  await expectThrow(arbitrablePermissionList.requestClearing(
-                    ARBITRARY_STRING, {
-                      from: arbitrator,
-                      value: stake + arbitrationCost - 1
-                    }))
-                });
-
-                it('challengeRegistration', async () => {
-                  await expectThrow(arbitrablePermissionList.challengeRegistration(
-                    ARBITRARY_STRING, {
-                      from: arbitrator,
-                      value: stake + arbitrationCost - 1
-                    }))
-                });
-
-                it('challengeClearing', async () => {
-                  await expectThrow(arbitrablePermissionList.challengeRegistration(
-                    ARBITRARY_STRING, {
-                      from: arbitrator,
-                      value: stake + arbitrationCost - 1
-                    }))
-                })
-              })
-            });
-
-            describe('When item.disputed', function() {
-
-              beforeEach('prepare pre-conditions to satisfy other requirements', async function() {
-                await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }); // To satisfy `require(item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)`
-
-                await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }) // To dissatisfy `require(!item.disputed)`
+              it('requestClearing', async () => {
+                await expectThrow(arbitrablePermissionList.requestClearing(
+                  ARBITRARY_STRING, {
+                    from: arbitrator,
+                    value: stake + arbitrationCost - 1
+                  }))
               });
 
-              beforeEach('assert pre-conditions', async function() {
-                assert.ok((await arbitrablePermissionList.items(ARBITRARY_STRING))[0] == ITEM_STATUS.SUBMITTED || (await arbitrablePermissionList.items(ARBITRARY_STRING))[0] == ITEM_STATUS.RESUBMITTED);
-
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[5], true)
-              });
               it('challengeRegistration', async () => {
                 await expectThrow(arbitrablePermissionList.challengeRegistration(
                   ARBITRARY_STRING, {
                     from: arbitrator,
-                    value: stake + arbitrationCost
+                    value: stake + arbitrationCost - 1
                   }))
               });
 
               it('challengeClearing', async () => {
-                await expectThrow(arbitrablePermissionList.challengeClearing(
-                  ARBITRARY_STRING, {
-                    from: arbitrator,
-                    value: stake + arbitrationCost
-                  }))
-              })
-            });
-
-            describe('When !(item.status==ItemStatus.ClearingRequested || item.status==ItemStatus.PreventiveClearingRequested))', function() {
-
-              beforeEach('assert pre-conditions', async function() {
-                assert.ok((await arbitrablePermissionList.items(ARBITRARY_STRING))[0] < ITEM_STATUS.CLEARING_REQUESTED)
-              });
-
-              it('challengeRegistration', async function() {
                 await expectThrow(arbitrablePermissionList.challengeRegistration(
                   ARBITRARY_STRING, {
                     from: arbitrator,
-                    value: stake + arbitrationCost
-                  }))
-              });
-
-              it('challengeClearing', async function() {
-                await expectThrow(arbitrablePermissionList.challengeClearing(
-                  ARBITRARY_STRING, {
-                    from: arbitrator,
-                    value: stake + arbitrationCost
+                    value: stake + arbitrationCost - 1
                   }))
               })
+            })
+          });
+
+          describe('When item.disputed', function() {
+
+            beforeEach('prepare pre-conditions to satisfy other requirements', async function() {
+              await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              }); // To satisfy `require(item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)`
+
+              await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              }) // To dissatisfy `require(!item.disputed)`
             });
+
+            beforeEach('assert pre-conditions', async function() {
+              assert.ok((await arbitrablePermissionList.items(ARBITRARY_STRING))[0] == ITEM_STATUS.SUBMITTED || (await arbitrablePermissionList.items(ARBITRARY_STRING))[0] == ITEM_STATUS.RESUBMITTED);
+
+              assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[5], true)
+            });
+            it('challengeRegistration', async () => {
+              await expectThrow(arbitrablePermissionList.challengeRegistration(
+                ARBITRARY_STRING, {
+                  from: arbitrator,
+                  value: stake + arbitrationCost
+                }))
+            });
+
+            it('challengeClearing', async () => {
+              await expectThrow(arbitrablePermissionList.challengeClearing(
+                ARBITRARY_STRING, {
+                  from: arbitrator,
+                  value: stake + arbitrationCost
+                }))
+            })
+          });
+
+          describe('When !(item.status==ItemStatus.ClearingRequested || item.status==ItemStatus.PreventiveClearingRequested))', function() {
+
+            beforeEach('assert pre-conditions', async function() {
+              assert.ok((await arbitrablePermissionList.items(ARBITRARY_STRING))[0] < ITEM_STATUS.CLEARING_REQUESTED)
+            });
+
+            it('challengeRegistration', async function() {
+              await expectThrow(arbitrablePermissionList.challengeRegistration(
+                ARBITRARY_STRING, {
+                  from: arbitrator,
+                  value: stake + arbitrationCost
+                }))
+            });
+
+            it('challengeClearing', async function() {
+              await expectThrow(arbitrablePermissionList.challengeClearing(
+                ARBITRARY_STRING, {
+                  from: arbitrator,
+                  value: stake + arbitrationCost
+                }))
+            })
+          });
+
+          if (!rechallengePossible) {
 
 
             describe('When item in absent state', function() {
@@ -613,142 +621,155 @@ contract('ArbitrablePermissionList', function(accounts) {
                 }))
               })
             });
+          }
 
-            describe('When item in submitted state', function() {
+          describe('When item in submitted state', function() {
 
-              beforeEach('prepare pre-conditions', async function() {
-                await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                })
+            beforeEach('prepare pre-conditions', async function() {
+              await arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              })
+            });
+
+            beforeEach('assert pre-conditions', async function() {
+              assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.SUBMITTED)
+            });
+
+            it('calling isPermitted should return ' + (!blacklist), async () => {
+              assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
+            });
+
+            it('calling requestRegistration should revert', async () => {
+              await expectThrow(arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              }))
+            });
+
+            it('calling requestClearing should move item into the clearing requested state', async () => {
+              await expectThrow(arbitrablePermissionList.requestClearing(ARBITRARY_STRING, {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              }))
+            });
+
+            it('calling challangeBlacklisting should create a dispute', async function() {
+              let itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4].toNumber();
+
+              await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
+                from: arbitrator,
+                value: stake + arbitrationCost
               });
 
-              beforeEach('assert pre-conditions', async function() {
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.SUBMITTED)
+              let disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6].toNumber();
+
+              assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[3].toString(), arbitrator);
+              assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[4].toNumber(), itemBalance + stake);
+              assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[5], true);
+              assert.equal(web3.toUtf8(await arbitrablePermissionList.disputeIDToItem(disputeID)), ARBITRARY_STRING)
+            });
+
+            it('calling challengeClearing should revert', async () => {
+              await expectThrow(arbitrablePermissionList.challengeClearing(ARBITRARY_STRING, {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              }))
+            });
+
+            it('calling executeRequest should move item into the blacklisted state', async function() {
+              await arbitrablePermissionList.executeRequest(ARBITRARY_STRING, {
+                from: arbitrator
               });
 
-              it('calling isPermitted should return ' + (!blacklist), async () => {
-                assert.equal((await arbitrablePermissionList.isPermitted(ARBITRARY_STRING)), !blacklist)
-              });
+              assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.REGISTERED)
+            });
 
-              it('calling requestRegistration should revert', async () => {
-                await expectThrow(arbitrablePermissionList.requestRegistration(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }))
-              });
+            describe('executeRuling', async function() {
+              let disputeID;
 
-              it('calling requestClearing should move item into the clearing requested state', async () => {
-                await expectThrow(arbitrablePermissionList.requestClearing(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }))
-              });
-
-              it('calling challangeBlacklisting should create a dispute', async function() {
-                let itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4].toNumber();
-
+              beforeEach('create a dispute', async function() {
                 await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
-                  from: arbitrator,
+                  from: partyB,
                   value: stake + arbitrationCost
                 });
 
-                let disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6].toNumber();
-
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[3].toString(), arbitrator);
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[4].toNumber(), itemBalance + stake);
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[5], true);
-                assert.equal(web3.toUtf8(await arbitrablePermissionList.disputeIDToItem(disputeID)), ARBITRARY_STRING)
+                disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6].toNumber();
               });
 
-              it('calling challengeClearing should revert', async () => {
-                await expectThrow(arbitrablePermissionList.challengeClearing(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }))
+              it('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
+                const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
+                const submitterBalance = web3.eth.getBalance(submitter);
+                const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
+
+
+                const hash = await centralizedArbitrator.giveRuling(disputeID, RULING.REGISTER, {
+                  from: arbitrator
+                });
+                const gasUsed = hash.receipt.gasUsed;
+                const gasCost = gasUsed * Math.pow(10, 11); // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
+
+                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter);
+                let expectedBalanceOfSubmitter
+                let expectedItemStatus
+
+                if (!rechallengePossible) {
+                  expectedBalanceOfSubmitter = submitterBalance.plus(itemBalance).plus(arbitrationFee).minus(gasCost);
+                  expectedItemStatus = ITEM_STATUS.REGISTERED
+                } else {
+                  expectedBalanceOfSubmitter = submitterBalance.plus(itemBalance).minus(stake).minus(gasCost);
+                  expectedItemStatus = ITEM_STATUS.SUBMITTED
+                }
+
+                assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Actual: " + actualBalanceOfSubmitter + "\tExpected: " + expectedBalanceOfSubmitter);
+
+                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), expectedItemStatus)
               });
 
-              it('calling executeRequest should move item into the blacklisted state', async function() {
-                await arbitrablePermissionList.executeRequest(ARBITRARY_STRING, {
+              it('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
+                const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
+                const challengerBalance = web3.eth.getBalance(challenger);
+                const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
+
+                await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {
                   from: arbitrator
                 });
 
-                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.REGISTERED)
+                const actualBalanceOfChallenger = web3.eth.getBalance(challenger);
+                const expectedBalanceOfChallenger = challengerBalance.plus(itemBalance);
+
+                assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Actual: " + actualBalanceOfChallenger + "\tExpected: " + expectedBalanceOfChallenger)
+
+                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
               });
 
-              describe('executeRuling', async function() {
-                let disputeID;
+              it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
+                const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
+                const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
+                const submitterBalance = web3.eth.getBalance(submitter);
+                const challengerBalance = web3.eth.getBalance(challenger);
+                const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
+                const disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6];
 
-                beforeEach('create a dispute', async function() {
-                  await arbitrablePermissionList.challengeRegistration(ARBITRARY_STRING, {
-                    from: partyB,
-                    value: stake + arbitrationCost
-                  });
-
-                  disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6].toNumber();
+                const hash = await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
+                  from: arbitrator
                 });
+                const gasUsed = hash.receipt.gasUsed;
+                const gasCost = gasUsed * Math.pow(10, 11); // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
 
-                it('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
-                  const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
-                  const submitterBalance = web3.eth.getBalance(submitter);
-                  const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
+                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter);
+                const actualBalanceOfChallenger = web3.eth.getBalance(challenger);
+                const expectedBalanceOfSubmitter = itemBalance.dividedBy(new BigNumber(2)).plus(submitterBalance).plus(arbitrationFee).minus(gasCost);
+                const expectedBalanceOfChallenger = itemBalance.dividedBy(new BigNumber(2)).plus(challengerBalance);
 
-
-                  const hash = await centralizedArbitrator.giveRuling(disputeID, RULING.REGISTER, {
-                    from: arbitrator
-                  });
-                  const gasUsed = hash.receipt.gasUsed;
-                  const gasCost = gasUsed * Math.pow(10, 11); // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
-
-                  const actualBalanceOfSubmitter = web3.eth.getBalance(submitter);
-                  const expectedBalanceOfSubmitter = submitterBalance.plus(itemBalance).plus(arbitrationFee).minus(gasCost);
-                  assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Actual: " + actualBalanceOfSubmitter + "\tExpected: " + expectedBalanceOfSubmitter);
-
-                  assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.REGISTERED)
-                });
-
-                it('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
-                  const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
-                  const challengerBalance = web3.eth.getBalance(challenger);
-                  const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
-
-                  await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {
-                    from: arbitrator
-                  });
-
-                  const actualBalanceOfChallenger = web3.eth.getBalance(challenger);
-                  const expectedBalanceOfChallenger = challengerBalance.plus(itemBalance);
-
-                  assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Actual: " + actualBalanceOfChallenger + "\tExpected: " + expectedBalanceOfChallenger)
-
-                  assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.CLEARED)
-                });
-
-                it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
-                  const submitter = (await arbitrablePermissionList.items(ARBITRARY_STRING))[2];
-                  const challenger = (await arbitrablePermissionList.items(ARBITRARY_STRING))[3];
-                  const submitterBalance = web3.eth.getBalance(submitter);
-                  const challengerBalance = web3.eth.getBalance(challenger);
-                  const itemBalance = (await arbitrablePermissionList.items(ARBITRARY_STRING))[4];
-                  const disputeID = (await arbitrablePermissionList.items(ARBITRARY_STRING))[6];
-
-                  const hash = await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
-                    from: arbitrator
-                  });
-                  const gasUsed = hash.receipt.gasUsed;
-                  const gasCost = gasUsed * Math.pow(10, 11); // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
-
-                  const actualBalanceOfSubmitter = web3.eth.getBalance(submitter);
-                  const actualBalanceOfChallenger = web3.eth.getBalance(challenger);
-                  const expectedBalanceOfSubmitter = itemBalance.dividedBy(new BigNumber(2)).plus(submitterBalance).plus(arbitrationFee).minus(gasCost);
-                  const expectedBalanceOfChallenger = itemBalance.dividedBy(new BigNumber(2)).plus(challengerBalance);
-
-                  assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Actual: " + actualBalanceOfSubmitter + "\tExpected: " + expectedBalanceOfSubmitter)
-                  assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Actual: " + actualBalanceOfChallenger + "\tExpected: " + expectedBalanceOfChallenger)
-                  assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT)
-                })
+                assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter), "Actual: " + actualBalanceOfSubmitter + "\tExpected: " + expectedBalanceOfSubmitter)
+                assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger), "Actual: " + actualBalanceOfChallenger + "\tExpected: " + expectedBalanceOfChallenger)
+                assert.equal((await arbitrablePermissionList.items(ARBITRARY_STRING))[0].toNumber(), ITEM_STATUS.ABSENT)
               })
-            });
+            })
+          });
+
+          if (!rechallengePossible) {
 
             if (!appendOnly) {
               describe('When item in clearing requested state', function() {
@@ -1032,9 +1053,9 @@ contract('ArbitrablePermissionList', function(accounts) {
                 })
               })
             }
-
-          })
-        }
+          }
+        })
+      }
     }
   }
 });
