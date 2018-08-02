@@ -17,7 +17,7 @@ import "./Arbitrable.sol";
  */
 contract TwoPartyArbitrable is Arbitrable {
     uint public timeout; // Time in second a party can take before being considered unresponding and lose the dispute.
-    uint8 amountOfChoices;
+    uint8 public amountOfChoices;
     address public partyA;
     address public partyB;
     uint public partyAFee; // Total fees paid by the partyA.
