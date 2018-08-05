@@ -13,8 +13,9 @@ import "./TwoPartyArbitrable.sol";
  *  This can be used for buying goods, services and for paying freelancers.
  *  Party A is the payer. Party B is the payee.
  */
- contract ArbitrableTransaction is TwoPartyArbitrable {
+contract ArbitrableTransaction is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Reimburse partyA;Pay partyB";
+    uint8 constant AMOUNT_OF_CHOICES = 2; // The number of ruling options available.
 
     uint public amount; // Amount sent by party A.
 
@@ -26,7 +27,17 @@ import "./TwoPartyArbitrable.sol";
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _metaEvidence Link to meta-evidence JSON.
      */
-    constructor(Arbitrator _arbitrator, uint _timeout, address _partyB, bytes _arbitratorExtraData, string _metaEvidence) TwoPartyArbitrable(_arbitrator,_timeout,_partyB,_arbitratorExtraData, _metaEvidence) payable public {
+    constructor(
+        Arbitrator _arbitrator, 
+        uint _timeout, 
+        address _partyB, 
+        bytes _arbitratorExtraData, 
+        string _metaEvidence
+    ) 
+        TwoPartyArbitrable(_arbitrator,_timeout,_partyB,AMOUNT_OF_CHOICES,_arbitratorExtraData, _metaEvidence) 
+        payable 
+        public 
+    {
         amount+=msg.value;
     }
 
@@ -34,7 +45,7 @@ import "./TwoPartyArbitrable.sol";
      */
     function pay() public onlyPartyA {
         partyB.transfer(amount);
-        amount=0;
+        amount = 0;
     }
 
     /** @dev Reimburse party A. To be called if the good or service can't be fully provided.
@@ -43,7 +54,7 @@ import "./TwoPartyArbitrable.sol";
     function reimburse(uint _amountReimbursed) public onlyPartyB {
         require(_amountReimbursed<=amount);
         partyA.transfer(_amountReimbursed);
-        amount-=_amountReimbursed;
+        amount -= _amountReimbursed;
     }
 
     /** @dev Execute a ruling of a dispute. It reimburse the fee to the winning party.
@@ -61,5 +72,4 @@ import "./TwoPartyArbitrable.sol";
         amount=0;
     }
 
-
- }
+}

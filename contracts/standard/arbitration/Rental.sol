@@ -15,8 +15,9 @@ import "./TwoPartyArbitrable.sol";
  *  Party A put a deposit. If everything goes well, it will be given back.
  *  Otherwize parties can claim an amount of damages. If they disagree, the arbitrator will have to solve this dispute.
  */
- contract Rental is TwoPartyArbitrable {
+contract Rental is TwoPartyArbitrable {
     string constant RULING_OPTIONS = "Rule for party A (renter);Rule for Party B (owner)";
+    uint8 constant AMOUNT_OF_CHOICES = 2; // The number of ruling options available.
 
     uint public amount; // Amount sent by party A.
     uint public damagesClaimedByPartyA; // The amount party A agrees to pay to compensate damages.
@@ -29,7 +30,17 @@ import "./TwoPartyArbitrable.sol";
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _metaEvidence Link to meta-evidence JSON.
      */
-    constructor(Arbitrator _arbitrator, uint _timeout, address _partyB, bytes _arbitratorExtraData, string _metaEvidence) public TwoPartyArbitrable(_arbitrator,_timeout,_partyB,_arbitratorExtraData, _metaEvidence) payable {
+    constructor(
+        Arbitrator _arbitrator, 
+        uint _timeout, 
+        address _partyB, 
+        bytes _arbitratorExtraData, 
+        string _metaEvidence
+    ) 
+        public 
+        TwoPartyArbitrable(_arbitrator,_timeout,_partyB,AMOUNT_OF_CHOICES,_arbitratorExtraData, _metaEvidence) 
+        payable 
+    {
         amount+=msg.value;
     }
 
@@ -99,5 +110,4 @@ import "./TwoPartyArbitrable.sol";
         damagesClaimedByPartyB=0;
     }
 
-
- }
+}
