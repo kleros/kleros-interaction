@@ -158,7 +158,7 @@ import "./Arbitrator.sol";
         transaction.status = Status.DisputeCreated;
         transaction.disputeId = transaction.arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,transaction.arbitratorExtraData);
         disputeTxMap[keccak256(transaction.arbitrator, transaction.disputeId)] = _transactionId;
-        emit Dispute(transaction.arbitrator,transaction.disputeId,_transactionId);
+        emit Dispute(transaction.arbitrator, transaction.disputeId, _transactionId);
     }
 
     /** @dev Reimburse partyA if partyB fails to pay the fee.
@@ -169,8 +169,8 @@ import "./Arbitrator.sol";
         require(msg.sender == transaction.seller);
 
 
-        require(transaction.status==Status.WaitingBuyer);
-        require(now>=transaction.lastInteraction+transaction.timeout);
+        require(transaction.status == Status.WaitingBuyer);
+        require(now >= transaction.lastInteraction+transaction.timeout);
 
         executeRuling(transaction.disputeId, SELLER_WINS);
     }
@@ -184,9 +184,9 @@ import "./Arbitrator.sol";
 
 
         require(transaction.status == Status.WaitingSeller);
-        require(now>=transaction.lastInteraction+transaction.timeout);
+        require(now >= transaction.lastInteraction+transaction.timeout);
 
-        executeRuling(transaction.disputeId,BUYER_WINS);
+        executeRuling(transaction.disputeId, BUYER_WINS);
     }
 
     /** @dev Submit a reference to evidence. EVENT.
@@ -195,10 +195,10 @@ import "./Arbitrator.sol";
      */
     function submitEvidence(uint _transactionId, string _evidence) public {
         Transaction storage transaction = transactions[_transactionId];
-        require(msg.sender == transaction.buyer || msg.sender == transaction.seller);
+        require(msg.sender==transaction.buyer || msg.sender==transaction.seller);
 
-        require(transaction.status>=Status.DisputeCreated);
-        emit Evidence(transaction.arbitrator,transaction.disputeId,msg.sender,_evidence);
+        require(transaction.status >= Status.DisputeCreated);
+        emit Evidence(transaction.arbitrator, transaction.disputeId, msg.sender, _evidence);
     }
 
     /** @dev Appeal an appealable ruling.
@@ -209,9 +209,9 @@ import "./Arbitrator.sol";
      */
     function appeal(uint _transactionId, bytes _extraData) payable public {
         Transaction storage transaction = transactions[_transactionId];
-        require(msg.sender == transaction.buyer || msg.sender == transaction.seller);
+        require(msg.sender==transaction.buyer || msg.sender==transaction.seller);
 
-        transaction.arbitrator.appeal.value(msg.value)(transaction.disputeId,_extraData);
+        transaction.arbitrator.appeal.value(msg.value)(transaction.disputeId, _extraData);
     }
 
     /** @dev Create a transaction.
@@ -255,6 +255,19 @@ import "./Arbitrator.sol";
         transaction.status = Status.Resolved;
     }
 
+    /** @dev Pay party B. To be called if the good or service is provided.
+     *  @param _transactionId The index of the transaction.
+     *  @param _amount Amount to pay in wei.
+     */
+    function pay(uint _transactionId, uint _amount) public {
+        Transaction storage transaction = transactions[_transactionId];
+        require(transaction.buyer == msg.sender);
+        require(_amount <= transaction.amount);
+
+        transaction.seller.transfer(_amount);
+        transaction.amount -= _amount;
+    }
+
     /** @dev Reimburse party A. To be called if the good or service can't be fully provided.
      *  @param _transactionId The index of the transaction.
      *  @param _amountReimbursed Amount to reimburse in wei.
@@ -274,7 +287,7 @@ import "./Arbitrator.sol";
      *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the partyA. 2 : Pay the partyB.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        uint transactionId = disputeTxMap[keccak256(msg.sender,_disputeID)];
+        uint transactionId = disputeTxMap[keccak256(msg.sender, _disputeID)];
         Transaction storage transaction = transactions[transactionId];
 
         require(_disputeID == transaction.disputeId);
