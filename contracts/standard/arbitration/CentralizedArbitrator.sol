@@ -18,7 +18,7 @@ contract CentralizedArbitrator is Arbitrator {
     uint arbitrationPrice; // Not public because arbitrationCost already acts as an accessor.
     uint constant NOT_PAYABLE_VALUE = (2**256-2)/2; // High value to be sure that the appeal is too expensive.
 
-    struct Dispute {
+    struct DisputeStruct {
         Arbitrable arbitrated;
         uint choices;
         uint fee;
@@ -28,7 +28,7 @@ contract CentralizedArbitrator is Arbitrator {
 
     modifier onlyOwner {require(msg.sender==owner); _;}
 
-    Dispute[] public disputes;
+    DisputeStruct[] public disputes;
 
     /** @dev Constructor. Set the initial arbitration price.
      *  @param _arbitrationPrice Amount to be paid for arbitration.
@@ -69,7 +69,7 @@ contract CentralizedArbitrator is Arbitrator {
      */
     function createDispute(uint _choices, bytes _extraData) public payable returns(uint disputeID)  {
         super.createDispute(_choices,_extraData);
-        disputeID = disputes.push(Dispute({
+        disputeID = disputes.push(DisputeStruct({
             arbitrated: Arbitrable(msg.sender),
             choices: _choices,
             fee: msg.value,
@@ -85,7 +85,7 @@ contract CentralizedArbitrator is Arbitrator {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
      */
     function giveRuling(uint _disputeID, uint _ruling) public onlyOwner {
-        Dispute dispute = disputes[_disputeID];
+        DisputeStruct dispute = disputes[_disputeID];
         require(_ruling<=dispute.choices);
 
         uint fee = dispute.fee;
