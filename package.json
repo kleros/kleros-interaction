@@ -4,7 +4,8 @@
   "description": "Smart contracts interacting with Kleros.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "scripts/test.sh",
+    "coverage": "scripts/coverage.sh"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,9 @@
   },
   "homepage": "https://github.com/kleros/kleros-interaction#readme",
   "devDependencies": {
+    "coveralls": "^3.0.2",
+    "ganache-cli": "^6.1.6",
+    "solidity-coverage": "^0.5.7",
     "truffle": "^4.1.13",
     "web3": "^1.0.0-beta.22"
   },
