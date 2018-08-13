@@ -66,7 +66,7 @@ contract Arbitrator{
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return fee Amount to be paid.
      */
-    function appealCost(uint _disputeID, bytes _extraData) public constant returns(uint fee);
+    function appealCost(uint _disputeID, bytes _extraData) public view returns(uint fee);
 
     /** @dev Return the status of a dispute.
      *  @param _disputeID ID of the dispute to rule.
