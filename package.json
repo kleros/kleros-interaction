@@ -1,8 +1,12 @@
 {
   "name": "kleros-interaction",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "Smart contracts interacting with Kleros.",
   "main": "index.js",
+  "files": [
+    "contracts",
+    "build"
+  ],
   "scripts": {
     "test": "scripts/test.sh",
     "coverage": "scripts/coverage.sh"
