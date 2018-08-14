@@ -10,14 +10,14 @@ const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol');
 
 contract('ArbitrablePermissionList', function(accounts) {
 
-  let arbitrator = accounts[1];
-  let partyA = accounts[2];
-  let partyB = accounts[3];
-  let arbitratorExtraData = 0x08575;
-  let arbitrationFee = 4; // 0.5
-  let stake = 10; // 1
-  let timeToChallenge = 0;
-  let contractHash = 0x6aa0bb2779ab006be0739900654a89f1f8a2d7373ed38490a7cbab9c9392e1ff;
+  const arbitrator = accounts[1];
+  const partyA = accounts[2];
+  const partyB = accounts[3];
+  const arbitratorExtraData = 0x08575;
+  const arbitrationFee = 4;
+  const stake = 10;
+  const timeToChallenge = 0;
+  const metaEvidence = "evidence";
 
   let centralizedArbitrator;
   let arbitrablePermissionList;
@@ -55,7 +55,7 @@ contract('ArbitrablePermissionList', function(accounts) {
       arbitrablePermissionList = await ArbitrablePermissionList.new(
         centralizedArbitrator.address,
         arbitratorExtraData,
-        "Test",
+        metaEvidence,
         blacklist,
         appendOnly,
         rechallengePossible,
@@ -155,7 +155,7 @@ contract('ArbitrablePermissionList', function(accounts) {
             arbitrablePermissionList = await ArbitrablePermissionList.new(
               centralizedArbitrator.address,
               arbitratorExtraData,
-              "Test",
+              metaEvidence,
               blacklist,
               appendOnly,
               rechallengePossible,
@@ -172,10 +172,12 @@ contract('ArbitrablePermissionList', function(accounts) {
 
           it('should be constructed correctly', async () => {
             assert.equal(await arbitrablePermissionList.arbitrator(), centralizedArbitrator.address);
+            assert.equal(await arbitrablePermissionList.arbitratorExtraData(), arbitratorExtraData)
+            assert.equal(await arbitrablePermissionList.blacklist(), blacklist)
+            assert.equal(await arbitrablePermissionList.appendOnly(), appendOnly)
+            assert.equal(await arbitrablePermissionList.rechallengePossible(), rechallengePossible)
             assert.equal(await arbitrablePermissionList.stake(), stake);
             assert.equal(await arbitrablePermissionList.timeToChallenge(), timeToChallenge);
-            assert.equal(await arbitrablePermissionList.arbitratorExtraData(), arbitratorExtraData)
-
           });
 
           describe('msg.value restrictions', function() {
