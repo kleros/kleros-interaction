@@ -120,7 +120,7 @@ contract CentralizedCourt is Arbitrator {
         return disputeID;
     }
 
-    /** @dev Give a ruling. UNTRUSTED.
+    /** @dev Give a ruling. UNTRUSTED. Only callabe by court members.
      *  @param _disputeID ID of the dispute to rule.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
      */
@@ -169,7 +169,7 @@ contract CentralizedCourt is Arbitrator {
         arbitrated.rule(_disputeID, voteCounter.winningChoice);
     }
 
-    /** @dev Tranfers any balance the court member has */
+    /** @dev Tranfers any balance the court member has. Only callabe by court members. */
     function withdraw() public onlyCourtMember {
         uint feeInWei = feeToCollect[msg.sender];
         feeToCollect[msg.sender] = 0;
@@ -241,7 +241,7 @@ contract CentralizedCourt is Arbitrator {
     }
 
 
-    /** @dev Set the arbitration price. Only callable by court members.
+    /** @dev Creates a request to update the arbitration price. Only callable by court members.
      *  @param _arbitrationPrice Amount to be paid for arbitration.
      */
     function createUpdatePriceRequest(uint _arbitrationPrice) public onlyCourtMember returns(uint requestID) {
@@ -256,7 +256,7 @@ contract CentralizedCourt is Arbitrator {
     }
 
 
-    /** @dev Vote for a price update request. Vote 1 for 'YES', 2 for 'NO'.
+    /** @dev Vote for a price update request. Vote 1 for 'YES', 2 for 'NO'. Only callabe by court members.
      *  @param _requestID ID of the dispute to rule.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
      */
