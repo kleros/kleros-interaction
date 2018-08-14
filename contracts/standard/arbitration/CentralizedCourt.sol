@@ -29,8 +29,10 @@ contract CentralizedCourt is Arbitrator {
         uint ruling;     // The ruling which was given.
     }
 
+    enum PriceRequestStatus {Waiting, Solved}
+
     struct ArbitrationPriceRequest {
-        DisputeStatus status; // This variable is only supposed  assume 'Waiting' and 'Solved' status.
+        PriceRequestStatus status;
         uint fee; // The new minimum fee to be paid for the arbitration service.
         uint deadline;
         mapping (address => bool) hasVoted;
@@ -226,7 +228,7 @@ contract CentralizedCourt is Arbitrator {
      *  @param _requestID ID of the request.
      *  @return status The status of the request.
      */
-    function requestStatus(uint _requestID) public view returns(DisputeStatus status) {
+    function requestStatus(uint _requestID) public view returns(PriceRequestStatus status) {
         return requests[_requestID].status;
     }
 
@@ -243,6 +245,7 @@ contract CentralizedCourt is Arbitrator {
 
     /** @dev Creates a request to update the arbitration price. Only callable by court members.
      *  @param _arbitrationPrice Amount to be paid for arbitration.
+     *  @return requestID The id of the update price request created.
      */
     function createUpdatePriceRequest(uint _arbitrationPrice) public onlyCourtMember returns(uint requestID) {
 
@@ -265,7 +268,7 @@ contract CentralizedCourt is Arbitrator {
         ArbitrationPriceRequest storage request = requests[_requestID];
         require(request.deadline > now, "Can only vote before deadline.");
         require(!request.hasVoted[msg.sender], "Can only vote once.");
-        require(request.status == DisputeStatus.Waiting, "Can only vote on requests not yet decided.");
+        require(request.status == PriceRequestStatus.Waiting, "Can only vote on requests not yet decided.");
 
         request.hasVoted[msg.sender] = true;
         request.voteCount[_ruling] += 1;
@@ -286,7 +289,7 @@ contract CentralizedCourt is Arbitrator {
         }
 
         if(request.voteCount[_ruling] > (members.length/2)) { // We have got the will of the majority.
-            request.status = DisputeStatus.Solved;
+            request.status = PriceRequestStatus.Solved;
             if(voteCounter.winningChoice == 1) {
                 arbitrationPrice = request.fee;
             }
@@ -300,9 +303,9 @@ contract CentralizedCourt is Arbitrator {
     function timeoutUpdatePriceRequest(uint _requestID) public {
         ArbitrationPriceRequest storage request = requests[_requestID];
         require(now >= request.deadline, "Can only timeout arbitration update price request after deadline.");
-        require(request.status == DisputeStatus.Waiting, "Can only timeout arbitration update price request not resolved.");
+        require(request.status == PriceRequestStatus.Waiting, "Can only timeout arbitration update price request not resolved.");
         
-        request.status = DisputeStatus.Solved;
+        request.status = PriceRequestStatus.Solved;
         VoteCounter storage voteCounter = request.voteCounter;
 
         if(voteCounter.winningChoice == 1) {
