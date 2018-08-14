@@ -16,7 +16,6 @@ import "./Arbitrator.sol";
 
 contract CentralizedCourt is Arbitrator {
 
-    address public owner = msg.sender;
     uint arbitrationPrice; // Not public because arbitrationCost already acts as an accessor.
     uint constant NOT_PAYABLE_VALUE = (2**256-2)/2; // High value to be sure that the appeal is too expensive.
 
@@ -30,42 +29,56 @@ contract CentralizedCourt is Arbitrator {
         uint ruling;     // The ruling which was given.
     }
 
+    struct ArbitrationPriceRequest {
+        DisputeStatus status; // This variable is only supposed  assume 'Waiting' and 'Solved' status
+        uint fee; // The new minimum fee to be paid for the arbitration service
+        uint deadline;
+        mapping (address => bool) hasVoted;
+        mapping (uint => uint) voteCount; // voteCount[choice] is the number of votes for choice.
+        VoteCounter voteCounter;
+        Vote[] votes;
+    }
+
     struct Dispute {
         Arbitrable arbitrated;
         uint choices;
         uint fee;
         DisputeStatus status;
         mapping (address => bool) hasVoted;
-        mapping (address => bool) canCollectFee;
         mapping (uint => uint) voteCount; // voteCount[choice] is the number of votes for choice.
         VoteCounter voteCounter;
         Vote[] votes;
         uint deadline;
     }
 
-    modifier onlyOwner {
-        require(msg.sender==owner);
-        _;
-    }
+    /** @dev To be raised when an request to update the arbitration price is created.
+     *  @param _requestID ID of the request.
+     *  @param _requester The address that created the request.
+     */
+    event UpdatePriceRequestCreation(uint _requestID, address _requester);
+
+    ArbitrationPriceRequest[] public requests;
 
     Dispute[] public disputes;
     address[] public members;
+    uint public deadline;
     mapping (address => bool) public isMember;
+    mapping (address => uint) public feeToCollect;
 
     uint constant public MAX_MEMBER_COUNT = 50;
 
     modifier onlyCourtMember() {
-        require(isMember[msg.sender]);
+        require(isMember[msg.sender], "Address not authorized");
         _;
     }
 
     modifier whoHasNotVoted(uint _disputeID) {
-        require(!disputes[_disputeID].hasVoted[msg.sender]);
+        require(!disputes[_disputeID].hasVoted[msg.sender], "Can only vote once");
         _;
     }
 
     modifier beforeDeadline(uint _disputeID) {
-        require(now < disputes[_disputeID].deadline);
+        require(now < disputes[_disputeID].deadline, "Can only vote before deadline");
         _;
     }
 
@@ -73,36 +86,37 @@ contract CentralizedCourt is Arbitrator {
     /** @dev Constructor. Set the initial arbitration price.
      *  @param _arbitrationPrice Amount to be paid for arbitration.
      *  @param _members Array of addresses allowed to rule.
+     *  @param _deadline Amount of time in seconds for deadline e.g: 1 day = 86400 seconds.
      */
-    constructor (uint _arbitrationPrice, address[] _members) public {
-        require(_members.length <= MAX_MEMBER_COUNT);
+    constructor (uint _arbitrationPrice, address[] _members, uint _deadline) public {
+        require(_members.length <= MAX_MEMBER_COUNT, "Quantity of members is not supported");
         for(uint8 i = 0; i < _members.length; i++){
-            require(!isMember[_members[i]] && _members[i] != address(0));
+            require(!isMember[_members[i]] && _members[i] != address(0), "Invalid court member address");
             isMember[_members[i]] = true;
         }
         arbitrationPrice = _arbitrationPrice;
         members = _members;
+        deadline = _deadline;
     }
 
 
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost().
      *  @param _choices Amount of choices the arbitrator can make in this dispute. When ruling ruling<=choices.
-     *  @param _extraData Can be used to give additional info on the dispute to be created.
+     *  @param _extraData Not used by this contract.
      *  @return disputeID ID of the dispute created.
      */
     function createDispute(uint _choices, bytes _extraData) public payable returns(uint disputeID)  {
-        require(msg.value >= arbitrationPrice);
+        require(msg.value >= arbitrationPrice, "Did not send enough ether");
 
         disputeID = disputes.length++;
         Dispute storage dispute = disputes[disputeID];
-        dispute.deadline = now + 3 days;
+        dispute.deadline = now + deadline;
         dispute.choices = _choices;
         dispute.arbitrated = Arbitrable(msg.sender);
         dispute.fee = msg.value;
 
-
-        emit DisputeCreation(disputeID, Arbitrable( msg.sender));
+        emit DisputeCreation(disputeID, Arbitrable(msg.sender));
         return disputeID;
     }
 
@@ -112,8 +126,8 @@ contract CentralizedCourt is Arbitrator {
      */
     function voteRuling(uint _disputeID, uint _ruling) public onlyCourtMember whoHasNotVoted(_disputeID) beforeDeadline(_disputeID) {
         Dispute storage dispute = disputes[_disputeID];
-        require(_ruling<=dispute.choices && _ruling != 0);
-        require(dispute.status == DisputeStatus.Waiting);
+        require(_ruling<=dispute.choices, "Invalid ruling");
+        require(dispute.status == DisputeStatus.Waiting, "Can only vote for disputes not yet solved");
 
         dispute.hasVoted[msg.sender] = true;
         dispute.voteCount[_ruling] += 1;
@@ -134,8 +148,9 @@ contract CentralizedCourt is Arbitrator {
         }
 
         if(dispute.voteCount[_ruling] >= (members.length/2)+1) { // We have got the will of the majority
+            uint feeInWei = dispute.fee/members.length;
             for(uint8 i = 0; i < members.length; i++){
-                dispute.canCollectFee[members[i]] = true;
+                feeToCollect[members[i]] += feeInWei;
             }
             executeRuling(_disputeID);
         }
@@ -154,21 +169,10 @@ contract CentralizedCourt is Arbitrator {
         arbitrated.rule(_disputeID, voteCounter.winningChoice);
     }
 
-    /** @dev Calculates and tranfers the fee to the court member
-    *   @param _disputeID ID of the dispute to rule 
-    */
-    function withdraw(uint _disputeID) public onlyCourtMember {
-        Dispute storage dispute = disputes[_disputeID];
-        require(dispute.canCollectFee[msg.sender]);
-
-        dispute.canCollectFee[msg.sender] = false;
-        uint feeInWei;
-
-        if(dispute.votes.length == members.length) {
-            feeInWei = dispute.fee/members.length;
-        } else {
-            feeInWei = dispute.fee/dispute.votes.length;
-        }
+    /** @dev Tranfers any balance the court member has */
+    function withdraw() public onlyCourtMember {
+        uint feeInWei = feeToCollect[msg.sender];
+        feeToCollect[msg.sender] = 0;
         msg.sender.transfer(feeInWei);
     }
 
@@ -177,11 +181,15 @@ contract CentralizedCourt is Arbitrator {
     */
     function timeoutDecision(uint _disputeID) public {
         Dispute storage dispute = disputes[_disputeID];
-        require(now >= dispute.deadline);
-        require(dispute.status == DisputeStatus.Waiting);
-       
-        for(uint8 i = 0; i < dispute.votes.length; i++){
-            dispute.canCollectFee[dispute.votes[i].account] = true;
+        require(now >= dispute.deadline, "Can only timeout disputes after deadline");
+        require(dispute.status == DisputeStatus.Waiting, "Can only timeout disputes not resolved.");
+
+        if(dispute.votes.length > 0){
+            uint feeInWei = dispute.fee/dispute.votes.length;
+
+            for(uint8 i = 0; i < dispute.votes.length; i++) {
+                feeToCollect[dispute.votes[i].account] += feeInWei;
+            }
         }
 
         executeRuling(_disputeID);
@@ -196,7 +204,7 @@ contract CentralizedCourt is Arbitrator {
     }
 
     /** @dev Return the ruling of a dispute.
-     *  @param _disputeID ID of the dispute to rule.
+     *  @param _disputeID ID of the dispute.
      *  @return ruling The ruling which would or has been given.
      */
     function currentRuling(uint _disputeID) public view returns(uint ruling) {
@@ -214,18 +222,99 @@ contract CentralizedCourt is Arbitrator {
         return NOT_PAYABLE_VALUE;
     }
 
-    /** @dev Set the arbitration price. Only callable by the owner.
+    /** @dev Return the status of an update price request.
+     *  @param _requestID ID of the request.
+     *  @return status The status of the request.
+     */
+    function requestStatus(uint _requestID) public view returns(DisputeStatus status) {
+        return requests[_requestID].status;
+    }
+
+    /** @dev Return the ruling of an arbitration price update request.
+     *  @param _requestID ID of the request.
+     *  @return ruling The ruling which would or has been given.
+     */
+    function currentRequestRuling(uint _requestID) public view returns(uint ruling) {
+        ArbitrationPriceRequest storage request = requests[_requestID];
+        VoteCounter storage voteCounter = request.voteCounter;
+        return voteCounter.winningChoice;
+    }
+
+
+    /** @dev Set the arbitration price. Only callable by court members.
      *  @param _arbitrationPrice Amount to be paid for arbitration.
      */
-    function setArbitrationPrice(uint _arbitrationPrice) public onlyOwner {
-        arbitrationPrice = _arbitrationPrice;
+    function createUpdatePriceRequest(uint _arbitrationPrice) public onlyCourtMember returns(uint requestID) {
+
+        requestID = requests.length++;
+        ArbitrationPriceRequest storage request = requests[requestID];
+        request.deadline = now + deadline;
+        request.fee = _arbitrationPrice;
+
+        emit UpdatePriceRequestCreation(requestID, msg.sender);
+        return requestID;
+    }
+
+
+    /** @dev Vote for a price update request. Vote 1 for 'YES', 2 for 'NO'.
+     *  @param _requestID ID of the dispute to rule.
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
+     */
+    function voteUpdatePriceRequest(uint _requestID, uint _ruling) public onlyCourtMember {
+        require(_ruling < 3, "Invalid option");
+        ArbitrationPriceRequest storage request = requests[_requestID];
+        require(request.deadline > now, "Can only vote before deadline");
+        require(!request.hasVoted[msg.sender], "Can only vote once");
+        require(request.status == DisputeStatus.Waiting, "Can only vote on requests not yet decided");
+
+        request.hasVoted[msg.sender] = true;
+        request.voteCount[_ruling] += 1;
+
+        request.votes.push(
+            Vote({
+                account: msg.sender,
+                ruling: _ruling
+            })
+        );
+
+        VoteCounter storage voteCounter = request.voteCounter;
+        if(request.voteCount[_ruling] > voteCounter.winningCount){
+            voteCounter.winningCount = request.voteCount[_ruling];
+            voteCounter.winningChoice = _ruling;
+        }  else if (voteCounter.winningCount == request.voteCount[_ruling]) {
+            voteCounter.winningChoice = 0; // It's currently a tie.
+        }
+
+        if(request.voteCount[_ruling] >= (members.length/2)+1) { // We have got the will of the majority
+            request.status = DisputeStatus.Solved;
+            if(voteCounter.winningChoice == 1) {
+                arbitrationPrice = request.fee;
+            }
+        }
+    }
+
+
+    /** @dev Forces a decision by timeout, update the arbitration price if majority decide 'YES'.
+     *  @param _requestID ID of the request to timeout.
+     */
+    function timeoutUpdatePriceRequest(uint _requestID) public {
+        ArbitrationPriceRequest storage request = requests[_requestID];
+        require(now >= request.deadline, "Can only timeout disputes after deadline");
+        require(request.status == DisputeStatus.Waiting, "Can only timeout disputes not resolved.");
+        
+        request.status = DisputeStatus.Solved;
+        VoteCounter storage voteCounter = request.voteCounter;
+
+        if(voteCounter.winningChoice == 1) {
+            arbitrationPrice = request.fee;
+        }
     }
 
     /** @dev Cost of arbitration. Accessor to arbitrationPrice.
      *  @param _extraData Not used by this contract.
      *  @return fee Amount to be paid.
      */
-    function arbitrationCost(bytes _extraData) public constant returns(uint fee) {
+    function arbitrationCost(bytes _extraData) public view returns(uint fee) {
         return arbitrationPrice;
     }
 }
