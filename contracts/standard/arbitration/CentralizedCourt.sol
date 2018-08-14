@@ -300,7 +300,7 @@ contract CentralizedCourt is Arbitrator {
     function timeoutUpdatePriceRequest(uint _requestID) public {
         ArbitrationPriceRequest storage request = requests[_requestID];
         require(now >= request.deadline, "Can only timeout arbitration update price request after deadline.");
-        require(request.status == DisputeStatus.Waiting, "Can only timeout disputes not resolved.");
+        require(request.status == DisputeStatus.Waiting, "Can only timeout arbitration update price request not resolved.");
         
         request.status = DisputeStatus.Solved;
         VoteCounter storage voteCounter = request.voteCounter;
