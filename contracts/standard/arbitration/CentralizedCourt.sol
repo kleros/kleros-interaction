@@ -30,8 +30,8 @@ contract CentralizedCourt is Arbitrator {
     }
 
     struct ArbitrationPriceRequest {
-        DisputeStatus status; // This variable is only supposed  assume 'Waiting' and 'Solved' status
-        uint fee; // The new minimum fee to be paid for the arbitration service
+        DisputeStatus status; // This variable is only supposed  assume 'Waiting' and 'Solved' status.
+        uint fee; // The new minimum fee to be paid for the arbitration service.
         uint deadline;
         mapping (address => bool) hasVoted;
         mapping (uint => uint) voteCount; // voteCount[choice] is the number of votes for choice.
@@ -68,17 +68,17 @@ contract CentralizedCourt is Arbitrator {
     uint constant public MAX_MEMBER_COUNT = 50;
 
     modifier onlyCourtMember() {
-        require(isMember[msg.sender], "Address not authorized");
+        require(isMember[msg.sender], "Address not authorized.");
         _;
     }
 
     modifier whoHasNotVoted(uint _disputeID) {
-        require(!disputes[_disputeID].hasVoted[msg.sender], "Can only vote once");
+        require(!disputes[_disputeID].hasVoted[msg.sender], "Can only vote once.");
         _;
     }
 
     modifier beforeDeadline(uint _disputeID) {
-        require(now < disputes[_disputeID].deadline, "Can only vote before deadline");
+        require(now < disputes[_disputeID].deadline, "Can only vote before deadline.");
         _;
     }
 
@@ -89,9 +89,9 @@ contract CentralizedCourt is Arbitrator {
      *  @param _deadline Amount of time in seconds for deadline e.g: 1 day = 86400 seconds.
      */
     constructor (uint _arbitrationPrice, address[] _members, uint _deadline) public {
-        require(_members.length <= MAX_MEMBER_COUNT, "Quantity of members is not supported");
+        require(_members.length <= MAX_MEMBER_COUNT, "Quantity of members is not supported.");
         for(uint8 i = 0; i < _members.length; i++){
-            require(!isMember[_members[i]] && _members[i] != address(0), "Invalid court member address");
+            require(!isMember[_members[i]] && _members[i] != address(0), "Invalid court member address.");
             isMember[_members[i]] = true;
         }
         arbitrationPrice = _arbitrationPrice;
@@ -107,7 +107,7 @@ contract CentralizedCourt is Arbitrator {
      *  @return disputeID ID of the dispute created.
      */
     function createDispute(uint _choices, bytes _extraData) public payable returns(uint disputeID)  {
-        require(msg.value >= arbitrationPrice, "Did not send enough ether");
+        require(msg.value >= arbitrationPrice, "Did not send enough ether.");
 
         disputeID = disputes.length++;
         Dispute storage dispute = disputes[disputeID];
@@ -126,8 +126,8 @@ contract CentralizedCourt is Arbitrator {
      */
     function voteRuling(uint _disputeID, uint _ruling) public onlyCourtMember whoHasNotVoted(_disputeID) beforeDeadline(_disputeID) {
         Dispute storage dispute = disputes[_disputeID];
-        require(_ruling<=dispute.choices, "Invalid ruling");
-        require(dispute.status == DisputeStatus.Waiting, "Can only vote for disputes not yet solved");
+        require(_ruling<=dispute.choices, "Invalid ruling.");
+        require(dispute.status == DisputeStatus.Waiting, "Can only vote for disputes not yet solved.");
 
         dispute.hasVoted[msg.sender] = true;
         dispute.voteCount[_ruling] += 1;
@@ -147,7 +147,7 @@ contract CentralizedCourt is Arbitrator {
             voteCounter.winningChoice = 0; // It's currently a tie.
         }
 
-        if(dispute.voteCount[_ruling] >= (members.length/2)+1) { // We have got the will of the majority
+        if(dispute.voteCount[_ruling] > (members.length/2)) { // We have got the will of the majority.
             uint feeInWei = dispute.fee/members.length;
             for(uint8 i = 0; i < members.length; i++){
                 feeToCollect[members[i]] += feeInWei;
@@ -156,9 +156,9 @@ contract CentralizedCourt is Arbitrator {
         }
     }
 
-    /** @dev Do all the internal work and executes the rule function
-    *   @param _disputeID ID of the dispute to rule
-    */
+    /** @dev Do all the internal work and executes the rule function.
+     *  @param _disputeID ID of the dispute to rule.
+     */
     function executeRuling(uint _disputeID) internal {
         Dispute storage dispute = disputes[_disputeID];
         VoteCounter storage voteCounter = dispute.voteCounter;
@@ -176,12 +176,12 @@ contract CentralizedCourt is Arbitrator {
         msg.sender.transfer(feeInWei);
     }
 
-    /** @dev Forces a decision by timeout, fee is splited between court members who voted
-    *   @param _disputeID ID of the dispute to rule
-    */
+    /** @dev Forces a decision by timeout, fee is splited between court members who voted.
+     *  @param _disputeID ID of the dispute to rule.
+     */
     function timeoutDecision(uint _disputeID) public {
         Dispute storage dispute = disputes[_disputeID];
-        require(now >= dispute.deadline, "Can only timeout disputes after deadline");
+        require(now >= dispute.deadline, "Can only timeout disputes after deadline.");
         require(dispute.status == DisputeStatus.Waiting, "Can only timeout disputes not resolved.");
 
         if(dispute.votes.length > 0){
@@ -261,11 +261,11 @@ contract CentralizedCourt is Arbitrator {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
      */
     function voteUpdatePriceRequest(uint _requestID, uint _ruling) public onlyCourtMember {
-        require(_ruling < 3, "Invalid option");
+        require(_ruling < 3, "Invalid option.");
         ArbitrationPriceRequest storage request = requests[_requestID];
-        require(request.deadline > now, "Can only vote before deadline");
-        require(!request.hasVoted[msg.sender], "Can only vote once");
-        require(request.status == DisputeStatus.Waiting, "Can only vote on requests not yet decided");
+        require(request.deadline > now, "Can only vote before deadline.");
+        require(!request.hasVoted[msg.sender], "Can only vote once.");
+        require(request.status == DisputeStatus.Waiting, "Can only vote on requests not yet decided.");
 
         request.hasVoted[msg.sender] = true;
         request.voteCount[_ruling] += 1;
@@ -285,7 +285,7 @@ contract CentralizedCourt is Arbitrator {
             voteCounter.winningChoice = 0; // It's currently a tie.
         }
 
-        if(request.voteCount[_ruling] >= (members.length/2)+1) { // We have got the will of the majority
+        if(request.voteCount[_ruling] > (members.length/2)) { // We have got the will of the majority.
             request.status = DisputeStatus.Solved;
             if(voteCounter.winningChoice == 1) {
                 arbitrationPrice = request.fee;
@@ -299,7 +299,7 @@ contract CentralizedCourt is Arbitrator {
      */
     function timeoutUpdatePriceRequest(uint _requestID) public {
         ArbitrationPriceRequest storage request = requests[_requestID];
-        require(now >= request.deadline, "Can only timeout disputes after deadline");
+        require(now >= request.deadline, "Can only timeout arbitration update price request after deadline.");
         require(request.status == DisputeStatus.Waiting, "Can only timeout disputes not resolved.");
         
         request.status = DisputeStatus.Solved;
