@@ -15,17 +15,17 @@ import "./Arbitrator.sol";
  *  if it doesn't rule in time.
  */
 contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
-    uint blocksToTimeout;
+    uint timeout;
     mapping (uint => uint) public rulingBlockNumbers;
 
 
     constructor(Arbitrator _superior,
       uint _arbitrationPrice,
       bytes _arbitratorExtraData,
-      uint _blocksToTimeout)
+      uint _timeout)
       CentralizedArbitrator(_arbitrationPrice)
       Arbitrable(_superior, _arbitratorExtraData) {
-        blocksToTimeout = _blocksToTimeout;
+        timeout = _timeout;
         owner = msg.sender;
     }
 
@@ -39,7 +39,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
         require(_ruling<=dispute.choices);
 
         dispute.ruling = _ruling;
-        rulingBlockNumbers[_disputeID] = block.number;
+        rulingBlockNumbers[_disputeID] = block.timestamp;
 
         dispute.status = DisputeStatus.Appealable;
         emit AppealPossible(_disputeID);
@@ -50,7 +50,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
     }
 
     function rule(uint _disputeID, uint _ruling) public onlyOwner {
-        require(block.number > rulingBlockNumbers[_disputeID] + blocksToTimeout);
+        require(block.timestamp > rulingBlockNumbers[_disputeID] + timeout);
         emit Ruling(Arbitrator(msg.sender),_disputeID,_ruling);
 
         executeRuling(_disputeID,_ruling);
