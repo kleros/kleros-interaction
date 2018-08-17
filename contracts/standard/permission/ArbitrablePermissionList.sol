@@ -65,7 +65,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
     bool public appendOnly; // True if the list should be append only.
     bool public rechallengePossible; // True if items winning their disputes can be challenged again.
-    uint public stake; // The stake to put to submit/clear/challenge and item in addition of arbitration fees.
+    uint public stake; // The stake to put to submit/clear/challenge an item in addition of arbitration fees.
     uint public timeToChallenge; // The time before which an action is executable if not challenged.
 
     // Ruling Options
@@ -233,7 +233,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     }
 
     /**
-     *  @dev Appeal ruling. Anyone can appeal to prevent a malicious actor from challenging its own submission and loosing on purpose.
+     *  @dev Appeal ruling. Anyone can appeal to prevent a malicious actor from challenging its own submission and losing on purpose.
      *  @param _value The value of the item with the dispute to appeal on.
      */
     function appeal(bytes32 _value) public payable {
