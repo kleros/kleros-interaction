@@ -385,16 +385,16 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                 uint i = _cursorIndex == 0 ? (_sort ? 0 : 1) : (_sort ? _cursorIndex + 1 : itemsList.length - _cursorIndex + 1);
                 _sort ? i < itemsList.length : i <= itemsList.length;
                 i++
-            ) { // Oldest or newest first
+            ) { // Oldest or newest first.
             Item storage item = items[itemsList[_sort ? i : itemsList.length - i]];
             if (
                 item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
-                    (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending
-                    (_filter[1] && item.disputed) || // Challenged
-                    (_filter[2] && item.status == ItemStatus.Registered) || // Accepted
-                    (_filter[3] && item.status == ItemStatus.Cleared) || // Rejected
-                    (_filter[4] && item.submitter == msg.sender) || // My Submissions
-                    (_filter[5] && item.challenger == msg.sender) // My Challenges
+                    (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending.
+                    (_filter[1] && item.disputed) || // Challenged.
+                    (_filter[2] && item.status == ItemStatus.Registered) || // Accepted.
+                    (_filter[3] && item.status == ItemStatus.Cleared) || // Rejected.
+                    (_filter[4] && item.submitter == msg.sender) || // My Submissions.
+                    (_filter[5] && item.challenger == msg.sender) // My Challenges.
                 )
             ) {
                 if (_index < _count) {
