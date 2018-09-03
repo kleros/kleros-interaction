@@ -12,7 +12,12 @@ import "./Arbitrator.sol";
  *  This can be used for buying goods, services and for paying freelancers.
  *  Parties are identified as "seller" and "buyer".
  */
- contract MultipleArbitrableTransaction {
+contract MultipleArbitrableTransaction {
+
+    // **************************** //
+    // *    Contract variables    * //
+    // **************************** //
+
     string constant RULING_OPTIONS = "Reimburse buyer;Pay seller";
     uint8 constant AMOUNT_OF_CHOICES = 2;
     uint8 constant BUYER_WINS = 1;
@@ -40,10 +45,9 @@ import "./Arbitrator.sol";
 
     mapping (bytes32 => uint) public disputeTxMap;
 
-    /** @dev Constructor.
-     */
-    constructor() public {
-    }
+    // **************************** //
+    // *          Events          * //
+    // **************************** //
 
     /** @dev To be raised when a dispute is created. The main purpose of this event is to let the arbitrator know the meaning ruling IDs.
      *  @param _transactionId The index of the transaction in dispute.
@@ -88,19 +92,29 @@ import "./Arbitrator.sol";
      */
     event HasToPayFee(uint indexed _transactionId, Party _party);
 
+    /** @dev Constructor.
+     */
+    constructor() public {
+    }
+
+    // **************************** //
+    // *    Arbitrable functions  * //
+    // *    Modifying the state   * //
+    // **************************** //
+
     /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
      *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) public {
-        uint transactionId = disputeTxMap[keccak256(msg.sender,_disputeID)];
+        uint transactionId = disputeTxMap[keccak256(msg.sender, _disputeID)];
         Transaction storage transaction = transactions[transactionId];
-        require(msg.sender==address(transaction.arbitrator));
+        require(msg.sender == address(transaction.arbitrator));
 
-        emit Ruling(transactionId, Arbitrator(msg.sender),_disputeID,_ruling);
+        emit Ruling(transactionId, Arbitrator(msg.sender), _disputeID, _ruling);
 
-        executeRuling(_disputeID,_ruling);
+        executeRuling(_disputeID, _ruling);
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the seller. UNTRUSTED.
@@ -305,5 +319,16 @@ import "./Arbitrator.sol";
 
         transaction.amount = 0;
         transaction.status = Status.Resolved;
+    }
+
+    // **************************** //
+    // *     Constant getters     * //
+    // **************************** //
+
+    /** @dev Getter to know the count of transactions.
+     *  @return the count of transactions.
+     */
+    function getCountTransactions() public view returns (uint countTransactions) {
+        return transactions.length;
     }
 }
