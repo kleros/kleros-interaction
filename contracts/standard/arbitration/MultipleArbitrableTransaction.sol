@@ -348,6 +348,16 @@ contract MultipleArbitrableTransaction {
             }
         }
         
-        return arbitrableTransactionIds;
+        if (j > 0) { // if there is at least one arbitration transaction
+            uint[] memory staticArbitrableTransactionIds = new uint[](j + 1);
+        
+            for (uint k = 0; k < j; k++) {
+                staticArbitrableTransactionIds[k] = arbitrableTransactionIds[k];
+            }
+        
+            return staticArbitrableTransactionIds;
+        } else { // if there is no arbitration transaction
+            return new uint[](0); // returns an empty array
+        }
     }
 }
