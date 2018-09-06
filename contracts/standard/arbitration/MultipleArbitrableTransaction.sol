@@ -331,4 +331,23 @@ contract MultipleArbitrableTransaction {
     function getCountTransactions() public view returns (uint countTransactions) {
         return transactions.length;
     }
+
+    /** @dev Getter to get transaction ids by an address.
+     *  for the arbitrable transaction with the id 0, the GUI must checks
+     *  if the transaction is a "false positive" or not
+     *  @param _address of the owner of the transactions.
+     *  @return array of transaction ids.
+     */
+    function getTransactionIdsByAddress(address _address) public view returns (uint[]) {
+        uint[] memory arbitrableTransactionIds = new uint[](transactions.length);
+        uint j;
+        for(uint i = 1; i < transactions.length; ++i) {
+            if (transactions[i].seller == _address || transactions[i].buyer == _address) {
+                arbitrableTransactionIds[j] = i;
+                ++j;
+            }
+        }
+        
+        return arbitrableTransactionIds;
+    }
 }
