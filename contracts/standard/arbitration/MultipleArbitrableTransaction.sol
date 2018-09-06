@@ -351,7 +351,7 @@ contract MultipleArbitrableTransaction {
         if (j > 0) { // if there is at least one arbitration transaction
             uint[] memory staticArbitrableTransactionIds = new uint[](j + 1);
         
-            for (uint k = 0; k < j; k++) {
+            for (uint k = 0; k < j; ++k) {
                 staticArbitrableTransactionIds[k] = arbitrableTransactionIds[k];
             }
         
