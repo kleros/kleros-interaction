@@ -331,4 +331,19 @@ contract MultipleArbitrableTransaction {
     function getCountTransactions() public view returns (uint countTransactions) {
         return transactions.length;
     }
+
+    /** @dev Get IDs for transactions where the specified address is the buyer and/or the seller.
+     *  @param _address The specified address.
+     *  @return The transaction IDs.
+     */
+    function getTransactionIDsByAddress(address _address) public view returns (uint[] transactionIDs) {
+        uint[] memory transactionIDsBigArr = new uint[](transactions.length);
+        uint count = 0;
+        for (uint i = 0; i < transactions.length; i++)
+            if (transactions[i].seller == _address || transactions[i].buyer == _address)
+                transactionIDsBigArr[count++] = i;
+        
+        transactionIDs = new uint[](count);
+        for (uint j = 0; j < count; j++) transactionIDs[j] = transactionIDsBigArr[j];
+    }
 }
