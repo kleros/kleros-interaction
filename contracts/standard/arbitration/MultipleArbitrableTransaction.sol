@@ -66,17 +66,17 @@ contract MultipleArbitrableTransaction {
     event Ruling(uint indexed _transactionId, Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
     /** @dev To be emmited when meta-evidence is submitted.
-     *  @param _transactionId The index of the transaction.
+     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionId.
      *  @param _evidence A link to the meta-evidence JSON.
      */
-    event MetaEvidence(uint indexed _transactionId, string _evidence);
+    event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
 
     /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _transactionId The index of the transaction.
+     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionId.
      */
-    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _transactionId);
+    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
 
     /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
@@ -342,7 +342,7 @@ contract MultipleArbitrableTransaction {
         for (uint i = 0; i < transactions.length; i++)
             if (transactions[i].seller == _address || transactions[i].buyer == _address)
                 transactionIDsBigArr[count++] = i;
-        
+
         transactionIDs = new uint[](count);
         for (uint j = 0; j < count; j++) transactionIDs[j] = transactionIDsBigArr[j];
     }

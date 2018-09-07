@@ -50,7 +50,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       }
     );
 
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
     let payerBalanceBeforeReimbursment = web3.eth.getBalance(payer);
     await multipleContract.reimburse(arbitrableTransactionId, 1000, {
       from: payee
@@ -93,7 +93,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         }
       );
 
-      let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+      let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
       let payerBalanceBeforeReimbursment = web3.eth.getBalance(payer);
       await multipleContract.reimburse(arbitrableTransactionId, 1000, {
@@ -137,7 +137,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       }
     );
 
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     assert.equal(
       web3.eth.getBalance(multipleContract.address),
@@ -175,7 +175,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
       }
     );
 
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     increaseTime(timeout + 1);
     let tx = await multipleContract.withdraw(arbitrableTransactionId, {
@@ -207,7 +207,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
     await expectThrow(
       multipleContract.withdraw(arbitrableTransactionId, { from: payer })
     );
@@ -231,7 +231,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     let payerBalanceBeforeReimbursment = web3.eth.getBalance(payer);
     await multipleContract.reimburse(arbitrableTransactionId, 507, {
@@ -274,7 +274,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     let payerBalanceBeforeReimbursment = web3.eth.getBalance(payer);
     await multipleContract.reimburse(arbitrableTransactionId, 1000, {
@@ -317,7 +317,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await expectThrow(
       multipleContract.reimburse(arbitrableTransactionId, 1003, { from: payee })
@@ -342,7 +342,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await expectThrow(
       multipleContract.reimburse(arbitrableTransactionId, 1000, { from: payer })
@@ -373,7 +373,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
       from: payee,
@@ -415,7 +415,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
       from: payer,
@@ -457,7 +457,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
       from: payer,
@@ -507,7 +507,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
       from: payer,
@@ -554,7 +554,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await expectThrow(
       multipleContract.timeOutByBuyer(arbitrableTransactionId, {
@@ -598,7 +598,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
       from: payee,
@@ -645,7 +645,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await expectThrow(
       multipleContract.timeOutBySeller(arbitrableTransactionId, {
@@ -690,7 +690,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
       from: payer,
@@ -734,7 +734,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
       from: payer,
@@ -778,7 +778,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
         );
       }
     );
-    let arbitrableTransactionId = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber();
 
     await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
       from: payer,
@@ -810,7 +810,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
     let currentResolve;
     let lastTransactionEvent = -1;
     const handler = metaEvidenceEvent.watch((error, result) => {
-      const eventTransaction = result.args._transactionId.toNumber();
+      const eventTransaction = result.args._metaEvidenceID.toNumber();
       if (eventTransaction > lastTransactionEvent) {
         lastTransactionEvent = eventTransaction;
         currentResolve(result);
@@ -832,7 +832,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
     const lastTransaction = await transaction1Promise;
 
-    let arbitrableTransactionId1 = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId1 = lastTransaction.args._metaEvidenceID.toNumber();
 
     const transaction2Promise = new Promise(resolve => {
       currentResolve = resolve;
@@ -849,7 +849,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
     const lastTransaction2 = await transaction2Promise;
 
-    let arbitrableTransactionId2 = lastTransaction2.args._transactionId.toNumber();
+    let arbitrableTransactionId2 = lastTransaction2.args._metaEvidenceID.toNumber();
 
     metaEvidenceEvent.stopWatching();
 
@@ -912,7 +912,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
     let currentResolve;
     let lastTransactionEvent = -1;
     const handler = metaEvidenceEvent.watch((error, result) => {
-      const eventTransaction = result.args._transactionId.toNumber();
+      const eventTransaction = result.args._metaEvidenceID.toNumber();
       if (eventTransaction > lastTransactionEvent) {
         lastTransactionEvent = eventTransaction;
         currentResolve(result);
@@ -934,7 +934,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
     const lastTransaction = await transaction1Promise;
 
-    let arbitrableTransactionId1 = lastTransaction.args._transactionId.toNumber();
+    let arbitrableTransactionId1 = lastTransaction.args._metaEvidenceID.toNumber();
 
     const transaction2Promise = new Promise(resolve => {
       currentResolve = resolve;
@@ -951,7 +951,7 @@ contract("MultipleArbitrableTransaction", function(accounts) {
 
     const lastTransaction2 = await transaction2Promise;
 
-    let arbitrableTransactionId2 = lastTransaction2.args._transactionId.toNumber();
+    let arbitrableTransactionId2 = lastTransaction2.args._metaEvidenceID.toNumber();
 
     metaEvidenceEvent.stopWatching();
 
