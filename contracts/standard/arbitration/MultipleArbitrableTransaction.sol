@@ -332,32 +332,20 @@ contract MultipleArbitrableTransaction {
         return transactions.length;
     }
 
-    /** @dev Getter to get transaction ids by an address.
-     *  for the arbitrable transaction with the id 0, the GUI must checks
-     *  if the transaction is a "false positive" or not
-     *  @param _address of the owner of the transactions.
-     *  @return array of transaction ids.
+    /** @dev Get IDs for transactions where the specified address is the buyer and/or the seller.
+     *  @param _address The specified address.
+     *  @return The transaction IDs.
      */
-    function getTransactionIdsByAddress(address _address) public view returns (uint[]) {
-        uint[] memory arbitrableTransactionIds = new uint[](transactions.length);
-        uint j;
-        for(uint i = 1; i < transactions.length; ++i) {
-            if (transactions[i].seller == _address || transactions[i].buyer == _address) {
-                arbitrableTransactionIds[j] = i;
-                ++j;
-            }
-        }
+    function getTransactionIDsByAddress(address _address) public view returns (uint[] _transactionIDs) {
+        uint[] memory transactionIDsBigArr = new uint[](transactions.length);
+        uint count = 0;
+        for (uint i = 0; i < transactions.length; i++)
+            if (transactions[i].seller == _address || transactions[i].buyer == _address)
+                transactionIDsBigArr[count++] = i;
         
-        if (j > 0) { // if there is at least one arbitration transaction
-            uint[] memory staticArbitrableTransactionIds = new uint[](j + 1);
+        uint[] memory transactionIDs = new uint[](count);
+        for (uint j = 0; j < count; j++) transactionIDs[j] = transactionIDsBigArr[j];
         
-            for (uint k = 0; k < j; ++k) {
-                staticArbitrableTransactionIds[k] = arbitrableTransactionIds[k];
-            }
-        
-            return staticArbitrableTransactionIds;
-        } else { // if there is no arbitration transaction
-            return new uint[](0); // returns an empty array
-        }
+        return transactionIDs;
     }
 }
