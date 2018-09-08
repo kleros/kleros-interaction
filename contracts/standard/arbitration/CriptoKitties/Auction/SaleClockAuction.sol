@@ -1,7 +1,7 @@
 /**
  *  @title Clock auction modified for sale of kitties
- *  @author dapperlabs (https://github.com/dapperlabs) 
- *  This code was taken from https://github.com/dapperlabs at 
+ *  @author dapperlabs (https://github.com/dapperlabs)
+ *  This code was taken from https://github.com/dapperlabs at
  *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
  */
 pragma solidity ^0.4.18;
@@ -14,14 +14,15 @@ contract SaleClockAuction is ClockAuction {
     // @dev Sanity check that allows us to ensure that we are pointing to the
     //  right auction in our setSaleAuctionAddress() call.
     bool public isSaleClockAuction = true;
-    
+
     // Tracks last 5 sale price of gen0 kitty sales
     uint256 public gen0SaleCount;
     uint256[5] public lastGen0SalePrices;
 
     // Delegate constructor
-    function SaleClockAuction(address _nftAddr, uint256 _cut) public
-        ClockAuction(_nftAddr, _cut) {}
+    function SaleClockAuction(address _nftAddr, uint256 _cut) public ClockAuction(_nftAddr, _cut) {
+        
+    }
 
     /// @dev Creates and begins a new auction.
     /// @param _tokenId - ID of token to auction, sender must be owner.

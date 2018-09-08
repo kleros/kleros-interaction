@@ -40,6 +40,7 @@ contract ExperimentalProxy {
         // Return data
         bytes memory _retData;
 
+        // solium-disable-next-line security/no-inline-assembly
         assembly {
             // Start of payload raw data (skip over size slot)
             let _dataPtr := add(_data, 0x20)
@@ -80,6 +81,7 @@ contract ExperimentalProxy {
         // Call on-chain handler
         handleProxySuccess(msg.sig, _data, _retData);
 
+        // solium-disable-next-line security/no-inline-assembly
         assembly {
             return(add(_retData, 0x20), mload(_retData)) // Return returned data
         }

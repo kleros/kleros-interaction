@@ -1,6 +1,6 @@
 /**
  *  @title Reverse auction modified for siring
- *  @author dapperlabs (https://github.com/dapperlabs) 
+ *  @author dapperlabs (https://github.com/dapperlabs)
  *  This code was taken from https://github.com/dapperlabs at
  *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
  */
@@ -16,8 +16,9 @@ contract SiringClockAuction is ClockAuction {
     bool public isSiringClockAuction = true;
 
     // Delegate constructor
-    function SiringClockAuction(address _nftAddr, uint256 _cut) public
-        ClockAuction(_nftAddr, _cut) {}
+    function SiringClockAuction(address _nftAddr, uint256 _cut) public ClockAuction(_nftAddr, _cut) {
+        
+    }
 
     /// @dev Creates and begins a new auction. Since this function is wrapped,
     /// require sender to be KittyCore contract.

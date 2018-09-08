@@ -142,7 +142,7 @@ contract KittyBase is KittyAccessControl {
             delete kittyIndexToApproved[_tokenId];
         }
         // Emit the transfer event.
-        Transfer(_from, _to, _tokenId);
+        emit Transfer(_from, _to, _tokenId);
     }
 
     /// @dev An internal method that creates a new kitty and stores it. This
@@ -189,7 +189,7 @@ contract KittyBase is KittyAccessControl {
         require(newKittenId <= 4294967295);
 
         // emit the birth event
-        Birth(
+        emit Birth(
             _owner,
             newKittenId,
             uint256(_kitty.matronId),

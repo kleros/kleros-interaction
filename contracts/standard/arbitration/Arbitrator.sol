@@ -51,7 +51,7 @@ contract Arbitrator{
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return fee Amount to be paid.
      */
-    function arbitrationCost(bytes _extraData) public constant returns(uint fee);
+    function arbitrationCost(bytes _extraData) public view returns(uint fee);
 
     /** @dev Appeal a ruling. Note that it has to be called before the arbitrator contract calls rule.
      *  @param _disputeID ID of the dispute to be appealed.
@@ -66,18 +66,18 @@ contract Arbitrator{
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return fee Amount to be paid.
      */
-    function appealCost(uint _disputeID, bytes _extraData) public constant returns(uint fee);
+    function appealCost(uint _disputeID, bytes _extraData) public view returns(uint fee);
 
     /** @dev Return the status of a dispute.
      *  @param _disputeID ID of the dispute to rule.
      *  @return status The status of the dispute.
      */
-    function disputeStatus(uint _disputeID) public constant returns(DisputeStatus status);
+    function disputeStatus(uint _disputeID) public view returns(DisputeStatus status);
 
     /** @dev Return the current ruling of a dispute. This is useful for parties to know if they should appeal.
      *  @param _disputeID ID of the dispute.
      *  @return ruling The ruling which has been given or the one which will be given if there is no appeal.
      */
-    function currentRuling(uint _disputeID) public constant returns(uint ruling);
+    function currentRuling(uint _disputeID) public view returns(uint ruling);
 
 }
