@@ -1,7 +1,5 @@
-# Kleros Interaction Smart Contracts
-
 <p align="center">
-  <b style="font-size: 32px;">Kleros</b>
+  <b style="font-size: 32px;">Kleros Interaction Smart Contracts</b>
 </p>
 
 <p align="center">
@@ -18,7 +16,6 @@
 
 Smart contracts able to interact with Kleros and standard proposals.
 
-
 ## Getting Started
 
 ### Setting Up The Environment
@@ -28,10 +25,13 @@ Install [Truffle Suite](https://truffleframework.com/) and [Ganache](https://tru
 ### Running Tests
 
 Compile the project using `Truffle` suite
+
 ```
 truffle compile
 ```
+
 Run tests
+
 ```
 truffle test
 ```
@@ -48,9 +48,10 @@ truffle test
 - `yarn run cz` - Run commitizen.
 - `yarn run build` - Compile contracts.
 
-
 ## Troubleshooting
+
 > Could not connect to your Ethereum client. Please check that your Ethereum client:
+
     - is running
     - is accepting RPC connections (i.e., "--rpc" option is used in geth)
     - is accessible over the network
