@@ -1,13 +1,13 @@
 /**
- *  @title Base contract for CryptoKitties. Holds all common structs, events and base variables.
- *  @author Axiom Zen (https://www.axiomzen.co)
- *  This code was taken from https://github.com/dapperlabs at 
- *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
- */
+*  @title Base contract for CryptoKitties. Holds all common structs, events and base variables.
+*  @author Axiom Zen (https://www.axiomzen.co)
+*  This code was taken from https://github.com/dapperlabs at
+*  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
+*/
 pragma solidity ^0.4.18;
 
-import './ExternalInterfaces/GeneScienceInterface.sol';
-import './KittyOwnership.sol';
+import "./ExternalInterfaces/GeneScienceInterface.sol";
+import "./KittyOwnership.sol";
 
 
 /// @title A facet of KittyCore that manages Kitty siring, gestation, and birth.
@@ -87,8 +87,8 @@ contract KittyBreeding is KittyOwnership {
     ///  address(0) to clear all siring approvals for this Kitty.
     /// @param _sireId A Kitty that you own that _addr will now be able to sire with.
     function approveSiring(address _addr, uint256 _sireId)
-        public
-        whenNotPaused
+    public
+    whenNotPaused
     {
         require(_owns(msg.sender, _sireId));
         sireAllowedToAddress[_sireId] = _addr;
@@ -111,9 +111,9 @@ contract KittyBreeding is KittyOwnership {
     ///  in the middle of a siring cooldown).
     /// @param _kittyId reference the id of the kitten, any user can inquire about it
     function isReadyToBreed(uint256 _kittyId)
-        public
-        view
-        returns (bool)
+    public
+    view
+    returns (bool)
     {
         require(_kittyId > 0);
         Kitty storage kit = kitties[_kittyId];
@@ -131,12 +131,11 @@ contract KittyBreeding is KittyOwnership {
         uint256 _matronId,
         Kitty storage _sire,
         uint256 _sireId
-    )
+        )
         private
         view
-        returns(bool)
-    {
-        // A Kitty can't breed with itself!
+        returns(bool){
+            // A Kitty can't breed with itself!
         if (_matronId == _sireId) {
             return false;
         }
@@ -170,9 +169,9 @@ contract KittyBreeding is KittyOwnership {
     /// @dev Internal check to see if a given sire and matron are a valid mating pair for
     ///  breeding via auction (i.e. skips ownership and siring approval checks).
     function _canBreedWithViaAuction(uint256 _matronId, uint256 _sireId)
-        internal
-        view
-        returns (bool)
+    internal
+    view
+    returns (bool)
     {
         Kitty storage matron = kitties[_matronId];
         Kitty storage sire = kitties[_sireId];
@@ -186,16 +185,16 @@ contract KittyBreeding is KittyOwnership {
     /// @param _matronId The ID of the proposed matron.
     /// @param _sireId The ID of the proposed sire.
     function canBreedWith(uint256 _matronId, uint256 _sireId)
-        public
-        view
-        returns(bool)
+    public
+    view
+    returns(bool)
     {
         require(_matronId > 0);
         require(_sireId > 0);
         Kitty storage matron = kitties[_matronId];
         Kitty storage sire = kitties[_sireId];
         return _isValidMatingPair(matron, _matronId, sire, _sireId) &&
-            _isSiringPermitted(_sireId, _matronId);
+        _isSiringPermitted(_sireId, _matronId);
     }
 
     /// @notice Breed a Kitty you own (as matron) with a sire that you own, or for which you
@@ -236,12 +235,7 @@ contract KittyBreeding is KittyOwnership {
         require(_isReadyToBreed(sire));
 
         // Test that these cats are a valid mating pair.
-        require(_isValidMatingPair(
-            matron,
-            _matronId,
-            sire,
-            _sireId
-        ));
+        require(_isValidMatingPair(matron, _matronId, sire, _sireId));
 
         // All checks passed, kitty gets pregnant!
         _breedWith(_matronId, _sireId);
@@ -267,7 +261,7 @@ contract KittyBreeding is KittyOwnership {
         delete sireAllowedToAddress[_sireId];
 
         // Emit the pregnancy event.
-        Pregnant(kittyIndexToOwner[_matronId], _matronId, _sireId);
+        emit Pregnant(kittyIndexToOwner[_matronId], _matronId, _sireId);
     }
 
     /// @notice Works like breedWith(), but includes a pre-payment of the gas required to call
@@ -277,9 +271,9 @@ contract KittyBreeding is KittyOwnership {
     /// @param _matronId The ID of the Kitty acting as matron (will end up pregnant if successful)
     /// @param _sireId The ID of the Kitty acting as sire (will begin its siring cooldown if successful)
     function breedWithAuto(uint256 _matronId, uint256 _sireId)
-        public
-        payable
-        whenNotPaused
+    public
+    payable
+    whenNotPaused
     {
         // Check for payment
         require(msg.value >= autoBirthFee);
@@ -290,7 +284,7 @@ contract KittyBreeding is KittyOwnership {
         // Emit an AutoBirth message so the autobirth daemon knows when and for what cat to call
         // giveBirth().
         Kitty storage matron = kitties[_matronId];
-        AutoBirth(_matronId, matron.cooldownEndTime);
+        emit AutoBirth(_matronId, matron.cooldownEndTime);
     }
 
     /// @notice Have a pregnant Kitty give birth!
@@ -302,9 +296,9 @@ contract KittyBreeding is KittyOwnership {
     ///  new kitten will be ready to breed again. Note that anyone can call this function (if they
     ///  are willing to pay the gas!), but the new kitten always goes to the mother's owner.
     function giveBirth(uint256 _matronId)
-        public
-        whenNotPaused
-        returns(uint256)
+    public
+    whenNotPaused
+    returns(uint256)
     {
         // Grab a reference to the matron in storage.
         Kitty storage matron = kitties[_matronId];

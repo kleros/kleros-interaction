@@ -1,6 +1,6 @@
 /**
  *  @title All functions related to creating kittens
- *  @author dapperlabs (https://github.com/dapperlabs) 
+ *  @author dapperlabs (https://github.com/dapperlabs)
  *  This code was taken from https://github.com/dapperlabs at
  *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
  */
@@ -28,15 +28,17 @@ contract KittyMinting is KittyAuction {
     /// @param _genes the encoded genes of the kitten to be created, any value is accepted
     /// @param _owner the future owner of the created kittens. Default to contract COO
     function createPromoKitty(uint256 _genes, address _owner) public onlyCOO {
-        if (_owner == address(0)) {
-             _owner = cooAddress;
+        address owner = _owner;
+
+        if (owner == address(0)) {
+            owner = cooAddress;
         }
         require(promoCreatedCount < promoCreationLimit);
         require(gen0CreatedCount < gen0CreationLimit);
 
         promoCreatedCount++;
         gen0CreatedCount++;
-        _createKitty(0, 0, 0, _genes, _owner);
+        _createKitty(0, 0, 0, _genes, owner);
     }
 
     /// @dev Creates a new gen0 kitty with the given genes and

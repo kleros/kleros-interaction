@@ -1,3 +1,5 @@
+/* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
+
 const { expectThrow, increaseTime } = require('../helpers/utils')
 
 const ArbitrableKitty = artifacts.require('ArbitrableKitty')
@@ -7,7 +9,7 @@ const SaleClockAuction = artifacts.require('SaleClockAuction')
 const SiringClockAuction = artifacts.require('SiringClockAuction')
 const CentralizedArbitrator = artifacts.require('CentralizedArbitrator')
 
-contract('ArbitrableKitty', (accounts) => {
+contract('ArbitrableKitty', accounts => {
   let kittyCore
   let arbitrator
   let arbitrable
@@ -45,43 +47,38 @@ contract('ArbitrableKitty', (accounts) => {
     arbitrable = await deployArbitrableKitty(params, arbitrator, kittyCore)
 
     // Transfer kitty to contract
-    await kittyCore.transfer(arbitrable.address, params.kittyId, { from: PARTY_A })
+    await kittyCore.transfer(arbitrable.address, params.kittyId, {
+      from: PARTY_A
+    })
   }
 
-  const deployArbitratorContracts = async ({ARBITRATOR, ARBITRATION_FEE}) => {
-    return CentralizedArbitrator.new(ARBITRATION_FEE, { from: ARBITRATOR })
-  }
+  const deployArbitratorContracts = async ({ ARBITRATOR, ARBITRATION_FEE }) =>
+    CentralizedArbitrator.new(ARBITRATION_FEE, { from: ARBITRATOR })
 
   const deployKittyContracts = async ({ coo, ceo }) => {
     const coreC = await KittyCore.new({ from: coo })
-    await coreC.setCEO(ceo, {from: coo})
+    await coreC.setCEO(ceo, { from: coo })
 
-    let geneScienceContract = await GeneScienceMock.new({ from: coo })
+    const geneScienceContract = await GeneScienceMock.new({ from: coo })
     await coreC.setGeneScienceAddress(geneScienceContract.address, {
       from: ceo
     })
 
-    siringAuction = await SiringClockAuction.new(
-      coreC.address,
-      100,
-      { from: coo }
-    )
+    siringAuction = await SiringClockAuction.new(coreC.address, 100, {
+      from: coo
+    })
 
     await coreC.setSiringAuctionAddress(siringAuction.address, {
       from: ceo
     })
 
-    saleAuction = await SaleClockAuction.new(
-      coreC.address,
-      100,
-      { from: coo }
-    )
+    saleAuction = await SaleClockAuction.new(coreC.address, 100, { from: coo })
     await coreC.setSaleAuctionAddress(saleAuction.address, {
       from: ceo
     })
 
-    coreC._getKittyHelper = async function (id) {
-      let attrs = await this.getKitty(id)
+    coreC._getKittyHelper = async function(id) {
+      const attrs = await this.getKitty(id)
       return {
         isGestating: attrs[0],
         isReady: attrs[1],
@@ -111,18 +108,12 @@ contract('ArbitrableKitty', (accounts) => {
       TIMEOUT,
       EXTRA_DATA,
       META_EVIDENCE,
-      {from: PARTY_A}
+      { from: PARTY_A }
     )
   }
 
   const kittyToSiringAuction = async (kittyId, user) => {
-    await kittyCore.createSiringAuction(
-      kittyId,
-      100,
-      200,
-      60,
-      { from: user }
-    )
+    await kittyCore.createSiringAuction(kittyId, 100, 200, 60, { from: user })
 
     return kittyId
   }
@@ -138,20 +129,34 @@ contract('ArbitrableKitty', (accounts) => {
     beforeEach(async () => {
       await deployAndPrepare()
       const status = (await arbitrable.status()).toNumber()
-      assert.isAtMost(status, 0, 'should not have any pending or resolved disputes')
+      assert.isAtMost(
+        status,
+        0,
+        'should not have any pending or resolved disputes'
+      )
     })
 
     it('should allow any party to put kitty up for siring and cancel', async () => {
       const { kittyId, PARTY_B, PARTY_A } = params
       let kittyOwner
 
-      await arbitrable.createSiringAuction(kittyId, 100, 200, 60, { from: PARTY_B })
+      await arbitrable.createSiringAuction(kittyId, 100, 200, 60, {
+        from: PARTY_B
+      })
       kittyOwner = await kittyCore.ownerOf(kittyId)
-      assert.equal(kittyOwner, siringAuction.address, 'Siring auction contract should own kitty')
+      assert.equal(
+        kittyOwner,
+        siringAuction.address,
+        'Siring auction contract should own kitty'
+      )
 
       await arbitrable.cancelSiringAuction(kittyId, { from: PARTY_A })
       kittyOwner = await kittyCore.ownerOf(kittyId)
-      assert.equal(kittyOwner, arbitrable.address, 'Arbitrable contract should own kitty')
+      assert.equal(
+        kittyOwner,
+        arbitrable.address,
+        'Arbitrable contract should own kitty'
+      )
     })
 
     it('should allow any party to bid on siring auction and cancel', async () => {
@@ -169,7 +174,11 @@ contract('ArbitrableKitty', (accounts) => {
       })
 
       const kittyOwner = await kittyCore.ownerOf(kittyId)
-      assert.equal(kittyOwner, arbitrable.address, 'contract should own the kitty')
+      assert.equal(
+        kittyOwner,
+        arbitrable.address,
+        'contract should own the kitty'
+      )
 
       let { isGestating } = await kittyCore._getKittyHelper(kittyId)
       assert.isTrue(isGestating, 'kitty should be pregnant')
@@ -193,7 +202,7 @@ contract('ArbitrableKitty', (accounts) => {
         value: await kittyCore.autoBirthFee()
       })
 
-      let { isGestating } = await kittyCore._getKittyHelper(kitty2Id)
+      const { isGestating } = await kittyCore._getKittyHelper(kitty2Id)
       assert.isTrue(isGestating, 'kitty should be pregnant')
     })
   })
@@ -202,7 +211,11 @@ contract('ArbitrableKitty', (accounts) => {
     beforeEach(async () => {
       await deployAndPrepare()
       const status = (await arbitrable.status()).toNumber()
-      assert.isAtMost(status, 0, 'should not have any pending or resolved disputes')
+      assert.isAtMost(
+        status,
+        0,
+        'should not have any pending or resolved disputes'
+      )
     })
 
     it('should only allow party A to transfer kitty out of the contract if B consents', async () => {
@@ -212,12 +225,20 @@ contract('ArbitrableKitty', (accounts) => {
         arbitrable.transfer(PARTY_A, kittyId, { from: PARTY_A })
       )
 
-      assert.equal((await kittyCore.ownerOf(kittyId)), arbitrable.address, 'arbitrable should still own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        arbitrable.address,
+        'arbitrable should still own kitty'
+      )
 
       await arbitrable.consentToTransfer(kittyId, PARTY_A, { from: PARTY_B })
       arbitrable.transfer(PARTY_A, kittyId, { from: PARTY_A })
 
-      assert.equal((await kittyCore.ownerOf(kittyId)), PARTY_A, 'party B should own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        PARTY_A,
+        'party B should own kitty'
+      )
     })
 
     it('should only allow party B to transfer kitty out of the contract if A consents', async () => {
@@ -227,12 +248,20 @@ contract('ArbitrableKitty', (accounts) => {
         arbitrable.transfer(OTHER_USER, kittyId, { from: PARTY_B })
       )
 
-      assert.equal((await kittyCore.ownerOf(kittyId)), arbitrable.address, 'arbitrable should still own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        arbitrable.address,
+        'arbitrable should still own kitty'
+      )
 
       await arbitrable.consentToTransfer(kittyId, OTHER_USER, { from: PARTY_A })
       arbitrable.transfer(OTHER_USER, kittyId, { from: PARTY_B })
 
-      assert.equal((await kittyCore.ownerOf(kittyId)), OTHER_USER, 'other user should own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        OTHER_USER,
+        'other user should own kitty'
+      )
     })
 
     it('should only allow party B to sell kitty if A consents', async () => {
@@ -241,11 +270,21 @@ contract('ArbitrableKitty', (accounts) => {
       await expectThrow(
         arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_B })
       )
-      assert.equal((await kittyCore.ownerOf(kittyId)), arbitrable.address, 'arbitrable should still own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        arbitrable.address,
+        'arbitrable should still own kitty'
+      )
 
       await arbitrable.consentToSell(kittyId, 100, 200, 60, { from: PARTY_A })
-      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_B })
-      assert.equal((await kittyCore.ownerOf(kittyId)), saleAuction.address, 'sale auction contract should own kitty')
+      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, {
+        from: PARTY_B
+      })
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        saleAuction.address,
+        'sale auction contract should own kitty'
+      )
     })
 
     it('should only allow party A to sell kitty if B consents', async () => {
@@ -255,29 +294,49 @@ contract('ArbitrableKitty', (accounts) => {
         arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_A })
       )
 
-      assert.equal((await kittyCore.ownerOf(kittyId)), arbitrable.address, 'arbitrable should still own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        arbitrable.address,
+        'arbitrable should still own kitty'
+      )
 
       await arbitrable.consentToSell(kittyId, 100, 200, 60, { from: PARTY_B })
-      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_A })
-      assert.equal((await kittyCore.ownerOf(kittyId)), saleAuction.address, 'sale auction contract should own kitty')
+      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, {
+        from: PARTY_A
+      })
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        saleAuction.address,
+        'sale auction contract should own kitty'
+      )
     })
 
     it('should allow party to revoke consent before other party takes action', async () => {
       const { kittyId, PARTY_A, PARTY_B } = params
 
       await arbitrable.consentToSell(kittyId, 150, 300, 20, { from: PARTY_B })
-      assert.isTrue(await arbitrable.partyConsentsToSell(PARTY_B, kittyId, 150, 300, 20))
+      assert.isTrue(
+        await arbitrable.partyConsentsToSell(PARTY_B, kittyId, 150, 300, 20)
+      )
 
       await expectThrow(
         arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_A })
       )
 
       await arbitrable.revokeConsentToSell(kittyId, { from: PARTY_B })
-      assert.isFalse(await arbitrable.partyConsentsToSell(PARTY_B, kittyId, 150, 300, 20))
+      assert.isFalse(
+        await arbitrable.partyConsentsToSell(PARTY_B, kittyId, 150, 300, 20)
+      )
 
       await arbitrable.consentToSell(kittyId, 100, 200, 60, { from: PARTY_B })
-      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_A })
-      assert.equal((await kittyCore.ownerOf(kittyId)), saleAuction.address, 'sale auction contract should own kitty')
+      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, {
+        from: PARTY_A
+      })
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        saleAuction.address,
+        'sale auction contract should own kitty'
+      )
     })
   })
 
@@ -285,17 +344,36 @@ contract('ArbitrableKitty', (accounts) => {
     beforeEach(deployAndPrepare)
 
     it('should allow only party A to cancel siring auction', async () => {
-      const { PARTY_A, PARTY_B, kittyId, ARBITRATION_FEE, PARTY_A_WINS, ARBITRATOR } = params
+      const {
+        PARTY_A,
+        PARTY_B,
+        kittyId,
+        ARBITRATION_FEE,
+        PARTY_A_WINS,
+        ARBITRATOR
+      } = params
 
-      await arbitrable.createSiringAuction(kittyId, 100, 200, 60, { from: PARTY_B })
-      assert.equal(await kittyCore.ownerOf(kittyId), siringAuction.address, 'siring contract should own kitty')
+      await arbitrable.createSiringAuction(kittyId, 100, 200, 60, {
+        from: PARTY_B
+      })
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        siringAuction.address,
+        'siring contract should own kitty'
+      )
 
       // Raise dispute
-      await arbitrable.payArbitrationFeeByPartyA({from: PARTY_A, value: ARBITRATION_FEE})
-      await arbitrable.payArbitrationFeeByPartyB({from: PARTY_B, value: ARBITRATION_FEE})
+      await arbitrable.payArbitrationFeeByPartyA({
+        from: PARTY_A,
+        value: ARBITRATION_FEE
+      })
+      await arbitrable.payArbitrationFeeByPartyB({
+        from: PARTY_B,
+        value: ARBITRATION_FEE
+      })
 
       // Grant custody to party A
-      await arbitrator.giveRuling(0, PARTY_A_WINS, {from: ARBITRATOR})
+      await arbitrator.giveRuling(0, PARTY_A_WINS, { from: ARBITRATOR })
 
       // Party B should not be allowed to cancel siring auction
       await expectThrow(
@@ -304,21 +382,44 @@ contract('ArbitrableKitty', (accounts) => {
 
       await arbitrable.cancelSiringAuction(kittyId, { from: PARTY_A })
 
-      assert.equal((await kittyCore.ownerOf(kittyId)), arbitrable.address, 'arbitrable contract should own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        arbitrable.address,
+        'arbitrable contract should own kitty'
+      )
     })
 
     it('should allow only party B to cancel siring auction', async () => {
-      const { PARTY_A, PARTY_B, kittyId, ARBITRATION_FEE, PARTY_B_WINS, ARBITRATOR } = params
+      const {
+        PARTY_A,
+        PARTY_B,
+        kittyId,
+        ARBITRATION_FEE,
+        PARTY_B_WINS,
+        ARBITRATOR
+      } = params
 
-      await arbitrable.createSiringAuction(kittyId, 100, 200, 60, { from: PARTY_A })
-      assert.equal(await kittyCore.ownerOf(kittyId), siringAuction.address, 'siring contract should own kitty')
+      await arbitrable.createSiringAuction(kittyId, 100, 200, 60, {
+        from: PARTY_A
+      })
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        siringAuction.address,
+        'siring contract should own kitty'
+      )
 
       // Raise dispute
-      await arbitrable.payArbitrationFeeByPartyA({from: PARTY_A, value: ARBITRATION_FEE})
-      await arbitrable.payArbitrationFeeByPartyB({from: PARTY_B, value: ARBITRATION_FEE})
+      await arbitrable.payArbitrationFeeByPartyA({
+        from: PARTY_A,
+        value: ARBITRATION_FEE
+      })
+      await arbitrable.payArbitrationFeeByPartyB({
+        from: PARTY_B,
+        value: ARBITRATION_FEE
+      })
 
       // Grant custody to party B
-      await arbitrator.giveRuling(0, PARTY_B_WINS, {from: ARBITRATOR})
+      await arbitrator.giveRuling(0, PARTY_B_WINS, { from: ARBITRATOR })
 
       // Party B should not be allowed to cancel siring auction
       await expectThrow(
@@ -327,7 +428,11 @@ contract('ArbitrableKitty', (accounts) => {
 
       await arbitrable.cancelSiringAuction(kittyId, { from: PARTY_B })
 
-      assert.equal((await kittyCore.ownerOf(kittyId)), arbitrable.address, 'arbitrable contract should own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        arbitrable.address,
+        'arbitrable contract should own kitty'
+      )
     })
   })
 
@@ -335,18 +440,37 @@ contract('ArbitrableKitty', (accounts) => {
     beforeEach(deployAndPrepare)
 
     it('should allow only party A to cancel sale auction', async () => {
-      const { PARTY_A, PARTY_B, kittyId, ARBITRATION_FEE, PARTY_A_WINS, ARBITRATOR } = params
+      const {
+        PARTY_A,
+        PARTY_B,
+        kittyId,
+        ARBITRATION_FEE,
+        PARTY_A_WINS,
+        ARBITRATOR
+      } = params
 
       await arbitrable.consentToSell(kittyId, 100, 200, 60, { from: PARTY_A })
-      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_B })
-      assert.equal(await kittyCore.ownerOf(kittyId), saleAuction.address, 'sale contract should own kitty')
+      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, {
+        from: PARTY_B
+      })
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        saleAuction.address,
+        'sale contract should own kitty'
+      )
 
       // Raise dispute
-      await arbitrable.payArbitrationFeeByPartyA({from: PARTY_A, value: ARBITRATION_FEE})
-      await arbitrable.payArbitrationFeeByPartyB({from: PARTY_B, value: ARBITRATION_FEE})
+      await arbitrable.payArbitrationFeeByPartyA({
+        from: PARTY_A,
+        value: ARBITRATION_FEE
+      })
+      await arbitrable.payArbitrationFeeByPartyB({
+        from: PARTY_B,
+        value: ARBITRATION_FEE
+      })
 
       // Grant custody to party A
-      await arbitrator.giveRuling(0, PARTY_A_WINS, {from: ARBITRATOR})
+      await arbitrator.giveRuling(0, PARTY_A_WINS, { from: ARBITRATOR })
 
       // Party B should not be allowed to cancel sale auction
       await expectThrow(
@@ -354,22 +478,45 @@ contract('ArbitrableKitty', (accounts) => {
       )
 
       await arbitrable.cancelSaleAuction(kittyId, { from: PARTY_A })
-      assert.equal((await kittyCore.ownerOf(kittyId)), arbitrable.address, 'arbitrable contract should own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        arbitrable.address,
+        'arbitrable contract should own kitty'
+      )
     })
 
     it('should allow only party B to cancel sale auction', async () => {
-      const { PARTY_A, PARTY_B, kittyId, PARTY_B_WINS, ARBITRATION_FEE, ARBITRATOR } = params
+      const {
+        PARTY_A,
+        PARTY_B,
+        kittyId,
+        PARTY_B_WINS,
+        ARBITRATION_FEE,
+        ARBITRATOR
+      } = params
 
       await arbitrable.consentToSell(kittyId, 100, 200, 60, { from: PARTY_B })
-      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_A })
-      assert.equal(await kittyCore.ownerOf(kittyId), saleAuction.address, 'sale contract should own kitty')
+      await arbitrable.createSaleAuction(kittyId, 100, 200, 60, {
+        from: PARTY_A
+      })
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        saleAuction.address,
+        'sale contract should own kitty'
+      )
 
       // Raise dispute
-      await arbitrable.payArbitrationFeeByPartyA({from: PARTY_A, value: ARBITRATION_FEE})
-      await arbitrable.payArbitrationFeeByPartyB({from: PARTY_B, value: ARBITRATION_FEE})
+      await arbitrable.payArbitrationFeeByPartyA({
+        from: PARTY_A,
+        value: ARBITRATION_FEE
+      })
+      await arbitrable.payArbitrationFeeByPartyB({
+        from: PARTY_B,
+        value: ARBITRATION_FEE
+      })
 
       // Grant custody to party B
-      await arbitrator.giveRuling(0, PARTY_B_WINS, {from: ARBITRATOR})
+      await arbitrator.giveRuling(0, PARTY_B_WINS, { from: ARBITRATOR })
 
       // Party B should not be allowed to cancel sale auction
       await expectThrow(
@@ -378,7 +525,11 @@ contract('ArbitrableKitty', (accounts) => {
 
       await arbitrable.cancelSaleAuction(kittyId, { from: PARTY_B })
 
-      assert.equal((await kittyCore.ownerOf(kittyId)), arbitrable.address, 'arbitrable contract should own kitty')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        arbitrable.address,
+        'arbitrable contract should own kitty'
+      )
     })
   })
 
@@ -386,22 +537,46 @@ contract('ArbitrableKitty', (accounts) => {
     beforeEach(async () => {
       await deployAndPrepare()
 
-      const { PARTY_A, PARTY_B, ARBITRATION_FEE, ARBITRATOR, PARTY_A_WINS } = params
-      assert.isAtMost((await arbitrable.rulingResult()).toNumber(), 0, 'should not have a result yet')
+      const {
+        PARTY_A,
+        PARTY_B,
+        ARBITRATION_FEE,
+        ARBITRATOR,
+        PARTY_A_WINS
+      } = params
+      assert.isAtMost(
+        (await arbitrable.rulingResult()).toNumber(),
+        0,
+        'should not have a result yet'
+      )
 
       // Raise dispute
-      await arbitrable.payArbitrationFeeByPartyA({from: PARTY_A, value: ARBITRATION_FEE})
-      await arbitrable.payArbitrationFeeByPartyB({from: PARTY_B, value: ARBITRATION_FEE})
+      await arbitrable.payArbitrationFeeByPartyA({
+        from: PARTY_A,
+        value: ARBITRATION_FEE
+      })
+      await arbitrable.payArbitrationFeeByPartyB({
+        from: PARTY_B,
+        value: ARBITRATION_FEE
+      })
 
       // Grant custody to party A
-      await arbitrator.giveRuling(0, PARTY_A_WINS, {from: ARBITRATOR})
+      await arbitrator.giveRuling(0, PARTY_A_WINS, { from: ARBITRATOR })
     })
 
     it('should grant custody to A if arbitrator ruled as such', async () => {
       const { PARTY_A_WINS, PARTY_A } = params
 
-      assert.equal((await arbitrable.rulingResult()).toNumber(), PARTY_A_WINS, 'party A should have won')
-      assert.equal(await arbitrable.winner(), PARTY_A, 'Party A should be the winner')
+      assert.equal(
+        (await arbitrable.rulingResult()).toNumber(),
+        PARTY_A_WINS,
+        'party A should have won'
+      )
+      assert.equal(
+        await arbitrable.winner(),
+        PARTY_A,
+        'Party A should be the winner'
+      )
     })
 
     it('should allow only party A to transfer kitty if arbitrator ruled as such', async () => {
@@ -413,7 +588,11 @@ contract('ArbitrableKitty', (accounts) => {
 
       await arbitrable.transfer(OTHER_USER, kittyId, { from: PARTY_A })
 
-      assert.equal(await kittyCore.ownerOf(kittyId), OTHER_USER, 'other user should own kitty.')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        OTHER_USER,
+        'other user should own kitty.'
+      )
     })
   })
 
@@ -421,21 +600,45 @@ contract('ArbitrableKitty', (accounts) => {
     beforeEach(async () => {
       await deployAndPrepare()
 
-      const { PARTY_A, PARTY_B, ARBITRATION_FEE, ARBITRATOR, PARTY_B_WINS } = params
-      assert.isAtMost((await arbitrable.rulingResult()).toNumber(), 0, 'should not have a result yet')
+      const {
+        PARTY_A,
+        PARTY_B,
+        ARBITRATION_FEE,
+        ARBITRATOR,
+        PARTY_B_WINS
+      } = params
+      assert.isAtMost(
+        (await arbitrable.rulingResult()).toNumber(),
+        0,
+        'should not have a result yet'
+      )
 
       // Raise dispute
-      await arbitrable.payArbitrationFeeByPartyA({from: PARTY_A, value: ARBITRATION_FEE})
-      await arbitrable.payArbitrationFeeByPartyB({from: PARTY_B, value: ARBITRATION_FEE})
+      await arbitrable.payArbitrationFeeByPartyA({
+        from: PARTY_A,
+        value: ARBITRATION_FEE
+      })
+      await arbitrable.payArbitrationFeeByPartyB({
+        from: PARTY_B,
+        value: ARBITRATION_FEE
+      })
 
       // Grant custody to party B
-      await arbitrator.giveRuling(0, PARTY_B_WINS, {from: ARBITRATOR})
+      await arbitrator.giveRuling(0, PARTY_B_WINS, { from: ARBITRATOR })
     })
 
     it('should grant custody to B if arbitrator ruled as such', async () => {
       const { PARTY_B_WINS, PARTY_B } = params
-      assert.equal((await arbitrable.rulingResult()).toNumber(), PARTY_B_WINS, 'party B should have won')
-      assert.equal(await arbitrable.winner(), PARTY_B, 'Party B should be the winner')
+      assert.equal(
+        (await arbitrable.rulingResult()).toNumber(),
+        PARTY_B_WINS,
+        'party B should have won'
+      )
+      assert.equal(
+        await arbitrable.winner(),
+        PARTY_B,
+        'Party B should be the winner'
+      )
     })
 
     it('should allow only party B to transfer kitty if arbitrator ruled as such', async () => {
@@ -447,7 +650,11 @@ contract('ArbitrableKitty', (accounts) => {
 
       await arbitrable.transfer(OTHER_USER, kittyId, { from: PARTY_B })
 
-      assert.equal(await kittyCore.ownerOf(kittyId), OTHER_USER, 'other user should own kitty.')
+      assert.equal(
+        await kittyCore.ownerOf(kittyId),
+        OTHER_USER,
+        'other user should own kitty.'
+      )
     })
   })
 
@@ -455,12 +662,28 @@ contract('ArbitrableKitty', (accounts) => {
     beforeEach(async () => {
       await deployAndPrepare()
 
-      const { PARTY_A, PARTY_B, ARBITRATION_FEE, ARBITRATOR, SHARED_CUSTODY } = params
-      assert.isAtMost((await arbitrable.rulingResult()).toNumber(), 0, 'should not have a result yet')
+      const {
+        PARTY_A,
+        PARTY_B,
+        ARBITRATION_FEE,
+        ARBITRATOR,
+        SHARED_CUSTODY
+      } = params
+      assert.isAtMost(
+        (await arbitrable.rulingResult()).toNumber(),
+        0,
+        'should not have a result yet'
+      )
 
       // Raise dispute
-      await arbitrable.payArbitrationFeeByPartyA({from: PARTY_A, value: ARBITRATION_FEE})
-      await arbitrable.payArbitrationFeeByPartyB({from: PARTY_B, value: ARBITRATION_FEE})
+      await arbitrable.payArbitrationFeeByPartyA({
+        from: PARTY_A,
+        value: ARBITRATION_FEE
+      })
+      await arbitrable.payArbitrationFeeByPartyB({
+        from: PARTY_B,
+        value: ARBITRATION_FEE
+      })
 
       // // Grant shared custody
       await arbitrator.giveRuling(0, SHARED_CUSTODY, { from: ARBITRATOR })
@@ -469,24 +692,50 @@ contract('ArbitrableKitty', (accounts) => {
     it('should have granted shared custody', async () => {
       const { SHARED_CUSTODY } = params
       const rulingResult = (await arbitrable.rulingResult()).toNumber()
-      assert.equal(rulingResult, SHARED_CUSTODY, 'shared custody should have been granted')
-      assert.equal((await web3.eth.getBalance(arbitrable.address)).toNumber(),0,'should have split fees')
+      assert.equal(
+        rulingResult,
+        SHARED_CUSTODY,
+        'shared custody should have been granted'
+      )
+      assert.equal(
+        (await web3.eth.getBalance(arbitrable.address)).toNumber(),
+        0,
+        'should have split fees'
+      )
     })
 
-    it("should return correct custody information", async () => {
+    it('should return correct custody information', async () => {
       const { PARTY_A, PARTY_B } = params
 
-      assert.isFalse(await arbitrable.underSendersCustody({ from: PARTY_B }),"should not be available yet")
-      assert.isFalse(await arbitrable.underSendersCustody({ from: PARTY_A }),"should not be available yet")
+      assert.isFalse(
+        await arbitrable.underSendersCustody({ from: PARTY_B }),
+        'should not be available yet'
+      )
+      assert.isFalse(
+        await arbitrable.underSendersCustody({ from: PARTY_A }),
+        'should not be available yet'
+      )
 
       increaseTime(1)
 
-      assert.isTrue(await arbitrable.underSendersCustody({ from: PARTY_A }),"should be under A's custody")
-      assert.isFalse(await arbitrable.underSendersCustody({ from: PARTY_B }),"should be under A's custody")
+      assert.isTrue(
+        await arbitrable.underSendersCustody({ from: PARTY_A }),
+        "should be under A's custody"
+      )
+      assert.isFalse(
+        await arbitrable.underSendersCustody({ from: PARTY_B }),
+        "should be under A's custody"
+      )
 
       increaseTime(60 * 60 * 24 * 7)
-      assert.isTrue(await arbitrable.underSendersCustody({ from: PARTY_B }),"should be under B's custody")
-      assert.isFalse(await arbitrable.underSendersCustody({ from: PARTY_A }),"should be under B's custody")
+      assert.isTrue(
+        await arbitrable.underSendersCustody({ from: PARTY_B }),
+        "should be under B's custody"
+      )
+      assert.isFalse(
+        await arbitrable.underSendersCustody({ from: PARTY_A }),
+        "should be under B's custody"
+      )
     })
 
     it("should allow only party A to take actions during A's custody", async () => {
@@ -497,7 +746,9 @@ contract('ArbitrableKitty', (accounts) => {
         arbitrable.createSiringAuction(kittyId, 100, 200, 60, { from: PARTY_B })
       )
 
-      await arbitrable.createSiringAuction(kittyId, 100, 200, 60, { from: PARTY_A })
+      await arbitrable.createSiringAuction(kittyId, 100, 200, 60, {
+        from: PARTY_A
+      })
 
       await expectThrow(
         arbitrable.cancelSiringAuction(kittyId, { from: PARTY_B })
@@ -519,12 +770,11 @@ contract('ArbitrableKitty', (accounts) => {
         from: PARTY_A,
         value: autoBirthFee
       })
-
     })
 
     it("should allow only party B to take actions during B's custody", async () => {
       const { PARTY_A, PARTY_B, kittyId, OTHER_USER } = params
-      increaseTime((60 * 60 * 24 * 7) + 1)
+      increaseTime(60 * 60 * 24 * 7 + 1)
 
       const otherKittyId = await kittyToSiringAuction(
         await mintKitty(2000, OTHER_USER),
@@ -532,39 +782,45 @@ contract('ArbitrableKitty', (accounts) => {
       )
 
       await expectThrow(
-        arbitrable.bidOnSiringAuction(otherKittyId, kittyId, { from: PARTY_A, value: 200 })
+        arbitrable.bidOnSiringAuction(otherKittyId, kittyId, {
+          from: PARTY_A,
+          value: 200
+        })
       )
-      await arbitrable.bidOnSiringAuction(otherKittyId, kittyId, { from: PARTY_B, value: 200 })
+      await arbitrable.bidOnSiringAuction(otherKittyId, kittyId, {
+        from: PARTY_B,
+        value: 200
+      })
 
       increaseTime(60 * 60)
 
-      await expectThrow(
-        arbitrable.giveBirth(kittyId, { from: PARTY_A })
-      )
+      await expectThrow(arbitrable.giveBirth(kittyId, { from: PARTY_A }))
 
       await arbitrable.giveBirth(kittyId, { from: PARTY_B })
     })
-
   })
 
   describe('Custody math checker', () => {
     beforeEach(deployAndPrepare)
 
     it('should calculate modulus correctly', async () => {
-      assert.equal((await arbitrable.modulus(21999,1661)).toNumber(),406)
-      assert.equal((await arbitrable.modulus(2,4)).toNumber(),2)
-      await expectThrow(
-        arbitrable.modulus(2,0)
-      )
+      assert.equal((await arbitrable.modulus(21999, 1661)).toNumber(), 406)
+      assert.equal((await arbitrable.modulus(2, 4)).toNumber(), 2)
+      await expectThrow(arbitrable.modulus(2, 0))
     })
 
     it('should return custody correctly for input', async () => {
       const partyA = 1
       const partyB = 2
 
-      assert.equal((await arbitrable.custodyTurn(10000,10001,300)).toNumber(),partyA)
-      assert.equal((await arbitrable.custodyTurn(10000,10300,300)).toNumber(),partyB)
+      assert.equal(
+        (await arbitrable.custodyTurn(10000, 10001, 300)).toNumber(),
+        partyA
+      )
+      assert.equal(
+        (await arbitrable.custodyTurn(10000, 10300, 300)).toNumber(),
+        partyB
+      )
     })
   })
-
 })
