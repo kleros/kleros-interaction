@@ -25,7 +25,7 @@ contract LockedToken is MintableToken {
      *  So for 10% unlock per year, it is 991258.
      */
     constructor(uint _lockMultiplierPerMillionPerMonth) public {
-        lockMultiplierPerMillionPerMonth=_lockMultiplierPerMillionPerMonth;
+        lockMultiplierPerMillionPerMonth = _lockMultiplierPerMillionPerMonth;
     }
 
     /** @dev Mint tokens.
@@ -55,14 +55,16 @@ contract LockedToken is MintableToken {
      *  @param _to The address to unlock tokens from.
      */
     function partialUnlock(address _to, uint _maxUnlock) public {
-        if (lastUnlock[_to].add(4 weeks) <= now && amountLocked[_to]!=0) {
-            uint amountOfMonths = now.sub(lastUnlock[_to]) / (4 weeks);
+        // solium-disable-next-line security/no-block-members
+        if (lastUnlock[_to].add(4 weeks) <= block.timestamp && amountLocked[_to]!=0) {
+            // solium-disable-next-line security/no-block-members
+            uint amountOfMonths = block.timestamp.sub(lastUnlock[_to]) / (4 weeks);
             amountOfMonths = amountOfMonths < _maxUnlock ? amountOfMonths : _maxUnlock;
-            lastUnlock[_to]=lastUnlock[_to].add(amountOfMonths.mul(4 weeks)); // Update last unlock date.
-            uint newLocked=amountLocked[_to];
-            for (uint i=0;i<amountOfMonths;++i)
-                newLocked=newLocked.mul(lockMultiplierPerMillionPerMonth).div(LOCK_DIVISOR);
-            amountLocked[_to]=newLocked;
+            lastUnlock[_to] = lastUnlock[_to].add(amountOfMonths.mul(4 weeks)); // Update last unlock date.
+            uint newLocked = amountLocked[_to];
+            for (uint i = 0; i < amountOfMonths; ++i)
+                newLocked = newLocked.mul(lockMultiplierPerMillionPerMonth).div(LOCK_DIVISOR);
+            amountLocked[_to] = newLocked;
         }
     }
 
@@ -72,7 +74,7 @@ contract LockedToken is MintableToken {
      */
     function transfer(address _to, uint256 _value) public returns (bool) {
         unlock(msg.sender);
-        require(balances[msg.sender].sub(amountLocked[msg.sender])>=_value);
+        require(balances[msg.sender].sub(amountLocked[msg.sender]) >= _value, "Not enough balance.");
 
         assert(super.transfer(_to,_value));
         return true;
@@ -85,7 +87,7 @@ contract LockedToken is MintableToken {
      */
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
         unlock(_from);
-        require(balances[_from].sub(amountLocked[_from])>=_value);
+        require(balances[_from].sub(amountLocked[_from]) >= _value, "Not enough balance.");
 
         assert(super.transferFrom(_from,_to,_value));
         return true;

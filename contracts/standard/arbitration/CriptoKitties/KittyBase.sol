@@ -168,9 +168,9 @@ contract KittyBase is KittyAccessControl {
         // sure that these conditions are never broken. However! _createKitty() is already
         // an expensive call (for storage), and it doesn't hurt to be especially careful
         // to ensure our data structures are always valid.
-        require(_matronId <= 4294967295);
-        require(_sireId <= 4294967295);
-        require(_generation <= 65535);
+        require(_matronId <= 4294967295, "Invalid matron ID.");
+        require(_sireId <= 4294967295, "Invalid sire ID.");
+        require(_generation <= 65535, "Invalid generation.");
 
         Kitty memory _kitty = Kitty({
             genes: _genes,
@@ -186,7 +186,7 @@ contract KittyBase is KittyAccessControl {
 
         // It's probably never going to happen, 4 billion cats is A LOT, but
         // let's just be 100% sure we never let this happen.
-        require(newKittenId <= 4294967295);
+        require(newKittenId <= 4294967295, "Invalid kitten ID.");
 
         // emit the birth event
         emit Birth(

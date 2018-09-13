@@ -42,14 +42,15 @@ contract SaleClockAuction is ClockAuction {
         canBeStoredWith128Bits(_endingPrice)
         canBeStoredWith64Bits(_duration)
     {
-        require(msg.sender == address(nonFungibleContract));
+        require(msg.sender == address(nonFungibleContract), "The caller must be the non fungible contract.");
         _escrow(_seller, _tokenId);
         Auction memory auction = Auction(
             _seller,
             uint128(_startingPrice),
             uint128(_endingPrice),
             uint64(_duration),
-            uint64(now)
+            // solium-disable-next-line security/no-block-members
+            uint64(block.timestamp)
         );
         _addAuction(_tokenId, auction);
     }

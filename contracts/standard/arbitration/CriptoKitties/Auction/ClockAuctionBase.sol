@@ -47,12 +47,12 @@ contract ClockAuctionBase {
     // Modifiers to check that inputs can be safely stored with a certain
     // number of bits. We use constants and multiple modifiers to save gas.
     modifier canBeStoredWith64Bits(uint256 _value) {
-        require(_value <= 18446744073709551615);
+        require(_value <= 18446744073709551615, "Value cannot be stored in 64 bits.");
         _;
     }
 
     modifier canBeStoredWith128Bits(uint256 _value) {
-        require(_value < 340282366920938463463374607431768211455);
+        require(_value < 340282366920938463463374607431768211455, "Value cannot be stored in 128 bits.");
         _;
     }
 
@@ -88,7 +88,7 @@ contract ClockAuctionBase {
     function _addAuction(uint256 _tokenId, Auction _auction) internal {
         // Require that all auctions have a duration of
         // at least one minute. (Keeps our math from getting hairy!)
-        require(_auction.duration >= 1 minutes);
+        require(_auction.duration >= 1 minutes, "Auction must last at least a minute.");
 
         tokenIdToAuction[_tokenId] = _auction;
         
@@ -120,12 +120,12 @@ contract ClockAuctionBase {
         // (Because of how Ethereum mappings work, we can't just count
         // on the lookup above failing. An invalid _tokenId will just
         // return an auction object that is all zeros.)
-        require(_isOnAuction(auction));
+        require(_isOnAuction(auction), "Auction must be active.");
 
         // Check that the incoming bid is higher than the current
         // price
         uint256 price = _currentPrice(auction);
-        require(_bidAmount >= price);
+        require(_bidAmount >= price, "Bid amount has to be more than or equal to the price.");
 
         // Grab a reference to the seller before the auction struct
         // gets deleted.
@@ -186,8 +186,10 @@ contract ClockAuctionBase {
         // A bit of insurance against negative values (or wraparound).
         // Probably not necessary (since Ethereum guarnatees that the
         // now variable doesn't ever go backwards).
-        if (now > _auction.startedAt) {
-            secondsPassed = now - _auction.startedAt;
+        // solium-disable-next-line security/no-block-members
+        if (block.timestamp > _auction.startedAt) {
+            // solium-disable-next-line security/no-block-members
+            secondsPassed = block.timestamp - _auction.startedAt;
         }
 
         return _computeCurrentPrice(

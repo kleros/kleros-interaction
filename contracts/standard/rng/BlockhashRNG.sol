@@ -24,7 +24,7 @@ contract BlockHashRNG is RNG {
     /** @dev Contribute to the reward of a random number.
      *  @param _block Block the random number is linked to.
      */
-    function contribute(uint _block) public payable { reward[_block]+=msg.value; }
+    function contribute(uint _block) public payable { reward[_block] += msg.value; }
 
 
     /** @dev Return the random number. If it has not been saved and is still computable compute it.
@@ -32,8 +32,8 @@ contract BlockHashRNG is RNG {
      *  @return RN Random Number. If the number is not ready or has not been requested 0 instead.
      */
     function getRN(uint _block) public returns (uint RN) {
-        RN=randomNumber[_block];
-        if (RN==0){
+        RN = randomNumber[_block];
+        if (RN == 0){
             saveRN(_block);
             return randomNumber[_block];
         }
@@ -53,6 +53,7 @@ contract BlockHashRNG is RNG {
         if (randomNumber[_block] != 0) { // If the number is set.
             uint rewardToSend = reward[_block];
             reward[_block] = 0;
+            // solium-disable-next-line security/no-send
             msg.sender.send(rewardToSend); // Note that the use of send is on purpose as we don't want to block in case msg.sender has a fallback issue.
         }
     }

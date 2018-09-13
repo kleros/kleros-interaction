@@ -29,8 +29,8 @@ contract ExperimentalProxy {
      * @notice The fallback function that forwards calls to the 'implementation' contract.
      * @return The result of calling the requested function on the 'implementation' contract.
      */
-    function () payable external {
-        require(implementation != address(0)); // Make sure address is valid
+    function () external payable {
+        require(implementation != address(0), "Implementation cannot be the zero address."); // Make sure address is valid
 
         // Store necessary data for assembly in local memory
         bool _storageIsEternal = storageIsEternal;

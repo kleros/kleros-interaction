@@ -20,7 +20,7 @@ contract Arbitrable{
     Arbitrator public arbitrator;
     bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.
 
-    modifier onlyArbitrator {require(msg.sender==address(arbitrator)); _;}
+    modifier onlyArbitrator {require(msg.sender == address(arbitrator), "Can only be called by the arbitrator."); _;}
 
     /** @dev To be raised when a ruling is given.
      *  @param _arbitrator The arbitrator giving the ruling.

@@ -20,11 +20,11 @@ contract ClockAuction is Pausable, ClockAuctionBase {
     /// @param _cut - percent cut the owner takes on each auction, must be
     ///  between 0-10,000.
     function ClockAuction(address _nftAddress, uint256 _cut) public {
-        require(_cut <= 10000);
+        require(_cut <= 10000, "Cut must be less than 10000.");
         ownerCut = _cut;
         
         ERC721 candidateContract = ERC721(_nftAddress);
-        require(candidateContract.implementsERC721());
+        require(candidateContract.implementsERC721(), "Candidate contract must implement ERC721.");
         nonFungibleContract = candidateContract;
     }
 
@@ -37,7 +37,8 @@ contract ClockAuction is Pausable, ClockAuctionBase {
 
         require(
             msg.sender == owner ||
-            msg.sender == nftAddress
+            msg.sender == nftAddress,
+            "Can only be called by the owner or the NFT contract."
         );
         nftAddress.transfer(this.balance);
     }
@@ -62,14 +63,15 @@ contract ClockAuction is Pausable, ClockAuctionBase {
         canBeStoredWith128Bits(_endingPrice)
         canBeStoredWith64Bits(_duration)
     {
-        require(_owns(msg.sender, _tokenId));
+        require(_owns(msg.sender, _tokenId), "The caller must own the token.");
         _escrow(msg.sender, _tokenId);
         Auction memory auction = Auction(
             _seller,
             uint128(_startingPrice),
             uint128(_endingPrice),
             uint64(_duration),
-            uint64(now)
+            // solium-disable-next-line security/no-block-members
+            uint64(block.timestamp)
         );
         _addAuction(_tokenId, auction);
     }
@@ -96,9 +98,9 @@ contract ClockAuction is Pausable, ClockAuctionBase {
         public
     {
         Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
+        require(_isOnAuction(auction), "Auction must be active.");
         address seller = auction.seller;
-        require(msg.sender == seller);
+        require(msg.sender == seller, "The caller must be the seller.");
         _cancelAuction(_tokenId, seller);
     }
 
@@ -107,12 +109,12 @@ contract ClockAuction is Pausable, ClockAuctionBase {
     ///  the seller. This should only be used in emergencies.
     /// @param _tokenId - ID of the NFT on auction to cancel.
     function cancelAuctionWhenPaused(uint256 _tokenId)
+        public
         whenPaused
         onlyOwner
-        public
     {
         Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
+        require(_isOnAuction(auction), "Auction must be active.");
         _cancelAuction(_tokenId, auction.seller);
     }
 
@@ -130,7 +132,7 @@ contract ClockAuction is Pausable, ClockAuctionBase {
         uint256 startedAt
     ) {
         Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
+        require(_isOnAuction(auction), "Auction must be active.");
         return (
             auction.seller,
             auction.startingPrice,
@@ -148,7 +150,7 @@ contract ClockAuction is Pausable, ClockAuctionBase {
         returns (uint256)
     {
         Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
+        require(_isOnAuction(auction), "Auction must be active.");
         return _currentPrice(auction);
     }
 

@@ -93,12 +93,12 @@ contract ArbitrableKitty is TwoPartyArbitrable{
 
     modifier contractOwnsKitty(uint256 _kittyID) {
         address kittyOwner = kittyCore.ownerOf(_kittyID); 
-        require(this==kittyOwner); 
+        require(this == kittyOwner, "Can only be called by the owner of the kitty."); 
         _;  
     }
 
     modifier noDisputeOrResolved() {
-        require(status == Status.NoDispute || status == Status.Resolved);
+        require(status == Status.NoDispute || status == Status.Resolved, "Can only be called if there is no active dispute.");
         _;  
     }
 
@@ -107,7 +107,10 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  to themselves instead of using them through the contract.
      */
     modifier didNotGrantFullCustody() {
-        require(rulingResult != RulingResult.PartyA || rulingResult != RulingResult.PartyB);
+        require(
+            rulingResult != RulingResult.PartyA || rulingResult != RulingResult.PartyB,
+            "Requires that the dispute has not been resolved with full custody to a party."
+        );
         _;
     }
 
@@ -148,11 +151,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _recipient The address that will receive the kitty.
      *  @param _kittyID The id of the kitty to be transfered.
      */
-    function partyConsentsToTransfer(address _party, address _recipient, uint256 _kittyID) 
-        view 
-        public   
-        returns (bool)
-    {
+    function partyConsentsToTransfer(address _party, address _recipient, uint256 _kittyID) public view returns (bool) {
         TransferConsent memory transferConsent = transferConsents[_party][_kittyID];
         return transferConsent.partyConsents && transferConsent.recipient == _recipient;
     }
@@ -172,16 +171,13 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         uint256 _endPrice,
         uint256 _duration
     )
-        view 
-        public 
+        public
+        view  
         returns (bool)
     {
         SellConsent memory sellConsent = sellConsents[_party][_kittyID];
-        bool partyConsentsToParameters = 
-            sellConsent.partyConsents && 
-            sellConsent.startingPrice == _startingPrice &&
-            sellConsent.endPrice == _endPrice &&
-            sellConsent.duration == _duration;
+        bool partyConsentsToParameters = sellConsent.partyConsents &&
+            sellConsent.startingPrice == _startingPrice && sellConsent.endPrice == _endPrice && sellConsent.duration == _duration;
 
         return partyConsentsToParameters;            
     }
@@ -210,7 +206,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         }
 
         if(rulingResult == RulingResult.SharedCustody){
-            require(underSendersCustody());
+            require(underSendersCustody(), "The caller must have custody.");
             kittyCore.createSiringAuction(_kittyID, _startingPrice, _endPrice, _duration);
             return;
         }
@@ -219,20 +215,20 @@ contract ArbitrableKitty is TwoPartyArbitrable{
     /** @dev Cancels a siring auction. UNTRUSTED.     
      *  @param _kittyID The id of the kitty to be put up for siring.     
      */
-    function cancelSiringAuction(uint256 _kittyID) onlyParty noDisputeOrResolved external {
+    function cancelSiringAuction(uint256 _kittyID) external onlyParty noDisputeOrResolved {
         if(status == Status.NoDispute) {
             siringAuction.cancelAuction(_kittyID);
             return;
         }
 
         if(rulingResult == RulingResult.PartyA || rulingResult == RulingResult.PartyB) {
-            require(msg.sender == winner);
+            require(msg.sender == winner, "The caller must be the winner.");
             siringAuction.cancelAuction(_kittyID);
             return;
         }
 
         if(rulingResult == RulingResult.SharedCustody){
-            require(underSendersCustody());
+            require(underSendersCustody(), "The caller must have custody.");
             siringAuction.cancelAuction(_kittyID);
             return;
         }
@@ -246,8 +242,8 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         uint256 _sireID,  
         uint256 _matronID
     ) 
-        payable
         external
+        payable
         contractOwnsKitty(_matronID)
         onlyParty
         noDisputeOrResolved
@@ -259,7 +255,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         }
 
         if(rulingResult == RulingResult.SharedCustody){
-            require(underSendersCustody());
+            require(underSendersCustody(), "The caller must have custody.");
             kittyCore.bidOnSiringAuction.value(msg.value)(_sireID, _matronID);
             return;
         }
@@ -270,8 +266,8 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _matronID The id of the matron kitty owned by this contract.
      */
     function breedWithAuto(uint256 _matronID, uint256 _sireID) 
-        payable
         external 
+        payable
         onlyParty
         noDisputeOrResolved
         didNotGrantFullCustody
@@ -284,7 +280,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         }
 
         if(rulingResult == RulingResult.SharedCustody){
-            require(underSendersCustody());
+            require(underSendersCustody(), "The caller must have custody.");
             kittyCore.breedWithAuto.value(msg.value)(_matronID, _sireID);
             return;
         }
@@ -306,7 +302,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         }
 
         if(rulingResult == RulingResult.SharedCustody){
-            require(underSendersCustody());
+            require(underSendersCustody(), "The caller must have custody.");
             kittyCore.giveBirth(_kittyID);
             return;
         }
@@ -354,14 +350,14 @@ contract ArbitrableKitty is TwoPartyArbitrable{
     {
         if(rulingResult == RulingResult.PartyA || rulingResult == RulingResult.PartyB) {
             // Granted full custody to either party
-            require(msg.sender == winner);
+            require(msg.sender == winner, "The caller must be the winner.");
             kittyCore.transfer(_recipient, _kittyID);
             return;
         }
 
         // No dispute or shared custody
         address otherParty = msg.sender == partyA ? partyB : partyA;
-        require(partyConsentsToTransfer(otherParty, _recipient, _kittyID));        
+        require(partyConsentsToTransfer(otherParty, _recipient, _kittyID), "The other party has not consented to transfer.");        
 
         delete transferConsents[otherParty][_kittyID];
         kittyCore.transfer(_recipient, _kittyID);
@@ -388,7 +384,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         didNotGrantFullCustody
     {
         address otherParty = msg.sender == partyA ? partyB : partyA;        
-        require(partyConsentsToSell(otherParty, _kittyID, _startingPrice, _endPrice, _duration));
+        require(partyConsentsToSell(otherParty, _kittyID, _startingPrice, _endPrice, _duration), "The other party has not consented to sell.");
         delete transferConsents[otherParty][_kittyID];
         kittyCore.createSaleAuction(_kittyID, _startingPrice, _endPrice, _duration);
     }    
@@ -447,7 +443,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
 
         if(rulingResult == RulingResult.PartyA || rulingResult == RulingResult.PartyB) {
             // Arbitrator granted full custody.
-            require(msg.sender == winner);
+            require(msg.sender == winner, "The caller must be the winner.");
             saleAuction.cancelAuction(_kittyID);
             return;
         }
@@ -474,7 +470,8 @@ contract ArbitrableKitty is TwoPartyArbitrable{
             emit PartyWonCustody(winner);
         } else if (_ruling==SHARED_CUSTODY) {
             rulingResult = RulingResult.SharedCustody;
-            rulingTime = now;
+            // solium-disable-next-line security/no-block-members
+            rulingTime = block.timestamp;
             
             // Give the arbitration fee back.
             // Note that we use send to prevent a party from blocking the execution.
@@ -483,21 +480,25 @@ contract ArbitrableKitty is TwoPartyArbitrable{
             uint256 largestFee = partyAFee > partyBFee ? partyAFee : partyBFee;
             uint256 halfFees = largestFee.div(2);
 
+            // solium-disable-next-line security/no-send
             partyA.send(halfFees);
+            // solium-disable-next-line security/no-send
             partyB.send(halfFees);
 
             emit SharedCustodyHasBeenGranted();
         }        
     }
 
-    function underSendersCustody() view public onlyParty returns (bool) {
-        require(status==Status.Resolved);
-        require(rulingResult==RulingResult.SharedCustody);
-        if(now<=rulingTime){
+    function underSendersCustody() public view onlyParty returns (bool) {
+        require(status == Status.Resolved, "Requires the dispute to be resolved.");
+        require(rulingResult == RulingResult.SharedCustody, "Requires shared custody to be the ruling.");
+        // solium-disable-next-line security/no-block-members
+        if(block.timestamp <= rulingTime){
             return false;
         }
 
-        RulingResult custody = custodyTurn(rulingTime,now,CUSTODY_TIME);
+        // solium-disable-next-line security/no-block-members
+        RulingResult custody = custodyTurn(rulingTime, block.timestamp, CUSTODY_TIME);
         if(custody==RulingResult.PartyA && msg.sender==partyA){
             return true;
         } else if(custody==RulingResult.PartyB && msg.sender==partyB){
@@ -512,7 +513,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         uint256 _currentTime, 
         uint256 _duration
     ) public pure returns (RulingResult){
-        require(_currentTime>_rulingTime);
+        require(_currentTime > _rulingTime, "Ruling time has not started yet.");
 
         uint256 delta = _currentTime.sub(_rulingTime);
         uint256 period = delta.div(_duration);
@@ -523,7 +524,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         }
     }
 
-    function modulus(uint256 num, uint256 den) pure public returns (uint256){
+    function modulus(uint256 num, uint256 den) public pure returns (uint256){
         if(num.div(den) == 0) {
             return num;
         } else {

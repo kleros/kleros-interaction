@@ -36,7 +36,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         uint lastAction; // Time of the last action.
         address submitter; // Address of the submitter of the item status change request, if any.
         address challenger; // Address of the challenger, if any.
-        uint balance; // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
+        // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
+        uint balance;
         bool disputed; // True if a dispute is taking place.
         uint disputeID; // ID of the dispute, if any.
     }
@@ -116,14 +117,14 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function requestRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost);
+        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
             item.status = ItemStatus.Submitted;
         else if (item.status == ItemStatus.Cleared)
             item.status = ItemStatus.Resubmitted;
         else
-            revert(); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
+            revert("Item in wrong status for registration."); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
 
         if (item.lastAction == 0) {
             itemsList.push(_value);
@@ -131,7 +132,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.submitter = msg.sender;
         item.balance += msg.value;
-        item.lastAction = now;
+        // solium-disable-next-line security/no-block-members
+        item.lastAction = block.timestamp;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
@@ -143,15 +145,15 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function requestClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(!appendOnly);
-        require(msg.value >= stake + arbitratorCost);
+        require(!appendOnly, "List is append only.");
+        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
             item.status = ItemStatus.ClearingRequested;
         else if (item.status == ItemStatus.Absent)
             item.status = ItemStatus.PreventiveClearingRequested;
         else
-            revert(); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
+            revert("Item in wrong status for clearing."); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
         
         if (item.lastAction == 0) {
             itemsList.push(_value);
@@ -159,7 +161,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.submitter = msg.sender;
         item.balance += msg.value;
-        item.lastAction = now;
+        // solium-disable-next-line security/no-block-members
+        item.lastAction = block.timestamp;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
@@ -171,9 +174,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function challengeRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost);
-        require(item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted);
-        require(!item.disputed);
+        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
+        require(item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted, "Item in wrong status for challenging.");
+        require(!item.disputed, "Item cannot be already challenged.");
 
         if (item.balance >= arbitratorCost) { // In the general case, create a dispute.
             item.challenger = msg.sender;
@@ -188,12 +191,14 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             else
                 item.status = ItemStatus.Absent;
 
+            // solium-disable-next-line security/no-send
             item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             item.balance = 0;
             msg.sender.transfer(msg.value);
         }
 
-        item.lastAction = now;
+        // solium-disable-next-line security/no-block-members
+        item.lastAction = block.timestamp;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
@@ -205,9 +210,12 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function challengeClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost);
-        require(item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested);
-        require(!item.disputed);
+        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
+        require(
+            item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested,
+            "Item in wrong status for challenging."
+        );
+        require(!item.disputed, "Item cannot be already challenged.");
 
         if (item.balance >= arbitratorCost) { // In the general case, create a dispute.
             item.challenger = msg.sender;
@@ -222,12 +230,14 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             else
                 item.status = ItemStatus.Absent;
 
+            // solium-disable-next-line security/no-send
             item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             item.balance = 0;
             msg.sender.transfer(msg.value);
         }
 
-        item.lastAction = now;
+        // solium-disable-next-line security/no-block-members
+        item.lastAction = block.timestamp;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
@@ -247,16 +257,18 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
-        require(now - item.lastAction >= timeToChallenge);
-        require(!item.disputed);
+        // solium-disable-next-line security/no-block-members
+        require(block.timestamp - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
+        require(!item.disputed, "The item is still disputed.");
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
         else if (item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested)
             item.status = ItemStatus.Cleared;
         else
-            revert();
+            revert("Item in wrong status for executing request.");
 
+        // solium-disable-next-line security/no-send
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
@@ -286,28 +298,33 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         Item storage item = items[disputeIDToItem[_disputeID]];
-        require(item.disputed);
+        require(item.disputed, "The item is not disputed.");
 
         if (_ruling == REGISTER) {
             if (rechallengePossible && item.status==ItemStatus.Submitted) {
                 uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
                 if (arbitratorCost + stake < item.balance) { // Check that the balance is enough.
                     uint toSend = item.balance - (arbitratorCost + stake);
+                    // solium-disable-next-line security/no-send
                     item.submitter.send(toSend); // Keep the arbitration cost and the stake and send the remaining to the submitter.
                     item.balance -= toSend;
                 }
             } else {
                 if (item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)
+                    // solium-disable-next-line security/no-send
                     item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
                 else
+                    // solium-disable-next-line security/no-send
                     item.challenger.send(item.balance);
                     
                 item.status = ItemStatus.Registered;
             }
         } else if (_ruling == CLEAR) {
             if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
+                // solium-disable-next-line security/no-send
                 item.submitter.send(item.balance);
             else
+                // solium-disable-next-line security/no-send
                 item.challenger.send(item.balance);
 
             item.status = ItemStatus.Cleared;
@@ -318,13 +335,16 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                 item.status = ItemStatus.Registered;
             else
                 item.status = ItemStatus.Absent;
+            // solium-disable-next-line security/no-send
             item.submitter.send(item.balance / 2);
+            // solium-disable-next-line security/no-send
             item.challenger.send(item.balance / 2);
         }
         
         item.disputed = false;
         if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER) 
-            item.lastAction=now; // If the item can be rechallenged, update the time and keep the remaining balance.
+            // solium-disable-next-line security/no-block-members
+            item.lastAction = block.timestamp; // If the item can be rechallenged, update the time and keep the remaining balance.
         else
             item.balance = 0;
 
@@ -378,7 +398,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                     break;
                 }
             }
-            require(_cursorIndex != 0);
+            require(_cursorIndex != 0, "The cursor is invalid.");
         }
 
         for (
@@ -388,7 +408,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             ) { // Oldest or newest first.
             Item storage item = items[itemsList[_sort ? i : itemsList.length - i]];
             if (
-                item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
+                    item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && ( // solium-disable-line operator-whitespace
+                    // solium-disable-next-line operator-whitespace
                     (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending.
                     (_filter[1] && item.disputed) || // Challenged.
                     (_filter[2] && item.status == ItemStatus.Registered) || // Accepted.

@@ -48,10 +48,10 @@ contract MiniMeTokenERC20 is MiniMeToken {
       * @return True if the approval was successful
       */
     function approve(address _spender, uint256 _amount) public returns (bool success) {
-        require(transfersEnabled);
+        require(transfersEnabled, "Transfers are not enabled.");
         // Alerts the token controller of the approve function call
         if (isContract(controller)) {
-            require(TokenController(controller).onApprove(msg.sender, _spender, _amount));
+            require(TokenController(controller).onApprove(msg.sender, _spender, _amount), "Token controller does not approve.");
         }
 
         allowed[msg.sender][_spender] = _amount;

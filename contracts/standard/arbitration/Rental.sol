@@ -41,7 +41,7 @@ contract Rental is TwoPartyArbitrable {
         TwoPartyArbitrable(_arbitrator,_timeout,_partyB,AMOUNT_OF_CHOICES,_arbitratorExtraData, _metaEvidence) 
         payable 
     {
-        amount+=msg.value;
+        amount += msg.value;
     }
 
     /** @dev Claim an amount of damages.
@@ -50,24 +50,28 @@ contract Rental is TwoPartyArbitrable {
      *  @param _damages The amount asked or agreed to be paid.
      */
     function claimDamages(uint _damages) public onlyParty {
-        require(status<Status.DisputeCreated); // Make sure that parties can't change when a dispute already started.
-        require(_damages!=0); // Needed to avoid claiming 0 first and triggering an agreement. Use forfeitDeposit and unlockDeposit for the cases where 0 is claimed.
-        require(_damages<=amount); // Make sure not to claim more than the contract has.
+        // Make sure that parties can't change when a dispute already started.
+        require(status < Status.DisputeCreated, "The dispute has already been created.");
+        // Needed to avoid claiming 0 first and triggering an agreement. Use forfeitDeposit and unlockDeposit for the cases where 0 is claimed.
+        require(_damages != 0, "There must be damages.");
+        require(_damages <= amount, "Cannot claim more than balance."); // Make sure not to claim more than the contract has.
 
-        if (msg.sender==partyA)
-            damagesClaimedByPartyA=_damages;
+        if (msg.sender == partyA)
+            damagesClaimedByPartyA = _damages;
         else
-            damagesClaimedByPartyB=_damages;
+            damagesClaimedByPartyB = _damages;
 
         if (damagesClaimedByPartyA==damagesClaimedByPartyB) { // If there is an agreement.
-            partyA.send((amount-damagesClaimedByPartyB)+partyAFee);
-            partyB.send(damagesClaimedByPartyB+partyBFee);
-            damagesClaimedByPartyA=0;
-            damagesClaimedByPartyB=0;
-            partyAFee=0;
-            partyBFee=0;
-            amount=0;
-            status=Status.Resolved;
+            // solium-disable-next-line security/no-send
+            partyA.send((amount - damagesClaimedByPartyB) + partyAFee);
+            // solium-disable-next-line security/no-send
+            partyB.send(damagesClaimedByPartyB + partyBFee);
+            damagesClaimedByPartyA = 0;
+            damagesClaimedByPartyB = 0;
+            partyAFee = 0;
+            partyBFee = 0;
+            amount = 0;
+            status = Status.Resolved;
         }
     }
 
@@ -79,14 +83,14 @@ contract Rental is TwoPartyArbitrable {
      */
     function forfeitDeposit() public onlyPartyA {
         partyB.transfer(amount);
-        amount=0;
+        amount = 0;
     }
 
     /** @dev Unlock party A deposit. To be called if the good or property has been returned without damages.
      */
     function unlockDeposit() public onlyPartyB {
         partyA.transfer(amount);
-        amount=0;
+        amount = 0;
     }
 
     /** @dev Execute a ruling of a dispute. It reimburse the fee to the winning party.
@@ -96,18 +100,22 @@ contract Rental is TwoPartyArbitrable {
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         super.executeRuling(_disputeID,_ruling);
-        if (_ruling==PARTY_A_WINS) {
-            partyA.send(amount-damagesClaimedByPartyA);
+        if (_ruling == PARTY_A_WINS) {
+            // solium-disable-next-line security/no-send
+            partyA.send(amount - damagesClaimedByPartyA);
+            // solium-disable-next-line security/no-send
             partyB.send(damagesClaimedByPartyA);
         }
-        else if (_ruling==PARTY_B_WINS) {
-            partyA.send(amount-damagesClaimedByPartyB);
+        else if (_ruling == PARTY_B_WINS) {
+            // solium-disable-next-line security/no-send
+            partyA.send(amount - damagesClaimedByPartyB);
+            // solium-disable-next-line security/no-send
             partyB.send(damagesClaimedByPartyB);
         }
 
-        amount=0;
-        damagesClaimedByPartyA=0;
-        damagesClaimedByPartyB=0;
+        amount = 0;
+        damagesClaimedByPartyA = 0;
+        damagesClaimedByPartyB = 0;
     }
 
 }

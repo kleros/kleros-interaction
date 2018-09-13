@@ -26,7 +26,7 @@ contract CentralizedArbitrator is Arbitrator {
         DisputeStatus status;
     }
 
-    modifier onlyOwner {require(msg.sender==owner); _;}
+    modifier onlyOwner {require(msg.sender==owner, "Can only be called by the owner."); _;}
 
     DisputeStruct[] public disputes;
 
@@ -86,14 +86,14 @@ contract CentralizedArbitrator is Arbitrator {
     */
     function giveRuling(uint _disputeID, uint _ruling) public onlyOwner {
         DisputeStruct dispute = disputes[_disputeID];
-        require(_ruling<=dispute.choices);
+        require(_ruling <= dispute.choices, "Invalid ruling.");
 
         uint fee = dispute.fee;
         Arbitrable arbitrated = dispute.arbitrated;
-        dispute.arbitrated=Arbitrable(0x0); // Clean up to get gas back and prevent calling it again.
-        dispute.fee=0;
-        dispute.ruling=_ruling;
-        dispute.status=DisputeStatus.Solved;
+        dispute.arbitrated = Arbitrable(0x0); // Clean up to get gas back and prevent calling it again.
+        dispute.fee = 0;
+        dispute.ruling = _ruling;
+        dispute.status = DisputeStatus.Solved;
 
         msg.sender.transfer(fee);
         arbitrated.rule(_disputeID,_ruling);

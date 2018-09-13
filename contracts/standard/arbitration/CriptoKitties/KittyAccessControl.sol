@@ -40,27 +40,26 @@ contract KittyAccessControl {
 
     /// @dev Access modifier for CEO-only functionality
     modifier onlyCEO() {
-        require(msg.sender == ceoAddress);
+        require(msg.sender == ceoAddress, "Can only be called by the CEO.");
         _;
     }
 
     /// @dev Access modifier for CFO-only functionality
     modifier onlyCFO() {
-        require(msg.sender == cfoAddress);
+        require(msg.sender == cfoAddress, "Can only be called by the CFO.");
         _;
     }
 
     /// @dev Access modifier for COO-only functionality
     modifier onlyCOO() {
-        require(msg.sender == cooAddress);
+        require(msg.sender == cooAddress, "Can only be called by the COO.");
         _;
     }
 
     modifier onlyCLevel() {
         require(
-            msg.sender == cooAddress ||
-            msg.sender == ceoAddress ||
-            msg.sender == cfoAddress
+            msg.sender == cooAddress || msg.sender == ceoAddress || msg.sender == cfoAddress,
+            "Can only be called by C level addresses."
         );
         _;
     }
@@ -68,7 +67,7 @@ contract KittyAccessControl {
     /// @dev Assigns a new address to act as the CEO. Only available to the current CEO.
     /// @param _newCEO The address of the new CEO
     function setCEO(address _newCEO) public onlyCEO {
-        require(_newCEO != address(0));
+        require(_newCEO != address(0), "Cannot be the zero address.");
 
         ceoAddress = _newCEO;
     }
@@ -76,7 +75,7 @@ contract KittyAccessControl {
     /// @dev Assigns a new address to act as the CFO. Only available to the current CEO.
     /// @param _newCFO The address of the new CFO
     function setCFO(address _newCFO) public onlyCEO {
-        require(_newCFO != address(0));
+        require(_newCFO != address(0), "Cannot be the zero address.");
 
         cfoAddress = _newCFO;
     }
@@ -84,13 +83,13 @@ contract KittyAccessControl {
     /// @dev Assigns a new address to act as the COO. Only available to the current CEO.
     /// @param _newCOO The address of the new COO
     function setCOO(address _newCOO) public onlyCEO {
-        require(_newCOO != address(0));
+        require(_newCOO != address(0), "Cannot be the zero address.");
 
         cooAddress = _newCOO;
     }
 
     function withdrawBalance() external onlyCFO {
-        cfoAddress.transfer(this.balance);
+        cfoAddress.transfer(address(this).balance);
     }
 
 
@@ -98,13 +97,13 @@ contract KittyAccessControl {
 
     /// @dev Modifier to allow actions only when the contract IS NOT paused
     modifier whenNotPaused() {
-        require(!paused);
+        require(!paused, "Contract is paused.");
         _;
     }
 
     /// @dev Modifier to allow actions only when the contract IS paused
     modifier whenPaused {
-        require(paused);
+        require(paused, "Contract is not paused.");
         _;
     }
 

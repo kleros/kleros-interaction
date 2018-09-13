@@ -37,9 +37,9 @@ contract ArbitrableDeposit is Arbitrable {
     uint8 constant CLAIMANT_WINS = 2;
     string constant RULING_OPTIONS = "Owner wins;Claimant wins"; // A plain English of what rulings do. Need to be redefined by the child class.
 
-    modifier onlyOwner{ require(msg.sender == address(owner)); _; }
-    modifier onlyNotOwner{ require(msg.sender != address(owner)); _;}
-    modifier onlyClaimant{ require(msg.sender == address(claimant)); _;}
+    modifier onlyOwner{require(msg.sender == address(owner), "Can only be called by the owner."); _;}
+    modifier onlyNotOwner{require(msg.sender != address(owner), "Cannot be called by the owner."); _;}
+    modifier onlyClaimant{require(msg.sender == address(claimant), "Can only be called by the claimant."); _;}
 
     enum Party {Owner, Claimant}
 
@@ -54,7 +54,13 @@ contract ArbitrableDeposit is Arbitrable {
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _metaEvidence Link to the meta evidence.
      */
-    constructor(Arbitrator _arbitrator, uint _timeout, bytes _arbitratorExtraData, uint _claimRate, string _metaEvidence) Arbitrable(_arbitrator, _arbitratorExtraData) public payable {
+    constructor(
+        Arbitrator _arbitrator,
+        uint _timeout,
+        bytes _arbitratorExtraData,
+        uint _claimRate,
+        string _metaEvidence
+    ) Arbitrable(_arbitrator, _arbitratorExtraData) public payable {
         timeout = _timeout;
         claimRate = _claimRate;
         status = Status.NoDispute;
@@ -68,14 +74,14 @@ contract ArbitrableDeposit is Arbitrable {
      */
     function deposit() public payable onlyOwner {
         amount += msg.value;
-        address(this).send(msg.value);
+        address(this).transfer(msg.value);
     }
 
     /** @dev File a claim against owner. To be called when someone makes a claim.
      *  @param _claimAmount The proposed claim amount by the claimant.
      */
     function makeClaim(uint _claimAmount) public onlyNotOwner {
-        require(_claimAmount <= amount);
+        require(_claimAmount <= amount, "Cannot claim more than what is deposited.");
         claimant = msg.sender;
         claimAmount = _claimAmount;
         claimDepositAmount = (_claimAmount * claimRate) / 100;
@@ -88,7 +94,7 @@ contract ArbitrableDeposit is Arbitrable {
      *  @param _responseAmount The counter-offer amount the Owner proposes to a claimant.
      */
     function claimResponse(uint _responseAmount) public onlyOwner {
-        require(_responseAmount <= claimDepositAmount);
+        require(_responseAmount <= claimDepositAmount, "The response amount has to be less than the claim deposit amount.");
         claimResponseAmount = _responseAmount;
         if (_responseAmount == claimDepositAmount) {
             claimant.transfer(_responseAmount);
@@ -107,10 +113,12 @@ contract ArbitrableDeposit is Arbitrable {
     function payArbitrationFeeByOwner() public payable onlyOwner{
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         ownerFee += msg.value;
-        require(ownerFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
-        require(status < Status.DisputeCreated); // Make sure a dispute has not been created yet.
+        // Require that the total pay at least the arbitration cost.
+        require(ownerFee == arbitrationCost, "Owner fee must equal arbitration cost.");
+        require(status < Status.DisputeCreated, "A dispute has already been raised."); // Make sure a dispute has not been created yet.
 
-        lastInteraction = now;
+        // solium-disable-next-line security/no-block-members
+        lastInteraction = block.timestamp;
         if (claimantFee < arbitrationCost) { // The claimant still has to pay.
         // This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingClaimant;
@@ -126,10 +134,12 @@ contract ArbitrableDeposit is Arbitrable {
     function payArbitrationFeeByClaimant() public payable onlyClaimant {
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         claimantFee += msg.value;
-        require(claimantFee == arbitrationCost); // Require that the total pay at least the arbitration cost.
-        require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
+        // Require that the total pay at least the arbitration cost.
+        require(claimantFee == arbitrationCost, "Claimant fee must equal arbitration cost.");
+        require(status < Status.DisputeCreated, "A dispute has already been raised."); // Make sure a dispute has not been created yet.
 
-        lastInteraction = now;
+        // solium-disable-next-line security/no-block-members
+        lastInteraction = block.timestamp;
         if (ownerFee < arbitrationCost) { // The owner still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingOwner;
             emit HasToPayFee(Party.Claimant);
@@ -150,8 +160,9 @@ contract ArbitrableDeposit is Arbitrable {
     /** @dev Reimburse owner if claimant fails to pay the fee.
      */
     function timeOutByOwner() public onlyOwner {
-        require(status == Status.WaitingClaimant);
-        require(now >= lastInteraction+timeout);
+        require(status == Status.WaitingClaimant, "The contract is not waiting for the claimant.");
+        // solium-disable-next-line security/no-block-members
+        require(block.timestamp >= lastInteraction + timeout, "Not enough time has passed.");
 
         executeRuling(disputeID,OWNER_WINS);
     }
@@ -159,8 +170,9 @@ contract ArbitrableDeposit is Arbitrable {
     /** @dev Pay claimant if owner fails to pay the fee.
      */
     function timeOutByClaimant() public onlyClaimant {
-        require(status == Status.WaitingOwner);
-        require(now >= lastInteraction+timeout);
+        require(status == Status.WaitingOwner, "The contract is not waiting for the owner.");
+        // solium-disable-next-line security/no-block-members
+        require(block.timestamp >= lastInteraction + timeout, "Not enough time has passed.");
 
         executeRuling(disputeID, CLAIMANT_WINS);
     }
@@ -171,8 +183,8 @@ contract ArbitrableDeposit is Arbitrable {
      *  @param _ruling Ruling given by the arbitrator. 1 : Allow owner deposit. 2 : Pay claimant.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        require(_disputeID == disputeID);
-        require(_ruling <= AMOUNT_OF_CHOICES);
+        require(_disputeID == disputeID, "Wrong dispute ID.");
+        require(_ruling <= AMOUNT_OF_CHOICES, "Invalid ruling.");
 
         if (_ruling == OWNER_WINS) {
             owner.transfer(amount + claimAmount);

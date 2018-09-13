@@ -60,7 +60,7 @@ contract KittyOwnership is KittyBase, ERC721 {
     /// @param _kittyId - ID of kitty
     /// @param _recipient - Address to send the cat to
     function rescueLostKitty(uint256 _kittyId, address _recipient) public onlyCOO whenNotPaused {
-        require(_owns(this, _kittyId));
+        require(_owns(this, _kittyId), "The contract must own the kitty.");
         _transfer(this, _recipient, _kittyId);
     }
 
@@ -85,9 +85,9 @@ contract KittyOwnership is KittyBase, ERC721 {
         whenNotPaused
     {
         // Safety check to prevent against an unexpected 0x0 default.
-        require(_to != address(0));
+        require(_to != address(0), "Cannot send to the zero address.");
         // You can only send your own cat.
-        require(_owns(msg.sender, _tokenId));
+        require(_owns(msg.sender, _tokenId), "The caller must own the token.");
 
         // Reassign ownership, clear pending approvals, emit Transfer event.
         _transfer(msg.sender, _to, _tokenId);
@@ -107,13 +107,13 @@ contract KittyOwnership is KittyBase, ERC721 {
         whenNotPaused
     {
         // Only an owner can grant transfer approval.
-        require(_owns(msg.sender, _tokenId));
+        require(_owns(msg.sender, _tokenId), "The caller must own the token.");
 
         // Register the approval (replacing any previous approval).
         _approve(_tokenId, _to);
 
         // Emit approval event.
-        Approval(msg.sender, _to, _tokenId);
+        emit Approval(msg.sender, _to, _tokenId);
     }
 
     /// @notice Transfer a Kitty owned by another address, for which the calling address
@@ -132,8 +132,8 @@ contract KittyOwnership is KittyBase, ERC721 {
         whenNotPaused
     {
         // Check for approval and valid ownership
-        require(_approvedFor(msg.sender, _tokenId));
-        require(_owns(_from, _tokenId));
+        require(_approvedFor(msg.sender, _tokenId), "Transfer from not approved.");
+        require(_owns(_from, _tokenId), "The sender must own the token.");
 
         // Reassign ownership (also clears pending approvals and emits Transfer event).
         _transfer(_from, _to, _tokenId);
@@ -154,7 +154,7 @@ contract KittyOwnership is KittyBase, ERC721 {
     {
         owner = kittyIndexToOwner[_tokenId];
 
-        require(owner != address(0));
+        require(owner != address(0), "The owner cannot be the zero address.");
     }
 
     /// @notice Returns the nth Kitty assigned to an address, with n specified by the
@@ -181,6 +181,6 @@ contract KittyOwnership is KittyBase, ERC721 {
                 }
             }
         }
-        revert();
+        revert("No token found for the given owner and index.");
     }
 }

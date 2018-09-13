@@ -19,8 +19,14 @@ contract Arbitrator{
 
     enum DisputeStatus {Waiting, Appealable, Solved}
 
-    modifier requireArbitrationFee(bytes _extraData) {require(msg.value>=arbitrationCost(_extraData)); _;}
-    modifier requireAppealFee(uint _disputeID, bytes _extraData) {require(msg.value>=appealCost(_disputeID, _extraData)); _;}
+    modifier requireArbitrationFee(bytes _extraData) {
+        require(msg.value >= arbitrationCost(_extraData), "Not enough ETH to cover arbitration costs.");
+        _;
+    }
+    modifier requireAppealFee(uint _disputeID, bytes _extraData) {
+        require(msg.value >= appealCost(_disputeID, _extraData), "Not enough ETH to cover appeal costs.");
+        _;
+    }
 
     /** @dev To be raised when a dispute can be appealed.
      *  @param _disputeID ID of the dispute.

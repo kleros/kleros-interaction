@@ -39,14 +39,15 @@ contract SiringClockAuction is ClockAuction {
         canBeStoredWith128Bits(_endingPrice)
         canBeStoredWith64Bits(_duration)
     {
-        require(msg.sender == address(nonFungibleContract));
+        require(msg.sender == address(nonFungibleContract), "Caller must be the non fungible contract.");
         _escrow(_seller, _tokenId);
         Auction memory auction = Auction(
             _seller,
             uint128(_startingPrice),
             uint128(_endingPrice),
             uint64(_duration),
-            uint64(now)
+            // solium-disable-next-line security/no-block-members
+            uint64(block.timestamp)
         );
         _addAuction(_tokenId, auction);
     }
@@ -59,7 +60,7 @@ contract SiringClockAuction is ClockAuction {
         public
         payable
     {
-        require(msg.sender == address(nonFungibleContract));
+        require(msg.sender == address(nonFungibleContract), "Caller must be the non fungible contract.");
         address seller = tokenIdToAuction[_tokenId].seller;
         // _bid checks that token ID is valid and will throw if bid fails
         _bid(_tokenId, msg.value);
