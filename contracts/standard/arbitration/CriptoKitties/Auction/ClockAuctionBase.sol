@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title Auction Core
  *  @author dapperlabs (https://github.com/dapperlabs) 

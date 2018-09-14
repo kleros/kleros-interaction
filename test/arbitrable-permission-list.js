@@ -186,7 +186,8 @@ contract('ArbitrablePermissionList', function(accounts) {
             blacklist +
             ', rechallengePossible=' +
             rechallengePossible,
-          function() {
+          // eslint-disable-next-line no-loop-func
+          () => {
             beforeEach('setup contract for each test', async () => {
               centralizedArbitrator = await CentralizedArbitrator.new(
                 arbitrationFee,

@@ -24,7 +24,7 @@ contract BlockHashRNG is RNG {
     /** @dev Contribute to the reward of a random number.
      *  @param _block Block the random number is linked to.
      */
-    function contribute(uint _block) public payable { reward[_block]+=msg.value; }
+    function contribute(uint _block) public payable { reward[_block] += msg.value; }
 
 
     /** @dev Return the random number. If it has not been saved and is still computable compute it.
@@ -32,8 +32,8 @@ contract BlockHashRNG is RNG {
      *  @return RN Random Number. If the number is not ready or has not been requested 0 instead.
      */
     function getRN(uint _block) public returns (uint RN) {
-        RN=randomNumber[_block];
-        if (RN==0){
+        RN = randomNumber[_block];
+        if (RN == 0){
             saveRN(_block);
             return randomNumber[_block];
         }

@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title Clock auction modified for sale of kitties
  *  @author dapperlabs (https://github.com/dapperlabs)

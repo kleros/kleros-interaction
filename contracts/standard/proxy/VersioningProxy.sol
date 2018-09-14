@@ -41,7 +41,7 @@ contract VersioningProxy {
      *  @dev Makes a function only callable by the owner of this contract.
      */
     modifier onlyOwner {
-        require(owner == msg.sender);
+        require(owner == msg.sender, "Can only be called by the owner.");
         _;
     }
 
@@ -107,7 +107,7 @@ contract VersioningProxy {
     function setStable(bytes32 _nextTag) public onlyOwner {
         // Make sure this version has already been published
         address nextAddress = addresses[_nextTag];
-        require(nextAddress != address(0));
+        require(nextAddress != address(0), "The next address cannot be the zero address.");
 
         // Save current tag and address for handlers
         bytes32 prevTag = stable.tag;

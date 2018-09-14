@@ -18,16 +18,16 @@ contract TrustedRNG is RNG {
     mapping (uint => uint) public randomNumber; // RN[block] is the random number for this block 0 otherwise.
     mapping (uint => uint) public reward; // reward[block] is the amount to be paid to the party w.
 
-    modifier onlyOwner() {require(msg.sender==owner); _;}
+    modifier onlyOwner() {require(msg.sender == owner, "The caller must be the owner."); _;}
 
     /** @dev Contribute to the reward of a random number.
      *  @param _block Block the random number is linked to.
      */
     function contribute(uint _block) public payable {
         if (randomNumber[_block]!=0)
-            owner.send(msg.value); // The random number has already been given, pay the operator. If send fails it's not an issue.
+            owner.transfer(msg.value); // The random number has already been given, pay the operator. If send fails it's not an issue.
         else
-            reward[_block]+=msg.value;
+            reward[_block] += msg.value;
     }
 
     /** @dev Give a random number. To be called by the operator.
@@ -35,11 +35,11 @@ contract TrustedRNG is RNG {
      *  @param _RN The random number given by the trusted party.
      */
     function giveRN(uint _block, uint _RN) public onlyOwner {
-        require(randomNumber[_block]==0); // Prevent the operator from changing a RN.
+        require(randomNumber[_block] == 0, "The random number cannot already be set."); // Prevent the operator from changing a RN.
 
-        owner.send(reward[_block]); // If send fails it's not an issue.
-        randomNumber[_block]=_RN;
-        reward[_block]=0;
+        owner.transfer(reward[_block]); // If send fails it's not an issue.
+        randomNumber[_block] = _RN;
+        reward[_block] = 0;
     }
 
     /** @dev Get the random number.

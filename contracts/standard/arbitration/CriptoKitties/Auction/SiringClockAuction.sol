@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title Reverse auction modified for siring
  *  @author dapperlabs (https://github.com/dapperlabs)

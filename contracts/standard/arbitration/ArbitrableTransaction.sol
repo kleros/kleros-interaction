@@ -38,7 +38,7 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
         payable 
         public 
     {
-        amount+=msg.value;
+        amount += msg.value;
     }
 
     /** @dev Pay the party B. To be called when the good is delivered or the service rendered.
@@ -52,7 +52,7 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
      *  @param _amountReimbursed Amount to reimburse in wei.
      */
     function reimburse(uint _amountReimbursed) public onlyPartyB {
-        require(_amountReimbursed<=amount);
+        require(_amountReimbursed <= amount, "Cannot reimburse an amount higher than the deposit.");
         partyA.transfer(_amountReimbursed);
         amount -= _amountReimbursed;
     }
@@ -69,7 +69,7 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
         else if (_ruling==PARTY_B_WINS)
             partyB.send(amount);
 
-        amount=0;
+        amount = 0;
     }
 
 }

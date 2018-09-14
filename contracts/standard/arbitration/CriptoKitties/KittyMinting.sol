@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title All functions related to creating kittens
  *  @author dapperlabs (https://github.com/dapperlabs)

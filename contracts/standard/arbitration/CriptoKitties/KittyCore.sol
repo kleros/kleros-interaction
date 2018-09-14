@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title CryptoKitties: Collectible, breedable, and oh-so-adorable cats on the Ethereum blockchain.
  *  @author Axiom Zen (https://www.axiomzen.co)

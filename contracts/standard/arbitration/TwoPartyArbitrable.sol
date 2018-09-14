@@ -31,9 +31,9 @@ contract TwoPartyArbitrable is Arbitrable {
     uint8 constant PARTY_B_WINS = 2;
     string constant RULING_OPTIONS = "Party A wins;Party B wins"; // A plain English of what rulings do. Need to be redefined by the child class.
 
-    modifier onlyPartyA{ require(msg.sender==partyA); _; }
-    modifier onlyPartyB{ require(msg.sender==partyB); _; }
-    modifier onlyParty{ require(msg.sender==partyA || msg.sender==partyB); _; }
+    modifier onlyPartyA{require(msg.sender == partyA, "Can only be called by party A."); _;}
+    modifier onlyPartyB{require(msg.sender == partyB, "Can only be called by party B."); _;}
+    modifier onlyParty{require(msg.sender == partyA || msg.sender == partyB, "Can only be called by party A or party B."); _;}
 
     enum Party {PartyA, PartyB}
 
@@ -75,13 +75,17 @@ contract TwoPartyArbitrable is Arbitrable {
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      */
     function payArbitrationFeeByPartyA() public payable onlyPartyA {
-        uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         partyAFee += msg.value;
-        require(partyAFee >= arbitrationCost); // Require that the total pay at least the arbitration cost.
-        require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
+        require(
+            partyAFee >= arbitrationCost,
+            "Not enough ETH to cover arbitration costs."
+        ); // Require that the total pay at least the arbitration cost.
+        require(status < Status.DisputeCreated, "Dispute has already been created."); // Make sure a dispute has not been created yet.
 
         lastInteraction = now;
-        if (partyBFee < arbitrationCost) { // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
+        // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
+        if (partyBFee < arbitrationCost) {
             status = Status.WaitingPartyB;
             emit HasToPayFee(Party.PartyB);
         } else { // The partyB has also paid the fee. We create the dispute
@@ -94,13 +98,17 @@ contract TwoPartyArbitrable is Arbitrable {
      *  Note that this function mirror payArbitrationFeeByPartyA.
      */
     function payArbitrationFeeByPartyB() public payable onlyPartyB {
-        uint arbitrationCost=arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         partyBFee += msg.value;
-        require(partyBFee >= arbitrationCost); // Require that the total pay at least the arbitration cost.
-        require(status<Status.DisputeCreated); // Make sure a dispute has not been created yet.
+        require(
+            partyBFee >= arbitrationCost,
+            "Not enough ETH to cover arbitration costs."
+        ); // Require that the total pay at least the arbitration cost.
+        require(status < Status.DisputeCreated, "Dispute has already been created."); // Make sure a dispute has not been created yet.
 
-        lastInteraction=now;
-        if (partyAFee < arbitrationCost) { // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
+        lastInteraction = now;
+        // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
+        if (partyAFee < arbitrationCost) {
             status = Status.WaitingPartyA;
             emit HasToPayFee(Party.PartyA);
         } else { // The partyA has also paid the fee. We create the dispute
@@ -120,8 +128,8 @@ contract TwoPartyArbitrable is Arbitrable {
     /** @dev Reimburse partyA if partyB fails to pay the fee.
      */
     function timeOutByPartyA() public onlyPartyA {
-        require(status==Status.WaitingPartyB);
-        require(now>=lastInteraction+timeout);
+        require(status == Status.WaitingPartyB, "Not waiting for party B.");
+        require(now >= lastInteraction + timeout, "The timeout time has not passed.");
 
         executeRuling(disputeID,PARTY_A_WINS);
     }
@@ -129,8 +137,8 @@ contract TwoPartyArbitrable is Arbitrable {
     /** @dev Pay partyB if partyA fails to pay the fee.
      */
     function timeOutByPartyB() public onlyPartyB {
-        require(status==Status.WaitingPartyA);
-        require(now>=lastInteraction+timeout);
+        require(status == Status.WaitingPartyA, "Not waiting for party A.");
+        require(now >= lastInteraction + timeout, "The timeout time has not passed.");
 
         executeRuling(disputeID,PARTY_B_WINS);
     }
@@ -139,7 +147,7 @@ contract TwoPartyArbitrable is Arbitrable {
      *  @param _evidence A link to an evidence using its URI.
      */
     function submitEvidence(string _evidence) public onlyParty {
-        require(status>=Status.DisputeCreated);
+        require(status >= Status.DisputeCreated, "The dispute has not been created yet.");
         emit Evidence(arbitrator,disputeID,msg.sender,_evidence);
     }
 
@@ -158,8 +166,8 @@ contract TwoPartyArbitrable is Arbitrable {
      *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the partyA. 2 : Pay the partyB.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        require(_disputeID==disputeID);
-        require(_ruling<=amountOfChoices);
+        require(_disputeID == disputeID, "Wrong dispute ID.");
+        require(_ruling <= amountOfChoices, "Invalid ruling.");
 
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.

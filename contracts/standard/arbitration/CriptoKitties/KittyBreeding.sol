@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
 *  @title Base contract for CryptoKitties. Holds all common structs, events and base variables.
 *  @author Axiom Zen (https://www.axiomzen.co)

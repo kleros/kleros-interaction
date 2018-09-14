@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title A facet of KittyCore that manages special access privileges.
  *  @author Axiom Zen (https://www.axiomzen.co)

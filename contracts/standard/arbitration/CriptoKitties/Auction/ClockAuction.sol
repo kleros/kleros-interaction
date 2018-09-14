@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title Clock auction for non-fungible tokens.
  *  @author dapperlabs (https://github.com/dapperlabs) 

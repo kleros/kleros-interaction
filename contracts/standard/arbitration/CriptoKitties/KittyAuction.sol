@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title Handles creating auctions for sale and siring of kitties.
  *  @author dapperlabs (https://github.com/dapperlabs) 
