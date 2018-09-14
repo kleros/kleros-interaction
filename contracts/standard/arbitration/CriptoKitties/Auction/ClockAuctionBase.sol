@@ -186,10 +186,8 @@ contract ClockAuctionBase {
         // A bit of insurance against negative values (or wraparound).
         // Probably not necessary (since Ethereum guarnatees that the
         // now variable doesn't ever go backwards).
-        // solium-disable-next-line security/no-block-members
-        if (block.timestamp > _auction.startedAt) {
-            // solium-disable-next-line security/no-block-members
-            secondsPassed = block.timestamp - _auction.startedAt;
+        if (now > _auction.startedAt) {
+            secondsPassed = now - _auction.startedAt;
         }
 
         return _computeCurrentPrice(

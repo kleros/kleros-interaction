@@ -62,9 +62,7 @@ contract Rental is TwoPartyArbitrable {
             damagesClaimedByPartyB = _damages;
 
         if (damagesClaimedByPartyA==damagesClaimedByPartyB) { // If there is an agreement.
-            // solium-disable-next-line security/no-send
             partyA.send((amount - damagesClaimedByPartyB) + partyAFee);
-            // solium-disable-next-line security/no-send
             partyB.send(damagesClaimedByPartyB + partyBFee);
             damagesClaimedByPartyA = 0;
             damagesClaimedByPartyB = 0;
@@ -101,15 +99,11 @@ contract Rental is TwoPartyArbitrable {
     function executeRuling(uint _disputeID, uint _ruling) internal {
         super.executeRuling(_disputeID,_ruling);
         if (_ruling == PARTY_A_WINS) {
-            // solium-disable-next-line security/no-send
             partyA.send(amount - damagesClaimedByPartyA);
-            // solium-disable-next-line security/no-send
             partyB.send(damagesClaimedByPartyA);
         }
         else if (_ruling == PARTY_B_WINS) {
-            // solium-disable-next-line security/no-send
             partyA.send(amount - damagesClaimedByPartyB);
-            // solium-disable-next-line security/no-send
             partyB.send(damagesClaimedByPartyB);
         }
 

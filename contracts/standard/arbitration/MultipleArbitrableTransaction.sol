@@ -134,8 +134,7 @@ contract MultipleArbitrableTransaction {
         // Make sure a dispute has not been created yet.
         require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
 
-        // solium-disable-next-line security/no-block-members
-        transaction.lastInteraction = block.timestamp;
+        transaction.lastInteraction = now;
         // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
         if (transaction.buyerFee < arbitrationCost) {
             transaction.status = Status.WaitingBuyer;
@@ -160,8 +159,7 @@ contract MultipleArbitrableTransaction {
         // Make sure a dispute has not been created yet.
         require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
 
-        // solium-disable-next-line security/no-block-members
-        transaction.lastInteraction = block.timestamp;
+        transaction.lastInteraction = now;
         // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
         if (transaction.sellerFee < arbitrationCost) {
             transaction.status = Status.WaitingSeller;
@@ -192,8 +190,7 @@ contract MultipleArbitrableTransaction {
 
 
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
+        require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
 
         executeRuling(transaction.disputeId, SELLER_WINS);
     }
@@ -207,8 +204,7 @@ contract MultipleArbitrableTransaction {
 
 
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
+        require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
 
         executeRuling(transaction.disputeId, BUYER_WINS);
     }
@@ -276,11 +272,9 @@ contract MultipleArbitrableTransaction {
     function withdraw(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.seller, "The caller must be the seller.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp >= transaction.lastInteraction + transaction.timeout, "The timeout has not passed yet.");
+        require(now >= transaction.lastInteraction + transaction.timeout, "The timeout has not passed yet.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
 
-        // solium-disable-next-line security/no-send
         transaction.seller.send(transaction.amount);
         transaction.amount = 0;
 
@@ -329,14 +323,10 @@ contract MultipleArbitrableTransaction {
         // Note that we use send to prevent a party from blocking the execution.
         if (_ruling == SELLER_WINS) {
             // In both cases sends the highest amount paid to avoid ETH to be stuck in the contract if the arbitrator lowers its fee.
-            // solium-disable-next-line security/no-send
             transaction.seller.send(transaction.sellerFee > transaction.buyerFee ? transaction.sellerFee : transaction.buyerFee);
-            // solium-disable-next-line security/no-send
             transaction.seller.send(transaction.amount);
         } else if (_ruling == BUYER_WINS) {
-            // solium-disable-next-line security/no-send
             transaction.buyer.send(transaction.sellerFee > transaction.buyerFee ? transaction.sellerFee : transaction.buyerFee);
-            // solium-disable-next-line security/no-send
             transaction.buyer.send(transaction.amount);
         }
 

@@ -25,7 +25,6 @@ contract TrustedRNG is RNG {
      */
     function contribute(uint _block) public payable {
         if (randomNumber[_block]!=0)
-            // solium-disable-next-line security/no-send
             owner.transfer(msg.value); // The random number has already been given, pay the operator. If send fails it's not an issue.
         else
             reward[_block] += msg.value;
@@ -38,7 +37,6 @@ contract TrustedRNG is RNG {
     function giveRN(uint _block, uint _RN) public onlyOwner {
         require(randomNumber[_block] == 0, "The random number cannot already be set."); // Prevent the operator from changing a RN.
 
-        // solium-disable-next-line security/no-send
         owner.transfer(reward[_block]); // If send fails it's not an issue.
         randomNumber[_block] = _RN;
         reward[_block] = 0;

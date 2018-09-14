@@ -65,10 +65,8 @@ contract ArbitrableTransaction is TwoPartyArbitrable {
     function executeRuling(uint _disputeID, uint _ruling) internal {
         super.executeRuling(_disputeID,_ruling);
         if (_ruling==PARTY_A_WINS)
-            // solium-disable-next-line security/no-send
             partyA.send(amount);
         else if (_ruling==PARTY_B_WINS)
-            // solium-disable-next-line security/no-send
             partyB.send(amount);
 
         amount = 0;

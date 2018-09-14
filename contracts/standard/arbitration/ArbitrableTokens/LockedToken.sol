@@ -55,10 +55,8 @@ contract LockedToken is MintableToken {
      *  @param _to The address to unlock tokens from.
      */
     function partialUnlock(address _to, uint _maxUnlock) public {
-        // solium-disable-next-line security/no-block-members
-        if (lastUnlock[_to].add(4 weeks) <= block.timestamp && amountLocked[_to]!=0) {
-            // solium-disable-next-line security/no-block-members
-            uint amountOfMonths = block.timestamp.sub(lastUnlock[_to]) / (4 weeks);
+        if (lastUnlock[_to].add(4 weeks) <= now && amountLocked[_to]!=0) {
+            uint amountOfMonths = now.sub(lastUnlock[_to]) / (4 weeks);
             amountOfMonths = amountOfMonths < _maxUnlock ? amountOfMonths : _maxUnlock;
             lastUnlock[_to] = lastUnlock[_to].add(amountOfMonths.mul(4 weeks)); // Update last unlock date.
             uint newLocked = amountLocked[_to];

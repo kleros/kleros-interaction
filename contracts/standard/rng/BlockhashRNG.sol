@@ -53,7 +53,6 @@ contract BlockHashRNG is RNG {
         if (randomNumber[_block] != 0) { // If the number is set.
             uint rewardToSend = reward[_block];
             reward[_block] = 0;
-            // solium-disable-next-line security/no-send
             msg.sender.send(rewardToSend); // Note that the use of send is on purpose as we don't want to block in case msg.sender has a fallback issue.
         }
     }

@@ -52,7 +52,7 @@ contract KittyBreeding is KittyOwnership {
         // In addition to checking the cooldownEndTime, we also need to check to see if
         // the cat has a pending birth; there can be some period of time between the end
         // of the pregnacy timer and the birth event.
-        return (_kit.siringWithId == 0) && (_kit.cooldownEndTime <= block.timestamp); // solium-disable-line security/no-block-members
+        return (_kit.siringWithId == 0) && (_kit.cooldownEndTime <= now);
     }
 
     /// @dev Check if a sire has authorized breeding with this matron. True if both sire
@@ -72,7 +72,7 @@ contract KittyBreeding is KittyOwnership {
     /// @param _kitten A reference to the Kitty in storage which needs its timer started.
     function _triggerCooldown(Kitty storage _kitten) internal {
         // Compute the end of the cooldown time (based on current cooldownIndex)
-        _kitten.cooldownEndTime = uint64(block.timestamp + cooldowns[_kitten.cooldownIndex]); // solium-disable-line security/no-block-members
+        _kitten.cooldownEndTime = uint64(now + cooldowns[_kitten.cooldownIndex]);
 
         // Increment the breeding count, clamping it at 13, which is the length of the
         // cooldowns array. We could check the array size dynamically, but hard-coding
@@ -104,7 +104,7 @@ contract KittyBreeding is KittyOwnership {
     /// @dev Checks to see if a given Kitty is pregnant and (if so) if the gestation
     ///  period has passed.
     function _isReadyToGiveBirth(Kitty _matron) private view returns (bool) {
-        return (_matron.siringWithId != 0) && (_matron.cooldownEndTime <= block.timestamp); // solium-disable-line security/no-block-members
+        return (_matron.siringWithId != 0) && (_matron.cooldownEndTime <= now);
     }
 
     /// @notice Checks that a given kitten is able to breed (i.e. it is not pregnant or

@@ -83,8 +83,7 @@ contract TwoPartyArbitrable is Arbitrable {
         ); // Require that the total pay at least the arbitration cost.
         require(status < Status.DisputeCreated, "Dispute has already been created."); // Make sure a dispute has not been created yet.
 
-        // solium-disable-next-line security/no-block-members
-        lastInteraction = block.timestamp;
+        lastInteraction = now;
         // The partyB still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
         if (partyBFee < arbitrationCost) {
             status = Status.WaitingPartyB;
@@ -107,8 +106,7 @@ contract TwoPartyArbitrable is Arbitrable {
         ); // Require that the total pay at least the arbitration cost.
         require(status < Status.DisputeCreated, "Dispute has already been created."); // Make sure a dispute has not been created yet.
 
-        // solium-disable-next-line security/no-block-members
-        lastInteraction = block.timestamp;
+        lastInteraction = now;
         // The partyA still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
         if (partyAFee < arbitrationCost) {
             status = Status.WaitingPartyA;
@@ -131,8 +129,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function timeOutByPartyA() public onlyPartyA {
         require(status == Status.WaitingPartyB, "Not waiting for party B.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp >= lastInteraction + timeout, "The timeout time has not passed.");
+        require(now >= lastInteraction + timeout, "The timeout time has not passed.");
 
         executeRuling(disputeID,PARTY_A_WINS);
     }
@@ -141,8 +138,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function timeOutByPartyB() public onlyPartyB {
         require(status == Status.WaitingPartyA, "Not waiting for party A.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp >= lastInteraction + timeout, "The timeout time has not passed.");
+        require(now >= lastInteraction + timeout, "The timeout time has not passed.");
 
         executeRuling(disputeID,PARTY_B_WINS);
     }
@@ -178,10 +174,8 @@ contract TwoPartyArbitrable is Arbitrable {
         // In both cases sends the highest amount paid to avoid ETH to be stuck in 
         // the contract if the arbitrator lowers its fee.
         if (_ruling==PARTY_A_WINS)
-            // solium-disable-next-line security/no-send
             partyA.send(partyAFee > partyBFee ? partyAFee : partyBFee);
         else if (_ruling==PARTY_B_WINS)
-            // solium-disable-next-line security/no-send
             partyB.send(partyAFee > partyBFee ? partyAFee : partyBFee);
 
         status = Status.Resolved;

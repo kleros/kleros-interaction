@@ -117,8 +117,7 @@ contract ArbitrableDeposit is Arbitrable {
         require(ownerFee == arbitrationCost, "Owner fee must equal arbitration cost.");
         require(status < Status.DisputeCreated, "A dispute has already been raised."); // Make sure a dispute has not been created yet.
 
-        // solium-disable-next-line security/no-block-members
-        lastInteraction = block.timestamp;
+        lastInteraction = now;
         if (claimantFee < arbitrationCost) { // The claimant still has to pay.
         // This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingClaimant;
@@ -138,8 +137,7 @@ contract ArbitrableDeposit is Arbitrable {
         require(claimantFee == arbitrationCost, "Claimant fee must equal arbitration cost.");
         require(status < Status.DisputeCreated, "A dispute has already been raised."); // Make sure a dispute has not been created yet.
 
-        // solium-disable-next-line security/no-block-members
-        lastInteraction = block.timestamp;
+        lastInteraction = now;
         if (ownerFee < arbitrationCost) { // The owner still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
             status = Status.WaitingOwner;
             emit HasToPayFee(Party.Claimant);
@@ -161,8 +159,7 @@ contract ArbitrableDeposit is Arbitrable {
      */
     function timeOutByOwner() public onlyOwner {
         require(status == Status.WaitingClaimant, "The contract is not waiting for the claimant.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp >= lastInteraction + timeout, "Not enough time has passed.");
+        require(now >= lastInteraction + timeout, "Not enough time has passed.");
 
         executeRuling(disputeID,OWNER_WINS);
     }
@@ -171,8 +168,7 @@ contract ArbitrableDeposit is Arbitrable {
      */
     function timeOutByClaimant() public onlyClaimant {
         require(status == Status.WaitingOwner, "The contract is not waiting for the owner.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp >= lastInteraction + timeout, "Not enough time has passed.");
+        require(now >= lastInteraction + timeout, "Not enough time has passed.");
 
         executeRuling(disputeID, CLAIMANT_WINS);
     }

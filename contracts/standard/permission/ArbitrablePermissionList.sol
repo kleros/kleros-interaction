@@ -132,8 +132,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.submitter = msg.sender;
         item.balance += msg.value;
-        // solium-disable-next-line security/no-block-members
-        item.lastAction = block.timestamp;
+        item.lastAction = now;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
@@ -161,8 +160,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
 
         item.submitter = msg.sender;
         item.balance += msg.value;
-        // solium-disable-next-line security/no-block-members
-        item.lastAction = block.timestamp;
+        item.lastAction = now;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
@@ -191,14 +189,12 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             else
                 item.status = ItemStatus.Absent;
 
-            // solium-disable-next-line security/no-send
             item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             item.balance = 0;
             msg.sender.transfer(msg.value);
         }
 
-        // solium-disable-next-line security/no-block-members
-        item.lastAction = block.timestamp;
+        item.lastAction = now;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
@@ -230,14 +226,12 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             else
                 item.status = ItemStatus.Absent;
 
-            // solium-disable-next-line security/no-send
             item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             item.balance = 0;
             msg.sender.transfer(msg.value);
         }
 
-        // solium-disable-next-line security/no-block-members
-        item.lastAction = block.timestamp;
+        item.lastAction = now;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
@@ -257,8 +251,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
+        require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
         require(!item.disputed, "The item is still disputed.");
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
@@ -268,7 +261,6 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         else
             revert("Item in wrong status for executing request.");
 
-        // solium-disable-next-line security/no-send
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
@@ -305,26 +297,21 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                 uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
                 if (arbitratorCost + stake < item.balance) { // Check that the balance is enough.
                     uint toSend = item.balance - (arbitratorCost + stake);
-                    // solium-disable-next-line security/no-send
                     item.submitter.send(toSend); // Keep the arbitration cost and the stake and send the remaining to the submitter.
                     item.balance -= toSend;
                 }
             } else {
                 if (item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)
-                    // solium-disable-next-line security/no-send
                     item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
                 else
-                    // solium-disable-next-line security/no-send
                     item.challenger.send(item.balance);
                     
                 item.status = ItemStatus.Registered;
             }
         } else if (_ruling == CLEAR) {
             if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
-                // solium-disable-next-line security/no-send
                 item.submitter.send(item.balance);
             else
-                // solium-disable-next-line security/no-send
                 item.challenger.send(item.balance);
 
             item.status = ItemStatus.Cleared;
@@ -335,16 +322,13 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                 item.status = ItemStatus.Registered;
             else
                 item.status = ItemStatus.Absent;
-            // solium-disable-next-line security/no-send
             item.submitter.send(item.balance / 2);
-            // solium-disable-next-line security/no-send
             item.challenger.send(item.balance / 2);
         }
         
         item.disputed = false;
-        if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER) 
-            // solium-disable-next-line security/no-block-members
-            item.lastAction = block.timestamp; // If the item can be rechallenged, update the time and keep the remaining balance.
+        if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER)
+            item.lastAction = now; // If the item can be rechallenged, update the time and keep the remaining balance.
         else
             item.balance = 0;
 
@@ -408,7 +392,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             ) { // Oldest or newest first.
             Item storage item = items[itemsList[_sort ? i : itemsList.length - i]];
             if (
-                    item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && ( // solium-disable-line operator-whitespace
+                    // solium-disable-next-line operator-whitespace
+                    item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
                     // solium-disable-next-line operator-whitespace
                     (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending.
                     (_filter[1] && item.disputed) || // Challenged.

@@ -114,8 +114,7 @@ contract KittyCore is KittyMinting {
 
         // if this variable is 0 then it's not gestating
         isGestating = (kit.siringWithId != 0);
-        // solium-disable-next-line security/no-block-members
-        isReady = (kit.cooldownEndTime <= block.timestamp);
+        isReady = (kit.cooldownEndTime <= now);
         cooldownIndex = uint256(kit.cooldownIndex);
         nextActionAt = uint256(kit.cooldownEndTime);
         siringWithId = uint256(kit.siringWithId);

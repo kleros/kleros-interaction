@@ -470,8 +470,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
             emit PartyWonCustody(winner);
         } else if (_ruling==SHARED_CUSTODY) {
             rulingResult = RulingResult.SharedCustody;
-            // solium-disable-next-line security/no-block-members
-            rulingTime = block.timestamp;
+            rulingTime = now;
             
             // Give the arbitration fee back.
             // Note that we use send to prevent a party from blocking the execution.
@@ -480,9 +479,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
             uint256 largestFee = partyAFee > partyBFee ? partyAFee : partyBFee;
             uint256 halfFees = largestFee.div(2);
 
-            // solium-disable-next-line security/no-send
             partyA.send(halfFees);
-            // solium-disable-next-line security/no-send
             partyB.send(halfFees);
 
             emit SharedCustodyHasBeenGranted();
@@ -492,13 +489,11 @@ contract ArbitrableKitty is TwoPartyArbitrable{
     function underSendersCustody() public view onlyParty returns (bool) {
         require(status == Status.Resolved, "Requires the dispute to be resolved.");
         require(rulingResult == RulingResult.SharedCustody, "Requires shared custody to be the ruling.");
-        // solium-disable-next-line security/no-block-members
-        if(block.timestamp <= rulingTime){
+        if(now <= rulingTime){
             return false;
         }
 
-        // solium-disable-next-line security/no-block-members
-        RulingResult custody = custodyTurn(rulingTime, block.timestamp, CUSTODY_TIME);
+        RulingResult custody = custodyTurn(rulingTime, now, CUSTODY_TIME);
         if(custody==RulingResult.PartyA && msg.sender==partyA){
             return true;
         } else if(custody==RulingResult.PartyB && msg.sender==partyB){

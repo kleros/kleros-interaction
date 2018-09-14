@@ -49,8 +49,7 @@ contract SaleClockAuction is ClockAuction {
             uint128(_startingPrice),
             uint128(_endingPrice),
             uint64(_duration),
-            // solium-disable-next-line security/no-block-members
-            uint64(block.timestamp)
+            uint64(now)
         );
         _addAuction(_tokenId, auction);
     }

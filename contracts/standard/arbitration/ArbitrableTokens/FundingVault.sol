@@ -130,8 +130,7 @@ contract FundingVault is Arbitrable {
         require(milestone.claimTime == 0, "Cannot be called when other claims are active."); // Verify another claim is not active.
         require(milestone.amount <= _amount, "TODO.");
 
-        // solium-disable-next-line security/no-block-members
-        milestone.claimTime = block.timestamp;
+        milestone.claimTime = now;
     }
 
     /** @dev Make a forked token to dispute a claim.
@@ -169,12 +168,10 @@ contract FundingVault is Arbitrable {
         if (milestone.feeTeam>=arbitrationCost) { // Enough has been paid by all sides.
             createDispute(_milestoneID,arbitrationCost);
             } else if (milestone.lastTotalFeePayment==0) { // First time the fee is paid.
-                // solium-disable-next-line security/no-block-members
-                milestone.lastTotalFeePayment = block.timestamp;
+                milestone.lastTotalFeePayment = now;
                 } else if(milestone.lastTotalFeePaymentIsTeam) { // The team was the last one who had paid entirely.
                     milestone.lastTotalFeePaymentIsTeam = false;
-                    // solium-disable-next-line security/no-block-members
-                    milestone.lastTotalFeePayment = block.timestamp;
+                    milestone.lastTotalFeePayment = now;
                 }
     }
 
@@ -194,14 +191,12 @@ contract FundingVault is Arbitrable {
         if (milestone.feeHolders>=arbitrationCost) { // Enough has been paid by all sides.
             createDispute(_milestoneID,arbitrationCost);
         }
-        else if (milestone.lastTotalFeePayment==0) { // First time the fee is paid.
-            // solium-disable-next-line security/no-block-members        
-            milestone.lastTotalFeePayment = block.timestamp;
+        else if (milestone.lastTotalFeePayment==0) { // First time the fee is paid.     
+            milestone.lastTotalFeePayment = now;
             milestone.lastTotalFeePaymentIsTeam = true;
             } else if(!milestone.lastTotalFeePaymentIsTeam) { // The holders were the last ones who had paid entirely.
                 milestone.lastTotalFeePaymentIsTeam = true;
-                // solium-disable-next-line security/no-block-members
-                milestone.lastTotalFeePayment = block.timestamp;
+                milestone.lastTotalFeePayment = now;
             }
     }
 
@@ -231,8 +226,8 @@ contract FundingVault is Arbitrable {
             "Not enough votes."
         ); // There is not enough votes.
         require(
-            // solium-disable-next-line security/no-block-members, indentation
-            (block.timestamp - milestone.claimTime) > claimToWithdrawTime + (additionalTimeToWithdraw * milestone.voteToken.balanceOf(this)) / (1000 * milestone.voteToken.totalSupply()),
+            // solium-disable-next-line indentation
+            (now - milestone.claimTime) > claimToWithdrawTime + (additionalTimeToWithdraw * milestone.voteToken.balanceOf(this)) / (1000 * milestone.voteToken.totalSupply()),
             "Time limit has not passed yet."
         );
 
@@ -253,8 +248,7 @@ contract FundingVault is Arbitrable {
         Milestone storage milestone = milestones[_milestoneID];
         require(msg.sender == team, "Can only be called by the team.");
         require(milestone.lastTotalFeePaymentIsTeam, "Team wasn't the last to pay.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp - milestone.lastTotalFeePayment > timeout, "Timeout has not passed.");
+        require(now - milestone.lastTotalFeePayment > timeout, "Timeout has not passed.");
 
         team.transfer(milestone.amountClaimed+milestone.feeTeam+milestone.feeHolders); // Pay the amount claimed and the unused fees to the team.
         milestone.amount -= milestone.amountClaimed;
@@ -274,8 +268,7 @@ contract FundingVault is Arbitrable {
     function timeoutByHolders(uint _milestoneID) public {
         Milestone storage milestone = milestones[_milestoneID];
         require(!milestone.lastTotalFeePaymentIsTeam, "Team wasn't the last to pay.");
-        // solium-disable-next-line security/no-block-members
-        require(block.timestamp - milestone.lastTotalFeePayment > timeout, "Timeout has not passed.");
+        require(now - milestone.lastTotalFeePayment > timeout, "Timeout has not passed.");
 
         milestone.payerForHolders.transfer(milestone.feeTeam+milestone.feeHolders); // Pay the unused fees to the payer for holders.
         milestone.amountClaimed = 0;
