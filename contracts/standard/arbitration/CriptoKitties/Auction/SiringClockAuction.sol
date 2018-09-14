@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title Reverse auction modified for siring
  *  @author dapperlabs (https://github.com/dapperlabs)
@@ -39,7 +40,7 @@ contract SiringClockAuction is ClockAuction {
         canBeStoredWith128Bits(_endingPrice)
         canBeStoredWith64Bits(_duration)
     {
-        require(msg.sender == address(nonFungibleContract), "Caller must be the non fungible contract.");
+        require(msg.sender == address(nonFungibleContract));
         _escrow(_seller, _tokenId);
         Auction memory auction = Auction(
             _seller,
@@ -59,7 +60,7 @@ contract SiringClockAuction is ClockAuction {
         public
         payable
     {
-        require(msg.sender == address(nonFungibleContract), "Caller must be the non fungible contract.");
+        require(msg.sender == address(nonFungibleContract));
         address seller = tokenIdToAuction[_tokenId].seller;
         // _bid checks that token ID is valid and will throw if bid fails
         _bid(_tokenId, msg.value);

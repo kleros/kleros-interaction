@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
 *  @title Base contract for CryptoKitties. Holds all common structs, events and base variables.
 *  @author Axiom Zen (https://www.axiomzen.co)
@@ -39,7 +40,7 @@ contract KittyBreeding is KittyOwnership {
         GeneScienceInterface candidateContract = GeneScienceInterface(_address);
 
         // NOTE: verify that a contract is what we expect - https://github.com/Lunyr/crowdsale-contracts/blob/cfadd15986c30521d8ba7d5b6f57b4fefcc7ac38/contracts/LunyrToken.sol#L117
-        require(candidateContract.isGeneScience(), "The candidate contract must be a gene science contract.");
+        require(candidateContract.isGeneScience());
 
         // Set the new contract address
         geneScience = candidateContract;
@@ -90,7 +91,7 @@ contract KittyBreeding is KittyOwnership {
     public
     whenNotPaused
     {
-        require(_owns(msg.sender, _sireId), "The caller must own the sire.");
+        require(_owns(msg.sender, _sireId));
         sireAllowedToAddress[_sireId] = _addr;
     }
 
@@ -115,7 +116,7 @@ contract KittyBreeding is KittyOwnership {
     view
     returns (bool)
     {
-        require(_kittyId > 0, "The kitty ID cannot be 0.");
+        require(_kittyId > 0);
         Kitty storage kit = kitties[_kittyId];
         return _isReadyToBreed(kit);
     }
@@ -189,8 +190,8 @@ contract KittyBreeding is KittyOwnership {
     view
     returns(bool)
     {
-        require(_matronId > 0, "The matron ID cannot be 0.");
-        require(_sireId > 0, "The sire ID cannot be 0.");
+        require(_matronId > 0);
+        require(_sireId > 0);
         Kitty storage matron = kitties[_matronId];
         Kitty storage sire = kitties[_sireId];
         return _isValidMatingPair(matron, _matronId, sire, _sireId) &&
@@ -204,7 +205,7 @@ contract KittyBreeding is KittyOwnership {
     /// @param _sireId The ID of the Kitty acting as sire (will begin its siring cooldown if successful)
     function breedWith(uint256 _matronId, uint256 _sireId) public whenNotPaused {
         // Caller must own the matron.
-        require(_owns(msg.sender, _matronId), "The caller must own the matron.");
+        require(_owns(msg.sender, _matronId));
 
         // Neither sire nor matron are allowed to be on auction during a normal
         // breeding operation, but we don't need to check that explicitly.
@@ -220,22 +221,22 @@ contract KittyBreeding is KittyOwnership {
         // Check that matron and sire are both owned by caller, or that the sire
         // has given siring permission to caller (i.e. matron's owner).
         // Will fail for _sireId = 0
-        require(_isSiringPermitted(_sireId, _matronId), "The siring must be permitted.");
+        require(_isSiringPermitted(_sireId, _matronId));
 
         // Grab a reference to the potential matron
         Kitty storage matron = kitties[_matronId];
 
         // Make sure matron isn't pregnant, or in the middle of a siring cooldown
-        require(_isReadyToBreed(matron), "The matron must be ready to breed.");
+        require(_isReadyToBreed(matron));
 
         // Grab a reference to the potential sire
         Kitty storage sire = kitties[_sireId];
 
         // Make sure sire isn't pregnant, or in the middle of a siring cooldown
-        require(_isReadyToBreed(sire), "The sire must be ready to breed.");
+        require(_isReadyToBreed(sire));
 
         // Test that these cats are a valid mating pair.
-        require(_isValidMatingPair(matron, _matronId, sire, _sireId), "The matron and sire must be a valid match.");
+        require(_isValidMatingPair(matron, _matronId, sire, _sireId));
 
         // All checks passed, kitty gets pregnant!
         _breedWith(_matronId, _sireId);
@@ -276,7 +277,7 @@ contract KittyBreeding is KittyOwnership {
     whenNotPaused
     {
         // Check for payment
-        require(msg.value >= autoBirthFee, "Not enough ETH to cover birth fees.");
+        require(msg.value >= autoBirthFee);
 
         // Call through the normal breeding flow
         breedWith(_matronId, _sireId);
@@ -304,10 +305,10 @@ contract KittyBreeding is KittyOwnership {
         Kitty storage matron = kitties[_matronId];
 
         // Check that the matron is a valid cat.
-        require(matron.birthTime != 0, "The matron is invalid.");
+        require(matron.birthTime != 0);
 
         // Check that the matron is pregnant, and that its time has come!
-        require(_isReadyToGiveBirth(matron), "The matron is not ready to give birth.");
+        require(_isReadyToGiveBirth(matron));
 
         // Grab a reference to the sire in storage.
         uint256 sireId = matron.siringWithId;

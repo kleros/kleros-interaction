@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title CryptoKitties: Collectible, breedable, and oh-so-adorable cats on the Ethereum blockchain.
  *  @author Axiom Zen (https://www.axiomzen.co)
@@ -88,8 +89,7 @@ contract KittyCore is KittyMinting {
     function() external payable {
         require(
             msg.sender == address(saleAuction) ||
-            msg.sender == address(siringAuction),
-            "The caller must be the sale auction or the siring auction."
+            msg.sender == address(siringAuction)
         );
     }
 
@@ -129,10 +129,10 @@ contract KittyCore is KittyMinting {
     ///  to be set before contract can be unpaused. Also, we can't have
     ///  newContractAddress set either, because then the contract was upgraded.
     function unpause() public onlyCEO whenPaused {
-        require(saleAuction != address(0), "Invalid sale auction address.");
-        require(siringAuction != address(0), "Invalid siring auction address.");
-        require(geneScience != address(0), "Invalid gene science address.");
-        require(newContractAddress == address(0), "Invalid new contract address.");
+        require(saleAuction != address(0));
+        require(siringAuction != address(0));
+        require(geneScience != address(0));
+        require(newContractAddress == address(0));
 
         // Actually unpause the contract.
         super.unpause();

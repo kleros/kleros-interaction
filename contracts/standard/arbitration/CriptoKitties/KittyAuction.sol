@@ -1,3 +1,4 @@
+/* solium-disable */
 /**
  *  @title Handles creating auctions for sale and siring of kitties.
  *  @author dapperlabs (https://github.com/dapperlabs) 
@@ -32,7 +33,7 @@ contract KittyAuction is KittyBreeding {
         SaleClockAuction candidateContract = SaleClockAuction(_address);
 
         // NOTE: verify that a contract is what we expect - https://github.com/Lunyr/crowdsale-contracts/blob/cfadd15986c30521d8ba7d5b6f57b4fefcc7ac38/contracts/LunyrToken.sol#L117
-        require(candidateContract.isSaleClockAuction(), "Candidate contract is not a sale clock auction.");
+        require(candidateContract.isSaleClockAuction());
 
         // Set the new contract address
         saleAuction = candidateContract;
@@ -44,7 +45,7 @@ contract KittyAuction is KittyBreeding {
         SiringClockAuction candidateContract = SiringClockAuction(_address);
 
         // NOTE: verify that a contract is what we expect - https://github.com/Lunyr/crowdsale-contracts/blob/cfadd15986c30521d8ba7d5b6f57b4fefcc7ac38/contracts/LunyrToken.sol#L117
-        require(candidateContract.isSiringClockAuction(), "Candidate contract is not a siring clock auction.");
+        require(candidateContract.isSiringClockAuction());
 
         // Set the new contract address
         siringAuction = candidateContract;
@@ -64,7 +65,7 @@ contract KittyAuction is KittyBreeding {
         // Auction contract checks input sizes
         // If kitty is already on any auction, this will throw
         // because it will be owned by the auction contract.
-        require(_owns(msg.sender, _kittyId), "The caller must own the kitty.");
+        require(_owns(msg.sender, _kittyId));
         _approve(_kittyId, saleAuction);
         // Sale auction throws if inputs are invalid and clears
         // transfer and sire approval after escrowing the kitty.
@@ -92,8 +93,8 @@ contract KittyAuction is KittyBreeding {
         // Auction contract checks input sizes
         // If kitty is already on any auction, this will throw
         // because it will be owned by the auction contract.
-        require(_owns(msg.sender, _kittyId), "The caller must own the kitty.");
-        require(isReadyToBreed(_kittyId), "The kitty must be ready to breed.");
+        require(_owns(msg.sender, _kittyId));
+        require(isReadyToBreed(_kittyId));
         _approve(_kittyId, siringAuction);
         // Siring auction throws if inputs are invalid and clears
         // transfer and sire approval after escrowing the kitty.
@@ -119,9 +120,9 @@ contract KittyAuction is KittyBreeding {
         whenNotPaused
     {
         // Auction contract checks input sizes
-        require(_owns(msg.sender, _matronId), "The caller must own the matron.");
-        require(isReadyToBreed(_matronId), "The matron must be ready to breed.");
-        require(_canBreedWithViaAuction(_matronId, _sireId), "The matron must be allowed to breed with the sire.");
+        require(_owns(msg.sender, _matronId));
+        require(isReadyToBreed(_matronId));
+        require(_canBreedWithViaAuction(_matronId, _sireId));
         uint256 currPrice = siringAuction.getCurrentPrice(_sireId);
         uint256 bidAmount = msg.value;
         bool doAutoBirth = false;
