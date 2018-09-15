@@ -8,21 +8,10 @@ import "./CentralizedArbitrator.sol";
  *  @dev A centralized arbitrator that can be appealed when not responsive.
  */
 contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
-    /* Enums */
-
-
-
-    /* Structs */
-
-
-
-    /* Events */
-
-
-
     /* Storage */
 
-
+    Arbitrator public backUp;
+    mapping(uint => uint) public creationTimes;
 
     /* Modifiers */
 
