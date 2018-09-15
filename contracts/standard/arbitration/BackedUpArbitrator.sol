@@ -13,17 +13,14 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
     Arbitrator public backUp;
     mapping(uint => uint) public creationTimes;
 
-    /* Modifiers */
-
-
-
     /* Constructor */
 
-
-
-    /* Fallback */
-
-
+    /** @dev Constructs the BackedUpArbitrator contract.
+     *  @param _backUp The back up arbitrator.
+     */
+    constructor(Arbitrator _backUp) public {
+        backUp = _backUp;
+    }
 
     /* External */
 
