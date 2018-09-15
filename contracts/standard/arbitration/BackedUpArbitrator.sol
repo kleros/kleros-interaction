@@ -43,17 +43,34 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
 
     /* Public */
 
+    /** @dev Creates a dispute.
+     *  @param _choices The amount of choices in the dispute.
+     *  @param _extraData Not used by this contract.
+     *  @return The created dispute's ID.
+     */
+    function createDispute(uint _choices, bytes _extraData) public payable returns(uint disputeID)  {
+        disputeID = super.createDispute(_choices, _extraData);
+        creationTimes[disputeID] = now;
+    }
 
+    /** @dev Appeals a ruling.
+     *  @param _disputeID The ID of the dispute.
+     *  @param _extraData Additional info about the appeal.
+     */
+    function appeal(uint _disputeID, bytes _extraData) public payable requireAppealFee(_disputeID, _extraData) {
+        super.appeal(_disputeID, _extraData);
+        emit AppealDecision(backUp.createDispute(disputes[_disputeID].choices, _extraData), disputes[_disputeID].arbitrated);
+    }
 
     /* Public Views */
 
     /** @dev Gets the cost of appeal for the specified dispute.
      *  @param _disputeID The ID of the dispute.
-     *  @param _extraData Not used by this contract.
+     *  @param _extraData Additional info about the appeal.
      *  @return The cost of appeal.
      */
     function appealCost(uint _disputeID, bytes _extraData) public view returns(uint cost) {
-        if (now - creationTimes[_disputeID] > timeOut) cost = backUp.arbitrationCost(_extraData);
+        if (now - creationTimes[_disputeID] > timeOut && disputes[_disputeID].ruling == 0) cost = backUp.arbitrationCost(_extraData);
         else cost = NOT_PAYABLE_VALUE;
     }
 }
