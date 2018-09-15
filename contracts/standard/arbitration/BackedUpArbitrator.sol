@@ -41,32 +41,19 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
         timeOut = _timeOut;
     }
 
-    /* External Views */
-
-
-
     /* Public */
 
 
 
     /* Public Views */
 
-
-
-    /* Internal */
-
-
-
-    /* Internal Views */
-
-
-
-    /* Private */
-
-
-
-    /* Private Views */
-
-
-
+    /** @dev Gets the cost of appeal for the specified dispute.
+     *  @param _disputeID The ID of the dispute.
+     *  @param _extraData Not used by this contract.
+     *  @return The cost of appeal.
+     */
+    function appealCost(uint _disputeID, bytes _extraData) public view returns(uint cost) {
+        if (now - creationTimes[_disputeID] > timeOut) cost = backUp.arbitrationCost(_extraData);
+        else cost = NOT_PAYABLE_VALUE;
+    }
 }
