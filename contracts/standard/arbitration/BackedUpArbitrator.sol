@@ -24,7 +24,12 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
 
     /* External */
 
-
+    /** @dev Changes the back up arbitrator.
+     *  @param _backUp The new back up arbitrator.
+     */
+    function changeBackUp(Arbitrator _backUp) external onlyOwner {
+        backUp = _backUp;
+    }
 
     /* External Views */
 
