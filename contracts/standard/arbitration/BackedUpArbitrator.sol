@@ -17,10 +17,11 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
     /* Constructor */
 
     /** @dev Constructs the BackedUpArbitrator contract.
+     *  @param _arbitrationPrice The amount to be paid for arbitration.
      *  @param _backUp The back up arbitrator.
      *  @param _timeOut The time that needs to pass for a pending dispute to be appealable.
      */
-    constructor(Arbitrator _backUp, uint _timeOut) public {
+    constructor(uint _arbitrationPrice, Arbitrator _backUp, uint _timeOut) public CentralizedArbitrator(_arbitrationPrice) {
         backUp = _backUp;
         timeOut = _timeOut;
     }
