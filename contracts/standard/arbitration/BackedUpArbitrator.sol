@@ -8,11 +8,18 @@ import "./CentralizedArbitrator.sol";
  *  @dev A centralized arbitrator that can be appealed when not responsive.
  */
 contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
+    /* Structs */
+
+    struct AppealDispute {
+        uint creationTime;
+        uint appealDisputeID;
+        bool appealed;
+    }
+
     /* Storage */
 
     uint public timeOut;
-    mapping(uint => uint) public creationTimes;
-    mapping(uint => uint) public disputeIDMap;
+    mapping(uint => AppealDispute) public appealDisputes;
 
     /* Constructor */
 
@@ -49,7 +56,7 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
      */
     function createDispute(uint _choices, bytes _extraData) public payable returns(uint disputeID)  {
         disputeID = super.createDispute(_choices, _extraData);
-        creationTimes[disputeID] = now;
+        appealDisputes[disputeID].creationTime = now;
     }
 
     /** @dev Appeals a ruling.
@@ -58,7 +65,20 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
      */
     function appeal(uint _disputeID, bytes _extraData) public payable requireAppealFee(_disputeID, _extraData) {
         super.appeal(_disputeID, _extraData);
-        disputeIDMap[_disputeID] = arbitrator.createDispute(disputes[_disputeID].choices, _extraData);
+        appealDisputes[_disputeID].appealDisputeID = arbitrator.createDispute(disputes[_disputeID].choices, _extraData);
+        appealDisputes[_disputeID].appealed = true;
+    }
+
+    /** @dev Gives a ruling.
+     *  @param _disputeID The ID of the dispute.
+     *  @param _ruling The ruling.
+     */
+    function giveRuling(uint _disputeID, uint _ruling) public onlyOwner {
+        require(
+            !appealDisputes[_disputeID].appealed || Arbitrator(msg.sender) == arbitrator,
+            "Appealed disputes must be ruled by the back up arbitrator."
+        );
+        super.giveRuling(_disputeID, _ruling);
     }
 
     /* Public Views */
@@ -66,10 +86,11 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
     /** @dev Gets the cost of appeal for the specified dispute.
      *  @param _disputeID The ID of the dispute.
      *  @param _extraData Additional info about the appeal.
-     *  @return The cost of appeal.
+     *  @return The cost of the appeal.
      */
     function appealCost(uint _disputeID, bytes _extraData) public view returns(uint cost) {
-        if (now - creationTimes[_disputeID] > timeOut && disputes[_disputeID].ruling == 0) cost = arbitrator.arbitrationCost(_extraData);
+        if (now - appealDisputes[_disputeID].creationTime > timeOut && disputes[_disputeID].status < DisputeStatus.Solved)
+            cost = arbitrator.arbitrationCost(_extraData);
         else cost = NOT_PAYABLE_VALUE;
     }
 
@@ -80,6 +101,6 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
      *  @param _ruling The ruling.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        disputes[disputeIDMap[_disputeID]].arbitrated.rule(_disputeID, _ruling);
+        giveRuling(appealDisputes[_disputeID].appealDisputeID, _ruling);
     }
 }
