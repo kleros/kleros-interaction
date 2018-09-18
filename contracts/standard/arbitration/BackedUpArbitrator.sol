@@ -10,31 +10,29 @@ import "./CentralizedArbitrator.sol";
 contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
     /* Storage */
 
-    Arbitrator public backUp;
     uint public timeOut;
     mapping(uint => uint) public creationTimes;
+    mapping(uint => uint) public disputeIDMap;
 
     /* Constructor */
 
     /** @dev Constructs the BackedUpArbitrator contract.
      *  @param _arbitrationPrice The amount to be paid for arbitration.
-     *  @param _backUp The back up arbitrator.
+     *  @param _arbitrator The back up arbitrator.
+     *  @param _arbitratorExtraData Not used by this contract.
      *  @param _timeOut The time that needs to pass for a pending dispute to be appealable.
      */
-    constructor(uint _arbitrationPrice, Arbitrator _backUp, uint _timeOut) public CentralizedArbitrator(_arbitrationPrice) {
-        backUp = _backUp;
+    constructor(
+        uint _arbitrationPrice,
+        Arbitrator _arbitrator,
+        bytes _arbitratorExtraData,
+        uint _timeOut
+    ) public CentralizedArbitrator(_arbitrationPrice) Arbitrable(_arbitrator, _arbitratorExtraData) {
         timeOut = _timeOut;
     }
 
     /* External */
-
-    /** @dev Changes the back up arbitrator.
-     *  @param _backUp The new back up arbitrator.
-     */
-    function changeBackUp(Arbitrator _backUp) external onlyOwner {
-        backUp = _backUp;
-    }
-
+    
     /** @dev Changes the time out.
      *  @param _timeOut The new time out.
      */
@@ -60,7 +58,7 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
      */
     function appeal(uint _disputeID, bytes _extraData) public payable requireAppealFee(_disputeID, _extraData) {
         super.appeal(_disputeID, _extraData);
-        emit AppealDecision(backUp.createDispute(disputes[_disputeID].choices, _extraData), disputes[_disputeID].arbitrated);
+        disputeIDMap[_disputeID] = arbitrator.createDispute(disputes[_disputeID].choices, _extraData);
     }
 
     /* Public Views */
@@ -71,7 +69,17 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
      *  @return The cost of appeal.
      */
     function appealCost(uint _disputeID, bytes _extraData) public view returns(uint cost) {
-        if (now - creationTimes[_disputeID] > timeOut && disputes[_disputeID].ruling == 0) cost = backUp.arbitrationCost(_extraData);
+        if (now - creationTimes[_disputeID] > timeOut && disputes[_disputeID].ruling == 0) cost = arbitrator.arbitrationCost(_extraData);
         else cost = NOT_PAYABLE_VALUE;
+    }
+
+    /* Internal */
+
+    /** @dev Executes the ruling of the specified dispute.
+     *  @param _disputeID The ID of the dispute.
+     *  @param _ruling The ruling.
+     */
+    function executeRuling(uint _disputeID, uint _ruling) internal {
+        disputes[disputeIDMap[_disputeID]].arbitrated.rule(_disputeID, _ruling);
     }
 }
