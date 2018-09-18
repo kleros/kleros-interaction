@@ -73,9 +73,10 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
      *  @param _disputeID The ID of the dispute.
      *  @param _ruling The ruling.
      */
-    function giveRuling(uint _disputeID, uint _ruling) public onlyOwner {
+    function giveRuling(uint _disputeID, uint _ruling) public {
         require(
-            !appealDisputes[_disputeID].appealed || Arbitrator(msg.sender) == arbitrator,
+            // solium-disable-next-line indentation
+            (!appealDisputes[_disputeID].appealed && msg.sender == owner) || (appealDisputes[_disputeID].appealed && Arbitrator(msg.sender) == arbitrator),
             "Appealed disputes must be ruled by the back up arbitrator."
         );
         super.giveRuling(_disputeID, _ruling);
@@ -89,7 +90,9 @@ contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
      *  @return The cost of the appeal.
      */
     function appealCost(uint _disputeID, bytes _extraData) public view returns(uint cost) {
-        if (now - appealDisputes[_disputeID].creationTime > timeOut && disputes[_disputeID].status < DisputeStatus.Solved)
+        if (
+            now - appealDisputes[_disputeID].creationTime > timeOut && disputes[_disputeID].status < DisputeStatus.Solved && !appealDisputes[_disputeID].appealed
+            )
             cost = arbitrator.arbitrationCost(_extraData);
         else cost = NOT_PAYABLE_VALUE;
     }
