@@ -3,15 +3,15 @@ pragma solidity ^0.4.24;
 import "./CentralizedArbitrator.sol";
 
 /**
- *  @title AppealableArbitrator
+ *  @title BackedUpArbitrator
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
- *  @dev A centralized arbitrator that can be appealed.
+ *  @dev A centralized arbitrator that can be appealed when not responsive.
  */
-contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
+contract BackedUpArbitrator is CentralizedArbitrator, Arbitrable {
     /* Structs */
 
     struct AppealDispute {
-        uint rulingTime;
+        uint creationTime;
         uint appealDisputeID;
         bool appealed;
     }
@@ -23,11 +23,11 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
 
     /* Constructor */
 
-    /** @dev Constructs the AppealableArbitrator contract.
+    /** @dev Constructs the BackedUpArbitrator contract.
      *  @param _arbitrationPrice The amount to be paid for arbitration.
      *  @param _arbitrator The back up arbitrator.
      *  @param _arbitratorExtraData Not used by this contract.
-     *  @param _timeOut The time out for the appeal period.
+     *  @param _timeOut The time that needs to pass for a pending dispute to be appealable.
      */
     constructor(
         uint _arbitrationPrice,
@@ -49,6 +49,16 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
 
     /* Public */
 
+    /** @dev Creates a dispute.
+     *  @param _choices The amount of choices in the dispute.
+     *  @param _extraData Not used by this contract.
+     *  @return The created dispute's ID.
+     */
+    function createDispute(uint _choices, bytes _extraData) public payable returns(uint disputeID)  {
+        disputeID = super.createDispute(_choices, _extraData);
+        appealDisputes[disputeID].creationTime = now;
+    }
+
     /** @dev Appeals a ruling.
      *  @param _disputeID The ID of the dispute.
      *  @param _extraData Additional info about the appeal.
@@ -69,20 +79,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
             (!appealDisputes[_disputeID].appealed && msg.sender == owner) || (appealDisputes[_disputeID].appealed && Arbitrator(msg.sender) == arbitrator),
             "Appealed disputes must be ruled by the back up arbitrator."
         );
-        if (!appealDisputes[_disputeID].appealed) {
-            if (disputes[_disputeID].status == DisputeStatus.Appealable) {
-                if (now - appealDisputes[_disputeID].rulingTime > timeOut)
-                    super.giveRuling(_disputeID, _ruling);
-                else revert("Time out time has not passed yet.");
-            }
-            else {
-                disputes[_disputeID].ruling = _ruling;
-                disputes[_disputeID].status = DisputeStatus.Appealable;
-                appealDisputes[_disputeID].rulingTime = now;
-                emit AppealPossible(_disputeID);
-            }
-        }
-        else super.giveRuling(_disputeID, _ruling);
+        super.giveRuling(_disputeID, _ruling);
     }
 
     /* Public Views */
@@ -93,7 +90,9 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      *  @return The cost of the appeal.
      */
     function appealCost(uint _disputeID, bytes _extraData) public view returns(uint cost) {
-        if (disputes[_disputeID].status == DisputeStatus.Appealable && !appealDisputes[_disputeID].appealed)
+        if (
+            now - appealDisputes[_disputeID].creationTime > timeOut && disputes[_disputeID].status < DisputeStatus.Solved && !appealDisputes[_disputeID].appealed
+            )
             cost = arbitrator.arbitrationCost(_extraData);
         else cost = NOT_PAYABLE_VALUE;
     }
