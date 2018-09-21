@@ -32,6 +32,7 @@ contract MultiPartyAgreements is Arbitrable {
 
     /** @dev Creates an agreement.
      *  @param _agreementID The ID of the agreement.
+     *  @param _metaEvidence The meta evidence of the agreement.
      *  @param _parties The `parties` value of the agreement.
      *  @param _numberOfChoices The `numberOfChoices` value of the agreement.
      *  @param _extraData The `extraData` value of the agreement.
@@ -41,6 +42,7 @@ contract MultiPartyAgreements is Arbitrable {
      */
     function createAgreement(
         bytes32 _agreementID,
+        string _metaEvidence,
         address[] _parties,
         uint _numberOfChoices,
         bytes _extraData,
@@ -61,5 +63,6 @@ contract MultiPartyAgreements is Arbitrable {
             disputeID: 0,
             disputed: false
         });
+        emit MetaEvidence(uint(_agreementID), _metaEvidence);
     }
 }
