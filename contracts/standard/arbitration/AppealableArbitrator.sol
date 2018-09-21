@@ -79,7 +79,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
                 disputes[_disputeID].ruling = _ruling;
                 disputes[_disputeID].status = DisputeStatus.Appealable;
                 appealDisputes[_disputeID].rulingTime = now;
-                emit AppealPossible(_disputeID);
+                emit AppealPossible(_disputeID, disputes[_disputeID].arbitrated);
             }
         }
         else super.giveRuling(_disputeID, _ruling);
