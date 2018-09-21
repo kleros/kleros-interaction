@@ -51,6 +51,7 @@ contract MultiPartyAgreements is Arbitrable {
         Arbitrator _arbitrator
     ) external payable {
         require(agreements[_agreementID].creator == address(0), "The supplied agreement ID is already being used.");
+        require(_parties.length <= 10, "There cannot be more than 10 parties.");
         agreements[_agreementID] = Agreement({
             creator: msg.sender,
             parties: _parties,
