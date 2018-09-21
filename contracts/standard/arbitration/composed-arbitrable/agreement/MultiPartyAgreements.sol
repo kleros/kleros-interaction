@@ -1,5 +1,6 @@
 pragma solidity ^0.4.24;
 
+import "../../Arbitrable.sol";
 import "../../Arbitrator.sol";
 
 /**
@@ -7,7 +8,7 @@ import "../../Arbitrator.sol";
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
  *  @dev Agreement part of a composed arbitrable contract. Handles multi-party, multi-choice dispute agreements.
  */
-contract MultiPartyAgreements {
+contract MultiPartyAgreements is Arbitrable {
     /* Structs */
 
     struct Agreement {
@@ -23,56 +24,42 @@ contract MultiPartyAgreements {
         bool disputed; // Wether the agreement is disputed or not.
     }
 
-    /* Events */
-
-
-
     /* Storage */
 
-
-
-    /* Modifiers */
-
-
-
-    /* Constructor */
-
-
-
-    /* Fallback */
-
-
+    mapping(bytes32 => Agreement) agreements;
 
     /* External */
 
-
-
-    /* External Views */
-
-
-
-    /* Public */
-
-
-
-    /* Public Views */
-
-
-
-    /* Internal */
-
-
-
-    /* Internal Views */
-
-
-
-    /* Private */
-
-
-
-    /* Private Views */
-
-
-
+    /** @dev Creates an agreement.
+     *  @param _agreementID The ID of the agreement.
+     *  @param _parties The `parties` value of the agreement.
+     *  @param _numberOfChoices The `numberOfChoices` value of the agreement.
+     *  @param _extraData The `extraData` value of the agreement.
+     *  @param _arbitrationFeesWaitingTime The `arbitrationFeesWaitingTime` value of the agreement.
+     *  @param _appealFeesWaitingTime The `appealFeesWaitingTime` value of the agreement.
+     *  @param _arbitrator The `arbitrator` value of the agreement.
+     */
+    function createAgreement(
+        bytes32 _agreementID,
+        address[] _parties,
+        uint _numberOfChoices,
+        bytes _extraData,
+        uint _arbitrationFeesWaitingTime,
+        uint _appealFeesWaitingTime,
+        Arbitrator _arbitrator
+    ) external payable {
+        require(agreements[_agreementID].creator == address(0), "The supplied agreement ID is already being used.");
+        agreements[_agreementID] = Agreement({
+            creator: msg.sender,
+            parties: _parties,
+            value: msg.value,
+            numberOfChoices: _numberOfChoices,
+            extraData: _extraData,
+            arbitrationFeesWaitingTime: _arbitrationFeesWaitingTime,
+            appealFeesWaitingTime: _appealFeesWaitingTime,
+            arbitrator: _arbitrator,
+            disputeID: 0,
+            disputed: false
+        });
+    }
 }
