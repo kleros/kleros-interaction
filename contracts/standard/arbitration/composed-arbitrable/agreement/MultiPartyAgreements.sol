@@ -1,7 +1,6 @@
 pragma solidity ^0.4.24;
 
 import "../../Arbitrable.sol";
-import "../../Arbitrator.sol";
 
 /**
  *  @title MultiPartyAgreements
@@ -22,6 +21,7 @@ contract MultiPartyAgreements is Arbitrable {
         Arbitrator arbitrator; // The arbitrator to use in a dispute arising from the agreement.
         uint disputeID; // The agreement's dispute ID, if disputed.
         bool disputed; // Wether the agreement is disputed or not.
+        bool appealed; // Wether the agreement's dispute has been appealed or not.
     }
 
     /* Storage */
@@ -62,38 +62,9 @@ contract MultiPartyAgreements is Arbitrable {
             appealFeesWaitingTime: _appealFeesWaitingTime,
             arbitrator: _arbitrator,
             disputeID: 0,
-            disputed: false
+            disputed: false,
+            appealed: false
         });
         emit MetaEvidence(uint(_agreementID), _metaEvidence);
-    }
-
-    /* External Views */
-
-    /** @dev Gets an agreement's info.
-     *  @param _agreementID The ID of the agreement.
-     *  @return The agreement's info.
-     */
-    function agreement(bytes32 _agreementID) external view returns( // Provides a standard interface for interacting with agreement contracts.
-        address creator,
-        address[] parties,
-        uint value,
-        uint numberOfChoices,
-        bytes extraData,
-        uint arbitrationFeesWaitingTime,
-        uint appealFeesWaitingTime,
-        Arbitrator arbitrator,
-        uint disputeID,
-        bool disputed
-    ) {
-        creator = agreements[_agreementID].creator;
-        parties = agreements[_agreementID].parties;
-        value = agreements[_agreementID].value;
-        numberOfChoices = agreements[_agreementID].numberOfChoices;
-        extraData = agreements[_agreementID].extraData;
-        arbitrationFeesWaitingTime = agreements[_agreementID].arbitrationFeesWaitingTime;
-        appealFeesWaitingTime = agreements[_agreementID].appealFeesWaitingTime;
-        arbitrator = agreements[_agreementID].arbitrator;
-        disputeID = agreements[_agreementID].disputeID;
-        disputed = agreements[_agreementID].disputed;
     }
 }
