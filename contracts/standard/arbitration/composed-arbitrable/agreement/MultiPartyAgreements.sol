@@ -17,7 +17,6 @@ contract MultiPartyAgreements is Arbitrable {
         uint numberOfChoices; // The number of choices in a dispute arising from the agreement.
         bytes extraData; // The extra data in a dispute arising from the agreement.
         uint arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees.
-        uint appealFeesWaitingTime; // The maximum time to wait for appeal fees.
         Arbitrator arbitrator; // The arbitrator to use in a dispute arising from the agreement.
         uint disputeID; // The agreement's dispute ID, if disputed.
         bool disputed; // Wether the agreement is disputed or not.
@@ -26,7 +25,7 @@ contract MultiPartyAgreements is Arbitrable {
 
     /* Storage */
 
-    mapping(bytes32 => Agreement) agreements;
+    mapping(bytes32 => Agreement) public agreements;
 
     /* External */
 
@@ -37,7 +36,6 @@ contract MultiPartyAgreements is Arbitrable {
      *  @param _numberOfChoices The `numberOfChoices` value of the agreement.
      *  @param _extraData The `extraData` value of the agreement.
      *  @param _arbitrationFeesWaitingTime The `arbitrationFeesWaitingTime` value of the agreement.
-     *  @param _appealFeesWaitingTime The `appealFeesWaitingTime` value of the agreement.
      *  @param _arbitrator The `arbitrator` value of the agreement.
      */
     function createAgreement(
@@ -47,7 +45,6 @@ contract MultiPartyAgreements is Arbitrable {
         uint _numberOfChoices,
         bytes _extraData,
         uint _arbitrationFeesWaitingTime,
-        uint _appealFeesWaitingTime,
         Arbitrator _arbitrator
     ) external payable {
         require(agreements[_agreementID].creator == address(0), "The supplied agreement ID is already being used.");
@@ -59,7 +56,6 @@ contract MultiPartyAgreements is Arbitrable {
             numberOfChoices: _numberOfChoices,
             extraData: _extraData,
             arbitrationFeesWaitingTime: _arbitrationFeesWaitingTime,
-            appealFeesWaitingTime: _appealFeesWaitingTime,
             arbitrator: _arbitrator,
             disputeID: 0,
             disputed: false,
