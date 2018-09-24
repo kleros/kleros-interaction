@@ -69,11 +69,18 @@ contract MultiPartyAgreements is Arbitrable {
 
     /* Internal */
 
+    /** @dev Executes the ruling on the specified agreement.
+     *  @param _agreementID The ID of the agreement.
+     *  @param _ruling The ruling.
+     */
+    function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal;
+
     /** @dev Executes the ruling on the specified dispute.
      *  @param _disputeID The ID of the dispute.
      *  @param _ruling The ruling.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         agreements[arbitratorAndDisputeIDToAgreementID[msg.sender][_disputeID]].ruling = _ruling;
+        executeAgreementRuling(arbitratorAndDisputeIDToAgreementID[msg.sender][_disputeID], _ruling);
     }
 }
