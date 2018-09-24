@@ -10,15 +10,11 @@ import "../agreement/MultiPartyAgreements.sol";
 contract MultiPartyInsurableFees is MultiPartyAgreements {
     /* Structs */
 
-    struct Contribution {
-        address _address; // The address that contributed.
-        uint value; // The value contributed.
-    }
     struct PaidFees {
         uint[] stake; // The stake required in each round.
         uint[] totalValue; // The current held value in each round.
         uint[2][] totalContributedPerSide; // The total amount contributed per side in each round.
-        mapping(address => Contribution)[] contributions; // The contributions in each round.
+        mapping(address => uint)[] contributions; // The contributions in each round.
     }
 
     /* Storage */
@@ -58,7 +54,18 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
 
     /* External Views */
 
-
+    /** @dev Gets the info on fees paid for the specified round.
+     *  @param _agreementID The ID of the agreement.
+     *  @param _round The round.
+     */
+    function getRoundInfo(
+        bytes32 _agreementID,
+        uint _round
+    ) external view returns(uint roundStake, uint roundTotalValue, uint[2] roundTotalContributedPerSide) {
+        roundStake = paidFees[_agreementID].stake[_round];
+        roundTotalValue = paidFees[_agreementID].totalValue[_round];
+        roundTotalContributedPerSide = paidFees[_agreementID].totalContributedPerSide[_round];
+    }
 
     /* Public */
 
