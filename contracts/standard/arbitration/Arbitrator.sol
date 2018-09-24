@@ -51,7 +51,7 @@ contract Arbitrator{
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return disputeID ID of the dispute created.
      */
-    function createDispute(uint _choices, bytes _extraData) public requireArbitrationFee(_extraData) payable returns(uint disputeID)  {}
+    function createDispute(uint _choices, bytes _extraData) public requireArbitrationFee(_extraData) payable returns(uint disputeID) {}
 
     /** @dev Compute the cost of arbitration. It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
@@ -74,6 +74,12 @@ contract Arbitrator{
      */
     function appealCost(uint _disputeID, bytes _extraData) public view returns(uint fee);
 
+    /** @dev Compute the start and end of the dispute's current or next appeal period, if possible.
+     *  @param _disputeID ID of the dispute.
+     *  @return The start and end of the period.
+     */
+    function appealPeriod(uint _disputeID) public view returns(uint start, uint end) {}
+
     /** @dev Return the status of a dispute.
      *  @param _disputeID ID of the dispute to rule.
      *  @return status The status of the dispute.
@@ -85,5 +91,4 @@ contract Arbitrator{
      *  @return ruling The ruling which has been given or the one which will be given if there is no appeal.
      */
     function currentRuling(uint _disputeID) public view returns(uint ruling);
-
 }
