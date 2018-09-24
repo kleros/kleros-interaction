@@ -23,21 +23,38 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
 
     /* Storage */
 
+    address feeGovernor;
     uint public stake;
     mapping(bytes32 => PaidFees) internal paidFees;
 
     /* Constructor */
 
     /** @dev Constructs the `MultiPartyInsurableFees` contract.
+     *  @param _feeGovernor The governor of this contract.
      *  @param _stake The stake parameter for sharing fees.
      */
-    constructor(uint _stake) public {
+    constructor(address _feeGovernor, uint _stake) public {
+        feeGovernor = _feeGovernor;
         stake = _stake;
     }
 
     /* External */
 
+    /** @dev Changes the `feeGovernor` storage variable.
+     *  @param _feeGovernor The new `feeGovernor` storage variable.
+     */
+    function changeFeeGovernor(address _feeGovernor) external {
+        require(msg.sender == feeGovernor, "The caller is not the fee governor.");
+        feeGovernor = _feeGovernor;
+    }
 
+    /** @dev Changes the `stake` storage variable.
+     *  @param _stake The new `stake` storage variable.
+     */
+    function changeStake(uint _stake) external {
+        require(msg.sender == feeGovernor, "The caller is not the fee governor.");
+        stake = _stake;
+    }
 
     /* External Views */
 
