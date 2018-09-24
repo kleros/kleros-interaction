@@ -17,6 +17,16 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         mapping(address => uint)[] contributions; // The contributions in each round.
     }
 
+    /* Events */
+
+    /** @dev Emitted when a contribution is made.
+     *  @param _agreementID The ID of the agreement that the contribution was made to.
+     *  @param _round The round of the agreement that the contribution was made to.
+     *  @param _contributor The address that sent the contribution.
+     *  @param _value The value of the contribution.
+     */
+    event Contribution(bytes32 indexed _agreementID, uint indexed _round, address indexed _contributor, uint _value);
+
     /* Storage */
 
     address feeGovernor;
