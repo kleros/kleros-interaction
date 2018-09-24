@@ -54,7 +54,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
 
     /* External Views */
 
-    /** @dev Gets the info on fees paid for the specified round.
+    /** @dev Gets the info on fees paid for the specified round of the specified agreement.
      *  @param _agreementID The ID of the agreement.
      *  @param _round The round.
      */
@@ -65,6 +65,15 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         roundStake = paidFees[_agreementID].stake[_round];
         roundTotalValue = paidFees[_agreementID].totalValue[_round];
         roundTotalContributedPerSide = paidFees[_agreementID].totalContributedPerSide[_round];
+    }
+
+    /** @dev Gets the value contributed by the specified contributor in the specified round of the specified agreement.
+     *  @param _agreementID The ID of the agreement.
+     *  @param _round The round.
+     *  @param _contributor The address of the contributor.
+     */
+    function getContribution(bytes32 _agreementID, uint _round, address _contributor) external view returns(uint value) {
+        value = paidFees[_agreementID].contributions[_round][_contributor];
     }
 
     /* Public */
