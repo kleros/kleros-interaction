@@ -21,11 +21,13 @@ contract MultiPartyAgreements is Arbitrable {
         uint disputeID; // The agreement's dispute ID, if disputed.
         bool disputed; // Wether the agreement is disputed or not.
         bool appealed; // Wether the agreement's dispute has been appealed or not.
+        uint ruling; // The final ruling for the agreement's dispute.
     }
 
     /* Storage */
 
     mapping(bytes32 => Agreement) public agreements;
+    mapping(address => mapping(uint => bytes32)) arbitratorAndDisputeIDToAgreementID;
 
     /* External */
 
@@ -59,8 +61,19 @@ contract MultiPartyAgreements is Arbitrable {
             arbitrator: _arbitrator,
             disputeID: 0,
             disputed: false,
-            appealed: false
+            appealed: false,
+            ruling: 0
         });
         emit MetaEvidence(uint(_agreementID), _metaEvidence);
+    }
+
+    /* Internal */
+
+    /** @dev Executes the ruling on the specified dispute.
+     *  @param _disputeID The ID of the dispute.
+     *  @param _ruling The ruling.
+     */
+    function executeRuling(uint _disputeID, uint _ruling) internal {
+        agreements[arbitratorAndDisputeIDToAgreementID[msg.sender][_disputeID]].ruling = _ruling;
     }
 }
