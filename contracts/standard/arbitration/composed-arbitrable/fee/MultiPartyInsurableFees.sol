@@ -155,6 +155,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
                 if (!_appealing) { // First round.
                     agreement.disputeID = agreement.arbitrator.createDispute.value(_cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
+                    emit Dispute(agreement.arbitrator, agreement.disputeID, uint(_agreementID));
                 } else { // Appeal.
                     _paidFees.ruling[_paidFees.ruling.length - 1] = agreement.arbitrator.currentRuling(agreement.disputeID);
                     agreement.arbitrator.appeal.value(_cost)(agreement.disputeID, agreement.extraData);
@@ -206,21 +207,31 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
     /** @dev Gets the info on fees paid for the specified round of the specified agreement.
      *  @param _agreementID The ID of the agreement.
      *  @param _round The round.
+     *  @return The info.
      */
     function getRoundInfo(
         bytes32 _agreementID,
         uint _round
-    ) external view returns(uint roundStake, uint roundTotalValue, uint[2] roundTotalContributedPerSide) {
+    ) external view returns(
+        uint ruling,
+        uint _stake,
+        uint totalValue,
+        uint[2] totalContributedPerSide,
+        bool loserFullyFunded
+    ) {
         PaidFees storage _paidFees = paidFees[_agreementID];
-        roundStake = _paidFees.stake[_round];
-        roundTotalValue = _paidFees.totalValue[_round];
-        roundTotalContributedPerSide = _paidFees.totalContributedPerSide[_round];
+        ruling = _paidFees.ruling[_round];
+        _stake = _paidFees.stake[_round];
+        totalValue = _paidFees.totalValue[_round];
+        totalContributedPerSide = _paidFees.totalContributedPerSide[_round];
+        loserFullyFunded = _paidFees.loserFullyFunded[_round];
     }
 
     /** @dev Gets the contributions by the specified contributor in the specified round of the specified agreement.
      *  @param _agreementID The ID of the agreement.
      *  @param _round The round.
      *  @param _contributor The address of the contributor.
+     *  @return The contributions.
      */
     function getContributions(bytes32 _agreementID, uint _round, address _contributor) external view returns(uint[2] contributions) {
         contributions = paidFees[_agreementID].contributions[_round][_contributor];
