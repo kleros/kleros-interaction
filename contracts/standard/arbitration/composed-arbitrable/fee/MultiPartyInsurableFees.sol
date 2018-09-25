@@ -12,11 +12,12 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
 
     struct PaidFees {
         uint firstContributionTime; // The time the first contribution was made at.
+        uint[] ruling; // The ruling for each round.
         uint[] stake; // The stake required for each round.
         uint[] totalValue; // The current held value for each round.
         uint[2][] totalContributedPerSide; // The total amount contributed per side for each round.
         bool[] loserFullyFunded; // Wether the loser fully funded the appeal for each round.
-        mapping(address => uint)[] contributions; // The contributions for each round.
+        mapping(address => uint[2])[] contributions; // The contributions for each round.
     }
 
     /* Events */
@@ -71,6 +72,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
     function fundDispute(bytes32 _agreementID, uint _side) external payable {
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
+        require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(
             !agreement.disputed || agreement.arbitrator.disputeStatus(agreement.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The agreement is already disputed and is not appealable."
@@ -81,6 +83,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         // Prepare storage for first call.
         if (_paidFees.firstContributionTime == 0) {
             _paidFees.firstContributionTime = now;
+            _paidFees.ruling.push(0);
             _paidFees.stake.push(stake);
             _paidFees.totalValue.push(0);
             _paidFees.totalContributedPerSide.push([0, 0]);
@@ -135,7 +138,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         if (_keptValue > 0) {
             _paidFees.totalValue[_paidFees.totalValue.length - 1] += _keptValue;
             _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] += _keptValue;
-            _paidFees.contributions[_paidFees.contributions.length - 1][msg.sender] += _keptValue;
+            _paidFees.contributions[_paidFees.contributions.length - 1][msg.sender][_side] += _keptValue;
         }
         if (_refundedValue > 0) msg.sender.transfer(_refundedValue);
         emit Contribution(_agreementID, _paidFees.stake.length - 1, msg.sender, _keptValue);
@@ -153,6 +156,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
                     agreement.disputeID = agreement.arbitrator.createDispute.value(_cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
                 } else { // Appeal.
+                    _paidFees.ruling[_paidFees.ruling.length - 1] = agreement.arbitrator.currentRuling(agreement.disputeID);
                     agreement.arbitrator.appeal.value(_cost)(agreement.disputeID, agreement.extraData);
                     if (!agreement.appealed) agreement.appealed = true;
                 }
@@ -161,6 +165,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
                 _paidFees.totalValue[_paidFees.totalValue.length - 1] -= _cost;
 
                 // Prepare for the next round.
+                _paidFees.ruling.push(0);
                 _paidFees.stake.push(stake);
                 _paidFees.totalValue.push(0);
                 _paidFees.totalContributedPerSide.push([0, 0]);
@@ -168,6 +173,32 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
                 _paidFees.contributions.length++;
             }
         }
+    }
+
+    /** @dev Withdraws the caller's reward for funding the specified round of the specified agreement.
+     *  @param _agreementID The ID of the agreement.
+     *  @param _round The round.
+     */
+    function withdrawReward(bytes32 _agreementID, uint _round) external {
+        Agreement storage agreement = agreements[_agreementID];
+        PaidFees storage _paidFees = paidFees[_agreementID];
+        require(agreement.creator != address(0), "The specified agreement does not exist.");
+        require(
+            !agreement.disputed || agreement.arbitrator.disputeStatus(agreement.disputeID) == Arbitrator.DisputeStatus.Solved,
+            "The agreement is still disputed."
+        );
+        require(_round < _paidFees.stake.length, "The specified round of the specified agreement does not exist.");
+
+        uint _reward;
+        if (_round == 0 || _round == _paidFees.stake.length - 1) { // First or last round.
+            require(_round != 0 || !agreement.disputed, "There is nothing to withdraw from the first round if the dispute was raised.");
+            _reward = _paidFees.contributions[_round][msg.sender][0] + _paidFees.contributions[_round][msg.sender][1];
+        } else { // Appeal.
+            uint _winningSide = _paidFees.ruling[_round] != agreement.ruling ? 0 : 1;
+            _reward = ((_paidFees.totalValue[_round] * _paidFees.contributions[_round][msg.sender][_winningSide]) / _paidFees.totalContributedPerSide[_round][_winningSide]);
+        }
+
+        msg.sender.transfer(_reward);
     }
 
     /* External Views */
@@ -186,37 +217,12 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         roundTotalContributedPerSide = _paidFees.totalContributedPerSide[_round];
     }
 
-    /** @dev Gets the value contributed by the specified contributor in the specified round of the specified agreement.
+    /** @dev Gets the contributions by the specified contributor in the specified round of the specified agreement.
      *  @param _agreementID The ID of the agreement.
      *  @param _round The round.
      *  @param _contributor The address of the contributor.
      */
-    function getContribution(bytes32 _agreementID, uint _round, address _contributor) external view returns(uint value) {
-        value = paidFees[_agreementID].contributions[_round][_contributor];
+    function getContributions(bytes32 _agreementID, uint _round, address _contributor) external view returns(uint[2] contributions) {
+        contributions = paidFees[_agreementID].contributions[_round][_contributor];
     }
-
-    /* Public */
-
-
-
-    /* Public Views */
-
-
-
-    /* Internal */
-
-
-
-    /* Internal Views */
-
-
-
-    /* Private */
-
-
-
-    /* Private Views */
-
-
-
 }
