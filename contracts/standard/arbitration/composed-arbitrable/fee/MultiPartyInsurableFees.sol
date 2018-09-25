@@ -12,10 +12,11 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
 
     struct PaidFees {
         uint firstContributionTime; // The time the first contribution was made at.
-        uint[] stake; // The stake required in each round.
-        uint[] totalValue; // The current held value in each round.
-        uint[2][] totalContributedPerSide; // The total amount contributed per side in each round.
-        mapping(address => uint)[] contributions; // The contributions in each round.
+        uint[] stake; // The stake required for each round.
+        uint[] totalValue; // The current held value for each round.
+        uint[2][] totalContributedPerSide; // The total amount contributed per side for each round.
+        bool[] loserFullyFunded; // Wether the loser fully funded the appeal for each round.
+        mapping(address => uint)[] contributions; // The contributions for each round.
     }
 
     /* Events */
@@ -83,6 +84,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
             _paidFees.stake.push(stake);
             _paidFees.totalValue.push(0);
             _paidFees.totalContributedPerSide.push([0, 0]);
+            _paidFees.loserFullyFunded.push(false);
             _paidFees.contributions.length++;
         }
 
@@ -107,29 +109,28 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
                     require(_side == 0, "It is the losing side's turn to fund the appeal.");
                 else // In the second half of the appeal period.
                     require(
-                        _side == 1 && _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] > 0,
-                        "It is the winning side's turn to fund the appeal, only if the losing side already funded it."
+                        _side == 1 && _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1],
+                        "It is the winning side's turn to fund the appeal, only if the losing side already fully funded it."
                     );
             } else require(msg.value >= _cost, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
         }
 
-        // Compute required values for each side.
-        uint[2] memory _valueRequiredPerSide;
-        if (!_appealing) { // First round.
-            _valueRequiredPerSide[0] = _cost / 2;
-            _valueRequiredPerSide[1] = _valueRequiredPerSide[0];
-        } else { // Appeal.
-            _valueRequiredPerSide[0] = _cost + (2 * stake);
-            _valueRequiredPerSide[1] = _cost + stake;
+        // Compute required value.
+        uint _requiredValueForSide;
+        if (_side == 0) // Losing side.
+            _requiredValueForSide = !_appealing ? _cost / 2 : _cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
+        else { // Winning side.
+            uint _expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
+            _requiredValueForSide = _cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + _expectedValue ? _cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : _expectedValue;
         }
 
         // Take contribution.
-        uint _valueStillRequiredForSide;
-        if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= _valueRequiredPerSide[_side])
-            _valueStillRequiredForSide = 0;
+        uint _stillRequiredValueForSide;
+        if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= _requiredValueForSide)
+            _stillRequiredValueForSide = 0;
         else 
-            _valueStillRequiredForSide = _valueRequiredPerSide[_side] - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
-        uint _keptValue = _valueStillRequiredForSide >= msg.value ? msg.value : _valueStillRequiredForSide;
+            _stillRequiredValueForSide = _requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
+        uint _keptValue = _stillRequiredValueForSide >= msg.value ? msg.value : _stillRequiredValueForSide;
         uint _refundedValue = msg.value - _keptValue;
         if (_keptValue > 0) {
             _paidFees.totalValue[_paidFees.totalValue.length - 1] += _keptValue;
@@ -137,28 +138,35 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
             _paidFees.contributions[_paidFees.contributions.length - 1][msg.sender] += _keptValue;
         }
         if (_refundedValue > 0) msg.sender.transfer(_refundedValue);
+        emit Contribution(_agreementID, _paidFees.stake.length - 1, msg.sender, _keptValue);
 
         // Check if enough funds have been gathered and act accordingly.
         if (
-            (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] >= _valueRequiredPerSide[0] && _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] >= _valueRequiredPerSide[1]) ||
+            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= _requiredValueForSide ||
             (_appealing && !_appealPeriodSupported)
-            ) {
-            if (!_appealing) { // First round.
-                agreement.disputeID = agreement.arbitrator.createDispute.value(_cost)(agreement.numberOfChoices, agreement.extraData);
-                agreement.disputed = true;
-            } else { // Appeal.
-                agreement.arbitrator.appeal.value(_cost)(agreement.disputeID, agreement.extraData);
-                if (!agreement.appealed) agreement.appealed = true;
+        ) {
+            if (_side == 0 && !(_appealing && !_appealPeriodSupported)) { // Losing side and not direct appeal.
+                if (!_paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1])
+                    _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] = true;
+            } else { // Winning side or direct appeal.
+                if (!_appealing) { // First round.
+                    agreement.disputeID = agreement.arbitrator.createDispute.value(_cost)(agreement.numberOfChoices, agreement.extraData);
+                    agreement.disputed = true;
+                } else { // Appeal.
+                    agreement.arbitrator.appeal.value(_cost)(agreement.disputeID, agreement.extraData);
+                    if (!agreement.appealed) agreement.appealed = true;
+                }
+
+                // Update the total value.
+                _paidFees.totalValue[_paidFees.totalValue.length - 1] -= _cost;
+
+                // Prepare for the next round.
+                _paidFees.stake.push(stake);
+                _paidFees.totalValue.push(0);
+                _paidFees.totalContributedPerSide.push([0, 0]);
+                _paidFees.loserFullyFunded.push(false);
+                _paidFees.contributions.length++;
             }
-
-            // Update the total value.
-            _paidFees.totalValue[_paidFees.totalValue.length - 1] -= _cost;
-
-            // Prepare for the next round.
-            _paidFees.stake.push(stake);
-            _paidFees.totalValue.push(0);
-            _paidFees.totalContributedPerSide.push([0, 0]);
-            _paidFees.contributions.length++;
         }
     }
 
