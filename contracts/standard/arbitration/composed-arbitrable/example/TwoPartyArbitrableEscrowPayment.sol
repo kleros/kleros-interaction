@@ -2,17 +2,15 @@ pragma solidity ^0.4.24;
 
 import "../MultiPartyInsurableArbitrableAgreementsBase.sol";
 
-import "./ComposedArbitrableProxyUser.sol";
-
 /**
- *  @title MultiPartyInsurableArbitrableAgreementsProxy
+ *  @title TwoPartyArbitrableEscrowPayment
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
- *  @notice Proxy implementation of `MultiPartyInsurableArbitrableAgreementsBase`.
+ *  @notice Implementation of a two party arbitrable escrow service using the `MultiPartyInsurableArbitrableAgreementsBase` contract.
  */
-contract MultiPartyInsurableArbitrableAgreementsProxy is MultiPartyInsurableArbitrableAgreementsBase {
+contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreementsBase {
     /* Constructor */
 
-    /** @dev Constructs the `MultiPartyInsurableArbitrableAgreementsProxy` contract.
+    /** @dev Constructs the `TwoPartyArbitrableEscrowPayment` contract.
      *  @param _feeGovernor The fee governor of this contract.
      *  @param _stake The stake parameter for sharing fees.
      */
@@ -25,8 +23,5 @@ contract MultiPartyInsurableArbitrableAgreementsProxy is MultiPartyInsurableArbi
      *  @param _ruling The ruling.
      */
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
-        ComposedArbitrableProxyUser(
-            agreements[_agreementID].creator
-        ).executeAgreementRuling.value(agreements[_agreementID].value)(_agreementID, _ruling);
     }
 }

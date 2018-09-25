@@ -12,5 +12,5 @@ contract ComposedArbitrableProxyUser {
      *  @param _agreementID The ID of the agreement.
      *  @param _ruling The ruling.
      */
-    function executeAgreementRuling(bytes32 _agreementID, uint _ruling) public;
+    function executeAgreementRuling(bytes32 _agreementID, uint _ruling) public payable;
 }
