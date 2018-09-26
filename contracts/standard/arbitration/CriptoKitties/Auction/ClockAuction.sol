@@ -1,15 +1,15 @@
 /* solium-disable */
 /**
  *  @title Clock auction for non-fungible tokens.
- *  @author dapperlabs (https://github.com/dapperlabs) 
- *  This code was taken from https://github.com/dapperlabs at 
+ *  @author dapperlabs (https://github.com/dapperlabs)
+ *  This code was taken from https://github.com/dapperlabs at
  *  https://github.com/dapperlabs/cryptokitties-bounty and is NOT kleros code.
  */
 pragma solidity ^0.4.18;
 
 import "../ERC721.sol";
 import "./ClockAuctionBase.sol";
-import "zeppelin-solidity/contracts/lifecycle/Pausable.sol";
+import "openzeppelin-solidity/contracts/lifecycle/Pausable.sol";
 
 /// @title Clock auction for non-fungible tokens.
 contract ClockAuction is Pausable, ClockAuctionBase {
@@ -23,7 +23,7 @@ contract ClockAuction is Pausable, ClockAuctionBase {
     function ClockAuction(address _nftAddress, uint256 _cut) public {
         require(_cut <= 10000);
         ownerCut = _cut;
-        
+
         ERC721 candidateContract = ERC721(_nftAddress);
         require(candidateContract.implementsERC721());
         nonFungibleContract = candidateContract;

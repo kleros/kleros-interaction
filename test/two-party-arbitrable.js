@@ -1,5 +1,10 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
-const { expectThrow, increaseTime } = require('../helpers/utils')
+const {
+  expectThrow
+} = require('openzeppelin-solidity/test/helpers/expectThrow')
+const {
+  increaseTime
+} = require('openzeppelin-solidity/test/helpers/increaseTime')
 
 const TwoPartyArbitrable = artifacts.require('./TwoPartyArbitrable.sol')
 const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
