@@ -7,7 +7,7 @@
 
 pragma solidity ^0.4.24;
 import "./TwoPartyArbitrable.sol";
-import "zeppelin-solidity/contracts/math/SafeMath.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./CriptoKitties/KittyCore.sol";
 import "./CriptoKitties/Auction/SiringClockAuction.sol";
 import "./CriptoKitties/Auction/SaleClockAuction.sol";
@@ -40,15 +40,15 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         bool partyConsents;
     }
 
-    mapping(address => mapping(uint256 => SellConsent)) public sellConsents;    
+    mapping(address => mapping(uint256 => SellConsent)) public sellConsents;
     mapping(address => mapping(uint256 => TransferConsent)) public transferConsents;
 
-    string constant RULING_OPTIONS = "Give to partyA;Give to partyB;Grant shared custody";    
+    string constant RULING_OPTIONS = "Give to partyA;Give to partyB;Grant shared custody";
     uint8 constant SHARED_CUSTODY = 3;
     uint8 constant AMOUNT_OF_CHOICES = 3; // The number of ruling options available.
 
     uint256 constant CUSTODY_TIME = 1 weeks;
-    address public winner;    
+    address public winner;
     uint256 public rulingTime;
 
     /** @dev Indicate that shared custody has been granted.
@@ -85,21 +85,21 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _duration The consented duration.
      */
     event PartyConsentsToSell(
-        uint256 _kittyID,  
-        uint256 _startingPrice,  
-        uint256 _endPrice,  
+        uint256 _kittyID,
+        uint256 _startingPrice,
+        uint256 _endPrice,
         uint256 _duration
     );
 
     modifier contractOwnsKitty(uint256 _kittyID) {
-        address kittyOwner = kittyCore.ownerOf(_kittyID); 
-        require(this == kittyOwner, "Can only be called by the owner of the kitty."); 
-        _;  
+        address kittyOwner = kittyCore.ownerOf(_kittyID);
+        require(this == kittyOwner, "Can only be called by the owner of the kitty.");
+        _;
     }
 
     modifier noDisputeOrResolved() {
         require(status == Status.NoDispute || status == Status.Resolved, "Can only be called if there is no active dispute.");
-        _;  
+        _;
     }
 
     /** @dev Requires that a dispute has not been resolved with full custody to a party.
@@ -118,7 +118,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _kittyCore CriptoKitty core smart contract.
      *  @param _partyB The partner sharing the kitty.
-     *  @param _timeout Time after which a party automatically loose a dispute.     
+     *  @param _timeout Time after which a party automatically loose a dispute.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _metaEvidence Link to the meta-evidence.
      */
@@ -126,10 +126,10 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         Arbitrator _arbitrator,
         KittyCore _kittyCore,
         address _partyB,
-        uint _timeout,        
+        uint _timeout,
         bytes _arbitratorExtraData,
         string _metaEvidence
-    ) 
+    )
     TwoPartyArbitrable(
         _arbitrator,
         _timeout,
@@ -137,16 +137,16 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         AMOUNT_OF_CHOICES,
         _arbitratorExtraData,
         _metaEvidence
-    ) 
-        payable 
+    )
+        payable
         public
-    {        
+    {
         kittyCore = KittyCore(_kittyCore);
         siringAuction = SiringClockAuction(address(kittyCore.siringAuction()));
         saleAuction = SaleClockAuction(address(kittyCore.saleAuction()));
     }
 
-    /** @dev Returns true if the party consents to transfer kitty to a given address. 
+    /** @dev Returns true if the party consents to transfer kitty to a given address.
      *  @param _party The party which we want to verify consent.
      *  @param _recipient The address that will receive the kitty.
      *  @param _kittyID The id of the kitty to be transfered.
@@ -156,7 +156,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         return transferConsent.partyConsents && transferConsent.recipient == _recipient;
     }
 
-    /** @dev Returns true if the party consents to place the kitty 
+    /** @dev Returns true if the party consents to place the kitty
      *  for sale with the given parameters.
      *  @param _party The party which we want to verify consent.
      *  @param _kittyID The id of the kitty that will be auctioned.
@@ -172,28 +172,28 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         uint256 _duration
     )
         public
-        view  
+        view
         returns (bool)
     {
         SellConsent memory sellConsent = sellConsents[_party][_kittyID];
         bool partyConsentsToParameters = sellConsent.partyConsents &&
             sellConsent.startingPrice == _startingPrice && sellConsent.endPrice == _endPrice && sellConsent.duration == _duration;
 
-        return partyConsentsToParameters;            
+        return partyConsentsToParameters;
     }
 
-    /** @dev Places kitty on a siring auction. UNTRUSTED.     
+    /** @dev Places kitty on a siring auction. UNTRUSTED.
      *  @param _kittyID The id of the kitty to be put up for siring.
      *  @param _startingPrice The starting for the auction.
      *  @param _endPrice The ending price for the auction.
      *  @param _duration The duration of the auction.
      */
     function createSiringAuction(
-        uint256 _kittyID, 
-        uint256 _startingPrice,  
-        uint256 _endPrice,  
+        uint256 _kittyID,
+        uint256 _startingPrice,
+        uint256 _endPrice,
         uint256 _duration
-    )        
+    )
         external
         contractOwnsKitty(_kittyID)
         onlyParty
@@ -212,8 +212,8 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         }
     }
 
-    /** @dev Cancels a siring auction. UNTRUSTED.     
-     *  @param _kittyID The id of the kitty to be put up for siring.     
+    /** @dev Cancels a siring auction. UNTRUSTED.
+     *  @param _kittyID The id of the kitty to be put up for siring.
      */
     function cancelSiringAuction(uint256 _kittyID) external onlyParty noDisputeOrResolved {
         if(status == Status.NoDispute) {
@@ -234,14 +234,14 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         }
     }
 
-    /** @dev Bids on a siring auction. UNTRUSTED.     
-     *  @param _sireID The id of the kitty available for siring.    
+    /** @dev Bids on a siring auction. UNTRUSTED.
+     *  @param _sireID The id of the kitty available for siring.
      *  @param _matronID The id of the kitty owned by the bidder.
      */
     function bidOnSiringAuction(
-        uint256 _sireID,  
+        uint256 _sireID,
         uint256 _matronID
-    ) 
+    )
         external
         payable
         contractOwnsKitty(_matronID)
@@ -260,19 +260,19 @@ contract ArbitrableKitty is TwoPartyArbitrable{
             return;
         }
     }
-    
-    /** @dev Breeds two kitties owned by this contract. UNTRUSTED.     
+
+    /** @dev Breeds two kitties owned by this contract. UNTRUSTED.
      *  @param _sireID The id of the sire kitty owned by this contract.
      *  @param _matronID The id of the matron kitty owned by this contract.
      */
-    function breedWithAuto(uint256 _matronID, uint256 _sireID) 
-        external 
+    function breedWithAuto(uint256 _matronID, uint256 _sireID)
+        external
         payable
         onlyParty
         noDisputeOrResolved
         didNotGrantFullCustody
         contractOwnsKitty(_matronID)
-        contractOwnsKitty(_sireID) 
+        contractOwnsKitty(_sireID)
     {
         if(status == Status.NoDispute) {
             kittyCore.breedWithAuto.value(msg.value)(_matronID, _sireID);
@@ -286,14 +286,14 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         }
     }
 
-    /** @dev Gives birth to a pregnant kitty if it is ready. UNTRUSTED.     
+    /** @dev Gives birth to a pregnant kitty if it is ready. UNTRUSTED.
      *  @param _kittyID The id of the pregnant kitty.
      */
-    function giveBirth(uint256 _kittyID) 
-        external 
-        onlyParty 
-        contractOwnsKitty(_kittyID) 
-        noDisputeOrResolved 
+    function giveBirth(uint256 _kittyID)
+        external
+        onlyParty
+        contractOwnsKitty(_kittyID)
+        noDisputeOrResolved
         didNotGrantFullCustody
     {
         if(status == Status.NoDispute) {
@@ -312,12 +312,12 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _kittyID The id of the kitty to be transfered.
      *  @param _recipient The address that we are granting consent to transfer to.
      */
-    function consentToTransfer(uint256 _kittyID, address _recipient) 
+    function consentToTransfer(uint256 _kittyID, address _recipient)
         external
         onlyParty
         noDisputeOrResolved
         didNotGrantFullCustody
-    {        
+    {
         TransferConsent storage transferConsent = transferConsents[msg.sender][_kittyID];
         transferConsent.recipient = _recipient;
         transferConsent.partyConsents = true;
@@ -325,7 +325,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
     }
 
     /** @dev Clears transfer consent by a given party.
-     *  @param _kittyID The id of the kitty to have transfer consent revoked.     
+     *  @param _kittyID The id of the kitty to have transfer consent revoked.
      */
     function revokeConsentToTransfer(uint256 _kittyID)
         external
@@ -337,14 +337,14 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         emit PartyRevokedTransferConsent(msg.sender,_kittyID);
     }
 
-    /** @dev Transfers the kitty if msg.sender has full custody. Otherwise, 
+    /** @dev Transfers the kitty if msg.sender has full custody. Otherwise,
      *  consent by the other party is required. UNTRUTED.
      *  @param _recipient The address that will receive the kitty.
      *  @param _kittyID The id of the kitty to be transfered.
      */
-    function transfer(address _recipient, uint256 _kittyID) 
-        external 
-        onlyParty 
+    function transfer(address _recipient, uint256 _kittyID)
+        external
+        onlyParty
         contractOwnsKitty(_kittyID)
         noDisputeOrResolved
     {
@@ -357,14 +357,14 @@ contract ArbitrableKitty is TwoPartyArbitrable{
 
         // No dispute or shared custody
         address otherParty = msg.sender == partyA ? partyB : partyA;
-        require(partyConsentsToTransfer(otherParty, _recipient, _kittyID), "The other party has not consented to transfer.");        
+        require(partyConsentsToTransfer(otherParty, _recipient, _kittyID), "The other party has not consented to transfer.");
 
         delete transferConsents[otherParty][_kittyID];
         kittyCore.transfer(_recipient, _kittyID);
     }
 
     /** @dev Places kitty for sale with the given parameters if both parties consent. UNTRUSTED.
-     *  If a party was granted full custody, they should transfer the kitty to themselves 
+     *  If a party was granted full custody, they should transfer the kitty to themselves
      *  instead of using the kitty through the contract.
      *  @param _kittyID The id of the kitty that will be auctioned.
      *  @param _startingPrice The starting for the auction.
@@ -372,40 +372,40 @@ contract ArbitrableKitty is TwoPartyArbitrable{
      *  @param _duration The duration of the auction.
      */
     function createSaleAuction(
-        uint256 _kittyID,  
-        uint256 _startingPrice,  
-        uint256 _endPrice,  
+        uint256 _kittyID,
+        uint256 _startingPrice,
+        uint256 _endPrice,
         uint256 _duration
-    ) 
+    )
         external
-        onlyParty 
+        onlyParty
         contractOwnsKitty(_kittyID)
         noDisputeOrResolved
         didNotGrantFullCustody
     {
-        address otherParty = msg.sender == partyA ? partyB : partyA;        
+        address otherParty = msg.sender == partyA ? partyB : partyA;
         require(partyConsentsToSell(otherParty, _kittyID, _startingPrice, _endPrice, _duration), "The other party has not consented to sell.");
         delete transferConsents[otherParty][_kittyID];
         kittyCore.createSaleAuction(_kittyID, _startingPrice, _endPrice, _duration);
-    }    
+    }
 
-    /** @dev Consents to place kitty up for sale with the given parameters.     
+    /** @dev Consents to place kitty up for sale with the given parameters.
      *  @param _kittyID The id of the kitty that will be auctioned.
      *  @param _startingPrice The starting for the auction.
      *  @param _endPrice The ending price for the auction.
      *  @param _duration The duration of the auction.
      */
     function consentToSell(
-        uint256 _kittyID,  
-        uint256 _startingPrice,  
-        uint256 _endPrice,  
+        uint256 _kittyID,
+        uint256 _startingPrice,
+        uint256 _endPrice,
         uint256 _duration
-    ) 
+    )
         external
         onlyParty
         noDisputeOrResolved
         didNotGrantFullCustody
-    {        
+    {
         SellConsent storage sellConsent = sellConsents[msg.sender][_kittyID];
         sellConsent.startingPrice = _startingPrice;
         sellConsent.endPrice = _endPrice;
@@ -416,7 +416,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
     }
 
     /** @dev Removes consent to sell the kitty of id _kittyID.
-     *  @param _kittyID The id of the kitty to have the sell consent revoked.     
+     *  @param _kittyID The id of the kitty to have the sell consent revoked.
      */
     function revokeConsentToSell(uint256 _kittyID)
         external
@@ -431,8 +431,8 @@ contract ArbitrableKitty is TwoPartyArbitrable{
     /** @dev Cancels a running sale auction. UNTRUSTED.
      *  @param _kittyID The id of the kitty tobe removed from sale auction.
      */
-    function cancelSaleAuction(uint256 _kittyID) 
-        external 
+    function cancelSaleAuction(uint256 _kittyID)
+        external
         onlyParty
         noDisputeOrResolved
     {
@@ -452,14 +452,14 @@ contract ArbitrableKitty is TwoPartyArbitrable{
     /** @dev Execute a ruling of a dispute. It reimburses the fee to the winning party.
      *  Overrides method in TwoPartyArbitrable to account for third ruling option: SHARED_CUSTODY
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling Ruling given by the arbitrator. 
+     *  @param _ruling Ruling given by the arbitrator.
      *  - 1 : Grant full custody to and reimburse partyA.
      *  - 2 : Grant full custody to and reimburse partyA.
      *  - 3 : Grant shared custody and split biggest fee among parties.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         super.executeRuling(_disputeID,_ruling);
-        
+
         if (_ruling==PARTY_A_WINS) {
             rulingResult = RulingResult.PartyA;
             winner = partyA;
@@ -471,10 +471,10 @@ contract ArbitrableKitty is TwoPartyArbitrable{
         } else if (_ruling==SHARED_CUSTODY) {
             rulingResult = RulingResult.SharedCustody;
             rulingTime = now;
-            
+
             // Give the arbitration fee back.
             // Note that we use send to prevent a party from blocking the execution.
-            // We send the highest amount paid to avoid ETH to be stuck in 
+            // We send the highest amount paid to avoid ETH to be stuck in
             // the contract if the arbitrator lowers its fee.
             uint256 largestFee = partyAFee > partyBFee ? partyAFee : partyBFee;
             uint256 halfFees = largestFee.div(2);
@@ -483,7 +483,7 @@ contract ArbitrableKitty is TwoPartyArbitrable{
             partyB.send(halfFees);
 
             emit SharedCustodyHasBeenGranted();
-        }        
+        }
     }
 
     function underSendersCustody() public view onlyParty returns (bool) {
@@ -504,8 +504,8 @@ contract ArbitrableKitty is TwoPartyArbitrable{
     }
 
     function custodyTurn(
-        uint256 _rulingTime, 
-        uint256 _currentTime, 
+        uint256 _rulingTime,
+        uint256 _currentTime,
         uint256 _duration
     ) public pure returns (RulingResult){
         require(_currentTime > _rulingTime, "Ruling time has not started yet.");

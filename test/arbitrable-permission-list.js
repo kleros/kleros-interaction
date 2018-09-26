@@ -1,7 +1,9 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
 
 const BigNumber = web3.BigNumber
-const { expectThrow } = require('../helpers/utils')
+const {
+  expectThrow
+} = require('openzeppelin-solidity/test/helpers/expectThrow')
 
 const ArbitrablePermissionList = artifacts.require(
   './ArbitrablePermissionList.sol'

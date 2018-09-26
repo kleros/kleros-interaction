@@ -1,6 +1,11 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
 
-const { expectThrow, increaseTime } = require('../helpers/utils')
+const {
+  expectThrow
+} = require('openzeppelin-solidity/test/helpers/expectThrow')
+const {
+  increaseTime
+} = require('openzeppelin-solidity/test/helpers/increaseTime')
 
 const ArbitrableKitty = artifacts.require('ArbitrableKitty')
 const KittyCore = artifacts.require('KittyCore')
