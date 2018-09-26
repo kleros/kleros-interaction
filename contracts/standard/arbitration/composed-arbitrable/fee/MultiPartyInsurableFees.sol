@@ -32,9 +32,9 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
 
     /* Storage */
 
-    address feeGovernor;
+    address public feeGovernor;
     uint public stake;
-    mapping(bytes32 => PaidFees) internal paidFees;
+    mapping(bytes32 => PaidFees) public paidFees;
 
     /* Constructor */
 
@@ -47,12 +47,12 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         stake = _stake;
     }
 
-    /* External */
+    /* Public */
 
     /** @dev Changes the `feeGovernor` storage variable.
      *  @param _feeGovernor The new `feeGovernor` storage variable.
      */
-    function changeFeeGovernor(address _feeGovernor) external {
+    function changeFeeGovernor(address _feeGovernor) public {
         require(msg.sender == feeGovernor, "The caller is not the fee governor.");
         feeGovernor = _feeGovernor;
     }
@@ -60,7 +60,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
     /** @dev Changes the `stake` storage variable.
      *  @param _stake The new `stake` storage variable.
      */
-    function changeStake(uint _stake) external {
+    function changeStake(uint _stake) public {
         require(msg.sender == feeGovernor, "The caller is not the fee governor.");
         stake = _stake;
     }
@@ -69,7 +69,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
      *  @param _agreementID The ID of the agreement.
      *  @param _side The side. 0 for the side that lost the previous round, if any, and 1 for the one that won.
      */
-    function fundDispute(bytes32 _agreementID, uint _side) external payable {
+    function fundDispute(bytes32 _agreementID, uint _side) public payable {
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
@@ -180,7 +180,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
      *  @param _agreementID The ID of the agreement.
      *  @param _round The round.
      */
-    function withdrawReward(bytes32 _agreementID, uint _round) external {
+    function withdrawReward(bytes32 _agreementID, uint _round) public {
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
@@ -202,7 +202,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         msg.sender.transfer(_reward);
     }
 
-    /* External Views */
+    /* Public Views */
 
     /** @dev Gets the info on fees paid for the specified round of the specified agreement.
      *  @param _agreementID The ID of the agreement.
@@ -212,7 +212,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
     function getRoundInfo(
         bytes32 _agreementID,
         uint _round
-    ) external view returns(
+    ) public view returns(
         uint ruling,
         uint _stake,
         uint totalValue,
@@ -233,7 +233,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
      *  @param _contributor The address of the contributor.
      *  @return The contributions.
      */
-    function getContributions(bytes32 _agreementID, uint _round, address _contributor) external view returns(uint[2] contributions) {
+    function getContributions(bytes32 _agreementID, uint _round, address _contributor) public view returns(uint[2] contributions) {
         contributions = paidFees[_agreementID].contributions[_round][_contributor];
     }
 }
