@@ -28,22 +28,22 @@ contract Arbitrator{
         _;
     }
 
-    /** @dev To be raised when a dispute can be appealed.
-     *  @param _disputeID ID of the dispute.
-     */
-    event AppealPossible(uint _disputeID);
-
     /** @dev To be raised when a dispute is created.
      *  @param _disputeID ID of the dispute.
      *  @param _arbitrable The contract which created the dispute.
      */
-    event DisputeCreation(uint indexed _disputeID, Arbitrable _arbitrable);
+    event DisputeCreation(uint indexed _disputeID, Arbitrable indexed _arbitrable);
+
+    /** @dev To be raised when a dispute can be appealed.
+     *  @param _disputeID ID of the dispute.
+     */
+    event AppealPossible(uint indexed _disputeID, Arbitrable indexed _arbitrable);
 
     /** @dev To be raised when the current ruling is appealed.
      *  @param _disputeID ID of the dispute.
      *  @param _arbitrable The contract which created the dispute.
      */
-    event AppealDecision(uint indexed _disputeID, Arbitrable _arbitrable);
+    event AppealDecision(uint indexed _disputeID, Arbitrable indexed _arbitrable);
 
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost(_extraData).
