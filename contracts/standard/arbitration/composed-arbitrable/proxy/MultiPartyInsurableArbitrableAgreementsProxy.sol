@@ -1,6 +1,7 @@
 pragma solidity ^0.4.24;
 
-import "./MultiPartyInsurableArbitrableAgreementsBase.sol";
+import "../composed/MultiPartyInsurableArbitrableAgreementsBase.sol";
+
 import "./ArbitrableProxy.sol";
 import "./ArbitrableProxyUser.sol";
 

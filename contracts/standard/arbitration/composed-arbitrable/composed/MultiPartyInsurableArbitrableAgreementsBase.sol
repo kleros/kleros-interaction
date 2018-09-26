@@ -1,8 +1,8 @@
 pragma solidity ^0.4.24;
 
-import "./agreement/MultiPartyAgreements.sol";
-import "./fee/MultiPartyInsurableFees.sol";
-import "./evidence/MultiPartyEvidence.sol";
+import "../agreement/MultiPartyAgreements.sol";
+import "../fee/MultiPartyInsurableFees.sol";
+import "../evidence/MultiPartyEvidence.sol";
 
 /**
  *  @title MultiPartyInsurableArbitrableAgreementsBase

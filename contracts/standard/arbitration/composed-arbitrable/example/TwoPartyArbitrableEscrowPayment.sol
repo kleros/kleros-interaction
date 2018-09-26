@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import "../MultiPartyInsurableArbitrableAgreementsBase.sol";
+import "../composed/MultiPartyInsurableArbitrableAgreementsBase.sol";
 
 /**
  *  @title TwoPartyArbitrableEscrowPayment
