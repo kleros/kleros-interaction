@@ -22,13 +22,6 @@ contract Arbitrable{
 
     modifier onlyArbitrator {require(msg.sender == address(arbitrator), "Can only be called by the arbitrator."); _;}
 
-    /** @dev To be raised when a ruling is given.
-     *  @param _arbitrator The arbitrator giving the ruling.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling The ruling which was given.
-     */
-    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
-
     /** @dev To be emmited when meta-evidence is submitted.
      *  @param _metaEvidenceID Unique identifier of meta-evidence.
      *  @param _evidence A link to the meta-evidence JSON.
@@ -49,6 +42,13 @@ contract Arbitrable{
      *  @param _evidence A URI to the evidence JSON file whose name should be its keccak256 hash followed by .json.
      */
     event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
+
+    /** @dev To be raised when a ruling is given.
+     *  @param _arbitrator The arbitrator giving the ruling.
+     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _ruling The ruling which was given.
+     */
+    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
