@@ -203,29 +203,27 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         msg.sender.transfer(_reward);
     }
 
-    /* Public Views */
+    /* External Views */
 
-    /** @dev Gets the info on fees paid for the specified round of the specified agreement.
+    /** @dev Gets the info on fees paid for the specified agreement.
      *  @param _agreementID The ID of the agreement.
-     *  @param _round The round.
      *  @return The info.
      */
-    function getRoundInfo(
-        bytes32 _agreementID,
-        uint _round
-    ) public view returns(
-        uint ruling,
-        uint _stake,
-        uint totalValue,
-        uint[2] totalContributedPerSide,
-        bool loserFullyFunded
+    function getFeesInfo(
+        bytes32 _agreementID
+    ) external view returns(
+        uint[] ruling,
+        uint[] _stake,
+        uint[] totalValue,
+        uint[2][] totalContributedPerSide,
+        bool[] loserFullyFunded
     ) {
         PaidFees storage _paidFees = paidFees[_agreementID];
-        ruling = _paidFees.ruling[_round];
-        _stake = _paidFees.stake[_round];
-        totalValue = _paidFees.totalValue[_round];
-        totalContributedPerSide = _paidFees.totalContributedPerSide[_round];
-        loserFullyFunded = _paidFees.loserFullyFunded[_round];
+        ruling = _paidFees.ruling;
+        _stake = _paidFees.stake;
+        totalValue = _paidFees.totalValue;
+        totalContributedPerSide = _paidFees.totalContributedPerSide;
+        loserFullyFunded = _paidFees.loserFullyFunded;
     }
 
     /** @dev Gets the contributions by the specified contributor in the specified round of the specified agreement.
@@ -234,7 +232,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
      *  @param _contributor The address of the contributor.
      *  @return The contributions.
      */
-    function getContributions(bytes32 _agreementID, uint _round, address _contributor) public view returns(uint[2] contributions) {
+    function getContributions(bytes32 _agreementID, uint _round, address _contributor) external view returns(uint[2] contributions) {
         contributions = paidFees[_agreementID].contributions[_round][_contributor];
     }
 }

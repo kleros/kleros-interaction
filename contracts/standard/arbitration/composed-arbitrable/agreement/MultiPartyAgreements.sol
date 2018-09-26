@@ -48,7 +48,7 @@ contract MultiPartyAgreements is Arbitrable {
         bytes _extraData,
         uint _arbitrationFeesWaitingTime,
         Arbitrator _arbitrator
-    ) public {
+    ) internal {
         require(agreements[_agreementID].creator == address(0), "The supplied agreement ID is already being used.");
         require(_parties.length <= 10, "There cannot be more than 10 parties.");
         agreements[_agreementID] = Agreement({
@@ -86,5 +86,37 @@ contract MultiPartyAgreements is Arbitrable {
         agreement.ruling = _ruling;
         executeAgreementRuling(_agreementID, _ruling);
         agreement.executed = true;
+    }
+
+    /* External Views */
+
+    /** @dev Gets the info on the specified agreement.
+     *  @param _agreementID The ID of the agreement.
+     *  @return The info.
+     */
+    function getAgreementInfo(bytes32 _agreementID) external view returns(
+        address creator,
+        address[] parties,
+        uint numberOfChoices,
+        bytes extraData,
+        uint arbitrationFeesWaitingTime,
+        Arbitrator arbitrator,
+        uint disputeID,
+        bool disputed,
+        bool appealed,
+        uint ruling,
+        bool executed
+    ) {
+        creator = agreements[_agreementID].creator;
+        parties = agreements[_agreementID].parties;
+        numberOfChoices = agreements[_agreementID].numberOfChoices;
+        extraData = agreements[_agreementID].extraData;
+        arbitrationFeesWaitingTime = agreements[_agreementID].arbitrationFeesWaitingTime;
+        arbitrator = agreements[_agreementID].arbitrator;
+        disputeID = agreements[_agreementID].disputeID;
+        disputed = agreements[_agreementID].disputed;
+        appealed = agreements[_agreementID].appealed;
+        ruling = agreements[_agreementID].ruling;
+        executed = agreements[_agreementID].executed;
     }
 }
