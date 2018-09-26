@@ -8,9 +8,17 @@ import "../MultiPartyInsurableArbitrableAgreementsBase.sol";
  *  @dev Implementation of a two party arbitrable escrow service using the `MultiPartyInsurableArbitrableAgreementsBase` contract.
  */
 contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreementsBase {
+    /* Structs */
+
+    struct Payment {
+        uint value;
+        uint createdAt;
+        uint timeOut;
+    }
+
     /* Storage */
 
-    mapping(bytes32 => uint) public timeOuts;
+    mapping(bytes32 => Payment) public payments;
 
     /* Constructor */
 
@@ -38,6 +46,7 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
         Arbitrator _arbitrator,
         uint _timeOut
     ) external payable {
+        require(msg.value > 0, "Payment must be more than zero.");
         address[] memory _parties = new address[](2);
         _parties[0] = msg.sender;
         _parties[1] = _to;
@@ -50,7 +59,22 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
             _arbitrationFeesWaitingTime,
             _arbitrator
         );
-        timeOuts[_paymentID] = _timeOut;
+        payments[_paymentID] = Payment({
+            value: msg.value,
+            createdAt: now,
+            timeOut: _timeOut
+        });
+    }
+
+    /** @dev Executes a payment that has already timed out and is not disputed.
+     *  @param _paymentID The ID of the payment.
+     */
+    function executePayment(bytes32 _paymentID) external {
+        require(agreements[_paymentID].creator != address(0), "The specified payment does not exist.");
+        require(!agreements[_paymentID].disputed, "The specified payment is disputed.");
+        require(now - payments[_paymentID].createdAt > payments[_paymentID].timeOut, "The specified payment has not timed out yet.");
+        agreements[_paymentID].parties[1].transfer(payments[_paymentID].value);
+        agreements[_paymentID].executed = true;
     }
 
     /* Internal */
