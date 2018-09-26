@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import "../Arbitrator.sol";
+import "../../Arbitrator.sol";
 
 /**
  *  @title ArbitrableProxy
