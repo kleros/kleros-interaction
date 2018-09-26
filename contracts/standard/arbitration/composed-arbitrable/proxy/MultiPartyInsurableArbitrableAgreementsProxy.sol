@@ -10,7 +10,7 @@ import "./ArbitrableProxyUser.sol";
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
  *  @dev Proxy implementation of `MultiPartyInsurableArbitrableAgreementsBase`.
  */
-contract MultiPartyInsurableArbitrableAgreementsProxy is MultiPartyInsurableArbitrableAgreementsBase, ArbitrableProxy {
+contract MultiPartyInsurableArbitrableAgreementsProxy is ArbitrableProxy, MultiPartyInsurableArbitrableAgreementsBase {
     /* Constructor */
 
     /** @dev Constructs the `MultiPartyInsurableArbitrableAgreementsProxy` contract.
