@@ -27,9 +27,9 @@ contract MultiPartyAgreements is Arbitrable {
     /* Storage */
 
     mapping(bytes32 => Agreement) public agreements;
-    mapping(address => mapping(uint => bytes32)) arbitratorAndDisputeIDToAgreementID;
+    mapping(address => mapping(uint => bytes32)) public arbitratorAndDisputeIDToAgreementID;
 
-    /* External */
+    /* Public */
 
     /** @dev Creates an agreement.
      *  @param _agreementID The ID of the agreement.
@@ -48,7 +48,7 @@ contract MultiPartyAgreements is Arbitrable {
         bytes _extraData,
         uint _arbitrationFeesWaitingTime,
         Arbitrator _arbitrator
-    ) external payable {
+    ) public payable {
         require(agreements[_agreementID].creator == address(0), "The supplied agreement ID is already being used.");
         require(_parties.length <= 10, "There cannot be more than 10 parties.");
         agreements[_agreementID] = Agreement({

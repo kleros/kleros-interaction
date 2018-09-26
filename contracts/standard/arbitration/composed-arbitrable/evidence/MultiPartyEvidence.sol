@@ -8,13 +8,13 @@ import "../agreement/MultiPartyAgreements.sol";
  *  @dev Evidence part of a composed arbitrable contract. Only allows evidence submission from parties involved in the agreement and in the first round.
  */
 contract MultiPartyEvidence is MultiPartyAgreements {
-    /* External */
+    /* Public */
 
     /** @dev Submits evidence for a dispute arising from the specified agreement.
      *  @param _agreementID The agreement's ID.
      *  @param _evidence The evidence.
      */
-    function submitEvidence(bytes32 _agreementID, string _evidence) external {
+    function submitEvidence(bytes32 _agreementID, string _evidence) public {
         require(agreements[_agreementID].creator != address(0), "The specified agreement does not exist.");
         require(agreements[_agreementID].disputed, "The specified agreement is not disputed.");
         require(!agreements[_agreementID].appealed, "The specified agreement has already been appealed.");

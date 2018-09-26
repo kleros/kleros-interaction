@@ -10,7 +10,7 @@ import "../Arbitrable.sol";
 contract ComposedArbitrableProxyUser {
     /* Storage */
 
-    Arbitrable arbitrableProxy;
+    Arbitrable public arbitrableProxy;
 
     /* Constructor */
 
