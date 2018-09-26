@@ -73,6 +73,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
+        require(!agreement.executed, "You cannot fund disputes for executed agreements.");
         require(
             !agreement.disputed || agreement.arbitrator.disputeStatus(agreement.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The agreement is already disputed and is not appealable."
