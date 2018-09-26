@@ -29,7 +29,7 @@ contract MultiPartyAgreements is Arbitrable {
     mapping(bytes32 => Agreement) public agreements;
     mapping(address => mapping(uint => bytes32)) public arbitratorAndDisputeIDToAgreementID;
 
-    /* Public */
+    /* Internal */
 
     /** @dev Creates an agreement.
      *  @param _agreementID The ID of the agreement.
@@ -40,7 +40,7 @@ contract MultiPartyAgreements is Arbitrable {
      *  @param _arbitrationFeesWaitingTime The `arbitrationFeesWaitingTime` value of the agreement.
      *  @param _arbitrator The `arbitrator` value of the agreement.
      */
-    function createAgreement(
+    function _createAgreement(
         bytes32 _agreementID,
         string _metaEvidence,
         address[] _parties,
@@ -67,8 +67,6 @@ contract MultiPartyAgreements is Arbitrable {
         emit MetaEvidence(uint(_agreementID), _metaEvidence);
     }
 
-    /* Internal */
-
     /** @dev Executes the ruling on the specified agreement.
      *  @param _agreementID The ID of the agreement.
      *  @param _ruling The ruling.
@@ -80,7 +78,13 @@ contract MultiPartyAgreements is Arbitrable {
      *  @param _ruling The ruling.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        agreements[arbitratorAndDisputeIDToAgreementID[msg.sender][_disputeID]].ruling = _ruling;
-        executeAgreementRuling(arbitratorAndDisputeIDToAgreementID[msg.sender][_disputeID], _ruling);
+        bytes32 _agreementID = arbitratorAndDisputeIDToAgreementID[msg.sender][_disputeID];
+        Agreement storage agreement = agreements[_agreementID];
+        require(agreement.creator != address(0), "The specified agreement does not exist.");
+        require(!agreement.executed, "The specified agreement has already been executed.");
+
+        agreement.ruling = _ruling;
+        executeAgreementRuling(_agreementID, _ruling);
+        agreement.executed = true;
     }
 }

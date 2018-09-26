@@ -50,7 +50,7 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
         address[] memory _parties = new address[](2);
         _parties[0] = msg.sender;
         _parties[1] = _to;
-        createAgreement(
+        _createAgreement(
             _paymentID,
             _metaEvidence,
             _parties,
@@ -70,11 +70,14 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
      *  @param _paymentID The ID of the payment.
      */
     function executePayment(bytes32 _paymentID) external {
-        require(agreements[_paymentID].creator != address(0), "The specified payment does not exist.");
-        require(!agreements[_paymentID].disputed, "The specified payment is disputed.");
-        require(now - payments[_paymentID].createdAt > payments[_paymentID].timeOut, "The specified payment has not timed out yet.");
-        agreements[_paymentID].parties[1].transfer(payments[_paymentID].value);
-        agreements[_paymentID].executed = true;
+        Agreement storage agreement = agreements[_paymentID];
+        Payment storage payment = payments[_paymentID];
+        require(agreement.creator != address(0), "The specified payment does not exist.");
+        require(!agreement.executed, "The specified payment has already been executed.");
+        require(!agreement.disputed, "The specified payment is disputed.");
+        require(now - payment.createdAt > payment.timeOut, "The specified payment has not timed out yet.");
+        agreement.parties[1].send(payment.value); // Avoid blocking.
+        agreement.executed = true;
     }
 
     /* Internal */
@@ -84,5 +87,27 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
      *  @param _ruling The ruling.
      */
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
+        Agreement storage agreement = agreements[_agreementID];
+        PaidFees storage _paidFees = paidFees[_agreementID];
+        Payment storage payment = payments[_agreementID];
+
+        if (_paidFees.stake.length == 1) { // Failed to fund first round.
+            // Send the value to whoever paid more.
+            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1])
+                agreement.parties[0].send(payment.value); // Avoid blocking.
+            else
+                agreement.parties[1].send(payment.value); // Avoid blocking.
+        } else { // Failed to fund a later round.
+            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected.
+            if (
+                _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
+                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
+            )
+                agreement.parties[_ruling == 0 ? 1 : 0].send(payment.value); // Avoid blocking.
+            else
+                agreement.parties[_ruling].send(payment.value); // Avoid blocking.
+        }
+
+        agreement.executed = true;
     }
 }
