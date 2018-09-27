@@ -12,8 +12,8 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
 
     struct AppealDispute {
         uint rulingTime;
+        Arbitrator arbitrator;
         uint appealDisputeID;
-        bool appealed;
     }
 
     /* Storage */
@@ -40,7 +40,14 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
     }
 
     /* External */
-    
+
+    /** @dev Changes the back up arbitrator.
+     *  @param _arbitrator The new back up arbitrator.
+     */
+    function changeArbitrator(Arbitrator _arbitrator) external onlyOwner {
+        arbitrator = _arbitrator;
+    }
+
     /** @dev Changes the time out.
      *  @param _timeOut The new time out.
      */
@@ -56,8 +63,8 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      */
     function appeal(uint _disputeID, bytes _extraData) public payable requireAppealFee(_disputeID, _extraData) {
         super.appeal(_disputeID, _extraData);
+        appealDisputes[_disputeID].arbitrator = arbitrator;
         appealDisputes[_disputeID].appealDisputeID = arbitrator.createDispute(disputes[_disputeID].choices, _extraData);
-        appealDisputes[_disputeID].appealed = true;
         appealDisputeIDsToDisputeIDs[appealDisputes[_disputeID].appealDisputeID] = _disputeID;
     }
 
@@ -66,8 +73,8 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      *  @param _ruling The ruling.
      */
     function giveRuling(uint _disputeID, uint _ruling) public {
-        if (appealDisputes[_disputeID].appealed) {
-            require(Arbitrator(msg.sender) == arbitrator, "Appealed disputes must be ruled by the back up arbitrator.");
+        if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0))) {
+            require(Arbitrator(msg.sender) == appealDisputes[_disputeID].arbitrator, "Appealed disputes must be ruled by their back up arbitrator.");
             super.giveRuling(_disputeID, _ruling);
         } else {
             require(msg.sender == owner, "Not appealed disputes must be ruled by the owner.");
@@ -92,7 +99,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      *  @return The cost of the appeal.
      */
     function appealCost(uint _disputeID, bytes _extraData) public view returns(uint cost) {
-        if (disputes[_disputeID].status == DisputeStatus.Appealable && !appealDisputes[_disputeID].appealed)
+        if (disputes[_disputeID].status == DisputeStatus.Appealable && appealDisputes[_disputeID].arbitrator == Arbitrator(address(0)))
             cost = arbitrator.arbitrationCost(_extraData);
         else cost = NOT_PAYABLE_VALUE;
     }
@@ -104,7 +111,10 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      *  @param _ruling The ruling.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        require(appealDisputes[appealDisputeIDsToDisputeIDs[_disputeID]].appealed, "The dispute must have been appealed.");
+        require(
+            appealDisputes[appealDisputeIDsToDisputeIDs[_disputeID]].arbitrator != Arbitrator(address(0)),
+            "The dispute must have been appealed."
+        );
         giveRuling(appealDisputeIDsToDisputeIDs[_disputeID], _ruling);
     }
 }
