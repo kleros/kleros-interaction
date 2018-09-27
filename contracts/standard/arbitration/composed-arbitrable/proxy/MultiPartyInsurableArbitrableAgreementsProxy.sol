@@ -64,6 +64,7 @@ contract MultiPartyInsurableArbitrableAgreementsProxy is ArbitrableProxy, MultiP
      *  @param _ruling The ruling.
      */
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
+        super.executeAgreementRuling(_agreementID, _ruling);
         ArbitrableProxyUser(
             agreements[_agreementID].creator
         ).executeAgreementRuling(_agreementID, _ruling);
