@@ -94,6 +94,7 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
      *  @param _ruling The ruling.
      */
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
+        super.executeAgreementRuling(_agreementID, _ruling);
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
         Payment storage payment = payments[_agreementID];
