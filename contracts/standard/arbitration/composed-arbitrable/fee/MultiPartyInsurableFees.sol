@@ -19,6 +19,18 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         bool[] loserFullyFunded; // Wether the loser fully funded the appeal for each round.
         mapping(address => uint[2])[] contributions; // The contributions for each round.
     }
+    struct FundDisputeCache { // Needed to avoid stack depth error in `fundDispute()`.
+        uint cost;
+        bool appealing;
+        uint appealPeriodStart;
+        uint appealPeriodEnd;
+        bool appealPeriodSupported;
+        uint requiredValueForSide;
+        uint expectedValue;
+        uint stillRequiredValueForSide;
+        uint keptValue;
+        uint refundedValue;
+    }
 
     /* Events */
 
@@ -35,6 +47,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
     address public feeGovernor;
     uint public stake;
     mapping(bytes32 => PaidFees) public paidFees;
+    FundDisputeCache public fundDisputeCache;
 
     /* Constructor */
 
@@ -93,9 +106,9 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         }
 
         // Check time outs and requirements.
-        uint _cost;
+        fundDisputeCache.cost;
         if (_paidFees.stake.length == 1) { // First round.
-            _cost = agreement.arbitrator.arbitrationCost(agreement.extraData);
+            fundDisputeCache.cost = agreement.arbitrator.arbitrationCost(agreement.extraData);
 
             // Arbitration fees time out.
             if (now - _paidFees.firstContributionTime > agreement.arbitrationFeesWaitingTime) {
@@ -103,68 +116,69 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
                 return;
             }
         } else { // Appeal.
-            _cost = agreement.arbitrator.appealCost(agreement.disputeID, agreement.extraData);
+            fundDisputeCache.cost = agreement.arbitrator.appealCost(agreement.disputeID, agreement.extraData);
 
-            bool _appealing = true;
-            (uint _appealPeriodStart, uint _appealPeriodEnd) = agreement.arbitrator.appealPeriod(agreement.disputeID);
-            bool _appealPeriodSupported = _appealPeriodStart != 0 && _appealPeriodEnd != 0;
-            if (_appealPeriodSupported) {
-                if (now < _appealPeriodStart + ((_appealPeriodEnd - _appealPeriodStart) / 2)) // In the first half of the appeal period.
+            fundDisputeCache.appealing = true;
+            (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = agreement.arbitrator.appealPeriod(agreement.disputeID);
+            fundDisputeCache.appealPeriodSupported = fundDisputeCache.appealPeriodStart != 0 && fundDisputeCache.appealPeriodEnd != 0;
+            if (fundDisputeCache.appealPeriodSupported) {
+                if (now < fundDisputeCache.appealPeriodStart + ((fundDisputeCache.appealPeriodEnd - fundDisputeCache.appealPeriodStart) / 2)) // In the first half of the appeal period.
                     require(_side == 0, "It is the losing side's turn to fund the appeal.");
                 else // In the second half of the appeal period.
                     require(
                         _side == 1 && _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1],
                         "It is the winning side's turn to fund the appeal, only if the losing side already fully funded it."
                     );
-            } else require(msg.value >= _cost, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
+            } else require(msg.value >= fundDisputeCache.cost, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
         }
 
         // Compute required value.
-        uint _requiredValueForSide;
+        fundDisputeCache.requiredValueForSide;
         if (_side == 0) // Losing side.
-            _requiredValueForSide = !_appealing ? _cost / 2 : _cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
+            fundDisputeCache.requiredValueForSide = !fundDisputeCache.appealing ? fundDisputeCache.cost / 2 : fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
         else { // Winning side.
-            uint _expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
-            _requiredValueForSide = _cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + _expectedValue ? _cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : _expectedValue;
+            fundDisputeCache.expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
+            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + fundDisputeCache.expectedValue ? fundDisputeCache.cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : fundDisputeCache.expectedValue;
         }
 
         // Take contribution.
-        uint _stillRequiredValueForSide;
-        if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= _requiredValueForSide)
-            _stillRequiredValueForSide = 0;
+        fundDisputeCache.stillRequiredValueForSide;
+        if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide)
+            fundDisputeCache.stillRequiredValueForSide = 0;
         else 
-            _stillRequiredValueForSide = _requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
-        uint _keptValue = _stillRequiredValueForSide >= msg.value ? msg.value : _stillRequiredValueForSide;
-        uint _refundedValue = msg.value - _keptValue;
-        if (_keptValue > 0) {
-            _paidFees.totalValue[_paidFees.totalValue.length - 1] += _keptValue;
-            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] += _keptValue;
-            _paidFees.contributions[_paidFees.contributions.length - 1][msg.sender][_side] += _keptValue;
+            fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
+        fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value ?
+            msg.value : fundDisputeCache.stillRequiredValueForSide;
+        fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue;
+        if (fundDisputeCache.keptValue > 0) {
+            _paidFees.totalValue[_paidFees.totalValue.length - 1] += fundDisputeCache.keptValue;
+            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] += fundDisputeCache.keptValue;
+            _paidFees.contributions[_paidFees.contributions.length - 1][msg.sender][_side] += fundDisputeCache.keptValue;
         }
-        if (_refundedValue > 0) msg.sender.transfer(_refundedValue);
-        emit Contribution(_agreementID, _paidFees.stake.length - 1, msg.sender, _keptValue);
+        if (fundDisputeCache.refundedValue > 0) msg.sender.transfer(fundDisputeCache.refundedValue);
+        emit Contribution(_agreementID, _paidFees.stake.length - 1, msg.sender, fundDisputeCache.keptValue);
 
         // Check if enough funds have been gathered and act accordingly.
         if (
-            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= _requiredValueForSide ||
-            (_appealing && !_appealPeriodSupported)
+            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide ||
+            (fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)
         ) {
-            if (_side == 0 && !(_appealing && !_appealPeriodSupported)) { // Losing side and not direct appeal.
+            if (_side == 0 && !(fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)) { // Losing side and not direct appeal.
                 if (!_paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1])
                     _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] = true;
             } else { // Winning side or direct appeal.
-                if (!_appealing) { // First round.
-                    agreement.disputeID = agreement.arbitrator.createDispute.value(_cost)(agreement.numberOfChoices, agreement.extraData);
+                if (!fundDisputeCache.appealing) { // First round.
+                    agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
                     emit Dispute(agreement.arbitrator, agreement.disputeID, uint(_agreementID));
                 } else { // Appeal.
                     _paidFees.ruling[_paidFees.ruling.length - 1] = agreement.arbitrator.currentRuling(agreement.disputeID);
-                    agreement.arbitrator.appeal.value(_cost)(agreement.disputeID, agreement.extraData);
+                    agreement.arbitrator.appeal.value(fundDisputeCache.cost)(agreement.disputeID, agreement.extraData);
                     if (!agreement.appealed) agreement.appealed = true;
                 }
 
                 // Update the total value.
-                _paidFees.totalValue[_paidFees.totalValue.length - 1] -= _cost;
+                _paidFees.totalValue[_paidFees.totalValue.length - 1] -= fundDisputeCache.cost;
 
                 // Prepare for the next round.
                 _paidFees.ruling.push(0);

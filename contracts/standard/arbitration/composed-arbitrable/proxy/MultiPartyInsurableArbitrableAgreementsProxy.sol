@@ -14,10 +14,17 @@ contract MultiPartyInsurableArbitrableAgreementsProxy is ArbitrableProxy, MultiP
     /* Constructor */
 
     /** @dev Constructs the `MultiPartyInsurableArbitrableAgreementsProxy` contract.
+     *  @param _arbitrator The arbitrator of the contract.
+     *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _feeGovernor The fee governor of this contract.
      *  @param _stake The stake parameter for sharing fees.
      */
-    constructor(address _feeGovernor, uint _stake) public MultiPartyInsurableArbitrableAgreementsBase(_feeGovernor, _stake) {}
+    constructor(
+        Arbitrator _arbitrator,
+        bytes _arbitratorExtraData,
+        address _feeGovernor,
+        uint _stake
+    ) public MultiPartyInsurableArbitrableAgreementsBase(_arbitrator, _arbitratorExtraData, _feeGovernor, _stake) {}
 
     /* External */
 
