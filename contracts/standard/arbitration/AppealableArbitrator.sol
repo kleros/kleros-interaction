@@ -20,6 +20,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
 
     uint public timeOut;
     mapping(uint => AppealDispute) public appealDisputes;
+    mapping(uint => uint) public appealDisputeIDsToDisputeIDs;
 
     /* Constructor */
 
@@ -57,6 +58,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
         super.appeal(_disputeID, _extraData);
         appealDisputes[_disputeID].appealDisputeID = arbitrator.createDispute(disputes[_disputeID].choices, _extraData);
         appealDisputes[_disputeID].appealed = true;
+        appealDisputeIDsToDisputeIDs[appealDisputes[_disputeID].appealDisputeID] = _disputeID;
     }
 
     /** @dev Gives a ruling.
@@ -64,25 +66,22 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      *  @param _ruling The ruling.
      */
     function giveRuling(uint _disputeID, uint _ruling) public {
-        require(
-            // solium-disable-next-line indentation
-            (!appealDisputes[_disputeID].appealed && msg.sender == owner) || (appealDisputes[_disputeID].appealed && Arbitrator(msg.sender) == arbitrator),
-            "Appealed disputes must be ruled by the back up arbitrator."
-        );
-        if (!appealDisputes[_disputeID].appealed) {
+        if (appealDisputes[_disputeID].appealed) {
+            require(Arbitrator(msg.sender) == arbitrator, "Appealed disputes must be ruled by the back up arbitrator.");
+            super.giveRuling(_disputeID, _ruling);
+        } else {
+            require(msg.sender == owner, "Not appealed disputes must be ruled by the owner.");
             if (disputes[_disputeID].status == DisputeStatus.Appealable) {
                 if (now - appealDisputes[_disputeID].rulingTime > timeOut)
                     super.giveRuling(_disputeID, _ruling);
                 else revert("Time out time has not passed yet.");
-            }
-            else {
+            } else {
                 disputes[_disputeID].ruling = _ruling;
                 disputes[_disputeID].status = DisputeStatus.Appealable;
                 appealDisputes[_disputeID].rulingTime = now;
                 emit AppealPossible(_disputeID, disputes[_disputeID].arbitrated);
             }
         }
-        else super.giveRuling(_disputeID, _ruling);
     }
 
     /* Public Views */
@@ -105,6 +104,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      *  @param _ruling The ruling.
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        giveRuling(appealDisputes[_disputeID].appealDisputeID, _ruling);
+        require(appealDisputes[appealDisputeIDsToDisputeIDs[_disputeID]].appealed, "The dispute must have been appealed.");
+        giveRuling(appealDisputeIDsToDisputeIDs[_disputeID], _ruling);
     }
 }
