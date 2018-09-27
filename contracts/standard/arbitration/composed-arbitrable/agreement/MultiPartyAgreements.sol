@@ -29,6 +29,29 @@ contract MultiPartyAgreements is Arbitrable {
     mapping(bytes32 => Agreement) public agreements;
     mapping(address => mapping(uint => bytes32)) public arbitratorAndDisputeIDToAgreementID;
 
+    /* Constructor */
+
+    /** @dev Constructs the `MultiPartyAgreements` contract.
+     *  @param _arbitrator The arbitrator of the contract.
+     *  @param _arbitratorExtraData Extra data for the arbitrator.
+     */
+    constructor(Arbitrator _arbitrator, bytes _arbitratorExtraData) public Arbitrable(_arbitrator, _arbitratorExtraData) {}
+
+    /* Public */
+
+    /** @dev Executes the ruling on the specified dispute.
+     *  @param _disputeID The ID of the dispute.
+     *  @param _ruling The ruling.
+     */
+    function rule(uint _disputeID, uint _ruling) public {
+        require(
+            agreements[arbitratorAndDisputeIDToAgreementID[msg.sender][_disputeID]].arbitrator == Arbitrator(msg.sender),
+            "A dispute can only be ruled on by its arbitrator."
+        );
+        emit Ruling(Arbitrator(msg.sender), _disputeID, _ruling);
+        executeRuling(_disputeID, _ruling);
+    }
+
     /* Internal */
 
     /** @dev Creates an agreement.
