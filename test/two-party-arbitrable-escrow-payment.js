@@ -55,7 +55,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         // Arbitration fees time out
         ID: '0x02',
         arbitrationFeesWaitingTime: 60,
-        timeOut: -1,
+        timeOut: 0,
         value: 20,
         contributionsPerSide: [
           [halfOfArbitrationPrice - 1, halfOfArbitrationPrice - 1]
@@ -66,7 +66,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         // Arbitration fees time out, sender pays more
         ID: '0x03',
         arbitrationFeesWaitingTime: 60,
-        timeOut: -1,
+        timeOut: 0,
         value: 30,
         contributionsPerSide: [
           [halfOfArbitrationPrice, halfOfArbitrationPrice - 1]
@@ -77,7 +77,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         // Arbitration fees time out, receiver pays more
         ID: '0x04',
         arbitrationFeesWaitingTime: 60,
-        timeOut: -1,
+        timeOut: 0,
         value: 40,
         contributionsPerSide: [
           [halfOfArbitrationPrice - 1, halfOfArbitrationPrice]
@@ -88,7 +88,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         // Sender fails to fully fund appeal
         ID: '0x05',
         arbitrationFeesWaitingTime: -1,
-        timeOut: -1,
+        timeOut: 0,
         value: 50,
         contributionsPerSide: [
           [halfOfArbitrationPrice, halfOfArbitrationPrice],
@@ -100,7 +100,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         // Sender fully funds appeal and pays more
         ID: '0x06',
         arbitrationFeesWaitingTime: -1,
-        timeOut: -1,
+        timeOut: 0,
         value: 60,
         contributionsPerSide: [
           [halfOfArbitrationPrice, halfOfArbitrationPrice],
@@ -113,7 +113,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         // Sender fully funds appeal and pays the same amount as the receiver
         ID: '0x07',
         arbitrationFeesWaitingTime: -1,
-        timeOut: -1,
+        timeOut: 0,
         value: 70,
         arbitrationPriceDiff: halfOfArbitrationPrice,
         contributionsPerSide: [
@@ -147,5 +147,24 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         { value: payment.value }
       )
     }
+
+    // Time out payments
+    await expectThrow(
+      // Should throw for non-existent payments
+      twoPartyArbitrableEscrowPayment.executePayment('0x00')
+    )
+    for (const payment of payments)
+      if (payment.timeOut > 0) {
+        await expectThrow(
+          // Should throw when not enough time has passed
+          twoPartyArbitrableEscrowPayment.executePayment(payment.ID)
+        )
+        await increaseTime(payment.timeOut)
+        await twoPartyArbitrableEscrowPayment.executePayment(payment.ID)
+        await expectThrow(
+          // Should throw when already executed
+          twoPartyArbitrableEscrowPayment.executePayment(payment.ID)
+        )
+      }
   })
 )
