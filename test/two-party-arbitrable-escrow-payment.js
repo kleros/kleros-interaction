@@ -12,6 +12,9 @@ const TwoPartyArbitrableEscrowPayment = artifacts.require(
 const AppealableArbitrator = artifacts.require(
   './standard/arbitration/AppealableArbitrator.sol'
 )
+const EnhancedAppealableArbitrator = artifacts.require(
+  './standard/arbitration/EnhancedAppealableArbitrator.sol'
+)
 
 contract('TwoPartyArbitrableEscrowPayment', accounts =>
   it('Should function as an arbitrable escrow service with crowdinsured fee payments.', async () => {
@@ -34,6 +37,15 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       timeOut // _timeOut
     )
     await appealableArbitrator.changeArbitrator(appealableArbitrator.address)
+    const enhancedAppealableArbitrator = await EnhancedAppealableArbitrator.new(
+      arbitrationPrice, // _arbitrationPrice
+      governor, // _arbitrator
+      null, // _arbitratorExtraData
+      timeOut // _timeOut
+    )
+    await enhancedAppealableArbitrator.changeArbitrator(
+      enhancedAppealableArbitrator.address
+    )
 
     // Generate and create payments
     const evidence = 'https://kleros.io'
@@ -124,9 +136,26 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
           [halfOfArbitrationPrice, halfOfArbitrationPrice]
         ],
         expectedRuling: sendRuling
+      },
+      {
+        // Direct appeals
+        ID: '0x08',
+        arbitrationFeesWaitingTime: -1,
+        timeOut: 0,
+        directAppeal: true,
+        value: 80,
+        contributionsPerSide: [
+          [halfOfArbitrationPrice, halfOfArbitrationPrice],
+          [arbitrationPrice, 0],
+          [arbitrationPrice - 1, 0]
+        ],
+        expectedRuling: sendRuling
       }
     ]
     for (const payment of payments) {
+      const arbitratorAddress = payment.directAppeal
+        ? enhancedAppealableArbitrator.address
+        : appealableArbitrator.address
       await expectThrow(
         // Should throw without value
         twoPartyArbitrableEscrowPayment.createPayment(
@@ -134,7 +163,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
           evidence,
           receiver,
           payment.arbitrationFeesWaitingTime,
-          appealableArbitrator.address,
+          arbitratorAddress,
           payment.timeOut
         )
       )
@@ -143,7 +172,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         evidence,
         receiver,
         payment.arbitrationFeesWaitingTime,
-        appealableArbitrator.address,
+        arbitratorAddress,
         payment.timeOut,
         { value: payment.value }
       )
@@ -155,7 +184,9 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         evidence,
         receiver,
         payments[0].arbitrationFeesWaitingTime,
-        appealableArbitrator.address,
+        payments[0].directAppeal
+          ? enhancedAppealableArbitrator.address
+          : appealableArbitrator.address,
         payments[0].timeOut
       )
     )
