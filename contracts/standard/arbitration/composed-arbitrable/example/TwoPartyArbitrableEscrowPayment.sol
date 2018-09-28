@@ -111,9 +111,9 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
                 _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
                 _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
             )
-                agreement.parties[_ruling == 0 ? 1 : 0].send(payment.value); // Avoid blocking.
+                agreement.parties[_ruling == 2 ? 0 : 1].send(payment.value); // Avoid blocking.
             else
-                agreement.parties[_ruling].send(payment.value); // Avoid blocking.
+                agreement.parties[_ruling == 2 ? 1 : 0].send(payment.value); // Avoid blocking.
         }
 
         agreement.executed = true;

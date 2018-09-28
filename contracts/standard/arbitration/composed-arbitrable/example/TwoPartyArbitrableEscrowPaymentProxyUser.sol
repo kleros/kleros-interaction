@@ -135,9 +135,9 @@ contract TwoPartyArbitrableEscrowPaymentProxyUser is ArbitrableProxyUser {
                 _loserFullyFunded[_loserFullyFunded.length - 1] &&
                 _totalContributedPerSide[_totalContributedPerSide.length - 1][0] - _stake[_stake.length - 1] > _totalContributedPerSide[_totalContributedPerSide.length - 1][1]
             )
-                _parties[_ruling == 0 ? 1 : 0].send(payment.value); // Avoid blocking.
+                _parties[_ruling == 2 ? 0 : 1].send(payment.value); // Avoid blocking.
             else
-                _parties[_ruling].send(payment.value); // Avoid blocking.
+                _parties[_ruling == 2 ? 1 : 0].send(payment.value); // Avoid blocking.
         }
 
         payment.executed = true;
