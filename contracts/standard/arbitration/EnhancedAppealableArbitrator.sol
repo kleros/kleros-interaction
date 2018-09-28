@@ -30,8 +30,12 @@ contract EnhancedAppealableArbitrator is AppealableArbitrator {
      *  @return The start and end of the period.
      */
     function appealPeriod(uint _disputeID) public view returns(uint start, uint end) {
-        start = appealDisputes[_disputeID].rulingTime;
-        require(start != 0, "The specified dispute is not appealable.");
-        end = start + timeOut;
+        if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0)))
+            (start, end) = appealDisputes[_disputeID].arbitrator.appealPeriod(appealDisputes[_disputeID].appealDisputeID);
+        else {
+            start = appealDisputes[_disputeID].rulingTime;
+            require(start != 0, "The specified dispute is not appealable.");
+            end = start + timeOut;
+        }
     }
 }
