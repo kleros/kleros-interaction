@@ -84,7 +84,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
     // Generate and create payments
     const evidence = 'https://kleros.io'
     const receiver = accounts[1]
-    const receiverBalance = web3.eth.getBalance(receiver)
+    // const receiverBalance = web3.eth.getBalance(receiver)
     const keepRuling = 1
     const sendRuling = 2
     const payments = [
@@ -329,5 +329,30 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         { from: accounts[2] }
       )
     )
+
+    // Rule
+    const rulingDisputeID = Number(
+      (await twoPartyArbitrableEscrowPayment.agreements(
+        appealTimeOutPayment.ID
+      )).disputeID
+    )
+    await appealableArbitrator.giveRuling(rulingDisputeID, 0)
+    await increaseTime(timeOut + 1)
+    await expectThrow(
+      // Should throw when not sent from the arbitrator
+      twoPartyArbitrableEscrowPayment.rule(rulingDisputeID, 0)
+    )
+    await expectThrow(
+      // Should throw for a non-existent dispute
+      appealableArbitrator.giveRuling(-1, 0)
+    )
+
+    for (const payment of payments) // Raise appeals
+      if (
+        payment.timeOut <= 0 &&
+        payment.arbitrationFeesWaitingTime < 0 &&
+        !payment.directAppeal
+      ) {
+      }
   })
 )

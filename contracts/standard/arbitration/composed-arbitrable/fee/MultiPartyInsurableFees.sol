@@ -170,6 +170,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
                 if (!fundDisputeCache.appealing) { // First round.
                     agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
+                    arbitratorAndDisputeIDToAgreementID[agreement.arbitrator][agreement.disputeID] = _agreementID;
                     emit Dispute(agreement.arbitrator, agreement.disputeID, uint(_agreementID));
                 } else { // Appeal.
                     _paidFees.ruling[_paidFees.ruling.length - 1] = agreement.arbitrator.currentRuling(agreement.disputeID);
