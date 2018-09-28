@@ -98,6 +98,7 @@ contract MultiPartyAgreements is Arbitrable {
         Agreement storage agreement = agreements[_agreementID];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(!agreement.executed, "The specified agreement has already been executed.");
+        agreement.executed = true;
     }
 
     /** @dev Executes the ruling on the specified dispute.
@@ -109,7 +110,6 @@ contract MultiPartyAgreements is Arbitrable {
         Agreement storage agreement = agreements[_agreementID];
         agreement.ruling = _ruling;
         executeAgreementRuling(_agreementID, _ruling);
-        agreement.executed = true;
     }
 
     /* External Views */

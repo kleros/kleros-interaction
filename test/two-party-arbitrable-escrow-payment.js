@@ -16,6 +16,23 @@ const EnhancedAppealableArbitrator = artifacts.require(
   './standard/arbitration/EnhancedAppealableArbitrator.sol'
 )
 
+// Helpers
+const checkOnlyByGovernor = async (
+  getter,
+  value,
+  method,
+  nextValue,
+  invalidFrom,
+  nextFrom
+) => {
+  await method(nextValue) // Set the next value
+  expect(await getter()).to.deep.equal(
+    nextValue === Number(nextValue) ? web3.toBigNumber(nextValue) : nextValue
+  ) // Check it was set properly
+  await expectThrow(method(value, { from: invalidFrom })) // Throw when setting from a non governor address
+  await method(value, nextFrom && { from: nextFrom }) // Set back to the original value
+}
+
 contract('TwoPartyArbitrableEscrowPayment', accounts =>
   it('Should function as an arbitrable escrow service with crowdinsured fee payments.', async () => {
     // Deploy contracts
@@ -47,11 +64,27 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       enhancedAppealableArbitrator.address
     )
 
+    // Test governance
+    await checkOnlyByGovernor(
+      twoPartyArbitrableEscrowPayment.feeGovernor,
+      governor,
+      twoPartyArbitrableEscrowPayment.changeFeeGovernor,
+      accounts[1],
+      accounts[2],
+      accounts[1]
+    )
+    await checkOnlyByGovernor(
+      twoPartyArbitrableEscrowPayment.stake,
+      stake,
+      twoPartyArbitrableEscrowPayment.changeStake,
+      0,
+      accounts[2]
+    )
+
     // Generate and create payments
     const evidence = 'https://kleros.io'
     const receiver = accounts[1]
     const receiverBalance = web3.eth.getBalance(receiver)
-    const timeOutTime = 60
     const keepRuling = 1
     const sendRuling = 2
     const payments = [
@@ -59,7 +92,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         // Payment time out
         ID: '0x01',
         arbitrationFeesWaitingTime: -1,
-        timeOut: timeOutTime,
+        timeOut: 60,
         value: 10,
         contributionsPerSide: [],
         expectedRuling: sendRuling
@@ -67,7 +100,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       {
         // Arbitration fees time out
         ID: '0x02',
-        arbitrationFeesWaitingTime: 2 * timeOutTime,
+        arbitrationFeesWaitingTime: 60,
         timeOut: 0,
         value: 20,
         contributionsPerSide: [
@@ -78,7 +111,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       {
         // Arbitration fees time out, sender pays more
         ID: '0x03',
-        arbitrationFeesWaitingTime: 3 * timeOutTime,
+        arbitrationFeesWaitingTime: 60,
         timeOut: 0,
         value: 30,
         contributionsPerSide: [
@@ -89,7 +122,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       {
         // Arbitration fees time out, receiver pays more
         ID: '0x04',
-        arbitrationFeesWaitingTime: 4 * timeOutTime,
+        arbitrationFeesWaitingTime: 60,
         timeOut: 0,
         value: 40,
         contributionsPerSide: [
@@ -152,6 +185,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         expectedRuling: sendRuling
       }
     ]
+    let accTimeOut = 0
     for (const payment of payments) {
       const arbitratorAddress = payment.directAppeal
         ? enhancedAppealableArbitrator.address
@@ -173,7 +207,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         receiver,
         payment.arbitrationFeesWaitingTime,
         arbitratorAddress,
-        payment.timeOut,
+        (accTimeOut += payment.timeOut),
         { value: payment.value }
       )
     }
@@ -199,15 +233,101 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
     for (const payment of payments)
       if (payment.timeOut > 0) {
         await expectThrow(
+          // Should throw when not disputed
+          twoPartyArbitrableEscrowPayment.submitEvidence(payment.ID, evidence)
+        )
+        await expectThrow(
           // Should throw when not enough time has passed
           twoPartyArbitrableEscrowPayment.executePayment(payment.ID)
         )
-        await increaseTime(timeOutTime)
+        await increaseTime(payment.timeOut + 1)
         await twoPartyArbitrableEscrowPayment.executePayment(payment.ID)
         await expectThrow(
           // Should throw when already executed
           twoPartyArbitrableEscrowPayment.executePayment(payment.ID)
         )
       }
+
+    // Arbitration fee time outs
+    const arbitrationFeesTimeoutPayment = payments.find(
+      p => p.arbitrationFeesWaitingTime >= 0
+    )
+    await expectThrow(
+      // Should throw for non-existent payments
+      twoPartyArbitrableEscrowPayment.fundDispute('0x00', 0, {
+        value: halfOfArbitrationPrice
+      })
+    )
+    await expectThrow(
+      // Should throw for invalid sides
+      twoPartyArbitrableEscrowPayment.fundDispute(
+        arbitrationFeesTimeoutPayment.ID,
+        2,
+        {
+          value: halfOfArbitrationPrice
+        }
+      )
+    )
+    await expectThrow(
+      // Should throw without value
+      twoPartyArbitrableEscrowPayment.fundDispute(
+        arbitrationFeesTimeoutPayment.ID,
+        0
+      )
+    )
+    for (const payment of payments)
+      if (payment.arbitrationFeesWaitingTime >= 0) {
+        for (let i = 0; i < payment.contributionsPerSide[0].length; i++)
+          await twoPartyArbitrableEscrowPayment.fundDispute(payment.ID, i, {
+            value: payment.contributionsPerSide[0][i]
+          })
+        await increaseTime(payment.arbitrationFeesWaitingTime + 1)
+        await twoPartyArbitrableEscrowPayment.fundDispute(payment.ID, 0, {
+          value: payment.contributionsPerSide[0][0]
+        })
+        await expectThrow(
+          // Should throw for already executed payments
+          twoPartyArbitrableEscrowPayment.fundDispute(payment.ID, 0, {
+            value: payment.contributionsPerSide[0][0]
+          })
+        )
+      }
+
+    // Appeal time outs
+    for (const payment of payments) // Raise disputes
+      if (
+        payment.timeOut <= 0 &&
+        payment.arbitrationFeesWaitingTime < 0 &&
+        !payment.directAppeal
+      )
+        for (let i = 0; i < payment.contributionsPerSide[0].length; i++)
+          await twoPartyArbitrableEscrowPayment.fundDispute(payment.ID, i, {
+            value: payment.contributionsPerSide[0][i]
+          })
+
+    // Submit evidence
+    const appealTimeOutPayment = payments.find(
+      p => p.timeOut <= 0 && p.arbitrationFeesWaitingTime < 0 && !p.directAppeal
+    )
+    await expectThrow(
+      // Should throw when payment is disputed
+      twoPartyArbitrableEscrowPayment.executePayment(appealTimeOutPayment.ID)
+    )
+    await twoPartyArbitrableEscrowPayment.submitEvidence(
+      appealTimeOutPayment.ID,
+      evidence
+    )
+    await expectThrow(
+      // Should throw for non-existent payments
+      twoPartyArbitrableEscrowPayment.submitEvidence('0x00', evidence)
+    )
+    await expectThrow(
+      // Should throw when sent from a party that is not involved in the payment
+      twoPartyArbitrableEscrowPayment.submitEvidence(
+        appealTimeOutPayment.ID,
+        evidence,
+        { from: accounts[2] }
+      )
+    )
   })
 )
