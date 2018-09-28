@@ -39,6 +39,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
     const evidence = 'https://kleros.io'
     const receiver = accounts[1]
     const receiverBalance = web3.eth.getBalance(receiver)
+    const timeOutTime = 60
     const keepRuling = 1
     const sendRuling = 2
     const payments = [
@@ -46,7 +47,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         // Payment time out
         ID: '0x01',
         arbitrationFeesWaitingTime: -1,
-        timeOut: 60,
+        timeOut: timeOutTime,
         value: 10,
         contributionsPerSide: [],
         expectedRuling: sendRuling
@@ -54,7 +55,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       {
         // Arbitration fees time out
         ID: '0x02',
-        arbitrationFeesWaitingTime: 60,
+        arbitrationFeesWaitingTime: 2 * timeOutTime,
         timeOut: 0,
         value: 20,
         contributionsPerSide: [
@@ -65,7 +66,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       {
         // Arbitration fees time out, sender pays more
         ID: '0x03',
-        arbitrationFeesWaitingTime: 60,
+        arbitrationFeesWaitingTime: 3 * timeOutTime,
         timeOut: 0,
         value: 30,
         contributionsPerSide: [
@@ -76,7 +77,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       {
         // Arbitration fees time out, receiver pays more
         ID: '0x04',
-        arbitrationFeesWaitingTime: 60,
+        arbitrationFeesWaitingTime: 4 * timeOutTime,
         timeOut: 0,
         value: 40,
         contributionsPerSide: [
@@ -147,8 +148,19 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         { value: payment.value }
       )
     }
+    await expectThrow(
+      // Should throw when ID is already being used
+      twoPartyArbitrableEscrowPayment.createPayment(
+        payments[0].ID,
+        evidence,
+        receiver,
+        payments[0].arbitrationFeesWaitingTime,
+        appealableArbitrator.address,
+        payments[0].timeOut
+      )
+    )
 
-    // Time out payments
+    // Payment time outs
     await expectThrow(
       // Should throw for non-existent payments
       twoPartyArbitrableEscrowPayment.executePayment('0x00')
@@ -159,7 +171,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
           // Should throw when not enough time has passed
           twoPartyArbitrableEscrowPayment.executePayment(payment.ID)
         )
-        await increaseTime(payment.timeOut)
+        await increaseTime(timeOutTime)
         await twoPartyArbitrableEscrowPayment.executePayment(payment.ID)
         await expectThrow(
           // Should throw when already executed

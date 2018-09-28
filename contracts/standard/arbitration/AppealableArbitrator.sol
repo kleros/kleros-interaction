@@ -24,7 +24,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
 
     /* Constructor */
 
-    /** @dev Constructs the AppealableArbitrator contract.
+    /** @dev Constructs the `AppealableArbitrator` contract.
      *  @param _arbitrationPrice The amount to be paid for arbitration.
      *  @param _arbitrator The back up arbitrator.
      *  @param _arbitratorExtraData Not used by this contract.
