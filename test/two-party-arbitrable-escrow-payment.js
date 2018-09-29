@@ -384,6 +384,10 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         evidence
       )
     )
+    await expectThrow(
+      // Should throw when still disputed
+      twoPartyArbitrableEscrowPayment.withdrawReward(appealTimeOutPayment.ID, 1)
+    )
 
     for (const payment of payments) // Raise all appeals
       if (
