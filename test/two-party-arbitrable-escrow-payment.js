@@ -38,6 +38,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
     // Deploy contracts
     const governor = accounts[0]
     const stake = 10
+    const twoTimesStake = stake * 2
     const twoPartyArbitrableEscrowPayment = await TwoPartyArbitrableEscrowPayment.new(
       governor, // _arbitrator
       null, // _arbitratorExtraData
@@ -138,7 +139,8 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         value: 50,
         contributionsPerSide: [
           [halfOfArbitrationPrice, halfOfArbitrationPrice],
-          [halfOfArbitrationPrice - 1, 0]
+          [arbitrationPrice + twoTimesStake, arbitrationPrice + stake],
+          [arbitrationPrice + twoTimesStake - 1, 0]
         ],
         expectedRuling: sendRuling
       },
@@ -150,8 +152,8 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         value: 60,
         contributionsPerSide: [
           [halfOfArbitrationPrice, halfOfArbitrationPrice],
-          [halfOfArbitrationPrice, halfOfArbitrationPrice],
-          [halfOfArbitrationPrice, halfOfArbitrationPrice - 1]
+          [arbitrationPrice + twoTimesStake, arbitrationPrice + stake],
+          [arbitrationPrice + twoTimesStake, arbitrationPrice + stake - 1]
         ],
         expectedRuling: keepRuling
       },
@@ -164,9 +166,8 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         arbitrationPriceDiff: halfOfArbitrationPrice,
         contributionsPerSide: [
           [halfOfArbitrationPrice, halfOfArbitrationPrice],
-          [halfOfArbitrationPrice, halfOfArbitrationPrice],
-          [halfOfArbitrationPrice, halfOfArbitrationPrice],
-          [halfOfArbitrationPrice, halfOfArbitrationPrice]
+          [arbitrationPrice + twoTimesStake, arbitrationPrice + stake],
+          [arbitrationPrice + twoTimesStake, arbitrationPrice + stake]
         ],
         expectedRuling: sendRuling
       },
@@ -188,8 +189,8 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
     let accTimeOut = 0
     for (const payment of payments) {
       const arbitratorAddress = payment.directAppeal
-        ? enhancedAppealableArbitrator.address
-        : appealableArbitrator.address
+        ? appealableArbitrator.address
+        : enhancedAppealableArbitrator.address
       await expectThrow(
         // Should throw without value
         twoPartyArbitrableEscrowPayment.createPayment(
@@ -219,8 +220,8 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         receiver,
         payments[0].arbitrationFeesWaitingTime,
         payments[0].directAppeal
-          ? enhancedAppealableArbitrator.address
-          : appealableArbitrator.address,
+          ? appealableArbitrator.address
+          : enhancedAppealableArbitrator.address,
         payments[0].timeOut
       )
     )
@@ -330,24 +331,61 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       )
     )
 
-    // Rule
+    // Test edge cases with one appeal
     const rulingDisputeID = Number(
       (await twoPartyArbitrableEscrowPayment.agreements(
         appealTimeOutPayment.ID
-      )).disputeID
+      ))[5]
     )
-    await appealableArbitrator.giveRuling(rulingDisputeID, 0)
+    await expectThrow(
+      // Should throw when not appealable
+      twoPartyArbitrableEscrowPayment.fundDispute(appealTimeOutPayment.ID, 0, {
+        value: appealTimeOutPayment.contributionsPerSide[1][0]
+      })
+    )
+    await enhancedAppealableArbitrator.giveRuling(rulingDisputeID, sendRuling)
+    await expectThrow(
+      // Should throw when not the side's turn
+      twoPartyArbitrableEscrowPayment.fundDispute(appealTimeOutPayment.ID, 1, {
+        value: appealTimeOutPayment.contributionsPerSide[1][1]
+      })
+    )
+    await twoPartyArbitrableEscrowPayment.fundDispute(
+      appealTimeOutPayment.ID,
+      0,
+      { value: appealTimeOutPayment.contributionsPerSide[1][0] }
+    )
     await increaseTime(timeOut + 1)
     await expectThrow(
+      // Should throw when not the side's turn
+      twoPartyArbitrableEscrowPayment.fundDispute(appealTimeOutPayment.ID, 0, {
+        value: appealTimeOutPayment.contributionsPerSide[1][0]
+      })
+    )
+    await expectThrow(
       // Should throw when not sent from the arbitrator
-      twoPartyArbitrableEscrowPayment.rule(rulingDisputeID, 0)
+      twoPartyArbitrableEscrowPayment.rule(rulingDisputeID, sendRuling)
     )
     await expectThrow(
       // Should throw for a non-existent dispute
-      appealableArbitrator.giveRuling(-1, 0)
+      enhancedAppealableArbitrator.giveRuling(-1, sendRuling)
+    )
+    await twoPartyArbitrableEscrowPayment.fundDispute(
+      appealTimeOutPayment.ID,
+      1,
+      {
+        value: appealTimeOutPayment.contributionsPerSide[1][1]
+      }
+    )
+    await expectThrow(
+      // Should throw when already appealed
+      twoPartyArbitrableEscrowPayment.submitEvidence(
+        appealTimeOutPayment.ID,
+        evidence
+      )
     )
 
-    for (const payment of payments) // Raise appeals
+    for (const payment of payments) // Raise all appeals
       if (
         payment.timeOut <= 0 &&
         payment.arbitrationFeesWaitingTime < 0 &&

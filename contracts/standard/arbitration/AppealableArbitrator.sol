@@ -64,7 +64,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
     function appeal(uint _disputeID, bytes _extraData) public payable requireAppealFee(_disputeID, _extraData) {
         super.appeal(_disputeID, _extraData);
         appealDisputes[_disputeID].arbitrator = arbitrator;
-        appealDisputes[_disputeID].appealDisputeID = arbitrator.createDispute(disputes[_disputeID].choices, _extraData);
+        appealDisputes[_disputeID].appealDisputeID = arbitrator.createDispute.value(msg.value)(disputes[_disputeID].choices, _extraData);
         appealDisputeIDsToDisputeIDs[appealDisputes[_disputeID].appealDisputeID] = _disputeID;
     }
 
@@ -102,6 +102,16 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
         if (disputes[_disputeID].status == DisputeStatus.Appealable && appealDisputes[_disputeID].arbitrator == Arbitrator(address(0)))
             cost = arbitrator.arbitrationCost(_extraData);
         else cost = NOT_PAYABLE_VALUE;
+    }
+
+    /** @dev Gets the status of the specified dispute.
+     *  @param _disputeID The ID of the dispute.
+     *  @return The status.
+     */
+    function disputeStatus(uint _disputeID) public view returns(DisputeStatus status) {
+        if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0)))
+            status = appealDisputes[_disputeID].arbitrator.disputeStatus(appealDisputes[_disputeID].appealDisputeID);
+        else status = disputes[_disputeID].status;
     }
 
     /* Internal */
