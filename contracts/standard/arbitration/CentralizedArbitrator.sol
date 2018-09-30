@@ -84,7 +84,7 @@ contract CentralizedArbitrator is Arbitrator {
     *  @param _disputeID ID of the dispute to rule.
     *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
     */
-    function giveRuling(uint _disputeID, uint _ruling) public onlyOwner {
+    function _giveRuling(uint _disputeID, uint _ruling) internal {
         DisputeStruct dispute = disputes[_disputeID];
         require(_ruling <= dispute.choices, "Invalid ruling.");
 
@@ -95,8 +95,16 @@ contract CentralizedArbitrator is Arbitrator {
         dispute.ruling = _ruling;
         dispute.status = DisputeStatus.Solved;
 
-        msg.sender.transfer(fee);
+        msg.sender.send(fee); // Avoid blocking.
         arbitrated.rule(_disputeID,_ruling);
+    }
+
+    /** @dev Give a ruling. UNTRUSTED.
+    *  @param _disputeID ID of the dispute to rule.
+    *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
+    */
+    function giveRuling(uint _disputeID, uint _ruling) public onlyOwner {
+        return _giveRuling(_disputeID, _ruling);
     }
 
     /** @dev Return the status of a dispute.
