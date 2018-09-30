@@ -88,6 +88,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      *  @param _ruling The ruling.
      */
     function giveRuling(uint _disputeID, uint _ruling) public {
+        require(disputes[_disputeID].status != DisputeStatus.Solved, "The specified dispute is already resolved.");
         if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0))) {
             require(Arbitrator(msg.sender) == appealDisputes[_disputeID].arbitrator, "Appealed disputes must be ruled by their back up arbitrator.");
             super._giveRuling(_disputeID, _ruling);

@@ -140,7 +140,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         contributionsPerSide: [
           [halfOfArbitrationPrice, halfOfArbitrationPrice],
           [arbitrationPrice + twoTimesStake, arbitrationPrice + stake],
-          [arbitrationPrice + twoTimesStake - 1, 0]
+          [arbitrationPrice + twoTimesStake - 1, -1]
         ],
         expectedRuling: sendRuling
       },
@@ -158,22 +158,8 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         expectedRuling: keepRuling
       },
       {
-        // Sender fully funds appeal and pays the same amount as the receiver
-        ID: '0x07',
-        arbitrationFeesWaitingTime: -1,
-        timeOut: 0,
-        value: 70,
-        arbitrationPriceDiff: halfOfArbitrationPrice,
-        contributionsPerSide: [
-          [halfOfArbitrationPrice, halfOfArbitrationPrice],
-          [arbitrationPrice + twoTimesStake, arbitrationPrice + stake],
-          [arbitrationPrice + twoTimesStake, arbitrationPrice + stake]
-        ],
-        expectedRuling: sendRuling
-      },
-      {
         // Direct appeals
-        ID: '0x08',
+        ID: '0x07',
         arbitrationFeesWaitingTime: -1,
         timeOut: 0,
         directAppeal: true,
@@ -294,13 +280,9 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         )
       }
 
-    // Appeal time outs
-    for (const payment of payments) // Raise disputes
-      if (
-        payment.timeOut <= 0 &&
-        payment.arbitrationFeesWaitingTime < 0 &&
-        !payment.directAppeal
-      )
+    // Raise disputes for appeal time outs and direct appeals
+    for (const payment of payments)
+      if (payment.timeOut <= 0 && payment.arbitrationFeesWaitingTime < 0)
         for (let i = 0; i < payment.contributionsPerSide[0].length; i++)
           await twoPartyArbitrableEscrowPayment.fundDispute(payment.ID, i, {
             value: payment.contributionsPerSide[0][i]
@@ -389,12 +371,115 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       twoPartyArbitrableEscrowPayment.withdrawReward(appealTimeOutPayment.ID, 1)
     )
 
-    for (const payment of payments) // Raise all appeals
+    // Appeal time outs
+    for (const payment of payments)
       if (
         payment.timeOut <= 0 &&
         payment.arbitrationFeesWaitingTime < 0 &&
         !payment.directAppeal
       ) {
+        const paymentDisputeID = Number(
+          (await twoPartyArbitrableEscrowPayment.agreements(payment.ID))[5]
+        )
+
+        for (let i = 1; i < payment.contributionsPerSide.length; i++)
+          if (payment !== appealTimeOutPayment || i > 1) {
+            await enhancedAppealableArbitrator.giveRuling(
+              await enhancedAppealableArbitrator.getAppealDisputeID(
+                paymentDisputeID
+              ),
+              sendRuling
+            )
+
+            for (let j = 0; j < payment.contributionsPerSide[i].length; j++) {
+              if (payment.contributionsPerSide[i][j] < 0)
+                await expectThrow(
+                  // Should throw when losing side did not fully fund
+                  twoPartyArbitrableEscrowPayment.fundDispute(payment.ID, j, {
+                    value: payment.contributionsPerSide[i][j]
+                  })
+                )
+              else
+                await twoPartyArbitrableEscrowPayment.fundDispute(
+                  payment.ID,
+                  j,
+                  {
+                    value: payment.contributionsPerSide[i][j]
+                  }
+                )
+              await increaseTime(timeOut / 2)
+            }
+          }
+
+        await increaseTime(timeOut / 2 + 1)
+        await enhancedAppealableArbitrator.giveRuling(
+          await enhancedAppealableArbitrator.getAppealDisputeID(
+            paymentDisputeID
+          ),
+          sendRuling
+        )
+        await expectThrow(
+          // Should throw when already executed
+          enhancedAppealableArbitrator.giveRuling(
+            await enhancedAppealableArbitrator.getAppealDisputeID(
+              paymentDisputeID
+            ),
+            sendRuling
+          )
+        )
       }
+
+    // Direct appeals
+    for (const payment of payments)
+      if (payment.directAppeal) {
+        const paymentDisputeID = Number(
+          (await twoPartyArbitrableEscrowPayment.agreements(payment.ID))[5]
+        )
+
+        for (let i = 1; i < payment.contributionsPerSide.length; i++) {
+          await appealableArbitrator.giveRuling(
+            await appealableArbitrator.getAppealDisputeID(paymentDisputeID),
+            sendRuling
+          )
+
+          if (payment.contributionsPerSide[i][0] < arbitrationPrice)
+            await expectThrow(
+              twoPartyArbitrableEscrowPayment.fundDispute(payment.ID, 0, {
+                value: payment.contributionsPerSide[i][0]
+              })
+            )
+          else
+            twoPartyArbitrableEscrowPayment.fundDispute(payment.ID, 0, {
+              value: payment.contributionsPerSide[i][0]
+            })
+        }
+
+        await increaseTime(timeOut + 1)
+        await appealableArbitrator.giveRuling(
+          await appealableArbitrator.getAppealDisputeID(paymentDisputeID),
+          sendRuling
+        )
+      }
+
+    // Withdraw contribution rewards
+    await expectThrow(
+      // Should throw for a non-existent payment
+      twoPartyArbitrableEscrowPayment.withdrawReward('0x00', 1)
+    )
+    await expectThrow(
+      // Should throw for an invalid round
+      twoPartyArbitrableEscrowPayment.withdrawReward(
+        appealTimeOutPayment.ID,
+        -1
+      )
+    )
+    await expectThrow(
+      // Should throw for the first round if appealed
+      twoPartyArbitrableEscrowPayment.withdrawReward(appealTimeOutPayment.ID, 0)
+    )
+    for (const payment of payments)
+      for (let i = 0; i < payment.contributionsPerSide.length; i++)
+        if (i > 0 || (i === 0 && payment.contributionsPerSide.length === 1))
+          await twoPartyArbitrableEscrowPayment.withdrawReward(payment.ID, i)
   })
 )

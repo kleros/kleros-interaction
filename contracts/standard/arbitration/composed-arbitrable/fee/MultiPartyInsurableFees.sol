@@ -212,9 +212,10 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
             _reward = _paidFees.contributions[_round][msg.sender][0] + _paidFees.contributions[_round][msg.sender][1];
         } else { // Appeal.
             uint _winningSide = _paidFees.ruling[_round] != agreement.ruling ? 0 : 1;
-            _reward = ((_paidFees.totalValue[_round] * _paidFees.contributions[_round][msg.sender][_winningSide]) / _paidFees.totalContributedPerSide[_round][_winningSide]);
+            _reward = _paidFees.totalContributedPerSide[_round][_winningSide] == 0 ? 0 : ((_paidFees.totalValue[_round] * _paidFees.contributions[_round][msg.sender][_winningSide]) / _paidFees.totalContributedPerSide[_round][_winningSide]);
         }
 
+        _paidFees.contributions[_round][msg.sender] = [0, 0];
         msg.sender.transfer(_reward);
     }
 
