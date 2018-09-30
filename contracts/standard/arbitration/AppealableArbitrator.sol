@@ -55,6 +55,17 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
         timeOut = _timeOut;
     }
 
+    /* External Views */
+
+    /** @dev Gets the specified dispute's latest appeal ID.
+     *  @param _disputeID The ID of the dispute.
+     */
+    function getAppealDisputeID(uint _disputeID) external view returns(uint disputeID) {
+        if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0)))
+            disputeID = AppealableArbitrator(appealDisputes[_disputeID].arbitrator).getAppealDisputeID(appealDisputes[_disputeID].appealDisputeID);
+        else disputeID = _disputeID;
+    }
+
     /* Public */
 
     /** @dev Appeals a ruling.
@@ -63,9 +74,13 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      */
     function appeal(uint _disputeID, bytes _extraData) public payable requireAppealFee(_disputeID, _extraData) {
         super.appeal(_disputeID, _extraData);
-        appealDisputes[_disputeID].arbitrator = arbitrator;
-        appealDisputes[_disputeID].appealDisputeID = arbitrator.createDispute.value(msg.value)(disputes[_disputeID].choices, _extraData);
-        appealDisputeIDsToDisputeIDs[appealDisputes[_disputeID].appealDisputeID] = _disputeID;
+        if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0)))
+            appealDisputes[_disputeID].arbitrator.appeal.value(msg.value)(appealDisputes[_disputeID].appealDisputeID, _extraData);
+        else {
+            appealDisputes[_disputeID].arbitrator = arbitrator;
+            appealDisputes[_disputeID].appealDisputeID = arbitrator.createDispute.value(msg.value)(disputes[_disputeID].choices, _extraData);
+            appealDisputeIDsToDisputeIDs[appealDisputes[_disputeID].appealDisputeID] = _disputeID;
+        }
     }
 
     /** @dev Gives a ruling.
@@ -99,8 +114,9 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
      *  @return The cost of the appeal.
      */
     function appealCost(uint _disputeID, bytes _extraData) public view returns(uint cost) {
-        if (disputes[_disputeID].status == DisputeStatus.Appealable && appealDisputes[_disputeID].arbitrator == Arbitrator(address(0)))
-            cost = arbitrator.arbitrationCost(_extraData);
+        if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0)))
+            cost = appealDisputes[_disputeID].arbitrator.appealCost(appealDisputes[_disputeID].appealDisputeID, _extraData);
+        else if (disputes[_disputeID].status == DisputeStatus.Appealable) cost = arbitrator.arbitrationCost(_extraData);
         else cost = NOT_PAYABLE_VALUE;
     }
 
