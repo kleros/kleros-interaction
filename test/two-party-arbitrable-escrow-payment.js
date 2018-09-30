@@ -85,7 +85,6 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
     // Generate and create payments
     const evidence = 'https://kleros.io'
     const receiver = accounts[1]
-    // const receiverBalance = web3.eth.getBalance(receiver)
     const keepRuling = 1
     const sendRuling = 2
     const payments = [
@@ -163,7 +162,7 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
         arbitrationFeesWaitingTime: -1,
         timeOut: 0,
         directAppeal: true,
-        value: 80,
+        value: 70,
         contributionsPerSide: [
           [halfOfArbitrationPrice, halfOfArbitrationPrice],
           [arbitrationPrice, 0],
@@ -481,5 +480,45 @@ contract('TwoPartyArbitrableEscrowPayment', accounts =>
       for (let i = 0; i < payment.contributionsPerSide.length; i++)
         if (i > 0 || (i === 0 && payment.contributionsPerSide.length === 1))
           await twoPartyArbitrableEscrowPayment.withdrawReward(payment.ID, i)
+
+    // Verify rulings and total rewards
+    let totalReward = 0
+    for (const payment of payments) {
+      const notDisputed = payment.contributionsPerSide.length < 2
+      const paymentRuling = Number(
+        (await twoPartyArbitrableEscrowPayment.agreements(payment.ID))[8]
+      )
+      expect(paymentRuling).to.equal(notDisputed ? 0 : sendRuling)
+      expect(
+        (await new Promise((resolve, reject) =>
+          twoPartyArbitrableEscrowPayment
+            .PaymentExecuted({ _paymentID: payment.ID }, { fromBlock: 0 })
+            .get((err, logs) => (err ? reject(err) : resolve(logs)))
+        ))[0].args._receiver
+      ).to.equal(payment.expectedRuling === sendRuling ? receiver : governor)
+
+      if (!payment.directAppeal)
+        for (let i = 0; i < payment.contributionsPerSide.length; i++) {
+          const totalValue =
+            Math.max(0, payment.contributionsPerSide[i][0]) +
+            Math.max(0, payment.contributionsPerSide[i][1])
+          if (
+            (i === 0 && notDisputed) ||
+            i === payment.contributionsPerSide.length - 1
+          )
+            totalReward += totalValue
+          else totalReward += totalValue - arbitrationPrice
+        }
+    }
+
+    expect(totalReward).to.equal(
+      (await new Promise((resolve, reject) =>
+        twoPartyArbitrableEscrowPayment
+          .RewardWithdrawal({}, { fromBlock: 0 })
+          .get((err, logs) => (err ? reject(err) : resolve(logs)))
+      ))
+        .reduce((acc, e) => acc.plus(e.args._value), web3.toBigNumber(0))
+        .toNumber()
+    )
   })
 )

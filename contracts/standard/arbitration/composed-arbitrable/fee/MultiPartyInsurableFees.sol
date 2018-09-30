@@ -42,6 +42,14 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
      */
     event Contribution(bytes32 indexed _agreementID, uint indexed _round, address indexed _contributor, uint _value);
 
+    /** @dev Emitted when a contribution reward is withdrawn.
+     *  @param _agreementID The ID of the agreement that the contribution was made to.
+     *  @param _round The round of the agreement that the contribution was made to.
+     *  @param _contributor The address that sent the contribution.
+     *  @param _value The value of the reward.
+     */
+    event RewardWithdrawal(bytes32 indexed _agreementID, uint indexed _round, address indexed _contributor, uint _value);
+
     /* Storage */
 
     address public feeGovernor;
@@ -217,6 +225,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
 
         _paidFees.contributions[_round][msg.sender] = [0, 0];
         msg.sender.transfer(_reward);
+        emit RewardWithdrawal(_agreementID, _round, msg.sender, _reward);
     }
 
     /* External Views */

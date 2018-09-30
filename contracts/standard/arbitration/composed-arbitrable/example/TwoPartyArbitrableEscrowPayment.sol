@@ -16,6 +16,16 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
         uint timeOut;
     }
 
+    /* Events */
+
+    /** @dev Emitted when a payment is executed.
+     *  @param _paymentID The ID of the payment.
+     *  @param _sender The address of the sender.
+     *  @param _receiver The address of the receiver.
+     *  @param _value The value of the payment.
+     */
+    event PaymentExecuted(bytes32 indexed _paymentID, address indexed _sender, address indexed _receiver, uint _value);
+
     /* Storage */
 
     mapping(bytes32 => Payment) public payments;
@@ -85,6 +95,7 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
         require(now - payment.createdAt > payment.timeOut, "The specified payment has not timed out yet.");
         agreement.parties[1].send(payment.value); // Avoid blocking.
         agreement.executed = true;
+        emit PaymentExecuted(_paymentID, agreement.parties[0], agreement.parties[1], payment.value);
     }
 
     /* Internal */
@@ -99,23 +110,26 @@ contract TwoPartyArbitrableEscrowPayment is MultiPartyInsurableArbitrableAgreeme
         PaidFees storage _paidFees = paidFees[_agreementID];
         Payment storage payment = payments[_agreementID];
 
+        address _receiver;
         if (_paidFees.stake.length == 1) { // Failed to fund first round.
             // Send the value to whoever paid more.
             if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1])
-                agreement.parties[0].send(payment.value); // Avoid blocking.
+                _receiver = agreement.parties[0];
             else
-                agreement.parties[1].send(payment.value); // Avoid blocking.
+                _receiver = agreement.parties[1];
         } else { // Failed to fund a later round.
             // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected.
             if (
                 _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
                 _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
             )
-                agreement.parties[_ruling == 2 ? 0 : 1].send(payment.value); // Avoid blocking.
+                _receiver = agreement.parties[_ruling == 2 ? 0 : 1];
             else
-                agreement.parties[_ruling == 2 ? 1 : 0].send(payment.value); // Avoid blocking.
+                _receiver = agreement.parties[_ruling == 2 ? 1 : 0];
         }
 
+        _receiver.send(payment.value); // Avoid blocking.
         agreement.executed = true;
+        emit PaymentExecuted(_agreementID, agreement.parties[0], _receiver, payment.value);
     }
 }
