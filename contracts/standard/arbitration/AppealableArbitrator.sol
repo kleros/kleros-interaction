@@ -90,12 +90,12 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
     function giveRuling(uint _disputeID, uint _ruling) public {
         if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0))) {
             require(Arbitrator(msg.sender) == appealDisputes[_disputeID].arbitrator, "Appealed disputes must be ruled by their back up arbitrator.");
-            super.giveRuling(_disputeID, _ruling);
+            super._giveRuling(_disputeID, _ruling);
         } else {
             require(msg.sender == owner, "Not appealed disputes must be ruled by the owner.");
             if (disputes[_disputeID].status == DisputeStatus.Appealable) {
                 if (now - appealDisputes[_disputeID].rulingTime > timeOut)
-                    super.giveRuling(_disputeID, _ruling);
+                    super._giveRuling(_disputeID, _ruling);
                 else revert("Time out time has not passed yet.");
             } else {
                 disputes[_disputeID].ruling = _ruling;
