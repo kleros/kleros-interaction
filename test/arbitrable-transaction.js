@@ -276,7 +276,7 @@ contract('ArbitrableTransaction', function(accounts) {
       from: payer,
       value: arbitrationFee
     })
-    increaseTime(timeout + 1)
+    await increaseTime(timeout + 1)
     const payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
     const tx = await arbitrableTransaction.timeOutByPartyA({
       from: payer,
@@ -314,7 +314,7 @@ contract('ArbitrableTransaction', function(accounts) {
       from: payer,
       value: arbitrationFee
     })
-    increaseTime(1)
+    await increaseTime(1)
     await expectThrow(
       arbitrableTransaction.timeOutByPartyA({ from: payer, gasPrice: gasPrice })
     )
@@ -337,7 +337,7 @@ contract('ArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    increaseTime(timeout + 1)
+    await increaseTime(timeout + 1)
     const payeeBalanceBeforeReimbursment = web3.eth.getBalance(payee)
     const tx = await arbitrableTransaction.timeOutByPartyB({
       from: payee,
@@ -375,7 +375,7 @@ contract('ArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    increaseTime(1)
+    await increaseTime(1)
     await expectThrow(
       arbitrableTransaction.timeOutByPartyB({ from: payee, gasPrice: gasPrice })
     )
