@@ -182,7 +182,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    increaseTime(timeout + 1)
+    await increaseTime(timeout + 1)
     const tx = await multipleContract.withdraw(arbitrableTransactionId, {
       from: payee
     })
@@ -514,7 +514,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payer,
       value: arbitrationFee
     })
-    increaseTime(timeout + 1)
+    await increaseTime(timeout + 1)
     const payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
     const tx = await multipleContract.timeOutByBuyer(arbitrableTransactionId, {
       from: payer,
@@ -567,7 +567,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payer,
       value: arbitrationFee
     })
-    increaseTime(1)
+    await increaseTime(1)
     await expectThrow(
       multipleContract.timeOutByBuyer(arbitrableTransactionId, {
         from: payer,
@@ -605,7 +605,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    increaseTime(timeout + 1)
+    await increaseTime(timeout + 1)
     const payeeBalanceBeforeReimbursment = web3.eth.getBalance(payee)
     const tx = await multipleContract.timeOutBySeller(arbitrableTransactionId, {
       from: payee,
@@ -658,7 +658,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    increaseTime(1)
+    await increaseTime(1)
     await expectThrow(
       multipleContract.timeOutBySeller(arbitrableTransactionId, {
         from: payee,
