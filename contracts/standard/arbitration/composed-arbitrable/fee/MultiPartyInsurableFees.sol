@@ -111,10 +111,19 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
             _paidFees.totalContributedPerSide.push([0, 0]);
             _paidFees.loserFullyFunded.push(false);
             _paidFees.contributions.length++;
+        } else { // Reset cache
+            fundDisputeCache.cost = 0;
+            fundDisputeCache.appealing = false;
+            (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = (0, 0);
+            fundDisputeCache.appealPeriodSupported = false;
+            fundDisputeCache.requiredValueForSide = 0;
+            fundDisputeCache.expectedValue = 0;
+            fundDisputeCache.stillRequiredValueForSide = 0;
+            fundDisputeCache.keptValue = 0;
+            fundDisputeCache.refundedValue = 0;
         }
 
         // Check time outs and requirements.
-        fundDisputeCache.cost;
         if (_paidFees.stake.length == 1) { // First round.
             fundDisputeCache.cost = agreement.arbitrator.arbitrationCost(agreement.extraData);
 
@@ -141,7 +150,6 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         }
 
         // Compute required value.
-        fundDisputeCache.requiredValueForSide;
         if (_side == 0) // Losing side.
             fundDisputeCache.requiredValueForSide = !fundDisputeCache.appealing ? fundDisputeCache.cost / 2 : fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
         else { // Winning side.
@@ -150,7 +158,6 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         }
 
         // Take contribution.
-        fundDisputeCache.stillRequiredValueForSide;
         if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide)
             fundDisputeCache.stillRequiredValueForSide = 0;
         else 
