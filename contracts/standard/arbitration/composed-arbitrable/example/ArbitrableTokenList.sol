@@ -280,6 +280,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
         require(!item.disputed, "The item is still disputed.");
 
+        Agreement storage agreement = agreements[_value];
+        require(agreement.creator != address(0), "The specified agreement does not exist.");
+        require(!agreement.executed, "The specified agreement has already been executed.");
+        require(!agreement.disputed, "The specified agreement is disputed.");
+        agreement.executed = true;
+
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
         else if (item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested)
