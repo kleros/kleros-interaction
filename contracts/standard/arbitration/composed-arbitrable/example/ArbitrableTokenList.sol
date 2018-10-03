@@ -315,13 +315,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /* Internal */
 
-    /**
-     *  @dev Execute the ruling of a dispute.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
+    /** @dev Executes the ruling on the specified agreement.
+     *  @param _agreementID The ID of the agreement.
+     *  @param _ruling The ruling.
      */
-    function executeRuling(uint _disputeID, uint _ruling) internal {
-        Item storage item = items[disputeIDToItem[_disputeID]];
+    function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
+        super.executeAgreementRuling(_agreementID, _ruling);
+        uint256 disputeID = agreements[_agreementID].disputeID;
+        Item storage item = items[disputeIDToItem[disputeID]];
         require(item.disputed, "The item is not disputed.");
 
         if (_ruling == REGISTER) {
@@ -357,14 +358,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.submitter.send(item.balance / 2);
             item.challenger.send(item.balance / 2);
         }
-        
+
         item.disputed = false;
         if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER)
             item.lastAction = now; // If the item can be rechallenged, update the time and keep the remaining balance.
         else
             item.balance = 0;
 
-        emit ItemStatusChange(item.submitter, item.challenger, disputeIDToItem[_disputeID], item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, disputeIDToItem[disputeID], item.status, item.disputed);
     }
 
     /* Interface Views */
