@@ -7,14 +7,14 @@ module.exports = function(deployer, network, accounts) {
       T2cr,
       Arbitrator.address,
       'extra',
-      accounts[5],
-      200,
       'kleros.io',
       false,
       false,
-      10 ** 17,
       false,
-      60 * 60 * 24 * 7
+      10 ** 17,
+      60 * 60 * 24 * 7,
+      accounts[5],
+      200
     )
   })
 }
