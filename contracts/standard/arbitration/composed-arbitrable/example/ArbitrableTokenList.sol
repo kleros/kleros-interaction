@@ -118,8 +118,16 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /**
      *  @dev Request for an item to be registered.
      *  @param _value The value of the item to register.
+     *  @param _metaEvidence The meta evidence for the potential dispute.
+     *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
+     *  @param _arbitrator The arbitrator to use for the potential dispute.
      */
-    function requestRegistration(bytes32 _value) public payable {
+    function requestRegistration(
+        bytes32 _value,
+        string _metaEvidence,
+        uint _arbitrationFeesWaitingTime,
+        Arbitrator _arbitrator
+    ) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
@@ -138,6 +146,19 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         item.submitter = msg.sender;
         item.balance += msg.value;
         item.lastAction = now;
+
+        address[] memory _parties = new address[](1); // A tcr is an agreement between 1 and n parties, so this list has only one item.
+        _parties[0] = msg.sender;
+
+        _createAgreement(
+            _value,
+            _metaEvidence,
+            _parties,
+            2,
+            new bytes(0),
+            _arbitrationFeesWaitingTime,
+            _arbitrator
+        );
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
