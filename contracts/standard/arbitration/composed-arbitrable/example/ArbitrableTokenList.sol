@@ -215,8 +215,16 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /**
      *  @dev Challenge a registration request.
      *  @param _value The value of the item subject to the registering request.
+     *  @param _metaEvidence The meta evidence for the potential dispute.
+     *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
+     *  @param _arbitrator The arbitrator to use for the potential dispute.
      */
-    function challengeRegistration(bytes32 _value) public payable {
+    function challengeRegistration(
+        bytes32 _value,
+        string _metaEvidence,
+        uint _arbitrationFeesWaitingTime,
+        Arbitrator _arbitrator
+    ) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
@@ -242,6 +250,19 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         item.lastAction = now;
+
+        address[] memory _parties = new address[](1);
+        _parties[0] = msg.sender;
+
+        _createAgreement(
+            _value,
+            _metaEvidence,
+            _parties,
+            2,
+            new bytes(0),
+            _arbitrationFeesWaitingTime,
+            _arbitrator
+        );
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
