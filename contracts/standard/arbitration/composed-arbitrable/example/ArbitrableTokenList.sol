@@ -229,7 +229,20 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
         require(item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted, "Item in wrong status for challenging.");
-        require(!item.disputed, "Item cannot be already challenged.");
+        require(!item.disputed, "Item cannot be challenged because it is already under dispute.");
+
+        address[] memory _parties = new address[](1);
+        _parties[0] = msg.sender;
+
+        _createAgreement(
+            _value,
+            _metaEvidence,
+            _parties,
+            2,
+            new bytes(0),
+            _arbitrationFeesWaitingTime,
+            _arbitrator
+        );
 
         if (item.balance >= arbitratorCost) { // In the general case, create a dispute.
             item.challenger = msg.sender;
@@ -250,19 +263,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         item.lastAction = now;
-
-        address[] memory _parties = new address[](1);
-        _parties[0] = msg.sender;
-
-        _createAgreement(
-            _value,
-            _metaEvidence,
-            _parties,
-            2,
-            new bytes(0),
-            _arbitrationFeesWaitingTime,
-            _arbitrator
-        );
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
