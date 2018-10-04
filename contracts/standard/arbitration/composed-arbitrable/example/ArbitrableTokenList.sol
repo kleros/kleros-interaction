@@ -270,8 +270,16 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /**
      *  @dev Challenge a clearing request.
      *  @param _value The value of the item subject to the clearing request.
+     *  @param _metaEvidence The meta evidence for the potential dispute.
+     *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
+     *  @param _arbitrator The arbitrator to use for the potential dispute.
      */
-    function challengeClearing(bytes32 _value) public payable {
+    function challengeClearing(
+        bytes32 _value,
+        string _metaEvidence,
+        uint _arbitrationFeesWaitingTime,
+        Arbitrator _arbitrator
+    ) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
@@ -280,6 +288,19 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             "Item in wrong status for challenging."
         );
         require(!item.disputed, "Item cannot be already challenged.");
+
+        address[] memory _parties = new address[](1);
+        _parties[0] = msg.sender;
+
+        _createAgreement(
+            _value,
+            _metaEvidence,
+            _parties,
+            2,
+            new bytes(0),
+            _arbitrationFeesWaitingTime,
+            _arbitrator
+        );
 
         if (item.balance >= arbitratorCost) { // In the general case, create a dispute.
             item.challenger = msg.sender;
