@@ -15,8 +15,6 @@ contract TwoPartyArbitrableEscrowPayment is Arbitrable {
     uint public createdAt;
     uint public timeOut;
 
-    modifier onlySender{require(msg.sender == sender, "Can only be called by the sender."); _;}
-    modifier onlyReceiver{require(msg.sender == receiver, "Can only be called by the receiver."); _;}
     modifier onlySenderOrReceiver{
         require(msg.sender == sender || msg.sender == receiver, "Can only be called by the sender or the receiver.");
         _;
