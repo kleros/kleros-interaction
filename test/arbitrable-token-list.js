@@ -481,7 +481,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
       })
 
-      describe.skip('When item in cleared state', function() {
+      describe('When item in cleared state', function() {
         beforeEach('prepare pre-conditions', async function() {
           await arbitrableTokenList.requestRegistration(
             ARBITRARY_STRING,
@@ -493,11 +493,9 @@ contract('ArbitrableTokenList', function(accounts) {
               value: stake + arbitrationCost
             }
           )
-          console.info('calling executeRequest')
           await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
             from: arbitrator
           })
-          console.info('calling requestClearing')
           await arbitrableTokenList.requestClearing(
             ARBITRARY_STRING,
             metaEvidence,
@@ -587,7 +585,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
       })
 
-      describe.skip('When item in resubmitted state', function() {
+      describe('When item in resubmitted state', function() {
         beforeEach('prepare pre-conditions', async function() {
           await arbitrableTokenList.requestRegistration(
             ARBITRARY_STRING,
@@ -634,17 +632,14 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it.skip(
-          'calling isPermitted should return true ' + blacklist,
-          async () => {
-            assert.equal(
-              await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
-              blacklist
-            )
-          }
-        )
+        it('calling isPermitted should return true ' + blacklist, async () => {
+          assert.equal(
+            await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
+            blacklist
+          )
+        })
 
-        it.skip('calling requestRegistration should revert', async () => {
+        it('calling requestRegistration should revert', async () => {
           await expectThrow(
             arbitrableTokenList.requestRegistration(
               ARBITRARY_STRING,
@@ -659,7 +654,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it.skip('calling requestClearing should revert', async function() {
+        it('calling requestClearing should revert', async function() {
           await expectThrow(
             arbitrableTokenList.requestClearing(
               ARBITRARY_STRING,
@@ -674,7 +669,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it.skip('calling challengeBlacklisting should create a dispute', async function() {
+        it('calling challengeBlacklisting should create a dispute', async function() {
           const itemBalance = (await arbitrableTokenList.items(
             ARBITRARY_STRING
           ))[4].toNumber()
@@ -705,7 +700,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it.skip('calling challengeClearing should revert', async () => {
+        it('calling challengeClearing should revert', async () => {
           await expectThrow(
             arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
               from: arbitrator,
@@ -714,7 +709,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it.skip('calling executeRequest should move item into the blacklisted state', async function() {
+        it('calling executeRequest should move item into the blacklisted state', async function() {
           await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
             from: arbitrator
           })
@@ -900,7 +895,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it.skip('calling requestClearing should move item into the clearing requested state', async () => {
+        it('calling requestClearing should move item into the clearing requested state', async () => {
           await arbitrableTokenList.requestClearing(
             ARBITRARY_STRING,
             metaEvidence,
