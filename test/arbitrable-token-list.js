@@ -403,12 +403,121 @@ contract('ArbitrableTokenList', function(accounts) {
         })
       })
 
-      if (!rechallengePossible) {
-        describe('When item in absent state', function() {
+      describe('When item in absent state', function() {
+        beforeEach('assert pre-conditions', async function() {
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0],
+            ITEM_STATUS.ABSENT
+          )
+        })
+
+        it('calling isPermitted should return ' + blacklist, async () => {
+          assert.equal(
+            await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
+            blacklist
+          )
+        })
+
+        it('calling requestRegistration should move item into the submitted state', async () => {
+          await arbitrableTokenList.requestRegistration(
+            ARBITRARY_STRING,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            centralizedArbitrator.address,
+            {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            }
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0],
+            ITEM_STATUS.SUBMITTED
+          )
+        })
+
+        it.skip('calling requestClearing should move item into the preventive clearing requested state', async () => {
+          await arbitrableTokenList.requestClearing(
+            ARBITRARY_STRING,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            centralizedArbitrator.address,
+            {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            }
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+            ITEM_STATUS.PREVENTIVE_CLEARING_REQUESTED
+          )
+        })
+
+        it('calling challangeBlacklisting should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            })
+          )
+        })
+
+        it('calling challangeClearing should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            })
+          )
+        })
+
+        it('calling executeRequest should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+              from: arbitrator
+            })
+          )
+        })
+      })
+
+      if (!appendOnly)
+        describe.skip('When item in cleared state', function() {
+          beforeEach('prepare pre-conditions', async function() {
+            await arbitrableTokenList.requestRegistration(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              }
+            )
+            console.info('calling executeRequest')
+            await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+              from: arbitrator
+            })
+            console.info('calling requestClearing')
+            await arbitrableTokenList.requestClearing(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              }
+            )
+            await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+              from: arbitrator
+            })
+          })
+
           beforeEach('assert pre-conditions', async function() {
             assert.equal(
               (await arbitrableTokenList.items(ARBITRARY_STRING))[0],
-              ITEM_STATUS.ABSENT
+              ITEM_STATUS.CLEARED
             )
           })
 
@@ -419,7 +528,7 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          it('calling requestRegistration should move item into the submitted state', async () => {
+          it('calling requestRegistration should move item into the resubmitted state', async () => {
             await arbitrableTokenList.requestRegistration(
               ARBITRARY_STRING,
               metaEvidence,
@@ -432,14 +541,14 @@ contract('ArbitrableTokenList', function(accounts) {
             )
 
             assert.equal(
-              (await arbitrableTokenList.items(ARBITRARY_STRING))[0],
-              ITEM_STATUS.SUBMITTED
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+              ITEM_STATUS.RESUBMITTED
             )
           })
 
-          if (!appendOnly)
-            it('calling requestClearing should move item into the preventive clearing requested state', async () => {
-              await arbitrableTokenList.requestClearing(
+          it('calling requestClearing should revert', async () => {
+            await expectThrow(
+              arbitrableTokenList.requestClearing(
                 ARBITRARY_STRING,
                 metaEvidence,
                 REQUEST.arbitrationFeesWaitingTime,
@@ -449,29 +558,8 @@ contract('ArbitrableTokenList', function(accounts) {
                   value: stake + arbitrationCost
                 }
               )
-
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber(),
-                ITEM_STATUS.PREVENTIVE_CLEARING_REQUESTED
-              )
-            })
-          else
-            it('calling requestClearing should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.requestClearing(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: arbitrator,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
-            })
+            )
+          })
 
           it('calling challangeBlacklisting should revert', async () => {
             await expectThrow(
@@ -500,420 +588,8 @@ contract('ArbitrableTokenList', function(accounts) {
           })
         })
 
-        if (!appendOnly)
-          describe.skip('When item in cleared state', function() {
-            beforeEach('prepare pre-conditions', async function() {
-              await arbitrableTokenList.requestRegistration(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }
-              )
-              console.info('calling executeRequest')
-              await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: arbitrator
-              })
-              console.info('calling requestClearing')
-              await arbitrableTokenList.requestClearing(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }
-              )
-              await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: arbitrator
-              })
-            })
-
-            beforeEach('assert pre-conditions', async function() {
-              assert.equal(
-                (await arbitrableTokenList.items(ARBITRARY_STRING))[0],
-                ITEM_STATUS.CLEARED
-              )
-            })
-
-            it('calling isPermitted should return ' + blacklist, async () => {
-              assert.equal(
-                await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
-                blacklist
-              )
-            })
-
-            it('calling requestRegistration should move item into the resubmitted state', async () => {
-              await arbitrableTokenList.requestRegistration(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }
-              )
-
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber(),
-                ITEM_STATUS.RESUBMITTED
-              )
-            })
-
-            it('calling requestClearing should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.requestClearing(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: arbitrator,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
-            })
-
-            it('calling challangeBlacklisting should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                })
-              )
-            })
-
-            it('calling challangeClearing should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                })
-              )
-            })
-
-            it('calling executeRequest should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                  from: arbitrator
-                })
-              )
-            })
-          })
-
-        if (!appendOnly)
-          describe.skip('When item in resubmitted state', function() {
-            beforeEach('prepare pre-conditions', async function() {
-              await arbitrableTokenList.requestRegistration(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: partyA,
-                  value: stake + arbitrationCost
-                }
-              )
-              await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: partyA
-              })
-              await arbitrableTokenList.requestClearing(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: partyB,
-                  value: stake + arbitrationCost
-                }
-              )
-              await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: partyB
-              })
-              await arbitrableTokenList.requestRegistration(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: partyA,
-                  value: stake + arbitrationCost
-                }
-              )
-            })
-
-            beforeEach('assert pre-conditions', async function() {
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber(),
-                ITEM_STATUS.RESUBMITTED
-              )
-            })
-
-            it.skip(
-              'calling isPermitted should return true ' + blacklist,
-              async () => {
-                assert.equal(
-                  await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
-                  blacklist
-                )
-              }
-            )
-
-            it.skip('calling requestRegistration should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.requestRegistration(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: arbitrator,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
-            })
-
-            it.skip('calling requestClearing should revert', async function() {
-              await expectThrow(
-                arbitrableTokenList.requestClearing(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: arbitrator,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
-            })
-
-            it.skip('calling challengeBlacklisting should create a dispute', async function() {
-              const itemBalance = (await arbitrableTokenList.items(
-                ARBITRARY_STRING
-              ))[4].toNumber()
-
-              await arbitrableTokenList.challengeRegistration(
-                ARBITRARY_STRING,
-                {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                }
-              )
-
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3].toString(),
-                arbitrator
-              )
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4].toNumber(),
-                itemBalance + stake
-              )
-              const disputeID = (await arbitrableTokenList.items(
-                ARBITRARY_STRING
-              ))[6].toNumber()
-              assert.equal(
-                (await arbitrableTokenList.items(ARBITRARY_STRING))[5],
-                true
-              )
-              assert.equal(
-                web3.toUtf8(
-                  await arbitrableTokenList.disputeIDToItem(disputeID)
-                ),
-                ARBITRARY_STRING
-              )
-            })
-
-            it.skip('calling challengeClearing should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
-                  from: arbitrator,
-                  value: stake + arbitrationCost
-                })
-              )
-            })
-
-            it.skip('calling executeRequest should move item into the blacklisted state', async function() {
-              await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: arbitrator
-              })
-
-              assert(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber() === ITEM_STATUS.REGISTERED
-              )
-            })
-
-            describe('executeRuling', async function() {
-              let disputeID
-
-              beforeEach('create a dispute', async function() {
-                await arbitrableTokenList.challengeRegistration(
-                  ARBITRARY_STRING,
-                  {
-                    from: partyB,
-                    value: stake + arbitrationCost
-                  }
-                )
-
-                disputeID = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[6].toNumber()
-              })
-
-              it.skip('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
-                const submitter = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[2]
-                const submitterBalance = web3.eth.getBalance(submitter)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.REGISTER,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
-                const expectedBalanceOfSubmitter = submitterBalance
-                  .plus(itemBalance)
-                  .minus(new BigNumber(stake).mul(4))
-                  .minus(new BigNumber(arbitrationFee).mul(3))
-
-                assert(
-                  actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
-                  'Difference: ' +
-                    actualBalanceOfSubmitter
-                      .minus(expectedBalanceOfSubmitter)
-                      .toNumber()
-                )
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.REGISTERED
-                )
-              })
-
-              it.skip('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
-                const challenger = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3]
-                const challengerBalance = web3.eth.getBalance(challenger)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.CLEAR,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfChallenger = web3.eth.getBalance(
-                  challenger
-                )
-                const expectedBalanceOfChallenger = itemBalance
-                  .plus(challengerBalance)
-                  .minus(new BigNumber(stake).mul(4))
-                  .minus(new BigNumber(arbitrationFee).mul(3))
-
-                assert(
-                  actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
-                  'Difference: ' +
-                    actualBalanceOfChallenger
-                      .minus(expectedBalanceOfChallenger)
-                      .toNumber()
-                )
-
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.CLEARED
-                )
-              })
-
-              it.skip('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the cleared state', async function() {
-                const submitter = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[2]
-                const challenger = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3]
-                const submitterBalance = web3.eth.getBalance(submitter)
-                const challengerBalance = web3.eth.getBalance(challenger)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.OTHER,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
-                const actualBalanceOfChallenger = web3.eth.getBalance(
-                  challenger
-                )
-                const expectedBalanceOfSubmitter = itemBalance
-                  .dividedBy(new BigNumber(2))
-                  .plus(submitterBalance)
-                const expectedBalanceOfChallenger = itemBalance
-                  .dividedBy(new BigNumber(2))
-                  .plus(challengerBalance)
-                  .minus(new BigNumber(stake).mul(2))
-                  .minus(new BigNumber(arbitrationFee).mul(3).dividedBy(2))
-
-                assert(
-                  actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
-                  'Actual: ' +
-                    actualBalanceOfSubmitter +
-                    '\t0Expected: ' +
-                    expectedBalanceOfSubmitter
-                )
-                assert(
-                  actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
-                  '1Differece: ' +
-                    actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
-                )
-
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.CLEARED
-                )
-              })
-            })
-          })
-
-        describe('When item in registered state', function() {
+      if (!appendOnly)
+        describe.skip('When item in resubmitted state', function() {
           beforeEach('prepare pre-conditions', async function() {
             await arbitrableTokenList.requestRegistration(
               ARBITRARY_STRING,
@@ -921,30 +597,56 @@ contract('ArbitrableTokenList', function(accounts) {
               REQUEST.arbitrationFeesWaitingTime,
               centralizedArbitrator.address,
               {
-                from: arbitrator,
+                from: partyA,
                 value: stake + arbitrationCost
               }
             )
             await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-              from: arbitrator
+              from: partyA
             })
+            await arbitrableTokenList.requestClearing(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
+                from: partyB,
+                value: stake + arbitrationCost
+              }
+            )
+            await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+              from: partyB
+            })
+            await arbitrableTokenList.requestRegistration(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
+                from: partyA,
+                value: stake + arbitrationCost
+              }
+            )
           })
 
           beforeEach('assert pre-conditions', async function() {
             assert.equal(
-              (await arbitrableTokenList.items(ARBITRARY_STRING))[0],
-              ITEM_STATUS.REGISTERED
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+              ITEM_STATUS.RESUBMITTED
             )
           })
 
-          it('calling isPermitted should return ' + !blacklist, async () => {
-            assert.equal(
-              await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
-              !blacklist
-            )
-          })
+          it.skip(
+            'calling isPermitted should return true ' + blacklist,
+            async () => {
+              assert.equal(
+                await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
+                blacklist
+              )
+            }
+          )
 
-          it('calling requestRegistration should revert', async () => {
+          it.skip('calling requestRegistration should revert', async () => {
             await expectThrow(
               arbitrableTokenList.requestRegistration(
                 ARBITRARY_STRING,
@@ -959,9 +661,9 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          if (!appendOnly)
-            it.skip('calling requestClearing should move item into the clearing requested state', async () => {
-              await arbitrableTokenList.requestClearing(
+          it.skip('calling requestClearing should revert', async function() {
+            await expectThrow(
+              arbitrableTokenList.requestClearing(
                 ARBITRARY_STRING,
                 metaEvidence,
                 REQUEST.arbitrationFeesWaitingTime,
@@ -971,40 +673,41 @@ contract('ArbitrableTokenList', function(accounts) {
                   value: stake + arbitrationCost
                 }
               )
-
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber(),
-                ITEM_STATUS.CLEARING_REQUESTED
-              )
-            })
-          else
-            it('calling requestClearing should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.requestClearing(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: arbitrator,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
-            })
-
-          it('calling challengeRegistration should revert', async () => {
-            await expectThrow(
-              arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
-                from: arbitrator,
-                value: stake + arbitrationCost
-              })
             )
           })
 
-          it('calling challengeClearing should revert', async () => {
+          it.skip('calling challengeBlacklisting should create a dispute', async function() {
+            const itemBalance = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[4].toNumber()
+
+            await arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            })
+
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[3].toString(),
+              arbitrator
+            )
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[4].toNumber(),
+              itemBalance + stake
+            )
+            const disputeID = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[6].toNumber()
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[5],
+              true
+            )
+            assert.equal(
+              web3.toUtf8(await arbitrableTokenList.disputeIDToItem(disputeID)),
+              ARBITRARY_STRING
+            )
+          })
+
+          it.skip('calling challengeClearing should revert', async () => {
             await expectThrow(
               arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
                 from: arbitrator,
@@ -1013,15 +716,249 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          it('calling executeRequest should revert', async function() {
-            await expectThrow(
-              arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: arbitrator
-              })
+          it.skip('calling executeRequest should move item into the blacklisted state', async function() {
+            await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+              from: arbitrator
+            })
+
+            assert(
+              (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[0].toNumber() === ITEM_STATUS.REGISTERED
             )
           })
+
+          describe('executeRuling', async function() {
+            let disputeID
+
+            beforeEach('create a dispute', async function() {
+              await arbitrableTokenList.challengeRegistration(
+                ARBITRARY_STRING,
+                {
+                  from: partyB,
+                  value: stake + arbitrationCost
+                }
+              )
+
+              disputeID = (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[6].toNumber()
+            })
+
+            it.skip('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
+              const submitter = (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[2]
+              const submitterBalance = web3.eth.getBalance(submitter)
+              const itemBalance = (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[4]
+
+              await centralizedArbitrator.giveRuling(
+                disputeID,
+                RULING.REGISTER,
+                {
+                  from: arbitrator
+                }
+              )
+
+              const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+              const expectedBalanceOfSubmitter = submitterBalance
+                .plus(itemBalance)
+                .minus(new BigNumber(stake).mul(4))
+                .minus(new BigNumber(arbitrationFee).mul(3))
+
+              assert(
+                actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+                'Difference: ' +
+                  actualBalanceOfSubmitter
+                    .minus(expectedBalanceOfSubmitter)
+                    .toNumber()
+              )
+              assert.equal(
+                (await arbitrableTokenList.items(
+                  ARBITRARY_STRING
+                ))[0].toNumber(),
+                ITEM_STATUS.REGISTERED
+              )
+            })
+
+            it.skip('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
+              const challenger = (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[3]
+              const challengerBalance = web3.eth.getBalance(challenger)
+              const itemBalance = (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[4]
+
+              await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {
+                from: arbitrator
+              })
+
+              const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+              const expectedBalanceOfChallenger = itemBalance
+                .plus(challengerBalance)
+                .minus(new BigNumber(stake).mul(4))
+                .minus(new BigNumber(arbitrationFee).mul(3))
+
+              assert(
+                actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+                'Difference: ' +
+                  actualBalanceOfChallenger
+                    .minus(expectedBalanceOfChallenger)
+                    .toNumber()
+              )
+
+              assert.equal(
+                (await arbitrableTokenList.items(
+                  ARBITRARY_STRING
+                ))[0].toNumber(),
+                ITEM_STATUS.CLEARED
+              )
+            })
+
+            it.skip('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the cleared state', async function() {
+              const submitter = (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[2]
+              const challenger = (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[3]
+              const submitterBalance = web3.eth.getBalance(submitter)
+              const challengerBalance = web3.eth.getBalance(challenger)
+              const itemBalance = (await arbitrableTokenList.items(
+                ARBITRARY_STRING
+              ))[4]
+
+              await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
+                from: arbitrator
+              })
+
+              const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+              const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+              const expectedBalanceOfSubmitter = itemBalance
+                .dividedBy(new BigNumber(2))
+                .plus(submitterBalance)
+              const expectedBalanceOfChallenger = itemBalance
+                .dividedBy(new BigNumber(2))
+                .plus(challengerBalance)
+                .minus(new BigNumber(stake).mul(2))
+                .minus(new BigNumber(arbitrationFee).mul(3).dividedBy(2))
+
+              assert(
+                actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+                'Actual: ' +
+                  actualBalanceOfSubmitter +
+                  '\t0Expected: ' +
+                  expectedBalanceOfSubmitter
+              )
+              assert(
+                actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+                '1Differece: ' +
+                  actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
+              )
+
+              assert.equal(
+                (await arbitrableTokenList.items(
+                  ARBITRARY_STRING
+                ))[0].toNumber(),
+                ITEM_STATUS.CLEARED
+              )
+            })
+          })
         })
-      }
+
+      describe('When item in registered state', function() {
+        beforeEach('prepare pre-conditions', async function() {
+          await arbitrableTokenList.requestRegistration(
+            ARBITRARY_STRING,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            centralizedArbitrator.address,
+            {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            }
+          )
+          await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+            from: arbitrator
+          })
+        })
+
+        beforeEach('assert pre-conditions', async function() {
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0],
+            ITEM_STATUS.REGISTERED
+          )
+        })
+
+        it('calling isPermitted should return ' + !blacklist, async () => {
+          assert.equal(
+            await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
+            !blacklist
+          )
+        })
+
+        it('calling requestRegistration should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.requestRegistration(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
+                from: arbitrator,
+                value: stake + arbitrationCost
+              }
+            )
+          )
+        })
+
+        it.skip('calling requestClearing should move item into the clearing requested state', async () => {
+          await arbitrableTokenList.requestClearing(
+            ARBITRARY_STRING,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            centralizedArbitrator.address,
+            {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            }
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+            ITEM_STATUS.CLEARING_REQUESTED
+          )
+        })
+
+        it('calling challengeRegistration should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            })
+          )
+        })
+
+        it('calling challengeClearing should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+              from: arbitrator,
+              value: stake + arbitrationCost
+            })
+          )
+        })
+
+        it('calling executeRequest should revert', async function() {
+          await expectThrow(
+            arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+              from: arbitrator
+            })
+          )
+        })
+      })
 
       describe('When item in submitted state', function() {
         beforeEach('prepare pre-conditions', async function() {
@@ -1289,573 +1226,499 @@ contract('ArbitrableTokenList', function(accounts) {
         })
       })
 
-      if (!rechallengePossible) {
-        if (!appendOnly)
-          describe.skip('When item in clearing requested state', function() {
-            beforeEach('prepare pre-conditions', async function() {
-              await arbitrableTokenList.requestRegistration(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: partyA,
-                  value: stake + arbitrationCost
-                }
-              )
-              await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: partyA
-              })
-              await arbitrableTokenList.requestClearing(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: partyB,
-                  value: stake + arbitrationCost
-                }
-              )
-            })
+      describe.skip('When item in clearing requested state', function() {
+        beforeEach('prepare pre-conditions', async function() {
+          await arbitrableTokenList.requestRegistration(
+            ARBITRARY_STRING,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            centralizedArbitrator.address,
+            {
+              from: partyA,
+              value: stake + arbitrationCost
+            }
+          )
+          await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+            from: partyA
+          })
+          await arbitrableTokenList.requestClearing(
+            ARBITRARY_STRING,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            centralizedArbitrator.address,
+            {
+              from: partyB,
+              value: stake + arbitrationCost
+            }
+          )
+        })
 
-            beforeEach('assert pre-conditions', async function() {
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber(),
-                ITEM_STATUS.CLEARING_REQUESTED
-              )
-            })
+        beforeEach('assert pre-conditions', async function() {
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+            ITEM_STATUS.CLEARING_REQUESTED
+          )
+        })
 
-            it.skip(
-              'calling isPermitted should return ' + !blacklist,
-              async () => {
-                assert.equal(
-                  await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
-                  !blacklist
-                )
-              }
-            )
+        it.skip('calling isPermitted should return ' + !blacklist, async () => {
+          assert.equal(
+            await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
+            !blacklist
+          )
+        })
 
-            it.skip('calling requestRegistration should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.requestRegistration(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: partyA,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
-            })
-
-            it.skip('calling requestClearing should revert', async function() {
-              await expectThrow(
-                arbitrableTokenList.requestClearing(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: partyB,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
-            })
-
-            it.skip('calling challengeRegistration should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
-                  from: partyB,
-                  value: stake + arbitrationCost
-                })
-              )
-            })
-
-            it.skip('calling challangeClearing should create a dispute', async function() {
-              const itemBalance = (await arbitrableTokenList.items(
-                ARBITRARY_STRING
-              ))[4].toNumber()
-
-              await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+        it.skip('calling requestRegistration should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.requestRegistration(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
                 from: partyA,
                 value: stake + arbitrationCost
-              })
-              const disputeID = (await arbitrableTokenList.items(
-                ARBITRARY_STRING
-              ))[6].toNumber()
+              }
+            )
+          )
+        })
 
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3].toString(),
-                partyA
-              )
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4].toNumber(),
-                itemBalance + stake
-              )
-              assert.equal(
-                (await arbitrableTokenList.items(ARBITRARY_STRING))[5],
-                true
-              )
-              assert.equal(
-                web3.toUtf8(
-                  await arbitrableTokenList.disputeIDToItem(disputeID)
-                ),
-                ARBITRARY_STRING
-              )
+        it.skip('calling requestClearing should revert', async function() {
+          await expectThrow(
+            arbitrableTokenList.requestClearing(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
+                from: partyB,
+                value: stake + arbitrationCost
+              }
+            )
+          )
+        })
+
+        it.skip('calling challengeRegistration should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
+              from: partyB,
+              value: stake + arbitrationCost
             })
+          )
+        })
 
-            it.skip('calling executeRequest should move item into the blacklisted state', async function() {
-              await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: partyA
-              })
+        it.skip('calling challangeClearing should create a dispute', async function() {
+          const itemBalance = (await arbitrableTokenList.items(
+            ARBITRARY_STRING
+          ))[4].toNumber()
 
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber(),
-                ITEM_STATUS.CLEARED
-              )
-            })
+          await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+            from: partyA,
+            value: stake + arbitrationCost
+          })
+          const disputeID = (await arbitrableTokenList.items(
+            ARBITRARY_STRING
+          ))[6].toNumber()
 
-            describe('executeRuling', async function() {
-              let disputeID
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[3].toString(),
+            partyA
+          )
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[4].toNumber(),
+            itemBalance + stake
+          )
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[5],
+            true
+          )
+          assert.equal(
+            web3.toUtf8(await arbitrableTokenList.disputeIDToItem(disputeID)),
+            ARBITRARY_STRING
+          )
+        })
 
-              beforeEach('create a dispute', async function() {
-                await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
-                  from: partyB,
-                  value: stake + arbitrationCost
-                })
-
-                disputeID = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[6].toNumber()
-              })
-
-              it.skip('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
-                const challenger = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3]
-                const challengerBalance = web3.eth.getBalance(challenger)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.REGISTER,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfChallenger = web3.eth.getBalance(
-                  challenger
-                )
-                const expectedBalanceOfChallenger = challengerBalance
-                  .plus(itemBalance)
-                  .minus(new BigNumber(stake).mul(3))
-                  .minus(new BigNumber(arbitrationFee).mul(2))
-
-                assert(
-                  actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
-                  'Difference: ' +
-                    actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
-                )
-
-                // assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance);
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.REGISTERED
-                )
-              })
-
-              it.skip('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
-                const submitter = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[2]
-                const submitterBalance = web3.eth.getBalance(submitter)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.CLEAR,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
-                const expectedBalanceOfSubmitter = submitterBalance
-                  .plus(itemBalance)
-                  .minus(new BigNumber(stake).mul(3))
-                  .minus(new BigNumber(arbitrationFee).mul(2))
-
-                assert(
-                  actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
-                  'Difference: ' +
-                    actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
-                )
-
-                // assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance);
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.CLEARED
-                )
-              })
-
-              it.skip('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the registered state', async function() {
-                const submitter = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[2]
-                const challenger = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3]
-                const submitterBalance = web3.eth.getBalance(submitter)
-                const challengerBalance = web3.eth.getBalance(challenger)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-                const disputeID = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[6]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.OTHER,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
-                const actualBalanceOfChallenger = web3.eth.getBalance(
-                  challenger
-                )
-                const expectedBalanceOfSubmitter = itemBalance
-                  .dividedBy(2)
-                  .plus(submitterBalance)
-                const expectedBalanceOfChallenger = itemBalance
-                  .dividedBy(2)
-                  .plus(challengerBalance)
-
-                assert(
-                  actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
-                  'Difference: ' +
-                    actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
-                )
-                assert(
-                  actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
-                  'Difference: ' +
-                    actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
-                )
-
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.REGISTERED
-                )
-              })
-            })
+        it.skip('calling executeRequest should move item into the blacklisted state', async function() {
+          await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+            from: partyA
           })
 
-        if (!appendOnly)
-          describe('When item in preventive clearing requested state', function() {
-            beforeEach('prepare pre-conditions', async function() {
-              await arbitrableTokenList.requestClearing(
-                ARBITRARY_STRING,
-                metaEvidence,
-                REQUEST.arbitrationFeesWaitingTime,
-                centralizedArbitrator.address,
-                {
-                  from: partyB,
-                  value: stake + arbitrationCost
-                }
-              )
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+            ITEM_STATUS.CLEARED
+          )
+        })
+
+        describe('executeRuling', async function() {
+          let disputeID
+
+          beforeEach('create a dispute', async function() {
+            await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+              from: partyB,
+              value: stake + arbitrationCost
             })
 
-            beforeEach('assert pre-conditions', async function() {
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber(),
-                ITEM_STATUS.PREVENTIVE_CLEARING_REQUESTED
-              )
+            disputeID = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[6].toNumber()
+          })
+
+          it.skip('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
+            const challenger = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[3]
+            const challengerBalance = web3.eth.getBalance(challenger)
+            const itemBalance = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[4]
+
+            await centralizedArbitrator.giveRuling(disputeID, RULING.REGISTER, {
+              from: arbitrator
             })
 
-            it(
-              'calling isPermitted on a not-disputed item should return ' +
-                blacklist,
-              async () => {
-                assert.equal(
-                  await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
-                  blacklist
-                )
-              }
+            const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+            const expectedBalanceOfChallenger = challengerBalance
+              .plus(itemBalance)
+              .minus(new BigNumber(stake).mul(3))
+              .minus(new BigNumber(arbitrationFee).mul(2))
+
+            assert(
+              actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+              'Difference: ' +
+                actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
             )
 
-            it(
-              'calling isPermitted on a disputed item should return ' +
-                blacklist,
-              async () => {
-                await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
-                  from: partyA,
-                  value: stake + arbitrationCost
-                }) // To satisfy disputed pre-condition
+            // assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance);
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+              ITEM_STATUS.REGISTERED
+            )
+          })
 
-                assert.equal(
-                  await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
-                  !blacklist
-                )
-              }
+          it.skip('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
+            const submitter = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[2]
+            const submitterBalance = web3.eth.getBalance(submitter)
+            const itemBalance = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[4]
+
+            await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {
+              from: arbitrator
+            })
+
+            const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+            const expectedBalanceOfSubmitter = submitterBalance
+              .plus(itemBalance)
+              .minus(new BigNumber(stake).mul(3))
+              .minus(new BigNumber(arbitrationFee).mul(2))
+
+            assert(
+              actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+              'Difference: ' +
+                actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
             )
 
-            it('calling requestRegistration should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.requestRegistration(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: partyA,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
+            // assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance);
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+              ITEM_STATUS.CLEARED
+            )
+          })
+
+          it.skip('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the registered state', async function() {
+            const submitter = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[2]
+            const challenger = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[3]
+            const submitterBalance = web3.eth.getBalance(submitter)
+            const challengerBalance = web3.eth.getBalance(challenger)
+            const itemBalance = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[4]
+            const disputeID = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[6]
+
+            await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
+              from: arbitrator
             })
 
-            it('calling requestClearing should revert', async function() {
-              await expectThrow(
-                arbitrableTokenList.requestClearing(
-                  ARBITRARY_STRING,
-                  metaEvidence,
-                  REQUEST.arbitrationFeesWaitingTime,
-                  centralizedArbitrator.address,
-                  {
-                    from: partyB,
-                    value: stake + arbitrationCost
-                  }
-                )
-              )
-            })
+            const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+            const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+            const expectedBalanceOfSubmitter = itemBalance
+              .dividedBy(2)
+              .plus(submitterBalance)
+            const expectedBalanceOfChallenger = itemBalance
+              .dividedBy(2)
+              .plus(challengerBalance)
 
-            it('calling challengeRegistration should revert', async () => {
-              await expectThrow(
-                arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
-                  from: partyB,
-                  value: stake + arbitrationCost
-                })
-              )
-            })
+            assert(
+              actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+              'Difference: ' +
+                actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
+            )
+            assert(
+              actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+              'Difference: ' +
+                actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
+            )
 
-            it('calling challangeClearing should create a dispute', async function() {
-              const itemBalance = (await arbitrableTokenList.items(
-                ARBITRARY_STRING
-              ))[4].toNumber()
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+              ITEM_STATUS.REGISTERED
+            )
+          })
+        })
+      })
 
-              await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+      describe('When item in preventive clearing requested state', function() {
+        beforeEach('prepare pre-conditions', async function() {
+          await arbitrableTokenList.requestClearing(
+            ARBITRARY_STRING,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            centralizedArbitrator.address,
+            {
+              from: partyB,
+              value: stake + arbitrationCost
+            }
+          )
+        })
+
+        beforeEach('assert pre-conditions', async function() {
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+            ITEM_STATUS.PREVENTIVE_CLEARING_REQUESTED
+          )
+        })
+
+        it(
+          'calling isPermitted on a not-disputed item should return ' +
+            blacklist,
+          async () => {
+            assert.equal(
+              await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
+              blacklist
+            )
+          }
+        )
+
+        it(
+          'calling isPermitted on a disputed item should return ' + blacklist,
+          async () => {
+            await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+              from: partyA,
+              value: stake + arbitrationCost
+            }) // To satisfy disputed pre-condition
+
+            assert.equal(
+              await arbitrableTokenList.isPermitted(ARBITRARY_STRING),
+              !blacklist
+            )
+          }
+        )
+
+        it('calling requestRegistration should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.requestRegistration(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
                 from: partyA,
                 value: stake + arbitrationCost
-              })
+              }
+            )
+          )
+        })
 
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3].toString(),
-                partyA
-              )
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4].toNumber(),
-                itemBalance + stake
-              )
-              const disputeID = (await arbitrableTokenList.items(
-                ARBITRARY_STRING
-              ))[6].toNumber()
-              assert.equal(
-                (await arbitrableTokenList.items(ARBITRARY_STRING))[5],
-                true
-              )
-              assert.equal(
-                web3.toUtf8(
-                  await arbitrableTokenList.disputeIDToItem(disputeID)
-                ),
-                ARBITRARY_STRING
-              )
+        it('calling requestClearing should revert', async function() {
+          await expectThrow(
+            arbitrableTokenList.requestClearing(
+              ARBITRARY_STRING,
+              metaEvidence,
+              REQUEST.arbitrationFeesWaitingTime,
+              centralizedArbitrator.address,
+              {
+                from: partyB,
+                value: stake + arbitrationCost
+              }
+            )
+          )
+        })
+
+        it('calling challengeRegistration should revert', async () => {
+          await expectThrow(
+            arbitrableTokenList.challengeRegistration(ARBITRARY_STRING, {
+              from: partyB,
+              value: stake + arbitrationCost
             })
+          )
+        })
 
-            it('calling executeRequest should move item into the blacklisted state', async function() {
-              await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
-                from: arbitrator
-              })
+        it('calling challangeClearing should create a dispute', async function() {
+          const itemBalance = (await arbitrableTokenList.items(
+            ARBITRARY_STRING
+          ))[4].toNumber()
 
-              assert.equal(
-                (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[0].toNumber(),
-                ITEM_STATUS.CLEARED
-              )
-            })
-
-            describe.skip('executeRuling', async function() {
-              let disputeID
-
-              beforeEach('create a dispute', async function() {
-                await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
-                  from: partyB,
-                  value: stake + arbitrationCost
-                })
-
-                disputeID = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[6].toNumber()
-              })
-
-              it.skip('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
-                const challenger = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3]
-                const challengerBalance = web3.eth.getBalance(challenger)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.REGISTER,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfChallenger = web3.eth.getBalance(
-                  challenger
-                )
-                const expectedBalanceOfChallenger = challengerBalance.plus(
-                  itemBalance
-                )
-
-                assert(
-                  actualBalanceOfChallenger.equals(expectedBalanceOfChallenger)
-                )
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.REGISTERED
-                )
-              })
-
-              it.skip('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
-                const submitter = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[2]
-                const submitterBalance = web3.eth.getBalance(submitter)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.CLEAR,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
-                const expectedBalanceOfSubmitter = itemBalance.plus(
-                  submitterBalance
-                )
-
-                assert(
-                  actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter)
-                )
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.CLEARED
-                )
-              })
-
-              it.skip('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
-                const submitter = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[2]
-                const challenger = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[3]
-                const submitterBalance = web3.eth.getBalance(submitter)
-                const challengerBalance = web3.eth.getBalance(challenger)
-                const itemBalance = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[4]
-                const disputeID = (await arbitrableTokenList.items(
-                  ARBITRARY_STRING
-                ))[6]
-
-                await centralizedArbitrator.giveRuling(
-                  disputeID,
-                  RULING.OTHER,
-                  {
-                    from: arbitrator
-                  }
-                )
-
-                const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
-                const actualBalanceOfChallenger = web3.eth.getBalance(
-                  challenger
-                )
-                const expectedBalanceOfSubmitter = itemBalance
-                  .dividedBy(2)
-                  .plus(submitterBalance)
-                  .plus(new BigNumber(stake))
-                  .plus(new BigNumber(arbitrationFee).dividedBy(2))
-                const expectedBalanceOfChallenger = itemBalance
-                  .dividedBy(2)
-                  .plus(challengerBalance)
-                  .plus(new BigNumber(stake))
-                  .plus(new BigNumber(arbitrationFee).dividedBy(2))
-
-                assert(
-                  actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
-                  'Difference: ' +
-                    actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
-                )
-                assert(
-                  actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
-                  'Difference: ' +
-                    actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
-                )
-
-                assert.equal(
-                  (await arbitrableTokenList.items(
-                    ARBITRARY_STRING
-                  ))[0].toNumber(),
-                  ITEM_STATUS.ABSENT
-                )
-              })
-            })
+          await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+            from: partyA,
+            value: stake + arbitrationCost
           })
-      }
+
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[3].toString(),
+            partyA
+          )
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[4].toNumber(),
+            itemBalance + stake
+          )
+          const disputeID = (await arbitrableTokenList.items(
+            ARBITRARY_STRING
+          ))[6].toNumber()
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[5],
+            true
+          )
+          assert.equal(
+            web3.toUtf8(await arbitrableTokenList.disputeIDToItem(disputeID)),
+            ARBITRARY_STRING
+          )
+        })
+
+        it('calling executeRequest should move item into the blacklisted state', async function() {
+          await arbitrableTokenList.executeRequest(ARBITRARY_STRING, {
+            from: arbitrator
+          })
+
+          assert.equal(
+            (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+            ITEM_STATUS.CLEARED
+          )
+        })
+
+        describe.skip('executeRuling', async function() {
+          let disputeID
+
+          beforeEach('create a dispute', async function() {
+            await arbitrableTokenList.challengeClearing(ARBITRARY_STRING, {
+              from: partyB,
+              value: stake + arbitrationCost
+            })
+
+            disputeID = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[6].toNumber()
+          })
+
+          it.skip('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
+            const challenger = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[3]
+            const challengerBalance = web3.eth.getBalance(challenger)
+            const itemBalance = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[4]
+
+            await centralizedArbitrator.giveRuling(disputeID, RULING.REGISTER, {
+              from: arbitrator
+            })
+
+            const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+            const expectedBalanceOfChallenger = challengerBalance.plus(
+              itemBalance
+            )
+
+            assert(
+              actualBalanceOfChallenger.equals(expectedBalanceOfChallenger)
+            )
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+              ITEM_STATUS.REGISTERED
+            )
+          })
+
+          it.skip('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
+            const submitter = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[2]
+            const submitterBalance = web3.eth.getBalance(submitter)
+            const itemBalance = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[4]
+
+            await centralizedArbitrator.giveRuling(disputeID, RULING.CLEAR, {
+              from: arbitrator
+            })
+
+            const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+            const expectedBalanceOfSubmitter = itemBalance.plus(
+              submitterBalance
+            )
+
+            assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter))
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+              ITEM_STATUS.CLEARED
+            )
+          })
+
+          it.skip('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
+            const submitter = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[2]
+            const challenger = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[3]
+            const submitterBalance = web3.eth.getBalance(submitter)
+            const challengerBalance = web3.eth.getBalance(challenger)
+            const itemBalance = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[4]
+            const disputeID = (await arbitrableTokenList.items(
+              ARBITRARY_STRING
+            ))[6]
+
+            await centralizedArbitrator.giveRuling(disputeID, RULING.OTHER, {
+              from: arbitrator
+            })
+
+            const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+            const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+            const expectedBalanceOfSubmitter = itemBalance
+              .dividedBy(2)
+              .plus(submitterBalance)
+              .plus(new BigNumber(stake))
+              .plus(new BigNumber(arbitrationFee).dividedBy(2))
+            const expectedBalanceOfChallenger = itemBalance
+              .dividedBy(2)
+              .plus(challengerBalance)
+              .plus(new BigNumber(stake))
+              .plus(new BigNumber(arbitrationFee).dividedBy(2))
+
+            assert(
+              actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+              'Difference: ' +
+                actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
+            )
+            assert(
+              actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+              'Difference: ' +
+                actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
+            )
+
+            assert.equal(
+              (await arbitrableTokenList.items(ARBITRARY_STRING))[0].toNumber(),
+              ITEM_STATUS.ABSENT
+            )
+          })
+        })
+      })
     }
   )
 })
