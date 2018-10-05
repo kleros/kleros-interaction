@@ -78,6 +78,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     mapping(uint => bytes32) public disputeIDToItem;
     bytes32[] public itemsList;
 
+    // Agreement count
+    mapping(bytes32 => uint) public itemIDToAgreementCount;
+
     /* Constructor */
 
     /**
@@ -301,7 +304,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
         require(!item.disputed, "The item is still disputed.");
 
-        Agreement storage agreement = agreements[_value];
+        bytes32 agreementID = latestAgreementId(_value);
+        Agreement storage agreement = agreements[agreementID];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(!agreement.executed, "The specified agreement has already been executed.");
         require(!agreement.disputed, "The specified agreement is disputed.");
@@ -322,6 +326,15 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /* Public Views */
 
     /**
+     *  @dev Returns the latest agreement for an item
+     *  @param _value The value of the item to check.
+     *  @return The latest agreementID
+     */
+    function latestAgreementId(bytes32 _value) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(_value, itemIDToAgreementCount[_value]));
+    }
+
+    /**
      *  @dev Return true if the item is allowed.
      *  We consider the item to be in the list if its status is contested and it has not won a dispute previously.
      *  @param _value The value of the item to check.
@@ -335,6 +348,38 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     }
 
     /* Internal */
+
+    /** @dev Extends parent to use counter identify agreements.
+     *  @param _value The item id.
+     *  @param _metaEvidence The meta evidence of the agreement.
+     *  @param _parties The `parties` value of the agreement.
+     *  @param _numberOfChoices The `numberOfChoices` value of the agreement.
+     *  @param _extraData The `extraData` value of the agreement.
+     *  @param _arbitrationFeesWaitingTime The `arbitrationFeesWaitingTime` value of the agreement.
+     *  @param _arbitrator The `arbitrator` value of the agreement.
+     */
+    function _createAgreement(
+        bytes32 _value,
+        string _metaEvidence,
+        address[] _parties,
+        uint _numberOfChoices,
+        bytes _extraData,
+        uint _arbitrationFeesWaitingTime,
+        Arbitrator _arbitrator
+    ) internal {
+        itemIDToAgreementCount[_value]++;
+        bytes32 agreementID = keccak256(abi.encodePacked(_value, itemIDToAgreementCount[_value]));
+
+        super._createAgreement(
+            agreementID,
+            _metaEvidence,
+            _parties,
+            _numberOfChoices,
+            _extraData,
+            _arbitrationFeesWaitingTime,
+            _arbitrator
+        );
+    }
 
     /** @dev Executes the ruling on the specified agreement.
      *  @param _agreementID The ID of the agreement.
