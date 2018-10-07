@@ -49,12 +49,14 @@ contract TwoPartyArbitrableEscrowPayment is Arbitrable {
 
     function executePayment() public onlySenderOrReceiver {
         require(now - createdAt > timeOut, "The timeout time has not passed yet.");
+        require(!disputed, "The payment is disputed.");
         require(!executed, "The payment was already executed.");
         executed = true;
         receiver.send(value);
     }
 
     function executeRuling(uint _disputeID, uint _ruling) internal {
+        require(disputed, "The payment is not disputed.");
         require(_disputeID == disputeID, "Wrong dispute ID.");
         require(!executed, "The payment was already executed.");
         executed = true;
