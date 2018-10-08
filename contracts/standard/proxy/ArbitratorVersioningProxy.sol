@@ -12,13 +12,9 @@ import "./VersioningProxy.sol";
 contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
     /* Structs */
 
-<<<<<<< HEAD
-    struct Dispute {
-=======
     // Warning! Overrides DisputeStruct from parent.
     struct DisputeStruct {
         Arbitrable arbitrated;
->>>>>>> d492409... refactor(proxy): make proxy an arbitrable
         Arbitrator arbitrator;
         uint256 disputeID;
         uint256 choices;
@@ -34,11 +30,7 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
      * @notice Constructs the arbitrator versioning proxy with the first arbitrator contract version address and tags it v0.0.1.
      * @param _firstAddress The address of the first arbitrator contract version.
      */
-<<<<<<< HEAD
-    constructor(Arbitrator _firstAddress) VersioningProxy("0.0.1", _firstAddress) public {}
-=======
     constructor(Arbitrator _firstAddress) VersioningProxy("0.0.1", _firstAddress) public Arbitrable(Arbitrator(msg.sender), "") {}
->>>>>>> d492409... refactor(proxy): make proxy an arbitrable
 
     /* Public */
 
@@ -106,8 +98,6 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
     function disputeStatus(uint256 _disputeID) public view returns(Arbitrator.DisputeStatus _status) {
         return disputes[_disputeID].arbitrator.disputeStatus(disputes[_disputeID].disputeID);
     }
-<<<<<<< HEAD
-=======
 
     function rule(uint _disputeID, uint _ruling) public {
         emit Ruling(Arbitrator(msg.sender),_disputeID,_ruling);
@@ -119,5 +109,4 @@ contract ArbitratorVersioningProxy is Arbitrator, VersioningProxy {
         disputes[_disputeID].arbitrated.rule(localIDToImplementationsDisputeID[_disputeID], _ruling);
     }
 
->>>>>>> d492409... refactor(proxy): make proxy an arbitrable
 }
