@@ -198,10 +198,66 @@ contract('ArbitrableVersioningProxy', function(accounts) {
     console.log((await ARBITRATOR.disputes(0))[4].toNumber())
     //await arbitratorVersioningProxy.appeal(DISPUTE_ID, EXTRA_DATA, {gas: 1000000, value: 1})
 
+<<<<<<< HEAD
     //await ARBITRATOR.appeal(DISPUTE_ID, EXTRA_DATA, {gas: 1000000, value: 100000000})
+=======
+  })
+
+  it('should retrieve dispute status', async function(){
+    const CHOICES = 217 // Arbitrary
+    const EXTRA_DATA = "EXTRA_DATA"
+
+    await arbitratorVersioningProxy.createDispute(CHOICES, EXTRA_DATA, {value: 1000000})
+
+    const IMPLEMENTATION_ADDRESS = await arbitratorVersioningProxy.implementation()
+
+    const ARBITRATOR = APPEALABLE_ARBITRATOR.at(IMPLEMENTATION_ADDRESS)
+
+    const DISPUTE_ID = 0 // First dispute has the ID 0
+    const RULING = CHOICES - 1 // Arbitrary
+
+    const EXPECTED = await ARBITRATOR.disputeStatus(DISPUTE_ID)
+    const ACTUAL = await arbitratorVersioningProxy.disputeStatus(DISPUTE_ID)
+
+    assert(ACTUAL.equals(EXPECTED))
+  })
+
+  it('should appeal even when contract gets upgraded during the process', async function(){ // THIS IS REVERTING, COULDN'T FIND WHY
+    const CHOICES = Math.floor((Math.random() * 100) + 1); // Arbitrary
+    const CHOISES_INDEX = 1
+    const EXTRA_DATA = "EXTRA_DATA"
+    const DISPUTE_ID = 0 // First dispute has the ID 0
+    const RULING = CHOICES - 1 // Arbitrary
+
+    await arbitratorVersioningProxy.createDispute(CHOICES, EXTRA_DATA, {value: 5})
+
+    let implementation_address = await arbitratorVersioningProxy.implementation()
+    let arbitrator = APPEALABLE_ARBITRATOR.at(implementation_address)
+
+    await arbitrator.giveRuling(DISPUTE_ID, RULING)
+
+    const ORIGINAL_DISPUTE = await arbitrator.disputes(DISPUTE_ID)
+>>>>>>> 477129e... test(proxy): finish tests, 1 fails when upgrade in-between
 
     await ARBITRATOR.appealCost(DISPUTE_ID, EXTRA_DATA) // Why does this revert?
   })
 
+<<<<<<< HEAD
+=======
+  // it('should rule', async function(){
+  //   const CHOICES = Math.floor((Math.random() * 100) + 1); // Arbitrary
+  //   const CHOISES_INDEX = 1
+  //   const EXTRA_DATA = "EXTRA_DATA"
+  //   const DISPUTE_ID = 0 // First dispute has the ID 0
+  //   const RULING = CHOICES - 1 // Arbitrary
+  //
+  //   await arbitratorVersioningProxy.createDispute(CHOICES, EXTRA_DATA, {value: 5})
+  //
+  //   let implementation_address = await arbitratorVersioningProxy.implementation()
+  //   let arbitrator = APPEALABLE_ARBITRATOR.at(implementation_address)
+  //
+  //   await arbitratorVersioningProxy.rule(DISPUTE_ID, RULING)  // Only the implementation can call it, not testable.
+  // })
+>>>>>>> 477129e... test(proxy): finish tests, 1 fails when upgrade in-between
 
 })
