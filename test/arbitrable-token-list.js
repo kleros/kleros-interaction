@@ -65,7 +65,7 @@ contract('ArbitrableTokenList', function(accounts) {
   const appendOnly = false
   const rechallengePossible = false
 
-  describe('queryItems', function() {
+  describe.skip('queryItems', function() {
     before('setup contract for each test', async () => {
       centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {
         from: arbitrator
@@ -205,7 +205,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe(
+  describe.skip(
     'When appendOnly=' +
       appendOnly +
       ', blacklist=' +

@@ -36,10 +36,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         uint lastAction; // Time of the last action.
         address submitter; // Address of the submitter of the item status change request, if any.
         address challenger; // Address of the challenger, if any.
-        // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
+        // The total amount of funds to be given to the winner of a potential dispute. Includes challengeReward and reimbursement of arbitration fees.
         uint balance;
-        bool disputed; // True if a dispute is taking place.
-        uint disputeID; // ID of the dispute, if any.
     }
 
     /* Events */
@@ -66,7 +64,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
     bool public appendOnly; // True if the list should be append only.
     bool public rechallengePossible; // True if items winning their disputes can be challenged again.
-    uint public stake; // The stake to put to submit/clear/challenge an item in addition of arbitration fees.
+    uint public challengeReward; // The challengeReward to put to submit/clear/challenge an item in addition of arbitration fees.
     uint public timeToChallenge; // The time before which an action is executable if not challenged.
 
     // Ruling Options
@@ -78,8 +76,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     mapping(uint => bytes32) public disputeIDToItem;
     bytes32[] public itemsList;
 
-    // Agreement count
+    // Agreement and Item extension
     mapping(bytes32 => uint) public itemIDToAgreementCount;
+    mapping(bytes32 => bytes32) public agreementIDtoItemID;
 
     /* Constructor */
 
@@ -91,10 +90,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
      *  @param _appendOnly True if the list should be append only.
      *  @param _rechallengePossible True if it is possible to challenge again a submission which has won a dispute.
-     *  @param _listStake The amount in Weis of deposit required for a submission or a challenge in addition of the arbitration fees.
+     *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition of the arbitration fees.
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      *  @param _feeGovernor The fee governor of this contract.
-     *  @param _feeStake The stake parameter for sharing fees.
+     *  @param _stake The stake parameter for sharing fees.
      */
     constructor(
         Arbitrator _arbitrator,
@@ -103,16 +102,16 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         bool _blacklist,
         bool _appendOnly,
         bool _rechallengePossible,
-        uint _listStake,
+        uint _challengeReward,
         uint _timeToChallenge,
         address _feeGovernor,
-        uint _feeStake
-    ) public MultiPartyInsurableArbitrableAgreementsBase(_arbitrator, _arbitratorExtraData, _feeGovernor, _feeStake){
+        uint _stake
+    ) public MultiPartyInsurableArbitrableAgreementsBase(_arbitrator, _arbitratorExtraData, _feeGovernor, _stake){
         emit MetaEvidence(0, _metaEvidence);
         blacklist = _blacklist;
         appendOnly = _appendOnly;
         rechallengePossible = _rechallengePossible;
-        stake = _listStake;
+        challengeReward = _challengeReward;
         timeToChallenge = _timeToChallenge;
     }
 
@@ -133,7 +132,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     ) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
+        require(msg.value >= challengeReward + arbitratorCost, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
             item.status = ItemStatus.Submitted;
@@ -163,7 +162,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _arbitrator
         );
 
-        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
+        bool disputed = agreements[latestAgreementId(_value)].disputed;
+
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, disputed);
     }
 
     /**
@@ -182,7 +183,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(!appendOnly, "List is append only.");
-        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
+        require(msg.value >= challengeReward + arbitratorCost, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
             item.status = ItemStatus.ClearingRequested;
@@ -212,78 +213,23 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _arbitrator
         );
 
-        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
+        bool disputed = agreements[latestAgreementId(_value)].disputed;
+
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, disputed);
     }
 
-    /**
-     *  @dev Challenge a registration request.
-     *  @param _value The value of the item subject to the registering request.
+    /** @dev Extends parent to save information specific to Arbitrable Token List.
+     *  @param _agreementID The ID of the agreement.
+     *  @param _side The side. 0 for the side that lost the previous round, if any, and 1 for the one that won.
      */
-    function challengeRegistration(bytes32 _value) public payable {
-        Item storage item = items[_value];
-        uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
-        require(item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted, "Item in wrong status for challenging.");
-        require(!item.disputed, "Item cannot be challenged because it is already under dispute.");
+    function fundDispute(bytes32 _agreementID, uint _side) public payable {
+        PaidFees storage _paidFees = paidFees[_agreementID];
 
-        if (item.balance >= arbitratorCost) { // In the general case, create a dispute.
-            item.challenger = msg.sender;
-            item.balance += msg.value-arbitratorCost;
-            item.disputed = true;
-            item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
-            disputeIDToItem[item.disputeID] = _value;
-            emit Dispute(arbitrator, item.disputeID, 0);
-        } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
-            if (item.status == ItemStatus.Resubmitted)
-                item.status = ItemStatus.Cleared;
-            else
-                item.status = ItemStatus.Absent;
+        if (_paidFees.firstContributionTime == 0) {
+            // Initial funding
 
-            item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-            item.balance = 0;
-            msg.sender.transfer(msg.value);
         }
-
-        item.lastAction = now;
-
-        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
-    }
-
-    /**
-     *  @dev Challenge a clearing request.
-     *  @param _value The value of the item subject to the clearing request.
-     */
-    function challengeClearing(bytes32 _value) public payable {
-        Item storage item = items[_value];
-        uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
-        require(
-            item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested,
-            "Item in wrong status for challenging."
-        );
-        require(!item.disputed, "Item cannot be already challenged.");
-
-        if (item.balance >= arbitratorCost) { // In the general case, create a dispute.
-            item.challenger = msg.sender;
-            item.balance += msg.value-arbitratorCost;
-            item.disputed = true;
-            item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
-            disputeIDToItem[item.disputeID] = _value;
-            emit Dispute(arbitrator, item.disputeID, 0);
-        } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
-            if (item.status == ItemStatus.ClearingRequested)
-                item.status = ItemStatus.Registered;
-            else
-                item.status = ItemStatus.Absent;
-
-            item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-            item.balance = 0;
-            msg.sender.transfer(msg.value);
-        }
-
-        item.lastAction = now;
-
-        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
+        super.fundDispute(_agreementID, _side);
     }
 
     /**
@@ -291,8 +237,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _value The value of the item with the dispute to appeal on.
      */
     function appeal(bytes32 _value) public payable {
-        Item storage item = items[_value];
-        arbitrator.appeal.value(msg.value)(item.disputeID,arbitratorExtraData); // Appeal, no need to check anything as the arbitrator does it.
+        Agreement storage latestAgreement = agreements[latestAgreementId(_value)];
+        arbitrator.appeal.value(msg.value)(latestAgreement.disputeID, arbitratorExtraData); // Appeal, no need to check anything as the arbitrator does it.
     }
 
     /**
@@ -301,15 +247,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
-        require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
-        require(!item.disputed, "The item is still disputed.");
-
         bytes32 agreementID = latestAgreementId(_value);
-        Agreement storage agreement = agreements[agreementID];
-        require(agreement.creator != address(0), "The specified agreement does not exist.");
-        require(!agreement.executed, "The specified agreement has already been executed.");
-        require(!agreement.disputed, "The specified agreement is disputed.");
-        agreement.executed = true;
+        Agreement storage latestAgreement = agreements[agreementID];
+        require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
+        require(!latestAgreement.disputed, "The item is still disputed.");
+        require(latestAgreement.creator != address(0), "The specified agreement does not exist.");
+        require(!latestAgreement.executed, "The specified agreement has already been executed.");
+        require(!latestAgreement.disputed, "The specified agreement is disputed.");
+        latestAgreement.executed = true;
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
@@ -319,8 +264,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             revert("Item in wrong status for executing request.");
 
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        item.balance = 0;
 
-        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, latestAgreement.disputed);
     }
 
     /* Public Views */
@@ -342,8 +288,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function isPermitted(bytes32 _value) public view returns (bool allowed) {
         Item storage item = items[_value];
+        Agreement storage latestAgreement = agreements[latestAgreementId(_value)];
         bool _excluded = item.status <= ItemStatus.Resubmitted ||
-            (item.status == ItemStatus.PreventiveClearingRequested && !item.disputed);
+            (item.status == ItemStatus.PreventiveClearingRequested && !latestAgreement.disputed);
         return blacklist ? _excluded : !_excluded; // Items excluded from blacklist should return true.
     }
 
@@ -369,6 +316,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     ) internal {
         itemIDToAgreementCount[_value]++;
         bytes32 agreementID = keccak256(abi.encodePacked(_value, itemIDToAgreementCount[_value]));
+        agreementIDtoItemID[agreementID] = _value;
 
         super._createAgreement(
             agreementID,
@@ -389,14 +337,15 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         super.executeAgreementRuling(_agreementID, _ruling);
         uint256 disputeID = agreements[_agreementID].disputeID;
         Item storage item = items[disputeIDToItem[disputeID]];
-        require(item.disputed, "The item is not disputed.");
+        Agreement storage latestAgreement = agreements[_agreementID];
+        require(latestAgreement.disputed, "The item is not disputed.");
 
         if (_ruling == REGISTER) {
             if (rechallengePossible && item.status==ItemStatus.Submitted) {
                 uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-                if (arbitratorCost + stake < item.balance) { // Check that the balance is enough.
-                    uint toSend = item.balance - (arbitratorCost + stake);
-                    item.submitter.send(toSend); // Keep the arbitration cost and the stake and send the remaining to the submitter.
+                if (arbitratorCost + challengeReward < item.balance) { // Check that the balance is enough.
+                    uint toSend = item.balance - (arbitratorCost + challengeReward);
+                    item.submitter.send(toSend); // Keep the arbitration cost and the challengeReward and send the remaining to the submitter.
                     item.balance -= toSend;
                 }
             } else {
@@ -425,13 +374,13 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.challenger.send(item.balance / 2);
         }
 
-        item.disputed = false;
+        latestAgreement.disputed = false;
         if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER)
             item.lastAction = now; // If the item can be rechallenged, update the time and keep the remaining balance.
         else
             item.balance = 0;
 
-        emit ItemStatusChange(item.submitter, item.challenger, disputeIDToItem[disputeID], item.status, item.disputed);
+        emit ItemStatusChange(item.submitter, item.challenger, disputeIDToItem[disputeID], item.status, latestAgreement.disputed);
     }
 
     /* Interface Views */
@@ -451,7 +400,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     function itemsCounts() public view returns (uint pending, uint challenged, uint accepted, uint rejected) {
         for (uint i = 0; i < itemsList.length; i++) {
             Item storage item = items[itemsList[i]];
-            if (item.disputed) challenged++;
+            Agreement storage latestAgreement = agreements[latestAgreementId(itemsList[i])];
+            if (latestAgreement.disputed) challenged++;
             else if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted) pending++;
             else if (item.status == ItemStatus.Registered) accepted++;
             else if (item.status == ItemStatus.Cleared) rejected++;
@@ -489,13 +439,16 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 _sort ? i < itemsList.length : i <= itemsList.length;
                 i++
             ) { // Oldest or newest first.
-            Item storage item = items[itemsList[_sort ? i : itemsList.length - i]];
+            bytes32 itemID = itemsList[_sort ? i : itemsList.length - i];
+            Item storage item = items[itemID];
+            bytes32 agreementId = latestAgreementId(itemID);
+            Agreement storage latestAgreement = agreements[agreementId];
             if (
                     // solium-disable-next-line operator-whitespace
                     item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
                     // solium-disable-next-line operator-whitespace
                     (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending.
-                    (_filter[1] && item.disputed) || // Challenged.
+                    (_filter[1] && latestAgreement.disputed) || // Challenged.
                     (_filter[2] && item.status == ItemStatus.Registered) || // Accepted.
                     (_filter[3] && item.status == ItemStatus.Cleared) || // Rejected.
                     (_filter[4] && item.submitter == msg.sender) || // My Submissions.

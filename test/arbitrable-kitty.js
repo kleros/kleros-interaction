@@ -732,7 +732,7 @@ contract('ArbitrableKitty', accounts => {
         "should be under A's custody"
       )
 
-      increaseTime(60 * 60 * 24 * 7)
+      increaseTime(60 * 60 * 24 * 7 + 1)
       assert.isTrue(
         await arbitrable.underSendersCustody({ from: PARTY_B }),
         "should be under B's custody"
