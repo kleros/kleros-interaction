@@ -36,7 +36,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         uint lastAction; // Time of the last action.
         address submitter; // Address of the submitter of the item status change request, if any.
         address challenger; // Address of the challenger, if any.
-        // The total amount of funds to be given to the winner of a potential dispute. Includes challengeReward and reimbursement of arbitration fees.
+        // The amount of funds placed at stake for this item. Does not include arbitrationFees
         uint balance;
     }
 
@@ -132,7 +132,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     ) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= challengeReward + arbitratorCost, "Not enough ETH.");
+        require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
             item.status = ItemStatus.Submitted;
@@ -146,7 +146,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         item.submitter = msg.sender;
-        item.balance += msg.value;
+        item.balance += challengeReward;
         item.lastAction = now;
 
         address[] memory _parties = new address[](1);
@@ -163,7 +163,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         bool disputed = agreements[latestAgreementId(_value)].disputed;
-
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, disputed);
     }
 
@@ -183,7 +182,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(!appendOnly, "List is append only.");
-        require(msg.value >= challengeReward + arbitratorCost, "Not enough ETH.");
+        require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
             item.status = ItemStatus.ClearingRequested;
