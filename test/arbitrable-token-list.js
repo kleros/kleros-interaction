@@ -23,7 +23,7 @@ const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
 contract('ArbitrableTokenList', function(accounts) {
   const arbitrator = accounts[1]
   const partyA = accounts[2]
-  // const partyB = accounts[3]
+  const partyB = accounts[3]
   const arbitratorExtraData = 0x08575
   const arbitrationFee = 4
   const challengeReward = 10
@@ -319,6 +319,73 @@ contract('ArbitrableTokenList', function(accounts) {
         itemAfter[4].toNumber(),
         0,
         'challengeRewards should have been sent back to submitter'
+      )
+
+      await expectThrow(
+        // should not allow calling executeRequestAgain
+        arbitrableTokenList.executeRequest(TOKEN_ID)
+      )
+    })
+  })
+
+  describe('requestClearing', () => {
+    beforeEach(async () => {
+      await deployContracts()
+      await arbitrableTokenList.requestRegistration(
+        TOKEN_ID,
+        metaEvidence,
+        REQUEST.arbitrationFeesWaitingTime,
+        centralizedArbitrator.address,
+        {
+          from: partyA,
+          value: challengeReward
+        }
+      )
+      await arbitrableTokenList.executeRequest(TOKEN_ID)
+      const firstAgreementId = await arbitrableTokenList.latestAgreementId(
+        TOKEN_ID
+      )
+      const agreementSetup = await arbitrableTokenList.getAgreementInfo(
+        firstAgreementId
+      )
+
+      assert.equal(agreementSetup[0], partyA, 'partyA should be the creator')
+      assert.equal(
+        agreementSetup[6].toNumber(),
+        0,
+        'there should be no disputes'
+      )
+      assert.equal(agreementSetup[7], false, 'there should be no disputes')
+      assert.equal(agreementSetup[9].toNumber(), 0, 'there should be no ruling')
+      assert.equal(agreementSetup[10], true, 'request should have executed')
+
+      const itemSetup = await arbitrableTokenList.items(TOKEN_ID)
+      assert.equal(
+        itemSetup[0].toNumber(),
+        ITEM_STATUS.REGISTERED,
+        'item should be in registered state'
+      )
+      assert.isAbove(
+        itemSetup[1].toNumber(),
+        0,
+        'time of last action should be above 0'
+      )
+      assert.equal(itemSetup[2], partyA, 'submitter should be partyA')
+      assert.equal(itemSetup[3], 0x0, 'there should be no challenger')
+      assert.equal(
+        itemSetup[4].toNumber(),
+        0,
+        'challengeRewards should have been sent back to submitter'
+      )
+    })
+
+    it('should change item and agreement state for each clearing phase', async () => {
+      await arbitrableTokenList.requestClearing(
+        TOKEN_ID,
+        metaEvidence,
+        REQUEST.arbitrationFeesWaitingTime,
+        centralizedArbitrator.address,
+        { from: partyB, value: challengeReward }
       )
     })
   })
