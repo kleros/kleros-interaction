@@ -65,7 +65,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
     bool public appendOnly; // True if the list should be append only.
     bool public rechallengePossible; // True if items winning their disputes can be challenged again.
-    uint public stake; // The stake to put to submit/clear/challenge an item in addition of arbitration fees.
+    uint public stake; // The stake to put to submit/clear/challenge and item in addition of arbitration fees.
     uint public timeToChallenge; // The time before which an action is executable if not challenged.
 
     // Ruling Options
@@ -116,14 +116,14 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function requestRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
+        require(msg.value >= stake + arbitratorCost);
 
         if (item.status == ItemStatus.Absent)
             item.status = ItemStatus.Submitted;
         else if (item.status == ItemStatus.Cleared)
             item.status = ItemStatus.Resubmitted;
         else
-            revert("Item in wrong status for registration."); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
+            revert(); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
 
         if (item.lastAction == 0) {
             itemsList.push(_value);
@@ -143,15 +143,15 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function requestClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(!appendOnly, "List is append only.");
-        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
+        require(!appendOnly);
+        require(msg.value >= stake + arbitratorCost);
 
         if (item.status == ItemStatus.Registered)
             item.status = ItemStatus.ClearingRequested;
         else if (item.status == ItemStatus.Absent)
             item.status = ItemStatus.PreventiveClearingRequested;
         else
-            revert("Item in wrong status for clearing."); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
+            revert(); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
         
         if (item.lastAction == 0) {
             itemsList.push(_value);
@@ -171,9 +171,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function challengeRegistration(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
-        require(item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted, "Item in wrong status for challenging.");
-        require(!item.disputed, "Item cannot be already challenged.");
+        require(msg.value >= stake + arbitratorCost);
+        require(item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted);
+        require(!item.disputed);
 
         if (item.balance >= arbitratorCost) { // In the general case, create a dispute.
             item.challenger = msg.sender;
@@ -205,12 +205,9 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     function challengeClearing(bytes32 _value) public payable {
         Item storage item = items[_value];
         uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(msg.value >= stake + arbitratorCost, "Not enough ETH.");
-        require(
-            item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested,
-            "Item in wrong status for challenging."
-        );
-        require(!item.disputed, "Item cannot be already challenged.");
+        require(msg.value >= stake + arbitratorCost);
+        require(item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested);
+        require(!item.disputed);
 
         if (item.balance >= arbitratorCost) { // In the general case, create a dispute.
             item.challenger = msg.sender;
@@ -236,7 +233,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     }
 
     /**
-     *  @dev Appeal ruling. Anyone can appeal to prevent a malicious actor from challenging its own submission and losing on purpose.
+     *  @dev Appeal ruling. Anyone can appeal to prevent a malicious actor from challenging its own submission and loosing on purpose.
      *  @param _value The value of the item with the dispute to appeal on.
      */
     function appeal(bytes32 _value) public payable {
@@ -250,15 +247,15 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
-        require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
-        require(!item.disputed, "The item is still disputed.");
+        require(now - item.lastAction >= timeToChallenge);
+        require(!item.disputed);
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
         else if (item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested)
             item.status = ItemStatus.Cleared;
         else
-            revert("Item in wrong status for executing request.");
+            revert();
 
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
         item.balance = 0;
@@ -290,7 +287,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         Item storage item = items[disputeIDToItem[_disputeID]];
-        require(item.disputed, "The item is not disputed.");
+        require(item.disputed);
 
         if (_ruling == REGISTER) {
             if (rechallengePossible && item.status==ItemStatus.Submitted) {
@@ -327,8 +324,8 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         }
         
         item.disputed = false;
-        if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER)
-            item.lastAction = now; // If the item can be rechallenged, update the time and keep the remaining balance.
+        if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER) 
+            item.lastAction=now; // If the item can be rechallenged, update the time and keep the remaining balance.
         else
             item.balance = 0;
 
@@ -382,25 +379,23 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                     break;
                 }
             }
-            require(_cursorIndex != 0, "The cursor is invalid.");
+            require(_cursorIndex != 0);
         }
 
         for (
                 uint i = _cursorIndex == 0 ? (_sort ? 0 : 1) : (_sort ? _cursorIndex + 1 : itemsList.length - _cursorIndex + 1);
                 _sort ? i < itemsList.length : i <= itemsList.length;
                 i++
-            ) { // Oldest or newest first.
+            ) { // Oldest or newest first
             Item storage item = items[itemsList[_sort ? i : itemsList.length - i]];
             if (
-                    // solium-disable-next-line operator-whitespace
-                    item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
-                    // solium-disable-next-line operator-whitespace
-                    (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending.
-                    (_filter[1] && item.disputed) || // Challenged.
-                    (_filter[2] && item.status == ItemStatus.Registered) || // Accepted.
-                    (_filter[3] && item.status == ItemStatus.Cleared) || // Rejected.
-                    (_filter[4] && item.submitter == msg.sender) || // My Submissions.
-                    (_filter[5] && item.challenger == msg.sender) // My Challenges.
+                item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
+                    (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending
+                    (_filter[1] && item.disputed) || // Challenged
+                    (_filter[2] && item.status == ItemStatus.Registered) || // Accepted
+                    (_filter[3] && item.status == ItemStatus.Cleared) || // Rejected
+                    (_filter[4] && item.submitter == msg.sender) || // My Submissions
+                    (_filter[5] && item.challenger == msg.sender) // My Challenges
                 )
             ) {
                 if (_index < _count) {
