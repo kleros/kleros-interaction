@@ -218,18 +218,70 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, disputed);
     }
 
-    /** @dev Extends parent to save information specific to Arbitrable Token List.
+    /** @dev Overrides parent to save and check information specific to Arbitrable Token List.
+     *  For calls that initiate a dispute, msg.value must also include `challengeReward`.
      *  @param _agreementID The ID of the agreement.
      *  @param _side The side. 0 for the side that lost the previous round, if any, and 1 for the one that won.
      */
     function fundDispute(bytes32 _agreementID, uint _side) public payable {
+        Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
+        require(agreement.creator != address(0), "The specified agreement does not exist.");
+        require(!agreement.executed, "You cannot fund disputes for executed agreements.");
+        require(
+            !agreement.disputed || agreement.arbitrator.disputeStatus(agreement.disputeID) == Arbitrator.DisputeStatus.Appealable,
+            "The agreement is already disputed and is not appealable."
+        );
+        require(_side <= 1, "There are only two sides.");
+        require(msg.value > 0, "The value of the contribution cannot be zero.");
 
+        // Prepare storage for first call.
         if (_paidFees.firstContributionTime == 0) {
-            // Initial funding
-
+            _paidFees.firstContributionTime = now;
+            _paidFees.ruling.push(0);
+            _paidFees.stake.push(stake);
+            _paidFees.totalValue.push(0);
+            _paidFees.totalContributedPerSide.push([0, 0]);
+            _paidFees.loserFullyFunded.push(false);
+            _paidFees.contributions.length++;
+        } else { // Reset cache
+            fundDisputeCache.cost = 0;
+            fundDisputeCache.appealing = false;
+            (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = (0, 0);
+            fundDisputeCache.appealPeriodSupported = false;
+            fundDisputeCache.requiredValueForSide = 0;
+            fundDisputeCache.expectedValue = 0;
+            fundDisputeCache.stillRequiredValueForSide = 0;
+            fundDisputeCache.keptValue = 0;
+            fundDisputeCache.refundedValue = 0;
         }
-        super.fundDispute(_agreementID, _side);
+
+        // Check time outs and requirements.
+        if (_paidFees.stake.length == 1) { // First round.
+            require(msg.value >= challengeReward, "Initiating a challenge requires placing value at stake"); // Account attempting to raise a dispute must place value at stake.
+            fundDisputeCache.cost = agreement.arbitrator.arbitrationCost(agreement.extraData);
+
+            // Arbitration fees time out.
+            if (now - _paidFees.firstContributionTime > agreement.arbitrationFeesWaitingTime) {
+                executeAgreementRuling(_agreementID, 0);
+                return;
+            }
+        } else { // Appeal.
+            fundDisputeCache.cost = agreement.arbitrator.appealCost(agreement.disputeID, agreement.extraData);
+
+            fundDisputeCache.appealing = true;
+            (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = agreement.arbitrator.appealPeriod(agreement.disputeID);
+            fundDisputeCache.appealPeriodSupported = fundDisputeCache.appealPeriodStart != 0 && fundDisputeCache.appealPeriodEnd != 0;
+            if (fundDisputeCache.appealPeriodSupported) {
+                if (now < fundDisputeCache.appealPeriodStart + ((fundDisputeCache.appealPeriodEnd - fundDisputeCache.appealPeriodStart) / 2)) // In the first half of the appeal period.
+                    require(_side == 0, "It is the losing side's turn to fund the appeal.");
+                else // In the second half of the appeal period.
+                    require(
+                        _side == 1 && _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1],
+                        "It is the winning side's turn to fund the appeal, only if the losing side already fully funded it."
+                    );
+            } else require(msg.value >= fundDisputeCache.cost, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
+        }
     }
 
     /**
