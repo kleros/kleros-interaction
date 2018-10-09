@@ -423,6 +423,36 @@ contract('ArbitrableTokenList', function(accounts) {
 
       increaseTime(1)
     })
+
+    it('should increase and decrease contract balance', async () => {
+      assert.equal(
+        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+        0,
+        'contract should have the request reward and arbitration fees'
+      )
+
+      await arbitrableTokenList.requestClearing(
+        TOKEN_ID,
+        metaEvidence,
+        REQUEST.arbitrationFeesWaitingTime,
+        centralizedArbitrator.address,
+        { from: partyB, value: challengeReward }
+      )
+
+      assert.equal(
+        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+        challengeReward,
+        'contract should have the request reward and arbitration fees'
+      )
+
+      await arbitrableTokenList.executeRequest(TOKEN_ID, { from: partyA })
+
+      assert.equal(
+        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+        0,
+        'contract should have returned the fees to the submitter'
+      )
+    })
   })
 
   describe('dispute on requestRegistration', () => {
