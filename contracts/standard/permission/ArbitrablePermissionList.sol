@@ -36,8 +36,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
         uint lastAction; // Time of the last action.
         address submitter; // Address of the submitter of the item status change request, if any.
         address challenger; // Address of the challenger, if any.
-        // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
-        uint balance;
+        uint balance; // The total amount of funds to be given to the winner of a potential dispute. Includes stake and reimbursement of arbitration fees.
         bool disputed; // True if a dispute is taking place.
         uint disputeID; // ID of the dispute, if any.
     }
@@ -262,6 +261,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             revert("Item in wrong status for executing request.");
 
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        item.balance = 0;
 
         emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, item.disputed);
     }
