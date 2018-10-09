@@ -278,10 +278,8 @@ contract('ArbitrableTokenList', function(accounts) {
         0,
         'time of last action should be above zero'
       )
-      assert.equal(itemBefore[2], partyA, 'submitter should be partyA')
-      assert.equal(itemBefore[3], 0x0, 'there should be no challenger')
       assert.equal(
-        itemBefore[4].toNumber(),
+        itemBefore[2].toNumber(),
         challengeReward,
         'item balance should be equal challengeReward'
       )
@@ -313,10 +311,8 @@ contract('ArbitrableTokenList', function(accounts) {
         itemBefore[1].toNumber(),
         'time of last action should be after previous'
       )
-      assert.equal(itemAfter[2], partyA, 'submitter should be partyA')
-      assert.equal(itemAfter[3], 0x0, 'there should be no challenger')
       assert.equal(
-        itemAfter[4].toNumber(),
+        itemAfter[2].toNumber(),
         0,
         'challengeRewards should have been sent back to submitter'
       )
@@ -370,10 +366,8 @@ contract('ArbitrableTokenList', function(accounts) {
         0,
         'time of last action should be above 0'
       )
-      assert.equal(itemSetup[2], partyA, 'submitter should be partyA')
-      assert.equal(itemSetup[3], 0x0, 'there should be no challenger')
       assert.equal(
-        itemSetup[4].toNumber(),
+        itemSetup[2].toNumber(),
         0,
         'challengeRewards should have been sent back to submitter'
       )
@@ -387,6 +381,47 @@ contract('ArbitrableTokenList', function(accounts) {
         centralizedArbitrator.address,
         { from: partyB, value: challengeReward }
       )
+
+      const agreementId = await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+      const agreementBefore = await arbitrableTokenList.getAgreementInfo(
+        agreementId
+      )
+      assert.equal(agreementBefore[0], partyB, 'partyB should be the creator')
+      assert.equal(
+        agreementBefore[6].toNumber(),
+        0,
+        'there should be no disputes'
+      )
+      assert.equal(agreementBefore[7], false, 'there should be no disputes')
+      assert.equal(
+        agreementBefore[9].toNumber(),
+        0,
+        'there should be no ruling'
+      )
+      assert.equal(
+        agreementBefore[10],
+        false,
+        'request should not have executed yet'
+      )
+
+      const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
+      assert.equal(
+        itemBefore[0].toNumber(),
+        ITEM_STATUS.CLEARING_REQUESTED,
+        'item should be in clearing requested state'
+      )
+      assert.isAbove(
+        itemBefore[1].toNumber(),
+        0,
+        'time of last action should be above zero'
+      )
+      assert.equal(
+        itemBefore[2].toNumber(),
+        challengeReward,
+        'item balance should be equal challengeReward'
+      )
+
+      increaseTime(1)
     })
   })
 

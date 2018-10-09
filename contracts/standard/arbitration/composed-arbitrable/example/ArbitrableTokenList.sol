@@ -34,8 +34,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     struct Item {
         ItemStatus status; // Status of the item.
         uint lastAction; // Time of the last action.
-        address submitter; // Address of the submitter of the item status change request, if any.
-        address challenger; // Address of the challenger, if any.
         // The amount of funds placed at stake for this item. Does not include arbitrationFees
         uint balance;
     }
@@ -131,7 +129,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Arbitrator _arbitrator
     ) public payable {
         Item storage item = items[_value];
-        uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
@@ -145,11 +142,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             itemsList.push(_value);
         }
 
-        item.submitter = msg.sender;
         item.balance += challengeReward;
         item.lastAction = now;
 
-        address[] memory _parties = new address[](1);
+        address[] memory _parties = new address[](2);
         _parties[0] = msg.sender;
 
         _createAgreement(
@@ -162,8 +158,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _arbitrator
         );
 
-        bool disputed = agreements[latestAgreementId(_value)].disputed;
-        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, disputed);
+        Agreement memory agreement = agreements[latestAgreementId(_value)];
+        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _value, item.status, agreement.disputed);
     }
 
     /**
@@ -180,7 +176,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Arbitrator _arbitrator
     ) public payable {
         Item storage item = items[_value];
-        uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(!appendOnly, "List is append only.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
@@ -195,11 +190,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             itemsList.push(_value);
         }
 
-        item.submitter = msg.sender;
         item.balance += msg.value;
         item.lastAction = now;
 
-        address[] memory _parties = new address[](1);
+        address[] memory _parties = new address[](2);
         _parties[0] = msg.sender;
 
         _createAgreement(
@@ -212,9 +206,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _arbitrator
         );
 
-        bool disputed = agreements[latestAgreementId(_value)].disputed;
+        Agreement memory agreement = agreements[latestAgreementId(_value)];
 
-        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, disputed);
+        emit ItemStatusChange(agreement.parties[0], agreement.parties[0], _value, item.status, agreement.disputed);
     }
 
     /** @dev Overrides parent to save and check information specific to Arbitrable Token List.
@@ -225,6 +219,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     function fundDispute(bytes32 _agreementID, uint _side) public payable {
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
+        Item storage item = items[agreementIDtoItemID[_agreementID]];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(!agreement.executed, "You cannot fund disputes for executed agreements.");
         require(
@@ -256,8 +251,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         // Check time outs and requirements.
-        if (_paidFees.stake.length == 1) { // First round.
+        if(!agreement.disputed) { // msg.sender is initiating a dispute
             require(msg.value >= challengeReward, "Initiating a challenge requires placing value at stake"); // Account attempting to raise a dispute must place value at stake.
+            agreement.parties[1] = msg.sender;
+            item.balance += challengeReward;
+        }
+        if (_paidFees.stake.length == 1) { // First round.
             fundDisputeCache.cost = agreement.arbitrator.arbitrationCost(agreement.extraData);
 
             // Arbitration fees time out.
@@ -279,7 +278,66 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                         _side == 1 && _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1],
                         "It is the winning side's turn to fund the appeal, only if the losing side already fully funded it."
                     );
-            } else require(msg.value >= fundDisputeCache.cost, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
+            } else require(msg.value >= fundDisputeCache.cost + challengeReward, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
+        }
+
+        // Compute required value.
+        if (_side == 0) // Losing side.
+            fundDisputeCache.requiredValueForSide = !fundDisputeCache.appealing ? fundDisputeCache.cost / 2 : fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
+        else { // Winning side.
+            fundDisputeCache.expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
+            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + fundDisputeCache.expectedValue ? fundDisputeCache.cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : fundDisputeCache.expectedValue;
+        }
+
+        // Take contribution.
+        if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide)
+            fundDisputeCache.stillRequiredValueForSide = 0;
+        else
+            fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
+
+        fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - challengeReward ?
+            msg.value - challengeReward : fundDisputeCache.stillRequiredValueForSide;
+
+        fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue;
+        if (fundDisputeCache.keptValue > 0) {
+            _paidFees.totalValue[_paidFees.totalValue.length - 1] += fundDisputeCache.keptValue;
+            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] += fundDisputeCache.keptValue;
+            _paidFees.contributions[_paidFees.contributions.length - 1][msg.sender][_side] += fundDisputeCache.keptValue;
+        }
+        if (fundDisputeCache.refundedValue > 0) msg.sender.transfer(fundDisputeCache.refundedValue);
+        emit Contribution(_agreementID, _paidFees.stake.length - 1, msg.sender, fundDisputeCache.keptValue);
+
+        // Check if enough funds have been gathered and act accordingly.
+        if (
+            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide ||
+            (fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)
+        ) {
+            if (_side == 0 && !(fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)) { // Losing side and not direct appeal.
+                if (!_paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1])
+                    _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] = true;
+            } else { // Winning side or direct appeal.
+                if (!fundDisputeCache.appealing) { // First round.
+                    agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
+                    agreement.disputed = true;
+                    arbitratorAndDisputeIDToAgreementID[agreement.arbitrator][agreement.disputeID] = _agreementID;
+                    emit Dispute(agreement.arbitrator, agreement.disputeID, uint(_agreementID));
+                } else { // Appeal.
+                    _paidFees.ruling[_paidFees.ruling.length - 1] = agreement.arbitrator.currentRuling(agreement.disputeID);
+                    agreement.arbitrator.appeal.value(fundDisputeCache.cost)(agreement.disputeID, agreement.extraData);
+                    if (!agreement.appealed) agreement.appealed = true;
+                }
+
+                // Update the total value.
+                _paidFees.totalValue[_paidFees.totalValue.length - 1] -= fundDisputeCache.cost;
+
+                // Prepare for the next round.
+                _paidFees.ruling.push(0);
+                _paidFees.stake.push(stake);
+                _paidFees.totalValue.push(0);
+                _paidFees.totalContributedPerSide.push([0, 0]);
+                _paidFees.loserFullyFunded.push(false);
+                _paidFees.contributions.length++;
+            }
         }
     }
 
@@ -290,13 +348,13 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     function executeRequest(bytes32 _value) public {
         Item storage item = items[_value];
         bytes32 agreementID = latestAgreementId(_value);
-        Agreement storage latestAgreement = agreements[agreementID];
+        Agreement storage agreement = agreements[agreementID];
         require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
-        require(!latestAgreement.disputed, "The item is still disputed.");
-        require(latestAgreement.creator != address(0), "The specified agreement does not exist.");
-        require(!latestAgreement.executed, "The specified agreement has already been executed.");
-        require(!latestAgreement.disputed, "The specified agreement is disputed.");
-        latestAgreement.executed = true;
+        require(!agreement.disputed, "The item is still disputed.");
+        require(agreement.creator != address(0), "The specified agreement does not exist.");
+        require(!agreement.executed, "The specified agreement has already been executed.");
+        require(!agreement.disputed, "The specified agreement is disputed.");
+        agreement.executed = true;
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
@@ -306,10 +364,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             revert("Item in wrong status for executing request.");
 
         item.lastAction = now;
-        item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
         item.balance = 0;
 
-        emit ItemStatusChange(item.submitter, item.challenger, _value, item.status, latestAgreement.disputed);
+        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _value, item.status, agreement.disputed);
     }
 
     /* Public Views */
@@ -380,30 +438,30 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         super.executeAgreementRuling(_agreementID, _ruling);
         uint256 disputeID = agreements[_agreementID].disputeID;
         Item storage item = items[disputeIDToItem[disputeID]];
-        Agreement storage latestAgreement = agreements[_agreementID];
-        require(latestAgreement.disputed, "The item is not disputed.");
+        Agreement storage agreement = agreements[_agreementID];
+        require(agreement.disputed, "The item is not disputed.");
 
         if (_ruling == REGISTER) {
             if (rechallengePossible && item.status==ItemStatus.Submitted) {
                 uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
                 if (arbitratorCost + challengeReward < item.balance) { // Check that the balance is enough.
                     uint toSend = item.balance - (arbitratorCost + challengeReward);
-                    item.submitter.send(toSend); // Keep the arbitration cost and the challengeReward and send the remaining to the submitter.
+                    agreement.parties[0].send(toSend); // Keep the arbitration cost and the challengeReward and send the remaining to the submitter.
                     item.balance -= toSend;
                 }
             } else {
                 if (item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)
-                    item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+                    agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
                 else
-                    item.challenger.send(item.balance);
+                    agreement.parties[1].send(item.balance);
 
                 item.status = ItemStatus.Registered;
             }
         } else if (_ruling == CLEAR) {
             if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
-                item.submitter.send(item.balance);
+                agreement.parties[0].send(item.balance);
             else
-                item.challenger.send(item.balance);
+                agreement.parties[1].send(item.balance);
 
             item.status = ItemStatus.Cleared;
         } else { // Split the balance 50-50 and give the item the initial status.
@@ -413,17 +471,17 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 item.status = ItemStatus.Registered;
             else
                 item.status = ItemStatus.Absent;
-            item.submitter.send(item.balance / 2);
-            item.challenger.send(item.balance / 2);
+            agreement.parties[0].send(item.balance / 2);
+            agreement.parties[1].send(item.balance / 2);
         }
 
-        latestAgreement.disputed = false;
+        agreement.disputed = false;
         if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER)
             item.lastAction = now; // If the item can be rechallenged, update the time and keep the remaining balance.
         else
             item.balance = 0;
 
-        emit ItemStatusChange(item.submitter, item.challenger, disputeIDToItem[disputeID], item.status, latestAgreement.disputed);
+        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], disputeIDToItem[disputeID], item.status, agreement.disputed);
     }
 
     /* Interface Views */
@@ -485,17 +543,17 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             bytes32 itemID = itemsList[_sort ? i : itemsList.length - i];
             Item storage item = items[itemID];
             bytes32 agreementId = latestAgreementId(itemID);
-            Agreement storage latestAgreement = agreements[agreementId];
+            Agreement storage agreement = agreements[agreementId];
             if (
                     // solium-disable-next-line operator-whitespace
                     item.status != ItemStatus.Absent && item.status != ItemStatus.PreventiveClearingRequested && (
                     // solium-disable-next-line operator-whitespace
                     (_filter[0] && (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)) || // Pending.
-                    (_filter[1] && latestAgreement.disputed) || // Challenged.
+                    (_filter[1] && agreement.disputed) || // Challenged.
                     (_filter[2] && item.status == ItemStatus.Registered) || // Accepted.
                     (_filter[3] && item.status == ItemStatus.Cleared) || // Rejected.
-                    (_filter[4] && item.submitter == msg.sender) || // My Submissions.
-                    (_filter[5] && item.challenger == msg.sender) // My Challenges.
+                    (_filter[4] && agreement.parties[0] == msg.sender) || // My Submissions.
+                    (_filter[5] && agreement.parties[1] == msg.sender) // My Challenges.
                 )
             ) {
                 if (_index < _count) {
