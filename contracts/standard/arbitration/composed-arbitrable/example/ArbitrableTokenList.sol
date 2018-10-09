@@ -285,15 +285,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     }
 
     /**
-     *  @dev Appeal ruling. Anyone can appeal to prevent a malicious actor from challenging its own submission and losing on purpose.
-     *  @param _value The value of the item with the dispute to appeal on.
-     */
-    function appeal(bytes32 _value) public payable {
-        Agreement storage latestAgreement = agreements[latestAgreementId(_value)];
-        arbitrator.appeal.value(msg.value)(latestAgreement.disputeID, arbitratorExtraData); // Appeal, no need to check anything as the arbitrator does it.
-    }
-
-    /**
      *  @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _value The value of the item with the request to execute.
      */
