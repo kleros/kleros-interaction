@@ -13,6 +13,9 @@
 const {
   expectThrow
 } = require('openzeppelin-solidity/test/helpers/expectThrow')
+const {
+  increaseTime
+} = require('openzeppelin-solidity/test/helpers/increaseTime')
 
 const ArbitrableTokenList = artifacts.require('./ArbitrableTokenList.sol')
 const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
@@ -281,6 +284,41 @@ contract('ArbitrableTokenList', function(accounts) {
         itemBefore[4].toNumber(),
         challengeReward,
         'item balance should be equal challengeReward'
+      )
+
+      increaseTime(1) // Increase time to test item.lastAction
+
+      await arbitrableTokenList.executeRequest(TOKEN_ID)
+      const agreementAfter = await arbitrableTokenList.getAgreementInfo(
+        firstAgreementId
+      )
+      assert.equal(agreementAfter[0], partyA, 'partyA should be the creator')
+      assert.equal(
+        agreementAfter[6].toNumber(),
+        0,
+        'there should be no disputes'
+      )
+      assert.equal(agreementAfter[7], false, 'there should be no disputes')
+      assert.equal(agreementAfter[9].toNumber(), 0, 'there should be no ruling')
+      assert.equal(agreementAfter[10], true, 'request should have executed')
+
+      const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
+      assert.equal(
+        itemAfter[0].toNumber(),
+        ITEM_STATUS.REGISTERED,
+        'item should be in registered state'
+      )
+      assert.isAbove(
+        itemAfter[1].toNumber(),
+        itemBefore[1].toNumber(),
+        'time of last action should be after previous'
+      )
+      assert.equal(itemAfter[2], partyA, 'submitter should be partyA')
+      assert.equal(itemAfter[3], 0x0, 'there should be no challenger')
+      assert.equal(
+        itemAfter[4].toNumber(),
+        0,
+        'challengeRewards should have been sent back to submitter'
       )
     })
   })

@@ -305,6 +305,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         else
             revert("Item in wrong status for executing request.");
 
+        item.lastAction = now;
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
         item.balance = 0;
 
