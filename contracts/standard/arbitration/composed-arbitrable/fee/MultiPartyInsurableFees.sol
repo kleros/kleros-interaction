@@ -184,7 +184,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
             _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide ||
             (fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)
         ) {
-            if (_side == 0 && !(fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)) { // Losing side and not direct appeal.
+            if (_side == 0 && (fundDisputeCache.appealing ? fundDisputeCache.appealPeriodSupported : _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] < fundDisputeCache.requiredValueForSide)) { // Losing side and not direct appeal or dispute raise.
                 if (!_paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1])
                     _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] = true;
             } else { // Winning side or direct appeal.
