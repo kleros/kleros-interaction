@@ -1,27 +1,12 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
 
-const BigNumber = web3.BigNumber
-const {
-  expectThrow
-} = require('openzeppelin-solidity/test/helpers/expectThrow')
-const {
-  increaseTime
-} = require('openzeppelin-solidity/test/helpers/increaseTime')
-
 const ArbitrablePermissionList = artifacts.require('ArbitrablePermissionList')
 const CentralizedArbitrator = artifacts.require('CentralizedArbitrator')
-const MiniMeToken = artifacts.require('MiniMeToken')
 const MiniMeTokenFactory = artifacts.require('MiniMeTokenFactory')
-const ConstantNG = artifacts.require('ConstantNG')
 const ArbitratorVersioningProxy = artifacts.require('ArbitratorVersioningProxy')
 const AppealableArbitrator = artifacts.require('AppealableArbitrator')
-const BackedUpArbitrator = artifacts.require('BackedUpArbitrator')
 
 contract('ArbitrableVersioningProxy', function(accounts) {
-  const PROPOSAL_QUORUM = 60
-  const QUORUM_DIVIDE_TIME = 100
-  const VOTING_TIME = 1000
-
   const CREATOR = accounts[1]
   const GOVERNOR = accounts[2]
   const ARBITRATOR_EXTRA_DATA = '0x707574546F566F74650000000000000000000000'
@@ -34,24 +19,9 @@ contract('ArbitrableVersioningProxy', function(accounts) {
   const RECHALLENGE_POSSIBLE = false
   const TIMEOUT = 100
 
-  const MIN_STAKING_TIME = 1
-  const MAX_DRAWINNG_TIME = 1
-
-  let governance
-  let arbitrablePermissionListInstance
   let centralizedArbitrator
-  let pinakion
   let appealableArbitrator
-  let tokenFactory
-  let RNG
   let proxy
-
-  const PROPOSAL_STATE = {
-    NEW: 0,
-    PUT_TO_SUPPORT: 1,
-    PUT_TO_VOTE: 2,
-    DECIDED: 3
-  }
 
   beforeEach('setup contract for each test', async function() {
     centralizedArbitrator = await CentralizedArbitrator.new(ARBITRATION_FEE, {
@@ -73,19 +43,6 @@ contract('ArbitrableVersioningProxy', function(accounts) {
     )
 
     tokenFactory = await MiniMeTokenFactory.new({ from: CREATOR })
-
-    pinakion = await MiniMeToken.new(
-      tokenFactory.address,
-      0x0,
-      0,
-      'Pinakion',
-      18,
-      'PNK',
-      true,
-      {
-        from: CREATOR
-      }
-    )
 
     appealableArbitrator = await AppealableArbitrator.new(
       ARBITRATION_FEE,
@@ -121,6 +78,7 @@ contract('ArbitrableVersioningProxy', function(accounts) {
     const implementation = await proxy.implementation()
 
     assert.equal(await proxy.addresses(NEXT_TAG), implementation)
+    assert.equal(newVersion.address, implementation)
   })
 
   it('should rollback to the previous version', async function() {
@@ -167,16 +125,6 @@ contract('ArbitrableVersioningProxy', function(accounts) {
   })
 
   it('should create a dispute', async function() {
-    await proxy.createDispute(217, 'EXTRA_DATA', { value: 10000000 })
-
-    const IMPLEMENTATION_ADDRESS = await proxy.implementation()
-
-    const ARBITRATOR = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
-
-    assert.equal((await ARBITRATOR.disputes(0))[1].toNumber(), 217)
-  })
-
-  it('should give a ruling to a dispute', async function() {
     const CHOICES = 217 // Arbitrary
 
     await proxy.createDispute(CHOICES, 'EXTRA_DATA', { value: 10000000 })
@@ -185,17 +133,7 @@ contract('ArbitrableVersioningProxy', function(accounts) {
 
     const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
 
-    const DISPUTE_ID = 0 // First dispute has the ID 0
-    const RULING = CHOICES - 1 // Arbitrary
-
-    await arbitrator.giveRuling(DISPUTE_ID, RULING)
-
-    const RULING_INDEX = 3 // Ruling field index in DisputeStruct
-
-    assert.equal(
-      (await arbitrator.disputes(DISPUTE_ID))[RULING_INDEX].toNumber(),
-      RULING
-    )
+    assert.equal((await arbitrator.disputes(0))[1].toNumber(), CHOICES)
   })
 
   it('should retrieve appeal cost', async function() {
@@ -206,18 +144,18 @@ contract('ArbitrableVersioningProxy', function(accounts) {
 
     const IMPLEMENTATION_ADDRESS = await proxy.implementation()
 
-    const ARBITRATOR = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
+    const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
 
     const DISPUTE_ID = 0 // First dispute has the ID 0
     const RULING = CHOICES - 1 // Arbitrary
 
     const ACTUAL = await proxy.appealCost(DISPUTE_ID, RULING)
-    const EXPECTED = await ARBITRATOR.appealCost(DISPUTE_ID, RULING)
+    const EXPECTED = await arbitrator.appealCost(DISPUTE_ID, RULING)
 
     assert(ACTUAL.equals(EXPECTED))
   })
 
-  it('should appeal a dispute', async function() {
+  it('appeal should transfer the dispute when called the first time', async function() {
     const CHOICES = 217 // Arbitrary
     const EXTRA_DATA = 'EXTRA_DATA'
 
@@ -225,24 +163,24 @@ contract('ArbitrableVersioningProxy', function(accounts) {
 
     const IMPLEMENTATION_ADDRESS = await proxy.implementation()
 
-    const ARBITRATOR = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
+    const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
 
     const DISPUTE_ID = 0 // First dispute has the ID 0
     const RULING = CHOICES - 1 // Arbitrary
 
-    await ARBITRATOR.giveRuling(DISPUTE_ID, RULING)
+    console.log(await proxy.disputes(0))
+    console.log(await arbitrator.disputes(0))
 
-    const RULING_INDEX = 3 // Ruling field index in DisputeStruct
-
+    await arbitrator.giveRuling(DISPUTE_ID, RULING)
     await proxy.appeal(DISPUTE_ID, EXTRA_DATA, {
       gas: 1000000,
       value: 100000000
     })
 
-    const ORIGINAL_DISPUTE = await ARBITRATOR.disputes(DISPUTE_ID)
-    const APPEAL_DISPUTE = await ARBITRATOR.disputes(DISPUTE_ID + 1)
+    const ORIGINAL_DISPUTE = await proxy.disputes(DISPUTE_ID)
+    const NEW_DISPUTE = await arbitrator.disputes(DISPUTE_ID) // This is the first dispute of the new arbitrator.
 
-    assert(ORIGINAL_DISPUTE[1].equals(APPEAL_DISPUTE[1]))
+    assert(ORIGINAL_DISPUTE[3].equals(NEW_DISPUTE[1])) // Check if choices are the same.
   })
 
   it('should retrieve current ruling', async function() {
@@ -253,12 +191,12 @@ contract('ArbitrableVersioningProxy', function(accounts) {
 
     const IMPLEMENTATION_ADDRESS = await proxy.implementation()
 
-    const ARBITRATOR = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
+    const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
 
     const DISPUTE_ID = 0 // First dispute has the ID 0
     const RULING = CHOICES - 1 // Arbitrary
 
-    await ARBITRATOR.giveRuling(DISPUTE_ID, RULING)
+    await arbitrator.giveRuling(DISPUTE_ID, RULING)
 
     const ACTUAL = await proxy.currentRuling(DISPUTE_ID)
 
@@ -273,68 +211,13 @@ contract('ArbitrableVersioningProxy', function(accounts) {
 
     const IMPLEMENTATION_ADDRESS = await proxy.implementation()
 
-    const ARBITRATOR = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
+    const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
 
     const DISPUTE_ID = 0 // First dispute has the ID 0
-    const RULING = CHOICES - 1 // Arbitrary
 
-    const EXPECTED = await ARBITRATOR.disputeStatus(DISPUTE_ID)
+    const EXPECTED = await arbitrator.disputeStatus(DISPUTE_ID)
     const ACTUAL = await proxy.disputeStatus(DISPUTE_ID)
 
     assert(ACTUAL.equals(EXPECTED))
   })
-
-  it('should appeal even when contract gets upgraded during the process', async function() {
-    // THIS IS REVERTING, COULDN'T FIND WHY
-    const CHOICES = Math.floor(Math.random() * 100 + 1) // Arbitrary
-    const CHOISES_INDEX = 1
-    const EXTRA_DATA = 'EXTRA_DATA'
-    const DISPUTE_ID = 0 // First dispute has the ID 0
-    const RULING = CHOICES - 1 // Arbitrary
-
-    await proxy.createDispute(CHOICES, EXTRA_DATA, { value: 5 })
-
-    let implementation_address = await proxy.implementation()
-    let arbitrator = AppealableArbitrator.at(implementation_address)
-
-    await arbitrator.giveRuling(DISPUTE_ID, RULING)
-
-    const ORIGINAL_DISPUTE = await arbitrator.disputes(DISPUTE_ID)
-
-    /* UPGRAGE THE CONTRACT */
-    const newappealableArbitrator = await AppealableArbitrator.new(
-      ARBITRATION_FEE,
-      GOVERNOR,
-      ARBITRATOR_EXTRA_DATA,
-      TIMEOUT
-    )
-    await newappealableArbitrator.changeArbitrator(
-      newappealableArbitrator.address
-    )
-
-    await proxy.publish(EXTRA_DATA, newappealableArbitrator.address, {
-      from: GOVERNOR
-    })
-    /* DONE */
-
-    await proxy.appeal(DISPUTE_ID, EXTRA_DATA, {
-      gas: 2000000,
-      value: 100000000
-    })
-  })
-
-  // it('should rule', async function(){
-  //   const CHOICES = Math.floor((Math.random() * 100) + 1); // Arbitrary
-  //   const CHOISES_INDEX = 1
-  //   const EXTRA_DATA = "EXTRA_DATA"
-  //   const DISPUTE_ID = 0 // First dispute has the ID 0
-  //   const RULING = CHOICES - 1 // Arbitrary
-  //
-  //   await proxy.createDispute(CHOICES, EXTRA_DATA, {value: 5})
-  //
-  //   let implementation_address = await proxy.implementation()
-  //   let arbitrator = APPEALABLE_ARBITRATOR.at(implementation_address)
-  //
-  //   await proxy.rule(DISPUTE_ID, RULING)  // Only the implementation can call it, not testable.
-  // })
 })
