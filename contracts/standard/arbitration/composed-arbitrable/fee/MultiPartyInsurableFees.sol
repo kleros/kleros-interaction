@@ -150,7 +150,9 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         }
 
         // Compute required value.
-        if (_side == 0) // Losing side.
+        if (fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported) {
+            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost;
+        } else if (_side == 0) // Losing side.
             fundDisputeCache.requiredValueForSide = !fundDisputeCache.appealing ? fundDisputeCache.cost / 2 : fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
         else { // Winning side.
             fundDisputeCache.expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
