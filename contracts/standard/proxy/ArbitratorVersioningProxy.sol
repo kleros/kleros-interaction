@@ -1,6 +1,7 @@
 pragma solidity ^0.4.15;
 
 import "../arbitration/Arbitrator.sol";
+import "../arbitration/Arbitrable.sol";
 
 import "./VersioningProxy.sol";
 
@@ -45,7 +46,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         uint256 externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
         _localDisputeID = disputes.push(
             DisputeStruct({
-                arbitrated: Arbitrable(this),
+                arbitrated: Arbitrable(msg.sender),
                 externalDisputeID: externalDisputeID,
                 arbitrator: Arbitrator(implementation),
                 choices: _choices
@@ -61,12 +62,14 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      */
     function appeal(uint256 _localDisputeID, bytes _extraData) public payable {
         if (disputes[_localDisputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
+            Arbitrable _arbitrated = disputes[_localDisputeID].arbitrated;
             uint256 _choices = disputes[_localDisputeID].choices;
             uint256 _arbitratorDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
-            disputes[_localDisputeID] = DisputeStruct({ arbitrated: Arbitrable(this), arbitrator: Arbitrator(implementation), externalDisputeID: _arbitratorDisputeID, choices: _choices });
+            disputes[_localDisputeID] = DisputeStruct({ arbitrated: _arbitrated, arbitrator: Arbitrator(implementation), externalDisputeID: _arbitratorDisputeID, choices: _choices });
         }
-
-        Arbitrator(implementation).appeal.value(msg.value)(disputes[_localDisputeID].externalDisputeID, _extraData);
+        else{
+            Arbitrator(implementation).appeal.value(msg.value)(disputes[_localDisputeID].externalDisputeID, _extraData);
+        }
     }
 
     /* Public Views */
