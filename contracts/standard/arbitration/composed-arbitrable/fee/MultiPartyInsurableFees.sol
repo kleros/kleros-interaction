@@ -150,13 +150,17 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
         }
 
         // Compute required value.
-        if (fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported) {
-            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost;
-        } else if (_side == 0) // Losing side.
-            fundDisputeCache.requiredValueForSide = !fundDisputeCache.appealing ? fundDisputeCache.cost / 2 : fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
-        else { // Winning side.
-            fundDisputeCache.expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
-            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + fundDisputeCache.expectedValue ? fundDisputeCache.cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : fundDisputeCache.expectedValue;
+        if (!fundDisputeCache.appealing) // First round.
+            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost / 2;
+        else { // Appeal.
+            if (!fundDisputeCache.appealPeriodSupported)
+                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost;
+            else if (_side == 0) // Losing side.
+                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
+            else { // Winning side.
+                fundDisputeCache.expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
+                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + fundDisputeCache.expectedValue ? fundDisputeCache.cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : fundDisputeCache.expectedValue;
+            }
         }
 
         // Take contribution.
@@ -185,6 +189,7 @@ contract MultiPartyInsurableFees is MultiPartyAgreements {
                     _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] = true;
             } else { // Winning side or direct appeal.
                 if (!fundDisputeCache.appealing) { // First round.
+                    if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side == 0 ? 1 : 0] < fundDisputeCache.requiredValueForSide) return;
                     agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
                     arbitratorAndDisputeIDToAgreementID[agreement.arbitrator][agreement.disputeID] = _agreementID;
