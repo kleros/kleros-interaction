@@ -1,14 +1,5 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
 
-/**
- * NOTE: Tests were adapted from arbitrable-permission-list. As of 04/10/18 t2cr spec, the
- * contract is a white list, not append-only and rechallenges are not possible.
- *
- * Tests that checked for other combinations were removed.
- *
- * TODO: Write tests for other combination of constructor parameters’
- */
-
 // const BigNumber = web3.BigNumber
 const {
   expectThrow
@@ -18,23 +9,24 @@ const {
 } = require('openzeppelin-solidity/test/helpers/increaseTime')
 
 const ArbitrableTokenList = artifacts.require('./ArbitrableTokenList.sol')
-const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
+const AppealableArbitrator = artifacts.require(
+  './standard/arbitration/AppealableArbitrator.sol'
+)
 
 contract('ArbitrableTokenList', function(accounts) {
-  const arbitrator = accounts[1]
+  const governor = accounts[0]
   const partyA = accounts[2]
   const partyB = accounts[3]
   const arbitratorExtraData = 0x08575
-  const arbitrationFee = 4
-  const challengeReward = 10
+  const challengeReward = 10 ** 10
   const timeToChallenge = 0
   const metaEvidence = 'evidence'
-  const feeGovernor = accounts[1]
   const feeStake = 10
-  const halfOfArbitrationPrice = arbitrationFee / 2
 
   let centralizedArbitrator
   let arbitrableTokenList
+  let arbitrationPrice
+  let halfOfArbitrationPrice
 
   const ITEM_STATUS = {
     ABSENT: 0,
@@ -63,12 +55,19 @@ contract('ArbitrableTokenList', function(accounts) {
   const rechallengePossible = false
 
   const deployContracts = async () => {
-    centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {
-      from: arbitrator
-    })
+    arbitrationPrice = 100
+    halfOfArbitrationPrice = arbitrationPrice / 2
+    const timeOut = 1000
+    centralizedArbitrator = await AppealableArbitrator.new(
+      arbitrationPrice, // _arbitrationPrice
+      governor, // _arbitrator
+      null, // _arbitratorExtraData
+      timeOut // _timeOut
+    )
+    await centralizedArbitrator.changeArbitrator(centralizedArbitrator.address)
 
     arbitrableTokenList = await ArbitrableTokenList.new(
-      centralizedArbitrator.address,
+      centralizedArbitrator.address, // arbitrator
       arbitratorExtraData,
       metaEvidence,
       blacklist,
@@ -76,32 +75,13 @@ contract('ArbitrableTokenList', function(accounts) {
       rechallengePossible,
       challengeReward,
       timeToChallenge,
-      feeGovernor,
-      feeStake,
-      { from: arbitrator }
+      centralizedArbitrator.address, // fee governor
+      feeStake
     )
   }
 
-  describe('queryItems', function() {
-    before('setup contract for each test', async () => {
-      centralizedArbitrator = await CentralizedArbitrator.new(arbitrationFee, {
-        from: arbitrator
-      })
-
-      arbitrableTokenList = await ArbitrableTokenList.new(
-        centralizedArbitrator.address,
-        arbitratorExtraData,
-        metaEvidence,
-        blacklist,
-        appendOnly,
-        rechallengePossible,
-        challengeReward,
-        timeToChallenge,
-        feeGovernor,
-        feeStake,
-        { from: arbitrator }
-      )
-    })
+  describe('queryItems', () => {
+    before('setup contract for each test', deployContracts)
 
     before('populate the list', async function() {
       await arbitrableTokenList.requestRegistration(
@@ -245,10 +225,10 @@ contract('ArbitrableTokenList', function(accounts) {
       const firstAgreementId = await arbitrableTokenList.latestAgreementId(
         TOKEN_ID
       )
-
       const agreementBefore = await arbitrableTokenList.getAgreementInfo(
         firstAgreementId
       )
+
       assert.equal(agreementBefore[0], partyA, 'partyA should be the creator')
       assert.equal(
         agreementBefore[6].toNumber(),
@@ -455,7 +435,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('dispute on requestRegistration', () => {
+  describe('requestRegistration dispute', () => {
     beforeEach(async () => {
       await deployContracts()
       assert.equal(
@@ -474,6 +454,58 @@ contract('ArbitrableTokenList', function(accounts) {
           value: challengeReward
         }
       )
+    })
+
+    it.skip('partyA wins arbitration, item is registered', async () => {
+      const agreementID = await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+      console.info('value: ', halfOfArbitrationPrice + challengeReward)
+      await arbitrableTokenList.fundDispute(agreementID, 1, {
+        from: partyB,
+        value: halfOfArbitrationPrice + challengeReward
+      })
+      const agreementBefore = await arbitrableTokenList.getAgreementInfo(
+        agreementID
+      )
+
+      assert.isTrue(agreementBefore[7], 'agreement should be disputed')
+
+      const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
+      await arbitrableTokenList.fundDispute(agreementID, 0, {
+        from: partyA,
+        value: halfOfArbitrationPrice
+      })
+
+      const contractBalanceBefore = web3.eth.getBalance(
+        arbitrableTokenList.address
+      )
+      // const partyABalanceBefore = web3.eth.getBalance(partyA)
+      // const partyBBalanceBefore = web3.eth.getBalance(partyB)
+
+      assert.equal(
+        itemBefore[0],
+        ITEM_STATUS.SUBMITTED,
+        'item should be submitted'
+      )
+      assert.equal(
+        itemBefore[2],
+        challengeReward * 2,
+        'item balance should funds from party A and B'
+      )
+      assert.equal(
+        contractBalanceBefore.toNumber(),
+        challengeReward * 2 + halfOfArbitrationPrice * 2,
+        'contract should be fully funded'
+      )
+      assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
+      assert.equal(agreementBefore[1][1], partyB, 'side 0 should be party B')
+      assert.isTrue(agreementBefore[7], 'agreement should be disputed')
+      assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
+      assert.isFalse(
+        agreementBefore[10],
+        'agreement should have not been executed yet'
+      )
+
+      await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID))
     })
   })
 })

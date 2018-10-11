@@ -219,7 +219,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     function fundDispute(bytes32 _agreementID, uint _side) public payable {
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
-        Item storage item = items[agreementIDtoItemID[_agreementID]];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(!agreement.executed, "You cannot fund disputes for executed agreements.");
         require(
@@ -251,11 +250,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         // Check time outs and requirements.
-        if(!agreement.disputed) { // msg.sender is initiating a dispute
-            require(msg.value >= challengeReward, "Initiating a challenge requires placing value at stake"); // Account attempting to raise a dispute must place value at stake.
-            agreement.parties[1] = msg.sender;
-            item.balance += challengeReward;
-        }
         if (_paidFees.stake.length == 1) { // First round.
             fundDisputeCache.cost = agreement.arbitrator.arbitrationCost(agreement.extraData);
 
@@ -278,15 +272,21 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                         _side == 1 && _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1],
                         "It is the winning side's turn to fund the appeal, only if the losing side already fully funded it."
                     );
-            } else require(msg.value >= fundDisputeCache.cost + challengeReward, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
+            } else require(msg.value >= fundDisputeCache.cost, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
         }
 
         // Compute required value.
-        if (_side == 0) // Losing side.
-            fundDisputeCache.requiredValueForSide = !fundDisputeCache.appealing ? fundDisputeCache.cost / 2 : fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
-        else { // Winning side.
-            fundDisputeCache.expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
-            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + fundDisputeCache.expectedValue ? fundDisputeCache.cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : fundDisputeCache.expectedValue;
+        if (!fundDisputeCache.appealing) // First round.
+            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost / 2;
+        else { // Appeal.
+            if (!fundDisputeCache.appealPeriodSupported)
+                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost;
+            else if (_side == 0) // Losing side.
+                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
+            else { // Winning side.
+                fundDisputeCache.expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
+                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + fundDisputeCache.expectedValue ? fundDisputeCache.cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : fundDisputeCache.expectedValue;
+            }
         }
 
         // Take contribution.
@@ -295,8 +295,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         else
             fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
 
-        fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - challengeReward ?
-            msg.value - challengeReward : fundDisputeCache.stillRequiredValueForSide;
+        fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - challengeReward
+            ? msg.value - challengeReward
+            : fundDisputeCache.stillRequiredValueForSide;
 
         fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue;
         if (fundDisputeCache.keptValue > 0) {
@@ -312,11 +313,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide ||
             (fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)
         ) {
-            if (_side == 0 && !(fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)) { // Losing side and not direct appeal.
+            if (_side == 0 && (fundDisputeCache.appealing ? fundDisputeCache.appealPeriodSupported : _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] < fundDisputeCache.requiredValueForSide)) { // Losing side and not direct appeal or dispute raise.
                 if (!_paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1])
                     _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] = true;
             } else { // Winning side or direct appeal.
                 if (!fundDisputeCache.appealing) { // First round.
+                    if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side == 0 ? 1 : 0] < fundDisputeCache.requiredValueForSide) return;
                     agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
                     arbitratorAndDisputeIDToAgreementID[agreement.arbitrator][agreement.disputeID] = _agreementID;
