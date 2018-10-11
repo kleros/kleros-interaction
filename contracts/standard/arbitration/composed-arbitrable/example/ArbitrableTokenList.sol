@@ -219,6 +219,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     function fundDispute(bytes32 _agreementID, uint _side) public payable {
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
+        Item storage item = items[agreementIDtoItemID[_agreementID]];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(!agreement.executed, "You cannot fund disputes for executed agreements.");
         require(
@@ -276,9 +277,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         // Compute required value.
-        if (!fundDisputeCache.appealing) // First round.
+        if (!fundDisputeCache.appealing) { // First round.
             fundDisputeCache.requiredValueForSide = fundDisputeCache.cost / 2;
-        else { // Appeal.
+        } else { // Appeal.
             if (!fundDisputeCache.appealPeriodSupported)
                 fundDisputeCache.requiredValueForSide = fundDisputeCache.cost;
             else if (_side == 0) // Losing side.
@@ -295,11 +296,22 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         else
             fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
 
-        fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - challengeReward
-            ? msg.value - challengeReward
-            : fundDisputeCache.stillRequiredValueForSide;
 
-        fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue;
+        if(item.balance == challengeReward) { // Party is attempting to start a dispute
+            require(msg.value >= challengeReward, "Party challenging agreement must place value at stake");
+            fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - challengeReward
+                ? msg.value - challengeReward
+                : fundDisputeCache.stillRequiredValueForSide;
+            item.balance += challengeReward;
+            fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue - challengeReward;
+            agreement.parties[1] = msg.sender;
+        } else { // Party that started attempt to raise dispute already placed value at stake
+            fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value
+                ? msg.value
+                : fundDisputeCache.stillRequiredValueForSide;
+            fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue;
+        }
+
         if (fundDisputeCache.keptValue > 0) {
             _paidFees.totalValue[_paidFees.totalValue.length - 1] += fundDisputeCache.keptValue;
             _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] += fundDisputeCache.keptValue;
@@ -321,6 +333,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                     if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side == 0 ? 1 : 0] < fundDisputeCache.requiredValueForSide) return;
                     agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
+                    disputeIDToItem[agreement.disputeID] = agreementIDtoItemID[_agreementID];
                     arbitratorAndDisputeIDToAgreementID[agreement.arbitrator][agreement.disputeID] = _agreementID;
                     emit Dispute(agreement.arbitrator, agreement.disputeID, uint(_agreementID));
                 } else { // Appeal.
