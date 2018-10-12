@@ -146,6 +146,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _arbitrator
         );
 
+        if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
         Agreement memory agreement = agreements[latestAgreementId(_value)];
         emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _value, item.status, agreement.disputed);
     }
@@ -177,7 +178,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             itemsList.push(_value);
         }
 
-        item.balance += msg.value;
+        item.balance += challengeReward;
         item.lastAction = now;
 
         address[] memory _parties = new address[](2);
@@ -193,8 +194,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _arbitrator
         );
 
-        Agreement memory agreement = agreements[latestAgreementId(_value)];
+        if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
 
+        Agreement memory agreement = agreements[latestAgreementId(_value)];
         emit ItemStatusChange(agreement.parties[0], agreement.parties[0], _value, item.status, agreement.disputed);
     }
 
