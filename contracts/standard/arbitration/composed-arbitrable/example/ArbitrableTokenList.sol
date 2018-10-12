@@ -59,9 +59,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /* Storage */
 
     // Settings
-    bool public blacklist; // True if the list should function as a blacklist, false if it should function as a whitelist.
-    bool public appendOnly; // True if the list should be append only.
-    bool public rechallengePossible; // True if items winning their disputes can be challenged again.
     uint public challengeReward; // The challengeReward to put to submit/clear/challenge an item in addition of arbitration fees.
     uint public timeToChallenge; // The time before which an action is executable if not challenged.
 
@@ -85,9 +82,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _arbitrator The chosen arbitrator.
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
      *  @param _metaEvidence The URL of the meta evidence object.
-     *  @param _blacklist True if the list should function as a blacklist, false if it should function as a whitelist.
-     *  @param _appendOnly True if the list should be append only.
-     *  @param _rechallengePossible True if it is possible to challenge again a submission which has won a dispute.
      *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition of the arbitration fees.
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      *  @param _feeGovernor The fee governor of this contract.
@@ -97,18 +91,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
         string _metaEvidence,
-        bool _blacklist,
-        bool _appendOnly,
-        bool _rechallengePossible,
         uint _challengeReward,
         uint _timeToChallenge,
         address _feeGovernor,
         uint _stake
     ) public MultiPartyInsurableArbitrableAgreementsBase(_arbitrator, _arbitratorExtraData, _feeGovernor, _stake){
         emit MetaEvidence(0, _metaEvidence);
-        blacklist = _blacklist;
-        appendOnly = _appendOnly;
-        rechallengePossible = _rechallengePossible;
         challengeReward = _challengeReward;
         timeToChallenge = _timeToChallenge;
     }
@@ -176,7 +164,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Arbitrator _arbitrator
     ) public payable {
         Item storage item = items[_value];
-        require(!appendOnly, "List is append only.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
@@ -407,7 +394,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Agreement storage latestAgreement = agreements[latestAgreementId(_value)];
         bool _excluded = item.status <= ItemStatus.Resubmitted ||
             (item.status == ItemStatus.PreventiveClearingRequested && !latestAgreement.disputed);
-        return blacklist ? _excluded : !_excluded; // Items excluded from blacklist should return true.
+        return !_excluded;
     }
 
     /* Internal */
@@ -457,21 +444,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         require(agreement.disputed, "The item is not disputed.");
 
         if (_ruling == REGISTER) {
-            if (rechallengePossible && item.status==ItemStatus.Submitted) {
-                uint arbitratorCost = arbitrator.arbitrationCost(arbitratorExtraData);
-                if (arbitratorCost + challengeReward < item.balance) { // Check that the balance is enough.
-                    uint toSend = item.balance - (arbitratorCost + challengeReward);
-                    agreement.parties[0].send(toSend); // Keep the arbitration cost and the challengeReward and send the remaining to the submitter.
-                    item.balance -= toSend;
-                }
-            } else {
-                if (item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)
-                    agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                else
-                    agreement.parties[1].send(item.balance);
+            if (item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)
+                agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+            else
+                agreement.parties[1].send(item.balance);
 
-                item.status = ItemStatus.Registered;
-            }
+            item.status = ItemStatus.Registered;
         } else if (_ruling == CLEAR) {
             if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
                 agreement.parties[0].send(item.balance);
@@ -491,10 +469,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         agreement.disputed = false;
-        if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER)
-            item.lastAction = now; // If the item can be rechallenged, update the time and keep the remaining balance.
-        else
-            item.balance = 0;
+        item.balance = 0;
 
         emit ItemStatusChange(agreement.parties[0], agreement.parties[1], disputeIDToItem[disputeID], item.status, agreement.disputed);
     }

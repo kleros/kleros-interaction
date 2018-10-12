@@ -51,10 +51,6 @@ contract('ArbitrableTokenList', function(accounts) {
     ]
   }
 
-  const blacklist = false
-  const appendOnly = false
-  const rechallengePossible = false
-
   const deployContracts = async () => {
     const timeOut = 1000
     appealableArbitrator = await AppealableArbitrator.new(
@@ -69,9 +65,6 @@ contract('ArbitrableTokenList', function(accounts) {
       appealableArbitrator.address, // arbitrator
       arbitratorExtraData,
       metaEvidence,
-      blacklist,
-      appendOnly,
-      rechallengePossible,
       challengeReward,
       timeToChallenge,
       appealableArbitrator.address, // fee governor
