@@ -188,7 +188,7 @@ contract('ArbitrableKitty', accounts => {
       let { isGestating } = await kittyCore._getKittyHelper(kittyId)
       assert.isTrue(isGestating, 'kitty should be pregnant')
 
-      increaseTime(60 * 60)
+      await increaseTime(60 * 60)
 
       await arbitrable.giveBirth(kittyId, { from: PARTY_B })
       isGestating = (await kittyCore._getKittyHelper(kittyId)).isGestating
@@ -721,7 +721,7 @@ contract('ArbitrableKitty', accounts => {
         'should not be available yet'
       )
 
-      increaseTime(1)
+      await increaseTime(1)
 
       assert.isTrue(
         await arbitrable.underSendersCustody({ from: PARTY_A }),
@@ -732,7 +732,8 @@ contract('ArbitrableKitty', accounts => {
         "should be under A's custody"
       )
 
-      increaseTime(60 * 60 * 24 * 7 + 1)
+      await increaseTime(60 * 60 * 24 * 7 + 1)
+
       assert.isTrue(
         await arbitrable.underSendersCustody({ from: PARTY_B }),
         "should be under B's custody"
@@ -745,7 +746,7 @@ contract('ArbitrableKitty', accounts => {
 
     it("should allow only party A to take actions during A's custody", async () => {
       const { PARTY_A, PARTY_B, kittyId } = params
-      increaseTime(1)
+      await increaseTime(1)
 
       await expectThrow(
         arbitrable.createSiringAuction(kittyId, 100, 200, 60, { from: PARTY_B })
@@ -779,7 +780,7 @@ contract('ArbitrableKitty', accounts => {
 
     it("should allow only party B to take actions during B's custody", async () => {
       const { PARTY_A, PARTY_B, kittyId, OTHER_USER } = params
-      increaseTime(60 * 60 * 24 * 7 + 1)
+      await increaseTime(60 * 60 * 24 * 7 + 1)
 
       const otherKittyId = await kittyToSiringAuction(
         await mintKitty(2000, OTHER_USER),
@@ -797,7 +798,7 @@ contract('ArbitrableKitty', accounts => {
         value: 200
       })
 
-      increaseTime(60 * 60)
+      await increaseTime(60 * 60)
 
       await expectThrow(arbitrable.giveBirth(kittyId, { from: PARTY_A }))
 
