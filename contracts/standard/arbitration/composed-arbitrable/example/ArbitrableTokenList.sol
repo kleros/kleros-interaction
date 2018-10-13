@@ -117,6 +117,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Arbitrator _arbitrator
     ) public payable {
         Item storage item = items[_value];
+        Agreement memory prevAgreement = agreements[latestAgreementId(_value)];
+        require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
@@ -165,6 +167,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Arbitrator _arbitrator
     ) public payable {
         Item storage item = items[_value];
+        Agreement memory prevAgreement = agreements[latestAgreementId(_value)];
+        require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
