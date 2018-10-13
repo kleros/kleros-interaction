@@ -44,14 +44,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @dev Called when the item's status changes or when it is contested/resolved.
      *  @param submitter Address of the submitter, if any.
      *  @param challenger Address of the challenger, if any.
-     *  @param value The value of the item.
+     *  @param tokenID The tokenID of the item.
      *  @param status The status of the item.
      *  @param disputed The item is being disputed.
      */
     event ItemStatusChange(
         address indexed submitter,
         address indexed challenger,
-        bytes32 indexed value,
+        bytes32 indexed tokenID,
         ItemStatus status,
         bool disputed
     );
@@ -105,19 +105,19 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /**
      *  @dev Request for an item to be registered.
-     *  @param _value The value of the item to register.
+     *  @param _tokenID The tokenID of the item to register.
      *  @param _metaEvidence The meta evidence for the potential dispute.
      *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
      *  @param _arbitrator The arbitrator to use for the potential dispute.
      */
     function requestRegistration(
-        bytes32 _value,
+        bytes32 _tokenID,
         string _metaEvidence,
         uint _arbitrationFeesWaitingTime,
         Arbitrator _arbitrator
     ) public payable {
-        Item storage item = items[_value];
-        Agreement memory prevAgreement = agreements[latestAgreementId(_value)];
+        Item storage item = items[_tokenID];
+        Agreement memory prevAgreement = agreements[latestAgreementId(_tokenID)];
         require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
@@ -129,7 +129,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             revert("Item in wrong status for registration."); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
 
         if (item.lastAction == 0) {
-            itemsList.push(_value);
+            itemsList.push(_tokenID);
         }
 
         item.balance += challengeReward;
@@ -139,7 +139,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         _parties[0] = msg.sender;
 
         _createAgreement(
-            _value,
+            _tokenID,
             _metaEvidence,
             _parties,
             2,
@@ -149,25 +149,25 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
-        Agreement memory agreement = agreements[latestAgreementId(_value)];
-        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _value, item.status, agreement.disputed);
+        Agreement memory agreement = agreements[latestAgreementId(_tokenID)];
+        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _tokenID, item.status, agreement.disputed);
     }
 
     /**
      *  @dev Request an item to be cleared.
-     *  @param _value The value of the item to clear.
+     *  @param _tokenID The tokenID of the item to clear.
      *  @param _metaEvidence The meta evidence for the potential dispute.
      *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
      *  @param _arbitrator The arbitrator to use for the potential dispute.
      */
     function requestClearing(
-        bytes32 _value,
+        bytes32 _tokenID,
         string _metaEvidence,
         uint _arbitrationFeesWaitingTime,
         Arbitrator _arbitrator
     ) public payable {
-        Item storage item = items[_value];
-        Agreement memory prevAgreement = agreements[latestAgreementId(_value)];
+        Item storage item = items[_tokenID];
+        Agreement memory prevAgreement = agreements[latestAgreementId(_tokenID)];
         require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
@@ -179,7 +179,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             revert("Item in wrong status for clearing."); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
 
         if (item.lastAction == 0) {
-            itemsList.push(_value);
+            itemsList.push(_tokenID);
         }
 
         item.balance += challengeReward;
@@ -189,7 +189,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         _parties[0] = msg.sender;
 
         _createAgreement(
-            _value,
+            _tokenID,
             _metaEvidence,
             _parties,
             2,
@@ -200,8 +200,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
 
-        Agreement memory agreement = agreements[latestAgreementId(_value)];
-        emit ItemStatusChange(agreement.parties[0], agreement.parties[0], _value, item.status, agreement.disputed);
+        Agreement memory agreement = agreements[latestAgreementId(_tokenID)];
+        emit ItemStatusChange(agreement.parties[0], agreement.parties[0], _tokenID, item.status, agreement.disputed);
     }
 
     /** @dev Overrides parent to save and check information specific to Arbitrable Token List.
@@ -351,11 +351,11 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /**
      *  @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
-     *  @param _value The value of the item with the request to execute.
+     *  @param _tokenID The tokenID of the item with the request to execute.
      */
-    function executeRequest(bytes32 _value) public {
-        Item storage item = items[_value];
-        bytes32 agreementID = latestAgreementId(_value);
+    function executeRequest(bytes32 _tokenID) public {
+        Item storage item = items[_tokenID];
+        bytes32 agreementID = latestAgreementId(_tokenID);
         Agreement storage agreement = agreements[agreementID];
         require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
         require(!agreement.disputed, "The item is still disputed.");
@@ -375,29 +375,29 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
         item.balance = 0;
 
-        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _value, item.status, agreement.disputed);
+        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _tokenID, item.status, agreement.disputed);
     }
 
     /* Public Views */
 
     /**
      *  @dev Returns the latest agreement for an item
-     *  @param _value The value of the item to check.
+     *  @param _tokenID The tokenID of the item to check.
      *  @return The latest agreementID
      */
-    function latestAgreementId(bytes32 _value) public view returns (bytes32) {
-        return keccak256(abi.encodePacked(_value, itemIDToAgreementCount[_value]));
+    function latestAgreementId(bytes32 _tokenID) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(_tokenID, itemIDToAgreementCount[_tokenID]));
     }
 
     /**
      *  @dev Return true if the item is allowed.
      *  We consider the item to be in the list if its status is contested and it has not won a dispute previously.
-     *  @param _value The value of the item to check.
+     *  @param _tokenID The tokenID of the item to check.
      *  @return allowed True if the item is allowed, false otherwise.
      */
-    function isPermitted(bytes32 _value) public view returns (bool allowed) {
-        Item storage item = items[_value];
-        Agreement storage latestAgreement = agreements[latestAgreementId(_value)];
+    function isPermitted(bytes32 _tokenID) public view returns (bool allowed) {
+        Item storage item = items[_tokenID];
+        Agreement storage latestAgreement = agreements[latestAgreementId(_tokenID)];
         bool _excluded = item.status <= ItemStatus.Resubmitted ||
             (item.status == ItemStatus.PreventiveClearingRequested && !latestAgreement.disputed);
         return !_excluded;
@@ -406,7 +406,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /* Internal */
 
     /** @dev Extends parent to use counter identify agreements.
-     *  @param _value The item id.
+     *  @param _tokenID The item id.
      *  @param _metaEvidence The meta evidence of the agreement.
      *  @param _parties The `parties` value of the agreement.
      *  @param _numberOfChoices The `numberOfChoices` value of the agreement.
@@ -415,7 +415,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _arbitrator The `arbitrator` value of the agreement.
      */
     function _createAgreement(
-        bytes32 _value,
+        bytes32 _tokenID,
         string _metaEvidence,
         address[] _parties,
         uint _numberOfChoices,
@@ -423,9 +423,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         uint _arbitrationFeesWaitingTime,
         Arbitrator _arbitrator
     ) internal {
-        itemIDToAgreementCount[_value]++;
-        bytes32 agreementID = keccak256(abi.encodePacked(_value, itemIDToAgreementCount[_value]));
-        agreementIDtoItemID[agreementID] = _value;
+        itemIDToAgreementCount[_tokenID]++;
+        bytes32 agreementID = keccak256(abi.encodePacked(_tokenID, itemIDToAgreementCount[_tokenID]));
+        agreementIDtoItemID[agreementID] = _tokenID;
 
         super._createAgreement(
             agreementID,
