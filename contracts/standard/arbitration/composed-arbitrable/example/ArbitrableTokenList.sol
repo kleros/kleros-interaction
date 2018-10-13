@@ -472,6 +472,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         agreement.disputed = false;
         item.balance = 0;
+        agreement.parties[1] = 0x0; // Dispute has been resolved, reset challenger.
 
         emit ItemStatusChange(agreement.parties[0], agreement.parties[1], disputeIDToItem[disputeID], item.status, agreement.disputed);
     }
