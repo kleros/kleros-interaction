@@ -450,7 +450,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         require(agreement.disputed, "The item is not disputed.");
 
         if (_ruling == REGISTER) {
-            if (item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)
+            if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
                 agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             else
                 agreement.parties[1].send(item.balance);
@@ -464,12 +464,13 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
             item.status = ItemStatus.Cleared;
         } else { // Split the balance 50-50 and give the item the initial status.
-            if (item.status==ItemStatus.Resubmitted)
+            if (item.status == ItemStatus.Resubmitted)
                 item.status = ItemStatus.Cleared;
-            else if (item.status==ItemStatus.ClearingRequested)
+            else if (item.status == ItemStatus.ClearingRequested)
                 item.status = ItemStatus.Registered;
             else
                 item.status = ItemStatus.Absent;
+
             agreement.parties[0].send(item.balance / 2);
             agreement.parties[1].send(item.balance / 2);
         }
