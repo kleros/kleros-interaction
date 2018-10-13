@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
 
-// const BigNumber = web3.BigNumber
+const BigNumber = web3.BigNumber
 const {
   expectThrow
 } = require('openzeppelin-solidity/test/helpers/expectThrow')
@@ -517,7 +517,7 @@ contract('ArbitrableTokenList', function(accounts) {
         agreementID
       )
       assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementAfter[1][1], partyB, 'side 1 should be party B')
+      assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
       assert.isFalse(
         agreementAfter[7],
         'agreement should no be disputed anymore'
@@ -617,7 +617,7 @@ contract('ArbitrableTokenList', function(accounts) {
         agreementID
       )
       assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementAfter[1][1], partyB, 'side 1 should be party B')
+      assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
       assert.isFalse(
         agreementAfter[7],
         'agreement should no be disputed anymore'
@@ -781,7 +781,7 @@ contract('ArbitrableTokenList', function(accounts) {
         agreementID
       )
       assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementAfter[1][1], partyB, 'side 1 should be party B')
+      assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
       assert.isFalse(
         agreementAfter[7],
         'agreement should no be disputed anymore'
@@ -881,7 +881,7 @@ contract('ArbitrableTokenList', function(accounts) {
         agreementID
       )
       assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementAfter[1][1], partyB, 'side 1 should be party B')
+      assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
       assert.isFalse(
         agreementAfter[7],
         'agreement should no be disputed anymore'
@@ -915,6 +915,1321 @@ contract('ArbitrableTokenList', function(accounts) {
         0,
         'contract funds should be 0'
       )
+    })
+  })
+
+  describe('settings and item state transitions', async () => {
+    beforeEach(async () => {
+      const timeOut = 1000
+      appealableArbitrator = await AppealableArbitrator.new(
+        arbitrationPrice, // _arbitrationPrice
+        governor, // _arbitrator
+        null, // _arbitratorExtraData
+        timeOut // _timeOut
+      )
+      await appealableArbitrator.changeArbitrator(appealableArbitrator.address)
+
+      arbitrableTokenList = await ArbitrableTokenList.new(
+        appealableArbitrator.address, // arbitrator
+        arbitratorExtraData,
+        metaEvidence,
+        challengeReward,
+        timeToChallenge,
+        appealableArbitrator.address, // fee governor
+        feeStake
+      )
+    })
+
+    it('should be constructed correctly', async () => {
+      assert.equal(
+        await arbitrableTokenList.arbitrator(),
+        appealableArbitrator.address
+      )
+      assert.equal(
+        await arbitrableTokenList.arbitratorExtraData(),
+        arbitratorExtraData
+      )
+      assert.equal(await arbitrableTokenList.challengeReward(), challengeReward)
+      assert.equal(await arbitrableTokenList.timeToChallenge(), timeToChallenge)
+    })
+
+    describe('msg.value restrictions', async () => {
+      it('requestRegistration', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestRegistration(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward - 1
+            }
+          )
+        )
+      })
+
+      it('requestClearing', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestClearing(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward - 1
+            }
+          )
+        )
+      })
+
+      it('challenge agreement', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward - 1
+          })
+        )
+      })
+    })
+
+    describe('When item.disputed', function() {
+      beforeEach(
+        'prepare pre-conditions to satisfy other requirements',
+        async function() {
+          await arbitrableTokenList.requestRegistration(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward
+            }
+          ) // To satisfy `require(item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)`
+
+          const agreementID = await arbitrableTokenList.latestAgreementId(
+            TOKEN_ID
+          )
+          await arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+          await arbitrableTokenList.fundDispute(agreementID, 0, {
+            value: halfOfArbitrationPrice
+          }) // To dissatisfy `require(!item.disputed)`
+        }
+      )
+
+      beforeEach('assert pre-conditions', async function() {
+        assert.ok(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber() ===
+            ITEM_STATUS.SUBMITTED ||
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber() ===
+              ITEM_STATUS.RESUBMITTED
+        )
+
+        const agreement = await arbitrableTokenList.getAgreementInfo(
+          await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+        )
+        assert.equal(agreement[7], true, 'agreement should be disputed')
+      })
+
+      it('registration dispute', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('clearing dispute', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+    })
+
+    describe('When !(item.status==ItemStatus.ClearingRequested || item.status==ItemStatus.PreventiveClearingRequested))', function() {
+      beforeEach('assert pre-conditions', async function() {
+        assert.ok(
+          (await arbitrableTokenList.items(TOKEN_ID))[0] <
+            ITEM_STATUS.CLEARING_REQUESTED
+        )
+      })
+
+      it('registration dispute', async function() {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('clearing dispute', async function() {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+    })
+
+    describe('When item in absent state', function() {
+      beforeEach('assert pre-conditions', async function() {
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0],
+          ITEM_STATUS.ABSENT
+        )
+      })
+
+      it('calling isPermitted should return false', async () => {
+        assert.equal(await arbitrableTokenList.isPermitted(TOKEN_ID), false)
+      })
+
+      it('calling requestRegistration should move item into the submitted state', async () => {
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
+
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0],
+          ITEM_STATUS.SUBMITTED
+        )
+      })
+
+      it('calling requestClearing should move item into the preventive clearing requested state', async () => {
+        await arbitrableTokenList.requestClearing(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
+
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.PREVENTIVE_CLEARING_REQUESTED
+        )
+      })
+
+      it('calling challangeBlacklisting should revert', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('calling challangeClearing should revert', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('calling executeRequest should revert', async () => {
+        await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID))
+      })
+    })
+
+    describe('When item in cleared state', function() {
+      beforeEach('prepare pre-conditions', async function() {
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
+        await arbitrableTokenList.executeRequest(TOKEN_ID)
+        await arbitrableTokenList.requestClearing(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
+        await arbitrableTokenList.executeRequest(TOKEN_ID, {})
+      })
+
+      beforeEach('assert pre-conditions', async function() {
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0],
+          ITEM_STATUS.CLEARED
+        )
+      })
+
+      it('calling isPermitted should return false', async () => {
+        assert.equal(await arbitrableTokenList.isPermitted(TOKEN_ID), false)
+      })
+
+      it('calling requestRegistration should move item into the resubmitted state', async () => {
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
+
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.RESUBMITTED
+        )
+      })
+
+      it('calling requestClearing should revert', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestClearing(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling challangeBlacklisting should revert', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('calling challangeClearing should revert', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('calling executeRequest should revert', async () => {
+        await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID, {}))
+      })
+    })
+
+    describe('When item in resubmitted state', function() {
+      beforeEach('prepare pre-conditions', async function() {
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            from: partyA,
+            value: challengeReward
+          }
+        )
+        await arbitrableTokenList.executeRequest(TOKEN_ID, {
+          from: partyA
+        })
+        await arbitrableTokenList.requestClearing(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            from: partyB,
+            value: challengeReward
+          }
+        )
+        await arbitrableTokenList.executeRequest(TOKEN_ID, {
+          from: partyB
+        })
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            from: partyA,
+            value: challengeReward
+          }
+        )
+      })
+
+      beforeEach('assert pre-conditions', async function() {
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.RESUBMITTED
+        )
+      })
+
+      it('calling isPermitted should return true', async () => {
+        assert.equal(await arbitrableTokenList.isPermitted(TOKEN_ID), false)
+      })
+
+      it('calling requestRegistration should revert', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestRegistration(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling requestClearing should revert', async function() {
+        await expectThrow(
+          arbitrableTokenList.requestClearing(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling fundDispute should create a dispute', async function() {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          value: challengeReward + halfOfArbitrationPrice
+        })
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
+          value: halfOfArbitrationPrice
+        })
+
+        const agreement = await arbitrableTokenList.getAgreementInfo(
+          await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+        )
+        assert.equal(agreement[1][1].toString(), governor)
+        const disputeID = agreement[6]
+        assert.equal(agreement[7], true, 'agreement should be disputed')
+        assert.equal(
+          web3.toUtf8(await arbitrableTokenList.disputeIDToItem(disputeID)),
+          TOKEN_ID
+        )
+      })
+
+      describe.skip('executeRuling', async function() {
+        let disputeID
+
+        beforeEach('create a dispute', async function() {
+          const agreementID = await arbitrableTokenList.latestAgreementId(
+            TOKEN_ID
+          )
+          await arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+          await arbitrableTokenList.fundDispute(agreementID, 0, {
+            value: halfOfArbitrationPrice
+          })
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+
+          disputeID = agreement[6].toNumber()
+        })
+
+        it('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const submitter = agreement[1][0]
+          const submitterBalance = web3.eth.getBalance(submitter)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER, {})
+
+          const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+          const expectedBalanceOfSubmitter = submitterBalance
+            .plus(itemBalance)
+            .minus(new BigNumber(challengeReward).mul(4))
+            .minus(new BigNumber(arbitrationPrice).mul(3))
+
+          assert(
+            actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+            'Difference: ' +
+              actualBalanceOfSubmitter
+                .minus(expectedBalanceOfSubmitter)
+                .toNumber()
+          )
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.REGISTERED
+          )
+        })
+
+        it('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const challenger = agreement[1][1]
+          const challengerBalance = web3.eth.getBalance(challenger)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR, {})
+
+          const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+          const expectedBalanceOfChallenger = itemBalance
+            .plus(challengerBalance)
+            .minus(new BigNumber(challengeReward).mul(4))
+            .minus(new BigNumber(arbitrationPrice).mul(3))
+
+          assert(
+            actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+            'Difference: ' +
+              actualBalanceOfChallenger
+                .minus(expectedBalanceOfChallenger)
+                .toNumber()
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.CLEARED
+          )
+        })
+
+        it.skip('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the cleared state', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const submitter = agreement[1][0]
+          const challenger = agreement[1][1]
+          const submitterBalance = web3.eth.getBalance(submitter)
+          const challengerBalance = web3.eth.getBalance(challenger)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.OTHER, {})
+
+          const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+          const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+          const expectedBalanceOfSubmitter = itemBalance
+            .dividedBy(new BigNumber(2))
+            .plus(submitterBalance)
+          const expectedBalanceOfChallenger = itemBalance
+            .dividedBy(new BigNumber(2))
+            .plus(challengerBalance)
+            .minus(new BigNumber(challengeReward).mul(2))
+            .minus(new BigNumber(arbitrationPrice).mul(3).dividedBy(2))
+
+          assert(
+            actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+            'Actual: ' +
+              actualBalanceOfSubmitter +
+              '\t0Expected: ' +
+              expectedBalanceOfSubmitter
+          )
+          assert(
+            actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+            '1Differece: ' +
+              actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.CLEARED
+          )
+        })
+      })
+    })
+
+    describe('When item in registered state', function() {
+      beforeEach('prepare pre-conditions', async function() {
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
+        await arbitrableTokenList.executeRequest(TOKEN_ID, {})
+      })
+
+      beforeEach('assert pre-conditions', async function() {
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0],
+          ITEM_STATUS.REGISTERED
+        )
+      })
+
+      it('calling isPermitted should return true', async () => {
+        assert.equal(await arbitrableTokenList.isPermitted(TOKEN_ID), true)
+      })
+
+      it('calling requestRegistration should revert', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestRegistration(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling requestClearing should move item into the clearing requested state', async () => {
+        await arbitrableTokenList.requestClearing(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
+
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.CLEARING_REQUESTED
+        )
+      })
+
+      it('calling registration dispute should revert', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('calling clearing dispute should revert', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('calling executeRequest should revert', async function() {
+        await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID, {}))
+      })
+    })
+
+    describe('When item in submitted state', function() {
+      beforeEach('prepare pre-conditions', async function() {
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
+      })
+
+      beforeEach('assert pre-conditions', async function() {
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.SUBMITTED
+        )
+      })
+
+      it('calling isPermitted should return true', async () => {
+        assert.equal(await arbitrableTokenList.isPermitted(TOKEN_ID), true)
+      })
+
+      it('calling requestRegistration should revert', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestRegistration(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling requestClearing should move item into the clearing requested state', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestClearing(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling challangeBlacklisting should create a dispute', async function() {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          value: challengeReward + halfOfArbitrationPrice
+        })
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
+          value: halfOfArbitrationPrice
+        })
+
+        const agreement = await arbitrableTokenList.getAgreementInfo(
+          await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+        )
+        const disputeID = agreement[6].toNumber()
+
+        assert.equal(agreement[1][1], governor)
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[2].toNumber(),
+          challengeReward * 2
+        )
+        assert.equal(agreement[7], true, 'item should be disputed')
+        assert.equal(
+          web3.toUtf8(await arbitrableTokenList.disputeIDToItem(disputeID)),
+          TOKEN_ID
+        )
+      })
+
+      it('calling executeRequest should move item into the registered state', async function() {
+        await arbitrableTokenList.executeRequest(TOKEN_ID)
+
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.REGISTERED
+        )
+      })
+
+      describe.skip('executeRuling', async function() {
+        let disputeID
+
+        beforeEach('create a dispute', async function() {
+          const agreementID = await arbitrableTokenList.latestAgreementId(
+            TOKEN_ID
+          )
+          await arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+          await arbitrableTokenList.fundDispute(agreementID, 0, {
+            value: halfOfArbitrationPrice
+          })
+
+          disputeID = (await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          ))[6].toNumber()
+        })
+
+        it.skip('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const submitter = agreement[0]
+          const submitterBalance = web3.eth.getBalance(submitter)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          const hash = await appealableArbitrator.giveRuling(
+            disputeID,
+            RULING.REGISTER
+          )
+          const gasUsed = hash.receipt.gasUsed
+          const gasCost = gasUsed * Math.pow(10, 11) // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
+
+          const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+          const expectedBalanceOfSubmitter = submitterBalance
+            .plus(itemBalance)
+            .plus(arbitrationPrice)
+            .minus(gasCost)
+
+          const expectedItemStatus = ITEM_STATUS.REGISTERED
+
+          assert(
+            actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+            'Actual: ' +
+              actualBalanceOfSubmitter +
+              '\tExpected: ' +
+              expectedBalanceOfSubmitter
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            expectedItemStatus
+          )
+        })
+
+        it.skip('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const challenger = agreement[1][1]
+          const challengerBalance = web3.eth.getBalance(challenger)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+
+          const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+          const expectedBalanceOfChallenger = challengerBalance.plus(
+            itemBalance
+          )
+
+          assert(
+            actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+            'Actual: ' +
+              actualBalanceOfChallenger +
+              '\tExpected: ' +
+              expectedBalanceOfChallenger
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.CLEARED
+          )
+        })
+
+        it.skip('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const submitter = agreement[1][0]
+          const challenger = agreement[1][1]
+          const submitterBalance = web3.eth.getBalance(submitter)
+          const challengerBalance = web3.eth.getBalance(challenger)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[4]
+          const disputeID = (await arbitrableTokenList.items(TOKEN_ID))[6]
+
+          const hash = await appealableArbitrator.giveRuling(
+            disputeID,
+            RULING.OTHER
+          )
+          const gasUsed = hash.receipt.gasUsed
+          const gasCost = gasUsed * Math.pow(10, 11) // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
+
+          const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+          const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+          const expectedBalanceOfSubmitter = itemBalance
+            .dividedBy(new BigNumber(2))
+            .plus(submitterBalance)
+            .plus(arbitrationPrice)
+            .minus(gasCost)
+          const expectedBalanceOfChallenger = itemBalance
+            .dividedBy(new BigNumber(2))
+            .plus(challengerBalance)
+
+          assert(
+            actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+            'Actual: ' +
+              actualBalanceOfSubmitter +
+              '\tExpected: ' +
+              expectedBalanceOfSubmitter
+          )
+          assert(
+            actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+            'Actual: ' +
+              actualBalanceOfChallenger +
+              '\tExpected: ' +
+              expectedBalanceOfChallenger
+          )
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.ABSENT
+          )
+        })
+      })
+    })
+
+    describe('When item in clearing requested state', function() {
+      beforeEach('prepare pre-conditions', async function() {
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            from: partyA,
+            value: challengeReward
+          }
+        )
+        await arbitrableTokenList.executeRequest(TOKEN_ID, {
+          from: partyA
+        })
+        await arbitrableTokenList.requestClearing(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            from: partyB,
+            value: challengeReward
+          }
+        )
+      })
+
+      beforeEach('assert pre-conditions', async function() {
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.CLEARING_REQUESTED
+        )
+      })
+
+      it('calling isPermitted should return true', async () => {
+        assert.equal(await arbitrableTokenList.isPermitted(TOKEN_ID), true)
+      })
+
+      it('calling requestRegistration should revert', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestRegistration(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              from: partyA,
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling requestClearing should revert', async function() {
+        await expectThrow(
+          arbitrableTokenList.requestClearing(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              from: partyB,
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling challangeClearing should create a dispute', async function() {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          from: partyA,
+          value: challengeReward + halfOfArbitrationPrice
+        })
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
+          from: partyB,
+          value: halfOfArbitrationPrice
+        })
+
+        const agreement = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        const disputeID = agreement[6].toNumber()
+
+        assert.equal(agreement[1][1], partyA)
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[2].toNumber(),
+          challengeReward * 2
+        )
+        assert.equal(agreement[7], true)
+        assert.equal(
+          web3.toUtf8(await arbitrableTokenList.disputeIDToItem(disputeID)),
+          TOKEN_ID
+        )
+      })
+
+      it('calling executeRequest should move item into the cleared state', async function() {
+        await arbitrableTokenList.executeRequest(TOKEN_ID, {
+          from: partyA
+        })
+
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.CLEARED
+        )
+      })
+
+      describe.skip('executeRuling', async function() {
+        let disputeID
+
+        beforeEach('create a dispute', async function() {
+          const agreementID = await arbitrableTokenList.latestAgreementId(
+            TOKEN_ID
+          )
+          await arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+
+          disputeID = (await arbitrableTokenList.items(TOKEN_ID))[6].toNumber()
+        })
+
+        it('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const challenger = agreement[1][1]
+          const challengerBalance = web3.eth.getBalance(challenger)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER, {})
+
+          const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+          const expectedBalanceOfChallenger = challengerBalance
+            .plus(itemBalance)
+            .minus(new BigNumber(challengeReward).mul(3))
+            .minus(new BigNumber(arbitrationPrice).mul(2))
+
+          assert(
+            actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+            'Difference: ' +
+              actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
+          )
+
+          // assert.equal(web3.eth.getBalance(challenger).toNumber(), challengerBalance + itemBalance);
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.REGISTERED
+          )
+        })
+
+        it('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const submitter = agreement[1][0]
+          const submitterBalance = web3.eth.getBalance(submitter)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR, {})
+
+          const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+          const expectedBalanceOfSubmitter = submitterBalance
+            .plus(itemBalance)
+            .minus(new BigNumber(challengeReward).mul(3))
+            .minus(new BigNumber(arbitrationPrice).mul(2))
+
+          assert(
+            actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+            'Difference: ' +
+              actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
+          )
+
+          // assert.equal(web3.eth.getBalance(submitter).toNumber(), submitterBalance + itemBalance);
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.CLEARED
+          )
+        })
+
+        it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the registered state', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const submitter = agreement[1][0]
+          const challenger = agreement[1][1]
+          const submitterBalance = web3.eth.getBalance(submitter)
+          const challengerBalance = web3.eth.getBalance(challenger)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[4]
+          const disputeID = (await arbitrableTokenList.items(TOKEN_ID))[6]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.OTHER, {})
+
+          const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+          const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+          const expectedBalanceOfSubmitter = itemBalance
+            .dividedBy(2)
+            .plus(submitterBalance)
+          const expectedBalanceOfChallenger = itemBalance
+            .dividedBy(2)
+            .plus(challengerBalance)
+
+          assert(
+            actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+            'Difference: ' +
+              actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
+          )
+          assert(
+            actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+            'Difference: ' +
+              actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.REGISTERED
+          )
+        })
+      })
+    })
+
+    describe.skip('When item in preventive clearing requested state', function() {
+      beforeEach('prepare pre-conditions', async function() {
+        await arbitrableTokenList.requestClearing(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            from: partyB,
+            value: challengeReward
+          }
+        )
+      })
+
+      beforeEach('assert pre-conditions', async function() {
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.PREVENTIVE_CLEARING_REQUESTED
+        )
+      })
+
+      it(
+        'calling isPermitted on a not-disputed item should return ' + false,
+        async () => {
+          assert.equal(await arbitrableTokenList.isPermitted(TOKEN_ID), false)
+        }
+      )
+
+      it(
+        'calling isPermitted on a disputed item should return ' + false,
+        async () => {
+          const agreementID = await arbitrableTokenList.latestAgreementId(
+            TOKEN_ID
+          )
+          await arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          }) // To satisfy disputed pre-condition
+
+          assert.equal(await arbitrableTokenList.isPermitted(TOKEN_ID), true)
+        }
+      )
+
+      it('calling requestRegistration should revert', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestRegistration(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              from: partyA,
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling requestClearing should revert', async function() {
+        await expectThrow(
+          arbitrableTokenList.requestClearing(
+            TOKEN_ID,
+            metaEvidence,
+            REQUEST.arbitrationFeesWaitingTime,
+            appealableArbitrator.address,
+            {
+              from: partyB,
+              value: challengeReward
+            }
+          )
+        )
+      })
+
+      it('calling registration dispute should revert', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await expectThrow(
+          arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+        )
+      })
+
+      it('calling challangeClearing should create a dispute', async function() {
+        const itemBalance = (await arbitrableTokenList.items(
+          TOKEN_ID
+        ))[4].toNumber()
+
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          value: challengeReward + halfOfArbitrationPrice
+        })
+
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[3].toString(),
+          partyA
+        )
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[4].toNumber(),
+          itemBalance + challengeReward
+        )
+        const disputeID = (await arbitrableTokenList.items(
+          TOKEN_ID
+        ))[6].toNumber()
+        assert.equal((await arbitrableTokenList.items(TOKEN_ID))[5], true)
+        assert.equal(
+          web3.toUtf8(await arbitrableTokenList.disputeIDToItem(disputeID)),
+          TOKEN_ID
+        )
+      })
+
+      it('calling executeRequest should move item into the cleared state', async function() {
+        await arbitrableTokenList.executeRequest(TOKEN_ID, {})
+
+        assert.equal(
+          (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+          ITEM_STATUS.CLEARED
+        )
+      })
+
+      describe('executeRuling', async function() {
+        let disputeID
+
+        beforeEach('create a dispute', async function() {
+          const agreementID = await arbitrableTokenList.latestAgreementId(
+            TOKEN_ID
+          )
+          await arbitrableTokenList.fundDispute(agreementID, 1, {
+            value: challengeReward + halfOfArbitrationPrice
+          })
+
+          disputeID = (await arbitrableTokenList.items(TOKEN_ID))[6].toNumber()
+        })
+
+        it('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const challenger = agreement[1][1]
+          const challengerBalance = web3.eth.getBalance(challenger)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER, {})
+
+          const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+          const expectedBalanceOfChallenger = challengerBalance.plus(
+            itemBalance
+          )
+
+          assert(actualBalanceOfChallenger.equals(expectedBalanceOfChallenger))
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.REGISTERED
+          )
+        })
+
+        it('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const submitter = agreement[1][0]
+          const submitterBalance = web3.eth.getBalance(submitter)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR, {})
+
+          const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+          const expectedBalanceOfSubmitter = itemBalance.plus(submitterBalance)
+
+          assert(actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter))
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.CLEARED
+          )
+        })
+
+        it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
+          const submitter = agreement[1][0]
+          const challenger = agreement[1][1]
+          const submitterBalance = web3.eth.getBalance(submitter)
+          const challengerBalance = web3.eth.getBalance(challenger)
+          const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[4]
+          const disputeID = (await arbitrableTokenList.items(TOKEN_ID))[6]
+
+          await appealableArbitrator.giveRuling(disputeID, RULING.OTHER, {})
+
+          const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
+          const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
+          const expectedBalanceOfSubmitter = itemBalance
+            .dividedBy(2)
+            .plus(submitterBalance)
+            .plus(new BigNumber(challengeReward))
+            .plus(new BigNumber(arbitrationPrice).dividedBy(2))
+          const expectedBalanceOfChallenger = itemBalance
+            .dividedBy(2)
+            .plus(challengerBalance)
+            .plus(new BigNumber(challengeReward))
+            .plus(new BigNumber(arbitrationPrice).dividedBy(2))
+
+          assert(
+            actualBalanceOfSubmitter.equals(expectedBalanceOfSubmitter),
+            'Difference: ' +
+              actualBalanceOfSubmitter.minus(expectedBalanceOfSubmitter)
+          )
+          assert(
+            actualBalanceOfChallenger.equals(expectedBalanceOfChallenger),
+            'Difference: ' +
+              actualBalanceOfChallenger.minus(expectedBalanceOfChallenger)
+          )
+
+          assert.equal(
+            (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
+            ITEM_STATUS.ABSENT
+          )
+        })
+      })
     })
   })
 })
