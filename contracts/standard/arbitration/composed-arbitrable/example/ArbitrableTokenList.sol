@@ -36,6 +36,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         uint lastAction; // Time of the last action.
         // The amount of funds placed at stake for this item. Does not include arbitrationFees
         uint balance;
+        uint challengeReward; // The challengeReward for the item, if there a party made a request.
     }
 
     /* Events */
@@ -61,6 +62,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     // Settings
     uint public challengeReward; // The challengeReward to put to submit/clear/challenge an item in addition of arbitration fees.
     uint public timeToChallenge; // The time before which an action is executable if not challenged.
+    address public challengeRewardGovernor; // Is allowed to update challengeReward and challengeRewardGovernor
 
     // Ruling Options
     uint8 constant REGISTER = 1;
@@ -83,6 +85,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
      *  @param _metaEvidence The URL of the meta evidence object.
      *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition of the arbitration fees.
+     *  @param _challengeRewardGovernor The challengeReward governor
      *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      *  @param _feeGovernor The fee governor of this contract.
      *  @param _stake The stake parameter for sharing fees.
@@ -92,6 +95,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         bytes _arbitratorExtraData,
         string _metaEvidence,
         uint _challengeReward,
+        address _challengeRewardGovernor,
         uint _timeToChallenge,
         address _feeGovernor,
         uint _stake
@@ -99,6 +103,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         emit MetaEvidence(0, _metaEvidence);
         challengeReward = _challengeReward;
         timeToChallenge = _timeToChallenge;
+        challengeRewardGovernor = _challengeRewardGovernor;
     }
 
     /* Public */
@@ -134,6 +139,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         item.balance += challengeReward;
         item.lastAction = now;
+        item.challengeReward = challengeReward;
 
         address[] memory _parties = new address[](2);
         _parties[0] = msg.sender;
@@ -184,6 +190,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         item.balance += challengeReward;
         item.lastAction = now;
+        item.challengeReward = challengeReward;
 
         address[] memory _parties = new address[](2);
         _parties[0] = msg.sender;
@@ -290,13 +297,13 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
 
 
-        if(item.balance == challengeReward) { // Party is attempting to start a dispute
-            require(msg.value >= challengeReward, "Party challenging agreement must place value at stake");
-            fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - challengeReward
-                ? msg.value - challengeReward
+        if(item.balance == item.challengeReward) { // Party is attempting to start a dispute
+            require(msg.value >= item.challengeReward, "Party challenging agreement must place value at stake");
+            fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - item.challengeReward
+                ? msg.value - item.challengeReward
                 : fundDisputeCache.stillRequiredValueForSide;
-            item.balance += challengeReward;
-            fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue - challengeReward;
+            item.balance += item.challengeReward;
+            fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue - item.challengeReward;
             agreement.parties[1] = msg.sender;
         } else { // Party that started attempt to raise dispute already placed value at stake
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value
@@ -371,11 +378,28 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         else
             revert("Item in wrong status for executing request.");
 
+        item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
         item.lastAction = now;
         agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
         item.balance = 0;
 
         emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _tokenID, item.status, agreement.disputed);
+    }
+
+    /** @dev Changes the `challengeReward` storage variable.
+     *  @param _challengeReward The new `stake` storage variable.
+     */
+    function changeChallengeReward(uint _challengeReward) public {
+        require(msg.sender == challengeRewardGovernor, "The caller is not the fee governor.");
+        challengeReward = _challengeReward;
+    }
+
+    /** @dev Changes the `challengeRewardGovernor` storage variable.
+     *  @param _challengeRewardGovernor The new `challengeRewardGovernor` storage variable.
+     */
+    function changeChallengeRewardGovernor(address _challengeRewardGovernor) public {
+        require(msg.sender == challengeRewardGovernor, "The caller is not the fee governor.");
+        challengeRewardGovernor = _challengeRewardGovernor;
     }
 
     /* Public Views */
@@ -478,6 +502,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         agreement.disputed = false;
         item.balance = 0;
         agreement.parties[1] = 0x0; // Dispute has been resolved, reset challenger.
+        item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
 
         emit ItemStatusChange(agreement.parties[0], agreement.parties[1], disputeIDToItem[disputeID], item.status, agreement.disputed);
     }
