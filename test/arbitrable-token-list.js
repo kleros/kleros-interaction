@@ -17,6 +17,7 @@ contract('ArbitrableTokenList', function(accounts) {
   const governor = accounts[0]
   const partyA = accounts[2]
   const partyB = accounts[8]
+  const challengeRewardGovernor = accounts[9]
   const arbitratorExtraData = 0x08575
   const challengeReward = 10 ** 10
   const arbitrationPrice = 100
@@ -66,13 +67,14 @@ contract('ArbitrableTokenList', function(accounts) {
       arbitratorExtraData,
       metaEvidence,
       challengeReward,
+      challengeRewardGovernor,
       timeToChallenge,
       appealableArbitrator.address, // fee governor
       feeStake
     )
   }
 
-  describe('queryItems', () => {
+  describe.skip('queryItems', () => {
     before('setup contract for each test', deployContracts)
 
     before('populate the list', async function() {
@@ -176,7 +178,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('requestRegistration', () => {
+  describe.skip('requestRegistration', () => {
     beforeEach(async () => {
       await deployContracts()
       assert.equal(
@@ -296,7 +298,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('requestClearing', () => {
+  describe.skip('requestClearing', () => {
     beforeEach(async () => {
       await deployContracts()
       await arbitrableTokenList.requestRegistration(
@@ -427,13 +429,20 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('requestRegistration dispute without appeal', () => {
+  describe.skip('requestRegistration dispute without appeal', () => {
     beforeEach(async () => {
       await deployContracts()
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         0,
         'initial contract balance should be zero for this test'
+      )
+
+      const item = await arbitrableTokenList.items(TOKEN_ID)
+      assert.equal(
+        item[3].toNumber(),
+        0,
+        'item.challengeReward should have be 0 initially'
       )
 
       await arbitrableTokenList.requestRegistration(
@@ -446,10 +455,17 @@ contract('ArbitrableTokenList', function(accounts) {
           value: challengeReward
         }
       )
+      if (challengeReward > 0)
+        assert.equal(
+          item[3].toNumber(),
+          challengeReward,
+          'item.challengeReward should === challengeReward'
+        )
+
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         challengeReward,
-        'contract shoulld have challengeReward'
+        'contract should have challengeReward'
       )
     })
 
@@ -654,13 +670,20 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('requestClearing dispute without appeal', () => {
+  describe.skip('requestClearing dispute without appeal', () => {
     beforeEach(async () => {
       await deployContracts()
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         0,
         'initial contract balance should be zero for this test'
+      )
+
+      let item = await arbitrableTokenList.items(TOKEN_ID)
+      assert.equal(
+        item[3].toNumber(),
+        0,
+        'item.challengeReward should have be 0 initially'
       )
 
       await arbitrableTokenList.requestRegistration(
@@ -674,9 +697,22 @@ contract('ArbitrableTokenList', function(accounts) {
         }
       )
 
+      if (challengeReward > 0)
+        assert.equal(
+          item[3].toNumber(),
+          challengeReward,
+          'item.challengeReward should === challengeReward'
+        )
+
       await arbitrableTokenList.executeRequest(TOKEN_ID)
 
-      const item = await arbitrableTokenList.items(TOKEN_ID)
+      item = await arbitrableTokenList.items(TOKEN_ID)
+      assert.equal(
+        item[3].toNumber(),
+        0,
+        'item.challengeReward should have been reset'
+      )
+
       assert.equal(
         item[0].toNumber(),
         ITEM_STATUS.REGISTERED,
@@ -918,7 +954,107 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('settings and item state transitions', async () => {
+  describe('challengeReward governance', () => {
+    beforeEach(deployContracts)
+
+    it('should change challangeReward if caller is challengeRewardGovernor', async () => {
+      const challengeRewardBefore = await arbitrableTokenList.challengeReward()
+      const newChallengeReward = challengeRewardBefore.toNumber() + 1000
+
+      await arbitrableTokenList.changeChallengeReward(newChallengeReward, {
+        from: challengeRewardGovernor
+      })
+
+      const challengeRewardAfter = await arbitrableTokenList.challengeReward()
+      assert.notEqual(
+        challengeRewardAfter,
+        challengeRewardBefore,
+        'challengeReward should have changed'
+      )
+      assert.equal(
+        challengeRewardAfter.toNumber(),
+        newChallengeReward,
+        'challengeReward should have changed'
+      )
+    })
+
+    it('should revert if caller is not governor', async () => {
+      const challengeRewardBefore = await arbitrableTokenList.challengeReward()
+      const newChallengeReward = challengeRewardBefore.toNumber() + 1000
+
+      assert.notEqual(
+        partyA,
+        challengeRewardGovernor,
+        'partyA and challengeRewardGovernor should be different for this test'
+      )
+      await expectThrow(
+        arbitrableTokenList.changeChallengeReward(newChallengeReward, {
+          from: partyA
+        })
+      )
+
+      const challengeRewardAfter = await arbitrableTokenList.challengeReward()
+      assert.equal(
+        challengeRewardAfter.toNumber(),
+        challengeRewardBefore.toNumber(),
+        'challengeReward should not have changed'
+      )
+    })
+
+    it('should update challengeRewardGovernor if caller is governor', async () => {
+      const challengeRewardBefore = await arbitrableTokenList.challengeRewardGovernor()
+
+      assert.notEqual(
+        partyA,
+        challengeRewardGovernor,
+        'partyA and challengeRewardGovernor should be different for this test'
+      )
+      arbitrableTokenList.changeChallengeRewardGovernor(partyB, {
+        from: challengeRewardGovernor
+      })
+
+      const challengeRewardAfter = await arbitrableTokenList.challengeRewardGovernor()
+      assert.notEqual(
+        challengeRewardAfter,
+        challengeRewardBefore,
+        'challengeRewardGovernor should have changed'
+      )
+      assert.equal(
+        challengeRewardAfter,
+        partyB,
+        'challengeRewardGovernor should have changed'
+      )
+    })
+
+    it('should revert if if caller is governor', async () => {
+      const challengeRewardBefore = await arbitrableTokenList.challengeRewardGovernor()
+
+      assert.notEqual(
+        partyA,
+        challengeRewardGovernor,
+        'partyA and challengeRewardGovernor should be different for this test'
+      )
+      await expectThrow(
+        arbitrableTokenList.changeChallengeRewardGovernor(partyB, {
+          from: partyA
+        })
+      )
+
+      const challengeRewardAfter = await arbitrableTokenList.challengeRewardGovernor()
+      assert.equal(
+        challengeRewardAfter,
+        challengeRewardBefore,
+        'challengeRewardGovernor should not have changed'
+      )
+      assert.notEqual(
+        challengeRewardAfter,
+        partyB,
+        'challengeRewardGovernor should not have changed'
+      )
+    })
+  })
+
+  describe.skip('item management and disputes', async () => {
     beforeEach(async () => {
       const timeOut = 1000
       appealableArbitrator = await AppealableArbitrator.new(
@@ -934,6 +1070,7 @@ contract('ArbitrableTokenList', function(accounts) {
         arbitratorExtraData,
         metaEvidence,
         challengeReward,
+        challengeRewardGovernor,
         timeToChallenge,
         appealableArbitrator.address, // fee governor
         feeStake
