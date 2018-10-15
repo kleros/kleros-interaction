@@ -41,7 +41,7 @@ contract Arbitrable{
      *  @param _party The address of the party submiting the evidence. Note that 0x0 refers to evidence not submitted by any party.
      *  @param _evidence A URI to the evidence JSON file whose name should be its keccak256 hash followed by .json.
      */
-    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
+    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address indexed _party, string _evidence);
 
     /** @dev To be raised when a ruling is given.
      *  @param _arbitrator The arbitrator giving the ruling.
