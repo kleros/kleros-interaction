@@ -74,7 +74,7 @@ contract('ArbitrableTokenList', function(accounts) {
     )
   }
 
-  describe.skip('queryItems', () => {
+  describe('queryItems', () => {
     before('setup contract for each test', deployContracts)
 
     before('populate the list', async function() {
@@ -178,7 +178,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe.skip('requestRegistration', () => {
+  describe('requestRegistration', () => {
     beforeEach(async () => {
       await deployContracts()
       assert.equal(
@@ -298,7 +298,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe.skip('requestClearing', () => {
+  describe('requestClearing', () => {
     beforeEach(async () => {
       await deployContracts()
       await arbitrableTokenList.requestRegistration(
@@ -429,7 +429,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe.skip('requestRegistration dispute without appeal', () => {
+  describe('requestRegistration dispute without appeal', () => {
     beforeEach(async () => {
       await deployContracts()
       assert.equal(
@@ -438,7 +438,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'initial contract balance should be zero for this test'
       )
 
-      const item = await arbitrableTokenList.items(TOKEN_ID)
+      let item = await arbitrableTokenList.items(TOKEN_ID)
       assert.equal(
         item[3].toNumber(),
         0,
@@ -455,6 +455,8 @@ contract('ArbitrableTokenList', function(accounts) {
           value: challengeReward
         }
       )
+      item = await arbitrableTokenList.items(TOKEN_ID)
+
       if (challengeReward > 0)
         assert.equal(
           item[3].toNumber(),
@@ -670,7 +672,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe.skip('requestClearing dispute without appeal', () => {
+  describe('requestClearing dispute without appeal', () => {
     beforeEach(async () => {
       await deployContracts()
       assert.equal(
@@ -696,6 +698,8 @@ contract('ArbitrableTokenList', function(accounts) {
           value: challengeReward
         }
       )
+
+      item = await arbitrableTokenList.items(TOKEN_ID)
 
       if (challengeReward > 0)
         assert.equal(
@@ -1054,7 +1058,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe.skip('item management and disputes', async () => {
+  describe('item management and disputes', async () => {
     beforeEach(async () => {
       const timeOut = 1000
       appealableArbitrator = await AppealableArbitrator.new(
@@ -1823,6 +1827,9 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         beforeEach('assert pre-conditions', async () => {
+          const agreement = await arbitrableTokenList.getAgreementInfo(
+            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+          )
           assert.notEqual(
             agreement[1][0],
             agreement[1][1],
