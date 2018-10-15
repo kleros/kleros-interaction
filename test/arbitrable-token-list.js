@@ -220,19 +220,13 @@ contract('ArbitrableTokenList', function(accounts) {
       )
     })
 
-    it('should increase and decrease contract balance', async () => {
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward,
-        'contract should have the request reward and arbitration fees'
-      )
-
+    it('should decrease contract balance', async () => {
       await arbitrableTokenList.executeRequest(TOKEN_ID, { from: partyA })
 
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         0,
-        'contract should have returned the fees to the submitter'
+        'contract should have returned the reward to the submitter'
       )
     })
 
@@ -651,7 +645,7 @@ contract('ArbitrableTokenList', function(accounts) {
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         0,
-        'contract should have the request reward and arbitration fees'
+        'contract should have the request reward'
       )
 
       await arbitrableTokenList.requestClearing(
@@ -665,7 +659,7 @@ contract('ArbitrableTokenList', function(accounts) {
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         challengeReward,
-        'contract should have the request reward and arbitration fees'
+        'contract should have the request reward'
       )
 
       await arbitrableTokenList.executeRequest(TOKEN_ID, { from: partyA })
@@ -922,100 +916,64 @@ contract('ArbitrableTokenList', function(accounts) {
   describe('challengeReward governance', () => {
     beforeEach(deployContracts)
 
-    it('should change challangeReward if caller is challengeRewardGovernor', async () => {
-      const challengeRewardBefore = await arbitrableTokenList.challengeReward()
-      const newChallengeReward = challengeRewardBefore.toNumber() + 1000
-
-      await arbitrableTokenList.changeChallengeReward(newChallengeReward, {
-        from: challengeRewardGovernor
+    describe('caller is challengeRewardGovernor', () => {
+      beforeEach(async () => {
+        assert.notEqual(
+          partyB,
+          challengeRewardGovernor,
+          'partyB and challengeRewardGovernor should be different for this test'
+        )
       })
 
-      const challengeRewardAfter = await arbitrableTokenList.challengeReward()
-      assert.notEqual(
-        challengeRewardAfter,
-        challengeRewardBefore,
-        'challengeReward should have changed'
-      )
-      assert.equal(
-        challengeRewardAfter.toNumber(),
-        newChallengeReward,
-        'challengeReward should have changed'
-      )
-    })
-
-    it('should revert if caller is not governor', async () => {
-      const challengeRewardBefore = await arbitrableTokenList.challengeReward()
-      const newChallengeReward = challengeRewardBefore.toNumber() + 1000
-
-      assert.notEqual(
-        partyA,
-        challengeRewardGovernor,
-        'partyA and challengeRewardGovernor should be different for this test'
-      )
-      await expectThrow(
-        arbitrableTokenList.changeChallengeReward(newChallengeReward, {
-          from: partyA
-        })
-      )
-
-      const challengeRewardAfter = await arbitrableTokenList.challengeReward()
-      assert.equal(
-        challengeRewardAfter.toNumber(),
-        challengeRewardBefore.toNumber(),
-        'challengeReward should not have changed'
-      )
-    })
-
-    it('should update challengeRewardGovernor if caller is governor', async () => {
-      const challengeRewardBefore = await arbitrableTokenList.challengeRewardGovernor()
-
-      assert.notEqual(
-        partyA,
-        challengeRewardGovernor,
-        'partyA and challengeRewardGovernor should be different for this test'
-      )
-      arbitrableTokenList.changeChallengeRewardGovernor(partyB, {
-        from: challengeRewardGovernor
-      })
-
-      const challengeRewardAfter = await arbitrableTokenList.challengeRewardGovernor()
-      assert.notEqual(
-        challengeRewardAfter,
-        challengeRewardBefore,
-        'challengeRewardGovernor should have changed'
-      )
-      assert.equal(
-        challengeRewardAfter,
-        partyB,
-        'challengeRewardGovernor should have changed'
-      )
-    })
-
-    it('should revert if if caller is governor', async () => {
-      const challengeRewardBefore = await arbitrableTokenList.challengeRewardGovernor()
-
-      assert.notEqual(
-        partyA,
-        challengeRewardGovernor,
-        'partyA and challengeRewardGovernor should be different for this test'
-      )
-      await expectThrow(
+      it('should update challengeRewardGovernor', async () => {
+        const challengeRewardBefore = await arbitrableTokenList.challengeRewardGovernor()
         arbitrableTokenList.changeChallengeRewardGovernor(partyB, {
-          from: partyA
+          from: challengeRewardGovernor
         })
-      )
 
-      const challengeRewardAfter = await arbitrableTokenList.challengeRewardGovernor()
-      assert.equal(
-        challengeRewardAfter,
-        challengeRewardBefore,
-        'challengeRewardGovernor should not have changed'
-      )
-      assert.notEqual(
-        challengeRewardAfter,
-        partyB,
-        'challengeRewardGovernor should not have changed'
-      )
+        const challengeRewardAfter = await arbitrableTokenList.challengeRewardGovernor()
+        assert.notEqual(
+          challengeRewardAfter,
+          challengeRewardBefore,
+          'challengeRewardGovernor should have changed'
+        )
+        assert.equal(
+          challengeRewardAfter,
+          partyB,
+          'challengeRewardGovernor should be partyB'
+        )
+      })
+
+      it('should update challangeReward', async () => {
+        const challengeRewardBefore = await arbitrableTokenList.challengeReward()
+        const newChallengeReward = challengeRewardBefore.toNumber() + 1000
+
+        await arbitrableTokenList.changeChallengeReward(newChallengeReward, {
+          from: challengeRewardGovernor
+        })
+
+        const challengeRewardAfter = await arbitrableTokenList.challengeReward()
+        assert.notEqual(
+          challengeRewardAfter,
+          challengeRewardBefore,
+          'challengeReward should have changed'
+        )
+        assert.equal(
+          challengeRewardAfter.toNumber(),
+          newChallengeReward,
+          'challengeReward should have changed'
+        )
+      })
+    })
+
+    describe('caller is not challengeRewardGovernor', () => {
+      beforeEach(async () => {
+        assert.notEqual(
+          partyA,
+          challengeRewardGovernor,
+          'partyA and challengeRewardGovernor should be different for this test'
+        )
+      })
     })
   })
 
