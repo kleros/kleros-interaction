@@ -211,7 +211,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         emit ItemStatusChange(agreement.parties[0], agreement.parties[0], _tokenID, item.status, agreement.disputed);
     }
 
-    /** @dev Overrides parent to save and check information specific to Arbitrable Token List.
+    /** @dev Overrides parent to use information specific to Arbitrable Token List in math:
+     *  - Parent's fundDispute doesn't take into account `challengeReward` when calculating eth.
      *  For calls that initiate a dispute, msg.value must also include `challengeReward`.
      *  @param _agreementID The ID of the agreement.
      *  @param _side The side. 0 for the side that lost the previous round, if any, and 1 for the one that won.

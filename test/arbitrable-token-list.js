@@ -1058,7 +1058,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('item management and disputes', async () => {
+  describe('item management and disputes without appeal', async () => {
     beforeEach(async () => {
       const timeOut = 1000
       appealableArbitrator = await AppealableArbitrator.new(
