@@ -1085,6 +1085,15 @@ contract('ArbitrableTokenList', function(accounts) {
       })
 
       it('challenge agreement', async () => {
+        await arbitrableTokenList.requestRegistration(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            value: challengeReward
+          }
+        )
         const agreementID = await arbitrableTokenList.latestAgreementId(
           TOKEN_ID
         )
