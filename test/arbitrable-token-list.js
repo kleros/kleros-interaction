@@ -187,6 +187,13 @@ contract('ArbitrableTokenList', function(accounts) {
         'initial contract balance should be zero for this test'
       )
 
+      let item = await arbitrableTokenList.items(TOKEN_ID)
+      assert.equal(
+        item[3].toNumber(),
+        0,
+        'item.challengeReward should have be 0 initially'
+      )
+
       await arbitrableTokenList.requestRegistration(
         TOKEN_ID,
         metaEvidence,
@@ -196,6 +203,20 @@ contract('ArbitrableTokenList', function(accounts) {
           from: partyA,
           value: challengeReward
         }
+      )
+      item = await arbitrableTokenList.items(TOKEN_ID)
+
+      if (challengeReward > 0)
+        assert.equal(
+          item[3].toNumber(),
+          challengeReward,
+          'item.challengeReward should === challengeReward'
+        )
+
+      assert.equal(
+        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+        challengeReward,
+        'contract should have challengeReward'
       )
     })
 
@@ -295,6 +316,234 @@ contract('ArbitrableTokenList', function(accounts) {
         // should not allow calling executeRequestAgain
         arbitrableTokenList.executeRequest(TOKEN_ID)
       )
+    })
+
+    describe('dispute without appeal', () => {
+      it('partyA wins arbitration, item is registered', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          from: partyB,
+          value: halfOfArbitrationPrice + challengeReward
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2 + halfOfArbitrationPrice,
+          'contract shoulld have challengeReward * 2 + halfOfArbitrationPrice'
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
+          from: partyA,
+          value: halfOfArbitrationPrice
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2,
+          'contract should only hold challengeReward * 2'
+        )
+        const agreementBefore = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
+        assert.equal(agreementBefore[1][1], partyB, 'side 1 should be party B')
+        assert.isTrue(agreementBefore[7], 'agreement should be disputed')
+        assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
+        assert.isFalse(
+          agreementBefore[10],
+          'agreement should have not been executed yet'
+        )
+
+        const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
+        assert.equal(
+          itemBefore[0].toNumber(),
+          ITEM_STATUS.SUBMITTED,
+          'item should be submitted'
+        )
+        assert.equal(
+          itemBefore[2].toNumber(),
+          challengeReward * 2,
+          'item balance should hold funds from party A and B'
+        )
+
+        const partyABalanceBefore = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+        const partyBBalanceBefore = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
+
+        await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
+
+        // Rule in favor of partyA
+        await appealableArbitrator.giveRuling(
+          agreementBefore[6],
+          RULING.REGISTER
+        )
+        await increaseTime(timeOut + 1)
+        await appealableArbitrator.giveRuling(
+          agreementBefore[6],
+          RULING.REGISTER
+        )
+
+        agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          0,
+          'contract should hold no balance'
+        )
+        const agreementAfter = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
+        assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
+        assert.isFalse(
+          agreementAfter[7],
+          'agreement should no be disputed anymore'
+        )
+        assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
+        assert.isTrue(agreementAfter[10], 'agreement should have been executed')
+
+        const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
+        assert.equal(
+          itemAfter[0].toNumber(),
+          ITEM_STATUS.REGISTERED,
+          'item should be registered'
+        )
+        assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be empty')
+
+        const partyABalanceAfter = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+        const partyBBalanceAfter = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
+
+        assert.isAtMost(
+          partyBBalanceAfter,
+          partyBBalanceBefore,
+          'partyB should have not been rewarded'
+        )
+        assert.isAbove(
+          partyABalanceAfter,
+          partyABalanceBefore,
+          'partyA should have been rewarded'
+        )
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          0,
+          'contract funds should be 0'
+        )
+      })
+
+      it('partyA looses arbitration, item is cleared', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          from: partyB,
+          value: halfOfArbitrationPrice + challengeReward
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2 + halfOfArbitrationPrice,
+          'contract shoulld have challengeReward * 2 + halfOfArbitrationPrice'
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
+          from: partyA,
+          value: halfOfArbitrationPrice
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2,
+          'contract should only hold challengeReward * 2'
+        )
+        const agreementBefore = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
+        assert.equal(agreementBefore[1][1], partyB, 'side 1 should be party B')
+        assert.isTrue(agreementBefore[7], 'agreement should be disputed')
+        assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
+        assert.isFalse(
+          agreementBefore[10],
+          'agreement should have not been executed yet'
+        )
+
+        const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
+        assert.equal(
+          itemBefore[0].toNumber(),
+          ITEM_STATUS.SUBMITTED,
+          'item should be submitted'
+        )
+        assert.equal(
+          itemBefore[2].toNumber(),
+          challengeReward * 2,
+          'item balance should hold funds from party A and B'
+        )
+
+        const partyABalanceBefore = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+        const partyBBalanceBefore = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
+
+        await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
+
+        // Rule in favor of partyB
+        await appealableArbitrator.giveRuling(agreementBefore[6], RULING.CLEAR)
+        await increaseTime(timeOut + 1)
+        await appealableArbitrator.giveRuling(agreementBefore[6], RULING.CLEAR)
+
+        agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          0,
+          'contract should hold no balance'
+        )
+        const agreementAfter = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
+        assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
+        assert.isFalse(
+          agreementAfter[7],
+          'agreement should no be disputed anymore'
+        )
+        assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
+        assert.isTrue(agreementAfter[10], 'agreement should have been executed')
+
+        const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
+        assert.equal(
+          itemAfter[0].toNumber(),
+          ITEM_STATUS.CLEARED,
+          'item should be cleared'
+        )
+        assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be empty')
+
+        const partyABalanceAfter = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+        const partyBBalanceAfter = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
+
+        assert.isAbove(
+          partyBBalanceAfter,
+          partyBBalanceBefore,
+          'partyB should have been rewarded'
+        )
+        assert.isAtMost(
+          partyABalanceAfter,
+          partyABalanceBefore,
+          'partyA should have not been rewarded'
+        )
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          0,
+          'contract funds should be 0'
+        )
+      })
     })
   })
 
@@ -427,534 +676,246 @@ contract('ArbitrableTokenList', function(accounts) {
         'contract should have returned the fees to the submitter'
       )
     })
-  })
 
-  describe('requestRegistration dispute without appeal', () => {
-    beforeEach(async () => {
-      await deployContracts()
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'initial contract balance should be zero for this test'
-      )
+    describe('dispute without appeal', () => {
+      beforeEach(async () => {
+        await arbitrableTokenList.requestClearing(
+          TOKEN_ID,
+          metaEvidence,
+          REQUEST.arbitrationFeesWaitingTime,
+          appealableArbitrator.address,
+          {
+            from: partyA,
+            value: challengeReward
+          }
+        )
+      })
 
-      let item = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        item[3].toNumber(),
-        0,
-        'item.challengeReward should have be 0 initially'
-      )
-
-      await arbitrableTokenList.requestRegistration(
-        TOKEN_ID,
-        metaEvidence,
-        REQUEST.arbitrationFeesWaitingTime,
-        appealableArbitrator.address,
-        {
-          from: partyA,
-          value: challengeReward
-        }
-      )
-      item = await arbitrableTokenList.items(TOKEN_ID)
-
-      if (challengeReward > 0)
+      it('partyA wins arbitration, item is cleared', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          from: partyB,
+          value: halfOfArbitrationPrice + challengeReward
+        })
         assert.equal(
-          item[3].toNumber(),
-          challengeReward,
-          'item.challengeReward should === challengeReward'
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2 + halfOfArbitrationPrice,
+          'contract shoulld have challengeReward * 2 + halfOfArbitrationPrice'
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
+          from: partyA,
+          value: halfOfArbitrationPrice
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2,
+          'contract should only hold challengeReward * 2'
+        )
+        const agreementBefore = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
+        assert.equal(agreementBefore[1][1], partyB, 'side 1 should be party B')
+        assert.isTrue(agreementBefore[7], 'agreement should be disputed')
+        assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
+        assert.isFalse(
+          agreementBefore[10],
+          'agreement should have not been executed yet'
         )
 
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward,
-        'contract should have challengeReward'
-      )
-    })
-
-    it('partyA wins arbitration, item is registered', async () => {
-      const agreementID = await arbitrableTokenList.latestAgreementId(TOKEN_ID)
-      await arbitrableTokenList.fundDispute(agreementID, 1, {
-        from: partyB,
-        value: halfOfArbitrationPrice + challengeReward
-      })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward * 2 + halfOfArbitrationPrice,
-        'contract shoulld have challengeReward * 2 + halfOfArbitrationPrice'
-      )
-      await arbitrableTokenList.fundDispute(agreementID, 0, {
-        from: partyA,
-        value: halfOfArbitrationPrice
-      })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward * 2,
-        'contract should only hold challengeReward * 2'
-      )
-      const agreementBefore = await arbitrableTokenList.getAgreementInfo(
-        agreementID
-      )
-      assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementBefore[1][1], partyB, 'side 1 should be party B')
-      assert.isTrue(agreementBefore[7], 'agreement should be disputed')
-      assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
-      assert.isFalse(
-        agreementBefore[10],
-        'agreement should have not been executed yet'
-      )
-
-      const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        itemBefore[0].toNumber(),
-        ITEM_STATUS.SUBMITTED,
-        'item should be submitted'
-      )
-      assert.equal(
-        itemBefore[2].toNumber(),
-        challengeReward * 2,
-        'item balance should hold funds from party A and B'
-      )
-
-      const partyABalanceBefore = (await web3.eth.getBalance(partyA)).toNumber()
-      const partyBBalanceBefore = (await web3.eth.getBalance(partyB)).toNumber()
-
-      await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
-
-      // Rule in favor of partyA
-      await appealableArbitrator.giveRuling(agreementBefore[6], RULING.REGISTER)
-      await increaseTime(timeOut + 1)
-      await appealableArbitrator.giveRuling(agreementBefore[6], RULING.REGISTER)
-
-      agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'contract should hold no balance'
-      )
-      const agreementAfter = await arbitrableTokenList.getAgreementInfo(
-        agreementID
-      )
-      assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
-      assert.isFalse(
-        agreementAfter[7],
-        'agreement should no be disputed anymore'
-      )
-      assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
-      assert.isTrue(agreementAfter[10], 'agreement should have been executed')
-
-      const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        itemAfter[0].toNumber(),
-        ITEM_STATUS.REGISTERED,
-        'item should be registered'
-      )
-      assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be empty')
-
-      const partyABalanceAfter = (await web3.eth.getBalance(partyA)).toNumber()
-      const partyBBalanceAfter = (await web3.eth.getBalance(partyB)).toNumber()
-
-      assert.isAtMost(
-        partyBBalanceAfter,
-        partyBBalanceBefore,
-        'partyB should have not been rewarded'
-      )
-      assert.isAbove(
-        partyABalanceAfter,
-        partyABalanceBefore,
-        'partyA should have been rewarded'
-      )
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'contract funds should be 0'
-      )
-    })
-
-    it('partyA looses arbitration, item is cleared', async () => {
-      const agreementID = await arbitrableTokenList.latestAgreementId(TOKEN_ID)
-      await arbitrableTokenList.fundDispute(agreementID, 1, {
-        from: partyB,
-        value: halfOfArbitrationPrice + challengeReward
-      })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward * 2 + halfOfArbitrationPrice,
-        'contract shoulld have challengeReward * 2 + halfOfArbitrationPrice'
-      )
-      await arbitrableTokenList.fundDispute(agreementID, 0, {
-        from: partyA,
-        value: halfOfArbitrationPrice
-      })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward * 2,
-        'contract should only hold challengeReward * 2'
-      )
-      const agreementBefore = await arbitrableTokenList.getAgreementInfo(
-        agreementID
-      )
-      assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementBefore[1][1], partyB, 'side 1 should be party B')
-      assert.isTrue(agreementBefore[7], 'agreement should be disputed')
-      assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
-      assert.isFalse(
-        agreementBefore[10],
-        'agreement should have not been executed yet'
-      )
-
-      const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        itemBefore[0].toNumber(),
-        ITEM_STATUS.SUBMITTED,
-        'item should be submitted'
-      )
-      assert.equal(
-        itemBefore[2].toNumber(),
-        challengeReward * 2,
-        'item balance should hold funds from party A and B'
-      )
-
-      const partyABalanceBefore = (await web3.eth.getBalance(partyA)).toNumber()
-      const partyBBalanceBefore = (await web3.eth.getBalance(partyB)).toNumber()
-
-      await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
-
-      // Rule in favor of partyB
-      await appealableArbitrator.giveRuling(agreementBefore[6], RULING.CLEAR)
-      await increaseTime(timeOut + 1)
-      await appealableArbitrator.giveRuling(agreementBefore[6], RULING.CLEAR)
-
-      agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'contract should hold no balance'
-      )
-      const agreementAfter = await arbitrableTokenList.getAgreementInfo(
-        agreementID
-      )
-      assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
-      assert.isFalse(
-        agreementAfter[7],
-        'agreement should no be disputed anymore'
-      )
-      assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
-      assert.isTrue(agreementAfter[10], 'agreement should have been executed')
-
-      const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        itemAfter[0].toNumber(),
-        ITEM_STATUS.CLEARED,
-        'item should be cleared'
-      )
-      assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be empty')
-
-      const partyABalanceAfter = (await web3.eth.getBalance(partyA)).toNumber()
-      const partyBBalanceAfter = (await web3.eth.getBalance(partyB)).toNumber()
-
-      assert.isAbove(
-        partyBBalanceAfter,
-        partyBBalanceBefore,
-        'partyB should have been rewarded'
-      )
-      assert.isAtMost(
-        partyABalanceAfter,
-        partyABalanceBefore,
-        'partyA should have not been rewarded'
-      )
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'contract funds should be 0'
-      )
-    })
-  })
-
-  describe('requestClearing dispute without appeal', () => {
-    beforeEach(async () => {
-      await deployContracts()
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'initial contract balance should be zero for this test'
-      )
-
-      let item = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        item[3].toNumber(),
-        0,
-        'item.challengeReward should have be 0 initially'
-      )
-
-      await arbitrableTokenList.requestRegistration(
-        TOKEN_ID,
-        metaEvidence,
-        REQUEST.arbitrationFeesWaitingTime,
-        appealableArbitrator.address,
-        {
-          from: partyA,
-          value: challengeReward
-        }
-      )
-
-      item = await arbitrableTokenList.items(TOKEN_ID)
-
-      if (challengeReward > 0)
+        const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
         assert.equal(
-          item[3].toNumber(),
-          challengeReward,
-          'item.challengeReward should === challengeReward'
+          itemBefore[0].toNumber(),
+          ITEM_STATUS.CLEARING_REQUESTED,
+          'item should have status of clearing requested'
+        )
+        assert.equal(
+          itemBefore[2].toNumber(),
+          challengeReward * 2,
+          'item balance should hold funds from party A and B'
         )
 
-      await arbitrableTokenList.executeRequest(TOKEN_ID)
+        const partyABalanceBefore = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+        const partyBBalanceBefore = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
 
-      item = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        item[3].toNumber(),
-        0,
-        'item.challengeReward should have been reset'
-      )
+        await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
 
-      assert.equal(
-        item[0].toNumber(),
-        ITEM_STATUS.REGISTERED,
-        'item should be registered for this test'
-      )
-      assert.isAbove(
-        item[1].toNumber(),
-        0,
-        'item should have a last action time'
-      )
-      assert.equal(
-        item[2].toNumber(),
-        0,
-        'item should have no rewards since there is no request in place'
-      )
+        // Rule in favor of partyA
+        await appealableArbitrator.giveRuling(agreementBefore[6], RULING.CLEAR)
+        await increaseTime(timeOut + 1)
+        await appealableArbitrator.giveRuling(agreementBefore[6], RULING.CLEAR)
 
-      const agreement = await arbitrableTokenList.getAgreementInfo(
-        await arbitrableTokenList.latestAgreementId(TOKEN_ID)
-      )
-      assert.equal(
-        agreement[0],
-        partyA,
-        'partyA should be the agreement creator'
-      )
-      assert.equal(agreement[1][0], partyA, 'partyA should be side 0')
-      assert.equal(agreement[1][1], 0x0, 'there should be no party in side 1')
-      assert.equal(agreement[10], true, 'agreement should have been executed')
+        agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          0,
+          'contract should hold no balance'
+        )
+        const agreementAfter = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
+        assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
+        assert.isFalse(
+          agreementAfter[7],
+          'agreement should no be disputed anymore'
+        )
+        assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
+        assert.isTrue(agreementAfter[10], 'agreement should have been executed')
 
-      await arbitrableTokenList.requestClearing(
-        TOKEN_ID,
-        metaEvidence,
-        REQUEST.arbitrationFeesWaitingTime,
-        appealableArbitrator.address,
-        {
+        const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
+        assert.equal(
+          itemAfter[0].toNumber(),
+          ITEM_STATUS.CLEARED,
+          'item should be cleared'
+        )
+        assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be empty')
+
+        const partyABalanceAfter = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+        const partyBBalanceAfter = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
+
+        assert.isAtMost(
+          partyBBalanceAfter,
+          partyBBalanceBefore,
+          'partyB should have not been rewarded'
+        )
+        assert.isAbove(
+          partyABalanceAfter,
+          partyABalanceBefore,
+          'partyA should have been rewarded'
+        )
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          0,
+          'contract funds should be 0'
+        )
+      })
+
+      it('partyA looses arbitration, item is kept', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          from: partyB,
+          value: halfOfArbitrationPrice + challengeReward
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2 + halfOfArbitrationPrice,
+          'contract should have challengeReward * 2 + halfOfArbitrationPrice'
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
           from: partyA,
-          value: challengeReward
-        }
-      )
-    })
+          value: halfOfArbitrationPrice
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2,
+          'contract should only hold challengeReward * 2'
+        )
+        const agreementBefore = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
+        assert.equal(agreementBefore[1][1], partyB, 'side 1 should be party B')
+        assert.isTrue(agreementBefore[7], 'agreement should be disputed')
+        assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
+        assert.isFalse(
+          agreementBefore[10],
+          'agreement should have not been executed yet'
+        )
 
-    it('partyA wins arbitration, item is cleared', async () => {
-      const agreementID = await arbitrableTokenList.latestAgreementId(TOKEN_ID)
-      await arbitrableTokenList.fundDispute(agreementID, 1, {
-        from: partyB,
-        value: halfOfArbitrationPrice + challengeReward
+        const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
+        assert.equal(
+          itemBefore[0].toNumber(),
+          ITEM_STATUS.CLEARING_REQUESTED,
+          'item should have status of clearing requested'
+        )
+        assert.equal(
+          itemBefore[2].toNumber(),
+          challengeReward * 2,
+          'item balance should hold funds from party A and B'
+        )
+
+        const partyABalanceBefore = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+        const partyBBalanceBefore = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
+
+        await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
+
+        // Rule in favor of partyB
+        await appealableArbitrator.giveRuling(
+          agreementBefore[6],
+          RULING.REGISTER
+        )
+        await increaseTime(timeOut + 1)
+        await appealableArbitrator.giveRuling(
+          agreementBefore[6],
+          RULING.REGISTER
+        )
+
+        agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          0,
+          'contract should hold no balance'
+        )
+        const agreementAfter = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
+        assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
+        assert.isFalse(
+          agreementAfter[7],
+          'agreement should no be disputed anymore'
+        )
+        assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
+        assert.isTrue(agreementAfter[10], 'agreement should have been executed')
+
+        const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
+        assert.equal(
+          itemAfter[0].toNumber(),
+          ITEM_STATUS.REGISTERED,
+          'item should be registered'
+        )
+        assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be empty')
+
+        const partyABalanceAfter = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+        const partyBBalanceAfter = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
+
+        assert.isAbove(
+          partyBBalanceAfter,
+          partyBBalanceBefore,
+          'partyB should have been rewarded'
+        )
+        assert.isAtMost(
+          partyABalanceAfter,
+          partyABalanceBefore,
+          'partyA should have not been rewarded'
+        )
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          0,
+          'contract funds should be 0'
+        )
       })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward * 2 + halfOfArbitrationPrice,
-        'contract shoulld have challengeReward * 2 + halfOfArbitrationPrice'
-      )
-      await arbitrableTokenList.fundDispute(agreementID, 0, {
-        from: partyA,
-        value: halfOfArbitrationPrice
-      })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward * 2,
-        'contract should only hold challengeReward * 2'
-      )
-      const agreementBefore = await arbitrableTokenList.getAgreementInfo(
-        agreementID
-      )
-      assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementBefore[1][1], partyB, 'side 1 should be party B')
-      assert.isTrue(agreementBefore[7], 'agreement should be disputed')
-      assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
-      assert.isFalse(
-        agreementBefore[10],
-        'agreement should have not been executed yet'
-      )
-
-      const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        itemBefore[0].toNumber(),
-        ITEM_STATUS.CLEARING_REQUESTED,
-        'item should have status of clearing requested'
-      )
-      assert.equal(
-        itemBefore[2].toNumber(),
-        challengeReward * 2,
-        'item balance should hold funds from party A and B'
-      )
-
-      const partyABalanceBefore = (await web3.eth.getBalance(partyA)).toNumber()
-      const partyBBalanceBefore = (await web3.eth.getBalance(partyB)).toNumber()
-
-      await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
-
-      // Rule in favor of partyA
-      await appealableArbitrator.giveRuling(agreementBefore[6], RULING.CLEAR)
-      await increaseTime(timeOut + 1)
-      await appealableArbitrator.giveRuling(agreementBefore[6], RULING.CLEAR)
-
-      agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'contract should hold no balance'
-      )
-      const agreementAfter = await arbitrableTokenList.getAgreementInfo(
-        agreementID
-      )
-      assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
-      assert.isFalse(
-        agreementAfter[7],
-        'agreement should no be disputed anymore'
-      )
-      assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
-      assert.isTrue(agreementAfter[10], 'agreement should have been executed')
-
-      const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        itemAfter[0].toNumber(),
-        ITEM_STATUS.CLEARED,
-        'item should be cleared'
-      )
-      assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be empty')
-
-      const partyABalanceAfter = (await web3.eth.getBalance(partyA)).toNumber()
-      const partyBBalanceAfter = (await web3.eth.getBalance(partyB)).toNumber()
-
-      assert.isAtMost(
-        partyBBalanceAfter,
-        partyBBalanceBefore,
-        'partyB should have not been rewarded'
-      )
-      assert.isAbove(
-        partyABalanceAfter,
-        partyABalanceBefore,
-        'partyA should have been rewarded'
-      )
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'contract funds should be 0'
-      )
-    })
-
-    it('partyA looses arbitration, item is kept', async () => {
-      const agreementID = await arbitrableTokenList.latestAgreementId(TOKEN_ID)
-      await arbitrableTokenList.fundDispute(agreementID, 1, {
-        from: partyB,
-        value: halfOfArbitrationPrice + challengeReward
-      })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward * 2 + halfOfArbitrationPrice,
-        'contract should have challengeReward * 2 + halfOfArbitrationPrice'
-      )
-      await arbitrableTokenList.fundDispute(agreementID, 0, {
-        from: partyA,
-        value: halfOfArbitrationPrice
-      })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward * 2,
-        'contract should only hold challengeReward * 2'
-      )
-      const agreementBefore = await arbitrableTokenList.getAgreementInfo(
-        agreementID
-      )
-      assert.equal(agreementBefore[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementBefore[1][1], partyB, 'side 1 should be party B')
-      assert.isTrue(agreementBefore[7], 'agreement should be disputed')
-      assert.isFalse(agreementBefore[8], 'agreement should not be appealed')
-      assert.isFalse(
-        agreementBefore[10],
-        'agreement should have not been executed yet'
-      )
-
-      const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        itemBefore[0].toNumber(),
-        ITEM_STATUS.CLEARING_REQUESTED,
-        'item should have status of clearing requested'
-      )
-      assert.equal(
-        itemBefore[2].toNumber(),
-        challengeReward * 2,
-        'item balance should hold funds from party A and B'
-      )
-
-      const partyABalanceBefore = (await web3.eth.getBalance(partyA)).toNumber()
-      const partyBBalanceBefore = (await web3.eth.getBalance(partyB)).toNumber()
-
-      await expectThrow(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
-
-      // Rule in favor of partyB
-      await appealableArbitrator.giveRuling(agreementBefore[6], RULING.REGISTER)
-      await increaseTime(timeOut + 1)
-      await appealableArbitrator.giveRuling(agreementBefore[6], RULING.REGISTER)
-
-      agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'contract should hold no balance'
-      )
-      const agreementAfter = await arbitrableTokenList.getAgreementInfo(
-        agreementID
-      )
-      assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-      assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
-      assert.isFalse(
-        agreementAfter[7],
-        'agreement should no be disputed anymore'
-      )
-      assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
-      assert.isTrue(agreementAfter[10], 'agreement should have been executed')
-
-      const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
-      assert.equal(
-        itemAfter[0].toNumber(),
-        ITEM_STATUS.REGISTERED,
-        'item should be registered'
-      )
-      assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be empty')
-
-      const partyABalanceAfter = (await web3.eth.getBalance(partyA)).toNumber()
-      const partyBBalanceAfter = (await web3.eth.getBalance(partyB)).toNumber()
-
-      assert.isAbove(
-        partyBBalanceAfter,
-        partyBBalanceBefore,
-        'partyB should have been rewarded'
-      )
-      assert.isAtMost(
-        partyABalanceAfter,
-        partyABalanceBefore,
-        'partyA should have not been rewarded'
-      )
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        0,
-        'contract funds should be 0'
-      )
     })
   })
 
