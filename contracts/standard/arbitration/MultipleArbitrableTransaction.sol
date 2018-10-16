@@ -187,7 +187,7 @@ contract MultipleArbitrableTransaction {
     function timeOut(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer || msg.sender == transaction.seller, "The caller must be the buyer or the seller.");
-        require(now >= transaction.lastInteraction+transaction.timeout);
+        require(now >= transaction.lastInteraction+transaction.timeout, "The current time must be higher than the timeout.");
 
         if (msg.sender == transaction.seller) {
             transaction.seller.send(transaction.sellerFee > transaction.buyerFee ? transaction.sellerFee : transaction.buyerFee); // In both cases sends the highest amount paid to avoid ETH to be stuck in the contract if the arbitrator lowers its fee.
