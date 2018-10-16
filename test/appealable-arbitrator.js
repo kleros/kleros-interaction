@@ -455,32 +455,41 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
+
+    const arbitrable = await AppealableArbitrator.new(
+      arbitrationFee,
+      appealableArbitrator.address,
+      arbitratorExtraData,
+      timeOut,
+      { from: other }
+    )
     // these disputes are created to differentiate dispute's indexes in arbitrator and arbitrable contracts
     // and to differentiate them from default uint mapping value
-    await centralizedArbitrator.createDispute(choices, arbitratorExtraData, {
-      value: arbitrationFee
-    })
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-    await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
+    await arbitrable.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-    await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
+    await arbitrable.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-    appealID = await appealableArbitrator.getAppealDisputeID(2)
+    await arbitrable.createDispute(choices, arbitratorExtraData, {
+      value: arbitrationFee
+    })
+    appealID = await arbitrable.getAppealDisputeID(2)
     assert.equal(
       appealID.toNumber(),
       2,
       'Incorrect appealID before appeal was made'
     )
-    await appealableArbitrator.giveRuling(2, 1)
-    await appealableArbitrator.appeal(2, arbitratorExtraData, {
+    await arbitrable.giveRuling(2, 1, { from: other })
+    await arbitrable.appeal(2, arbitratorExtraData, {
+      from: other,
       value: arbitrationFee
     })
     appealID = await new Promise(resolve => {
-      appealableArbitrator
+      arbitrable
         .getAppealDisputeID(2)
         .then(result => {
           resolve(result)
