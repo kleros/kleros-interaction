@@ -20,7 +20,6 @@ contract('AppealableArbitrator', function(accounts) {
   const choices = 2
   const arbitratorExtraData = 0x85
   const NOT_PAYABLE_VALUE = (2 ** 256 - 2) / 2
-
   const partyA = accounts[3]
   const partyB = accounts[4]
 
@@ -36,7 +35,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     assert.equal(await appealableArbitrator.timeOut(), timeOut)
     assert.equal(
       await appealableArbitrator.arbitrationCost(0x85),
@@ -64,7 +62,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     await expectThrow(
       appealableArbitrator.changeArbitrator(other, { from: other })
     )
@@ -82,7 +79,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     await expectThrow(appealableArbitrator.changeTimeOut(5, { from: other }))
   })
 
@@ -98,11 +94,9 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-
     await expectThrow(appealableArbitrator.giveRuling(0, 1, { from: other }))
   })
 
@@ -118,12 +112,10 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
     const tx = await appealableArbitrator.giveRuling(0, 1)
-
     const dispute = await appealableArbitrator.disputes(0)
     assert.equal(dispute[0], appealable, 'Arbitrable not set up properly')
     assert.equal(
@@ -138,7 +130,6 @@ contract('AppealableArbitrator', function(accounts) {
     )
     assert.equal(dispute[3].toNumber(), 1, 'Ruling not set up properly')
     assert.equal(dispute[4].toNumber(), 1, 'Dispute has incorrect status')
-
     assert.equal(
       tx.logs[0].event,
       'AppealPossible',
@@ -168,7 +159,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     const arbitrable = await TwoPartyArbitrable.new(
       appealableArbitrator.address,
       timeOut,
@@ -205,7 +195,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
@@ -236,13 +225,11 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     // these disputes are created to differentiate dispute's indexes in arbitrator and arbitrable contracts
     // and to differentiate them from default uint mapping value
     await centralizedArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
@@ -256,16 +243,13 @@ contract('AppealableArbitrator', function(accounts) {
     await appealableArbitrator.appeal(2, arbitratorExtraData, {
       value: arbitrationFee
     })
-
     const appealDispute = await appealableArbitrator.appealDisputes(2)
-
     assert.equal(
       appealDispute[1],
       centralizedArbitrator.address,
       'Appeal has wrong arbitrator'
     )
     assert.equal(appealDispute[2].toNumber(), 1, 'Appeal has wrong ID')
-
     const appealDisputeIDsToDisputeIDs = await appealableArbitrator.appealDisputeIDsToDisputeIDs(
       1
     )
@@ -274,7 +258,6 @@ contract('AppealableArbitrator', function(accounts) {
       2,
       'Dispute ID has incorrect appeal ID'
     )
-
     const dispute = await centralizedArbitrator.disputes(1)
     assert.equal(
       dispute[0],
@@ -288,7 +271,6 @@ contract('AppealableArbitrator', function(accounts) {
   it('Should return correct appeal cost', async () => {
     var appealCost
     var appealCost2
-
     const centralizedArbitrator = await CentralizedArbitrator.new(3, {
       from: arbitrator
     })
@@ -299,7 +281,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
@@ -309,7 +290,6 @@ contract('AppealableArbitrator', function(accounts) {
       NOT_PAYABLE_VALUE,
       'Incorrect appeal cost for dispute before ruling'
     )
-
     await appealableArbitrator.giveRuling(0, 1)
     appealCost = await appealableArbitrator.appealCost(0, arbitratorExtraData)
     assert.equal(
@@ -317,13 +297,16 @@ contract('AppealableArbitrator', function(accounts) {
       3,
       'Incorrect appeal cost for dispute after ruling'
     )
-
     await appealableArbitrator.appeal(0, arbitratorExtraData, {
       from: appealable,
       value: 3
     })
     appealCost = await appealableArbitrator.appealCost(0, arbitratorExtraData)
-    appealCost2 = await centralizedArbitrator.appealCost(0, arbitratorExtraData)
+    appealCost2 = await centralizedArbitrator.appealCost(
+      0,
+      arbitratorExtraData,
+      { from: arbitrator }
+    )
     assert.equal(
       appealCost.toNumber(),
       appealCost2.toNumber(),
@@ -334,7 +317,6 @@ contract('AppealableArbitrator', function(accounts) {
   it('Should return correct status', async () => {
     var status
     var dispute
-
     const centralizedArbitrator = await CentralizedArbitrator.new(
       arbitrationFee,
       { from: arbitrator }
@@ -346,7 +328,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
@@ -354,7 +335,6 @@ contract('AppealableArbitrator', function(accounts) {
     dispute = await appealableArbitrator.disputes(0)
     status = await appealableArbitrator.disputeStatus(0)
     assert.equal(status.toNumber(), dispute[4].toNumber(), 'Incorrect status')
-
     await appealableArbitrator.appeal(0, arbitratorExtraData, {
       from: appealable,
       value: arbitrationFee
@@ -380,7 +360,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     const arbitrable = await TwoPartyArbitrable.new(
       appealableArbitrator.address,
       timeOut,
@@ -398,7 +377,6 @@ contract('AppealableArbitrator', function(accounts) {
       from: partyA,
       value: arbitrationFee
     })
-
     await appealableArbitrator.giveRuling(0, 2)
     await appealableArbitrator.appeal(0, arbitratorExtraData, {
       from: appealable,
@@ -422,7 +400,6 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     const arbitrable = await TwoPartyArbitrable.new(
       appealableArbitrator.address,
       timeOut,
@@ -440,15 +417,12 @@ contract('AppealableArbitrator', function(accounts) {
       from: partyA,
       value: arbitrationFee
     })
-
     await appealableArbitrator.giveRuling(0, 1)
     await appealableArbitrator.appeal(0, arbitratorExtraData, {
       from: appealable,
       value: arbitrationFee
     })
-
     centralizedArbitrator.giveRuling(0, 2, { from: arbitrator })
-
     const disputeAppeal = await appealableArbitrator.disputes(0)
     const disputeArbitrator = await centralizedArbitrator.disputes(0)
     assert.equal(
@@ -470,7 +444,6 @@ contract('AppealableArbitrator', function(accounts) {
 
   it('Should get correct latest AppealID', async () => {
     var appealID
-
     const centralizedArbitrator = await CentralizedArbitrator.new(
       arbitrationFee,
       { from: arbitrator }
@@ -482,13 +455,11 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-
     // these disputes are created to differentiate dispute's indexes in arbitrator and arbitrable contracts
     // and to differentiate them from default uint mapping value
     await centralizedArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
@@ -498,20 +469,26 @@ contract('AppealableArbitrator', function(accounts) {
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-
     appealID = await appealableArbitrator.getAppealDisputeID(2)
     assert.equal(
       appealID.toNumber(),
       2,
       'Incorrect appealID before appeal was made'
     )
-
     await appealableArbitrator.giveRuling(2, 1)
     await appealableArbitrator.appeal(2, arbitratorExtraData, {
       value: arbitrationFee
     })
-
-    appealID = await appealableArbitrator.getAppealDisputeID(2)
+    appealID = await new Promise(resolve => {
+      appealableArbitrator
+        .getAppealDisputeID(2)
+        .then(result => {
+          resolve(result)
+        })
+        .catch(function() {
+          assert(false, 'getAppealDisputeID function shouldnt throw')
+        })
+    })
     assert.equal(
       appealID.toNumber(),
       1,
