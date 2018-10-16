@@ -181,32 +181,24 @@ contract MultipleArbitrableTransaction {
         emit Dispute(transaction.arbitrator, transaction.disputeId, _transactionId);
     }
 
-    /** @dev Reimburse partyA if partyB fails to pay the fee.
+    /** @dev Pay/Reimburse if the other party fails to pay the fee.
      *  @param _transactionId The index of the transaction.
      */
-    function timeOutBySeller(uint _transactionId) public {
+    function timeOut(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
-        require(msg.sender == transaction.seller, "The caller must be the seller.");
+        require(msg.sender == transaction.buyer || msg.sender == transaction.seller, "The caller must be the buyer or the seller.");
+        require(now >= transaction.lastInteraction+transaction.timeout);
 
+        if (msg.sender == transaction.seller) {
+            transaction.seller.send(transaction.sellerFee > transaction.buyerFee ? transaction.sellerFee : transaction.buyerFee); // In both cases sends the highest amount paid to avoid ETH to be stuck in the contract if the arbitrator lowers its fee.
+            transaction.seller.send(transaction.amount);
+        } else if (msg.sender == transaction.buyer) {
+            transaction.buyer.send(transaction.sellerFee > transaction.buyerFee ? transaction.sellerFee : transaction.buyerFee);
+            transaction.buyer.send(transaction.amount);
+        }
 
-        require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
-        require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
-
-        executeRuling(transaction.disputeId, SELLER_WINS);
-    }
-
-    /** @dev Pay partyB if partyA fails to pay the fee.
-     *  @param _transactionId The index of the transaction.
-     */
-    function timeOutByBuyer(uint _transactionId) public {
-        Transaction storage transaction = transactions[_transactionId];
-        require(msg.sender == transaction.buyer, "The caller must be the buyer.");
-
-
-        require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
-        require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
-
-        executeRuling(transaction.disputeId, BUYER_WINS);
+        transaction.amount = 0;
+        transaction.status = Status.Resolved;
     }
 
     /** @dev Submit a reference to evidence. EVENT.
