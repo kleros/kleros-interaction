@@ -516,7 +516,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     })
     await increaseTime(timeout + 1)
     const payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
-    const tx = await multipleContract.timeOutByBuyer(arbitrableTransactionId, {
+    const tx = await multipleContract.timeOut(arbitrableTransactionId, {
       from: payer,
       gasPrice: gasPrice
     })
@@ -558,7 +558,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
     await expectThrow(
-      multipleContract.timeOutByBuyer(arbitrableTransactionId, {
+      multipleContract.timeOut(arbitrableTransactionId, {
         from: payer,
         gasPrice: gasPrice
       })
@@ -569,7 +569,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     })
     await increaseTime(1)
     await expectThrow(
-      multipleContract.timeOutByBuyer(arbitrableTransactionId, {
+      multipleContract.timeOut(arbitrableTransactionId, {
         from: payer,
         gasPrice: gasPrice
       })
@@ -607,7 +607,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     })
     await increaseTime(timeout + 1)
     const payeeBalanceBeforeReimbursment = web3.eth.getBalance(payee)
-    const tx = await multipleContract.timeOutBySeller(arbitrableTransactionId, {
+    const tx = await multipleContract.timeOut(arbitrableTransactionId, {
       from: payee,
       gasPrice: gasPrice
     })
@@ -649,7 +649,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
     await expectThrow(
-      multipleContract.timeOutBySeller(arbitrableTransactionId, {
+      multipleContract.timeOut(arbitrableTransactionId, {
         from: payee,
         gasPrice: gasPrice
       })
@@ -660,7 +660,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     })
     await increaseTime(1)
     await expectThrow(
-      multipleContract.timeOutBySeller(arbitrableTransactionId, {
+      multipleContract.timeOut(arbitrableTransactionId, {
         from: payee,
         gasPrice: gasPrice
       })
