@@ -124,7 +124,7 @@ contract('ArbitrableVersioningProxy', function(accounts) {
     assert.equal(currentImplementation, previousImplementation)
   })
 
-  it('should create a dispute', async function() {
+  it('should create a dispute and map ids correctly', async function() {
     const CHOICES = 217 // Arbitrary
 
     await proxy.createDispute(CHOICES, 'EXTRA_DATA', { value: 10000000 })
@@ -133,7 +133,19 @@ contract('ArbitrableVersioningProxy', function(accounts) {
 
     const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
 
-    assert.equal((await arbitrator.disputes(0))[1].toNumber(), CHOICES)
+    const EXTERNAL_DISPUTE_ID = 0
+    const LOCAL_DISPUTE_ID = 0
+
+    assert.equal(
+      (await arbitrator.disputes(LOCAL_DISPUTE_ID))[1].toNumber(),
+      CHOICES
+    )
+    assert.equal(
+      (await proxy.externalDisputeIDToLocalDisputeID(
+        EXTERNAL_DISPUTE_ID
+      )).toNumber(),
+      LOCAL_DISPUTE_ID
+    )
   })
 
   it('should retrieve appeal cost', async function() {
@@ -156,15 +168,15 @@ contract('ArbitrableVersioningProxy', function(accounts) {
   })
 
   it('appeal should transfer the dispute when called the first time', async function() {
-    const CHOICES = Math.ceil(Math.random() * 100);
+    const CHOICES = Math.ceil(Math.random() * 100)
 
-    await proxy.createDispute(CHOICES, "EXTRA_DATA", { value: 1000000 })
+    await proxy.createDispute(CHOICES, 'EXTRA_DATA', { value: 1000000 })
 
     let implementationAddress = await proxy.implementation()
     let arbitrator = AppealableArbitrator.at(implementationAddress)
 
     const DISPUTE_ID = 0 // First dispute has the ID 0
-    const RULING = Math.floor(Math.random() * CHOICES);
+    const RULING = Math.floor(Math.random() * CHOICES)
 
     await arbitrator.giveRuling(DISPUTE_ID, RULING)
 
@@ -175,9 +187,9 @@ contract('ArbitrableVersioningProxy', function(accounts) {
       0,
       { from: accounts[8] }
     )
-    await proxy.publish("NEXT_TAG", newVersion.address, { from: GOVERNOR })
+    await proxy.publish('NEXT_TAG', newVersion.address, { from: GOVERNOR })
 
-    await proxy.appeal(DISPUTE_ID, "EXTRA_DATA", {
+    await proxy.appeal(DISPUTE_ID, 'EXTRA_DATA', {
       gas: 1000000,
       value: 100000000
     })

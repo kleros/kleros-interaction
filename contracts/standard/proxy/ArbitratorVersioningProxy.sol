@@ -24,7 +24,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
 
     DisputeStruct[] public disputes;
 
-    mapping(uint => uint) externalDisputeIDToLocalDisputeID;
+    mapping(uint => uint) public externalDisputeIDToLocalDisputeID;
 
     /* Constructor */
 
@@ -50,7 +50,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
                 arbitrator: Arbitrator(implementation),
                 choices: _choices
             })
-        );
+        ) -1;
 
         externalDisputeIDToLocalDisputeID[externalDisputeID] = _localDisputeID;
     }
