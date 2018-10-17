@@ -912,7 +912,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
       it('should update t2clGovernor', async () => {
         const challengeRewardBefore = await arbitrableTokenList.t2clGovernor()
-        arbitrableTokenList.changeChallengeRewardGovernor(partyB, {
+        await arbitrableTokenList.changeT2CLGovernor(partyB, {
           from: t2clGovernor
         })
 
@@ -949,6 +949,31 @@ contract('ArbitrableTokenList', function(accounts) {
           'challengeReward should have changed'
         )
       })
+
+      it('should update arbitrationFeesWaitingTime', async () => {
+        const arbitrationFeesWaitingTimeBefore = await arbitrableTokenList.arbitrationFeesWaitingTime()
+        const newarbitrationFeesWaitingTime =
+          arbitrationFeesWaitingTimeBefore.toNumber() + 1000
+
+        await arbitrableTokenList.changeArbitrationFeesWaitingTime(
+          newarbitrationFeesWaitingTime,
+          {
+            from: t2clGovernor
+          }
+        )
+
+        const arbitrationFeesWaitingTimeAfter = await arbitrableTokenList.arbitrationFeesWaitingTime()
+        assert.notEqual(
+          arbitrationFeesWaitingTimeAfter,
+          arbitrationFeesWaitingTimeBefore,
+          'arbitrationFeesWaitingTime should have changed'
+        )
+        assert.equal(
+          arbitrationFeesWaitingTimeAfter.toNumber(),
+          newarbitrationFeesWaitingTime,
+          'arbitrationFeesWaitingTime should have changed'
+        )
+      })
     })
 
     describe('caller is not t2clGovernor', () => {
@@ -957,6 +982,77 @@ contract('ArbitrableTokenList', function(accounts) {
           partyA,
           t2clGovernor,
           'partyA and t2clGovernor should be different for this test'
+        )
+      })
+
+      it('should not update t2clGovernor', async () => {
+        const t2clGovernorBefore = await arbitrableTokenList.t2clGovernor()
+        await expectThrow(
+          arbitrableTokenList.changeT2CLGovernor(partyB, {
+            from: partyB
+          })
+        )
+
+        const t2clGovernorAfter = await arbitrableTokenList.t2clGovernor()
+        assert.equal(
+          t2clGovernorAfter,
+          t2clGovernorBefore,
+          't2clGovernor should not have changed'
+        )
+        assert.notEqual(
+          t2clGovernorAfter,
+          partyB,
+          't2clGovernor should not be partyB'
+        )
+      })
+
+      it('should not update challangeReward', async () => {
+        const challengeRewardBefore = await arbitrableTokenList.challengeReward()
+        const newChallengeReward = challengeRewardBefore.toNumber() + 1000
+
+        await expectThrow(
+          arbitrableTokenList.changeChallengeReward(newChallengeReward, {
+            from: partyB
+          })
+        )
+
+        const challengeRewardAfter = await arbitrableTokenList.challengeReward()
+        assert.equal(
+          challengeRewardAfter.toNumber(),
+          challengeRewardBefore.toNumber(),
+          'challengeReward should not have changed'
+        )
+        assert.notEqual(
+          challengeRewardAfter.toNumber(),
+          newChallengeReward,
+          'challengeReward should not have changed'
+        )
+      })
+
+      it('should not update arbitrationFeesWaitingTime', async () => {
+        const arbitrationFeesWaitingTimeBefore = await arbitrableTokenList.arbitrationFeesWaitingTime()
+        const newArbitrationFeesWaitingTime =
+          arbitrationFeesWaitingTimeBefore.toNumber() + 1000
+
+        await expectThrow(
+          arbitrableTokenList.changeArbitrationFeesWaitingTime(
+            newArbitrationFeesWaitingTime,
+            {
+              from: partyB
+            }
+          )
+        )
+
+        const arbitrationFeesWaitingTimeAfter = await arbitrableTokenList.arbitrationFeesWaitingTime()
+        assert.equal(
+          arbitrationFeesWaitingTimeAfter.toNumber(),
+          arbitrationFeesWaitingTimeBefore.toNumber(),
+          'arbitrationFeesWaitingTime should not have changed'
+        )
+        assert.notEqual(
+          arbitrationFeesWaitingTimeAfter.toNumber(),
+          newArbitrationFeesWaitingTime,
+          'arbitrationFeesWaitingTime should not have changed'
         )
       })
     })

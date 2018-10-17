@@ -35,6 +35,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         uint challengeReward; // The challengeReward for the item, if it is in a pending challenge.
     }
 
+    /* Modifiers */
+
+    modifier onlyT2CLGovernor {require(msg.sender == t2clGovernor, "The caller is not the t2cl governor."); _;}
+
     /* Events */
 
     /**
@@ -148,7 +152,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra ETH.
-        Agreement memory agreement = agreements[latestAgreementId(_tokenID)];
+        Agreement storage agreement = agreements[latestAgreementId(_tokenID)];
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
@@ -195,9 +199,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
-
-        Agreement memory agreement = agreements[latestAgreementId(_tokenID)];
-        emit ItemStatusChange(agreement.parties[0], agreement.parties[0], _tokenID, item.status, agreement.disputed);
+        Agreement storage agreement = agreements[latestAgreementId(_tokenID)];
+        emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
     /** @dev Overrides parent to use information specific to Arbitrable Token List in math:
@@ -378,24 +381,21 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /** @dev Changes the `challengeReward` storage variable.
      *  @param _challengeReward The new `challengeReward` storage variable.
      */
-    function changeChallengeReward(uint _challengeReward) external {
-        require(msg.sender == t2clGovernor, "The caller is not the t2cl governor.");
+    function changeChallengeReward(uint _challengeReward) external onlyT2CLGovernor {
         challengeReward = _challengeReward;
     }
 
     /** @dev Changes the `t2clGovernor` storage variable.
      *  @param _t2clGovernor The new `t2clGovernor` storage variable.
      */
-    function changeChallengeRewardGovernor(address _t2clGovernor) external {
-        require(msg.sender == t2clGovernor, "The caller is not the t2cl governor.");
+    function changeT2CLGovernor(address _t2clGovernor) external onlyT2CLGovernor {
         t2clGovernor = _t2clGovernor;
     }
 
     /** @dev Changes the `arbitrationFeesWaitingTime` storage variable.
      *  @param _arbitrationFeesWaitingTime The new `_arbitrationFeesWaitingTime` storage variable.
      */
-    function changeArbitrationFeesWaitingTime(uint _arbitrationFeesWaitingTime) external {
-        require(msg.sender == t2clGovernor, "The caller is not the t2cl governor.");
+    function changeArbitrationFeesWaitingTime(uint _arbitrationFeesWaitingTime) external onlyT2CLGovernor {
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
     }
 
