@@ -1,19 +1,16 @@
 /**
- *  @title Arbitrable Token List
+ *  @title ArbitrableTokenList
  *  @author Matheus Alencar - <mtsalenc@gmail.com>
  */
 
 pragma solidity ^0.4.24;
 
-import "../../../permission/ArbitrablePermissionList.sol";
-import "../fee/MultiPartyInsurableFees.sol";
-import "../agreement/MultiPartyAgreements.sol";
 import "../composed/MultiPartyInsurableArbitrableAgreementsBase.sol";
 
 
 /**
- *  @title Arbitrable Token List
- *  This is a T2CL list for tokens. Token submissions can be submitted and challenged.
+ *  @title ArbitrableTokenList
+ *  This is a T2CL for tokens. Tokens can be submitted and cleared with a time out for challenging.
  */
 contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
@@ -21,7 +18,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     enum ItemStatus {
         Absent, // The item has never been submitted.
-        Cleared, // The item has been submitted and the dispute resolution process determined it should not be added or a clearing request has been submitted and not contested.
+        Cleared, // The item has been submitted and the dispute resolution process determined it should not be added or a clearing request has been submitted and the dispute resolution process determined it should be cleared or the clearing was never contested.
         Resubmitted, // The item has been cleared but someone has resubmitted it.
         Registered, // The item has been submitted and the dispute resolution process determined it should be added or the submission was never contested.
         Submitted, // The item has been submitted.
@@ -34,20 +31,19 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     struct Item {
         ItemStatus status; // Status of the item.
         uint lastAction; // Time of the last action.
-        // The amount of funds placed at stake for this item. Does not include arbitrationFees
-        uint balance;
-        uint challengeReward; // The challengeReward for the item, if there a party made a request.
+        uint balance; // The amount of funds placed at stake for this item. Does not include arbitrationFees.
+        uint challengeReward; // The challengeReward for the item, if it is in a pending challenge.
     }
 
     /* Events */
 
     /**
-     *  @dev Called when the item's status changes or when it is contested/resolved.
-     *  @param submitter Address of the submitter, if any.
+     *  @dev Called when the item's status changes or when it is challenged/resolved.
+     *  @param submitter Address of the submitter.
      *  @param challenger Address of the challenger, if any.
      *  @param tokenID The tokenID of the item.
      *  @param status The status of the item.
-     *  @param disputed The item is being disputed.
+     *  @param disputed Wether the item is being disputed.
      */
     event ItemStatusChange(
         address indexed submitter,
@@ -60,9 +56,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /* Storage */
 
     // Settings
-    uint public challengeReward; // The challengeReward to put to submit/clear/challenge an item in addition of arbitration fees.
-    uint public timeToChallenge; // The time before which an action is executable if not challenged.
-    address public challengeRewardGovernor; // Is allowed to update challengeReward and challengeRewardGovernor
+    uint public challengeReward; // The stake deposit required in addition to arbitration fees for challenging a registration or clearing request.
+    uint public timeToChallenge; // The time before a request becomes executable if not challenged.
+    uint public arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees if the dispute is raised.
+    address public t2clGovernor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
 
     // Ruling Options
     uint8 constant REGISTER = 1;
@@ -70,60 +67,56 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     // Items
     mapping(bytes32 => Item) public items;
-    mapping(uint => bytes32) public disputeIDToItem;
+    mapping(uint => bytes32) public disputeIDToItemID;
     bytes32[] public itemsList;
 
-    // Agreement and Item extension
+    // Agreement and Item Extension
     mapping(bytes32 => uint) public itemIDToAgreementCount;
     mapping(bytes32 => bytes32) public agreementIDtoItemID;
 
     /* Constructor */
 
     /**
-     *  @dev Constructs the arbitrable permission list and sets the type.
+     *  @dev Constructs the arbitrable token list.
      *  @param _arbitrator The chosen arbitrator.
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
-     *  @param _metaEvidence The URL of the meta evidence object.
-     *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition of the arbitration fees.
-     *  @param _challengeRewardGovernor The challengeReward governor
-     *  @param _timeToChallenge The time in seconds, other parties have to challenge.
      *  @param _feeGovernor The fee governor of this contract.
      *  @param _stake The stake parameter for sharing fees.
+     *  @param _t2clGovernor The t2clGovernor address. This address can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
+     *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
+     *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition to the arbitration fees.
+     *  @param _timeToChallenge The time in seconds, parties have to challenge.
      */
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        string _metaEvidence,
-        uint _challengeReward,
-        address _challengeRewardGovernor,
-        uint _timeToChallenge,
         address _feeGovernor,
-        uint _stake
+        uint _stake,
+        address _t2clGovernor,
+        uint _arbitrationFeesWaitingTime,
+        uint _challengeReward,
+        uint _timeToChallenge
     ) public MultiPartyInsurableArbitrableAgreementsBase(_arbitrator, _arbitratorExtraData, _feeGovernor, _stake){
-        emit MetaEvidence(0, _metaEvidence);
         challengeReward = _challengeReward;
         timeToChallenge = _timeToChallenge;
-        challengeRewardGovernor = _challengeRewardGovernor;
+        t2clGovernor = _t2clGovernor;
+        arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
     }
 
     /* Public */
 
     /**
      *  @dev Request for an item to be registered.
-     *  @param _tokenID The tokenID of the item to register.
+     *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _metaEvidence The meta evidence for the potential dispute.
-     *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
-     *  @param _arbitrator The arbitrator to use for the potential dispute.
      */
     function requestRegistration(
         bytes32 _tokenID,
-        string _metaEvidence,
-        uint _arbitrationFeesWaitingTime,
-        Arbitrator _arbitrator
-    ) public payable {
+        string _metaEvidence
+    ) external payable {
         Item storage item = items[_tokenID];
-        Agreement memory prevAgreement = agreements[latestAgreementId(_tokenID)];
-        require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place");
+        Agreement storage prevAgreement = agreements[latestAgreementId(_tokenID)];
+        require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
@@ -137,7 +130,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             itemsList.push(_tokenID);
         }
 
-        item.balance += challengeReward;
+        item.balance = challengeReward;
         item.lastAction = now;
         item.challengeReward = challengeReward;
 
@@ -150,31 +143,27 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _parties,
             2,
             new bytes(0),
-            _arbitrationFeesWaitingTime,
-            _arbitrator
+            arbitrationFeesWaitingTime,
+            arbitrator
         );
 
-        if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
+        if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra ETH.
         Agreement memory agreement = agreements[latestAgreementId(_tokenID)];
-        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _tokenID, item.status, agreement.disputed);
+        emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
     /**
      *  @dev Request an item to be cleared.
-     *  @param _tokenID The tokenID of the item to clear.
+     *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _metaEvidence The meta evidence for the potential dispute.
-     *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
-     *  @param _arbitrator The arbitrator to use for the potential dispute.
      */
     function requestClearing(
         bytes32 _tokenID,
-        string _metaEvidence,
-        uint _arbitrationFeesWaitingTime,
-        Arbitrator _arbitrator
-    ) public payable {
+        string _metaEvidence
+    ) external payable {
         Item storage item = items[_tokenID];
-        Agreement memory prevAgreement = agreements[latestAgreementId(_tokenID)];
-        require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place");
+        Agreement storage prevAgreement = agreements[latestAgreementId(_tokenID)];
+        require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
@@ -188,7 +177,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             itemsList.push(_tokenID);
         }
 
-        item.balance += challengeReward;
+        item.balance = challengeReward;
         item.lastAction = now;
         item.challengeReward = challengeReward;
 
@@ -201,8 +190,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _parties,
             2,
             new bytes(0),
-            _arbitrationFeesWaitingTime,
-            _arbitrator
+            arbitrationFeesWaitingTime,
+            arbitrator
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
@@ -212,8 +201,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     }
 
     /** @dev Overrides parent to use information specific to Arbitrable Token List in math:
-     *  - Parent's fundDispute doesn't take into account `challengeReward` when calculating eth.
-     *  For calls that initiate a dispute, msg.value must also include `challengeReward`.
+     *  - Parent's fundDispute doesn't take into account `challengeReward` when calculating ETH.
+     *  - For calls that initiate a dispute, msg.value must also include `challengeReward`.
      *  @param _agreementID The ID of the agreement.
      *  @param _side The side. 0 for the side that lost the previous round, if any, and 1 for the one that won.
      */
@@ -239,7 +228,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _paidFees.totalContributedPerSide.push([0, 0]);
             _paidFees.loserFullyFunded.push(false);
             _paidFees.contributions.length++;
-        } else { // Reset cache
+        } else { // Reset cache.
             fundDisputeCache.cost = 0;
             fundDisputeCache.appealing = false;
             (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = (0, 0);
@@ -298,7 +287,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
 
 
-        if(item.balance == item.challengeReward) { // Party is attempting to start a dispute
+        if(item.balance == item.challengeReward) { // Party is attempting to start a dispute.
             require(msg.value >= item.challengeReward, "Party challenging agreement must place value at stake");
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - item.challengeReward
                 ? msg.value - item.challengeReward
@@ -306,7 +295,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.balance += item.challengeReward;
             fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue - item.challengeReward;
             agreement.parties[1] = msg.sender;
-        } else { // Party that started attempt to raise dispute already placed value at stake
+        } else { // Party that started attempt to raise dispute already placed value at stake.
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value
                 ? msg.value
                 : fundDisputeCache.stillRequiredValueForSide;
@@ -334,7 +323,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                     if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side == 0 ? 1 : 0] < fundDisputeCache.requiredValueForSide) return;
                     agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
-                    disputeIDToItem[agreement.disputeID] = agreementIDtoItemID[_agreementID];
+                    disputeIDToItemID[agreement.disputeID] = agreementIDtoItemID[_agreementID];
                     arbitratorAndDisputeIDToAgreementID[agreement.arbitrator][agreement.disputeID] = _agreementID;
                     emit Dispute(agreement.arbitrator, agreement.disputeID, uint(_agreementID));
                 } else { // Appeal.
@@ -361,12 +350,11 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _tokenID The tokenID of the item with the request to execute.
      */
-    function executeRequest(bytes32 _tokenID) public {
+    function executeRequest(bytes32 _tokenID) external {
         Item storage item = items[_tokenID];
         bytes32 agreementID = latestAgreementId(_tokenID);
         Agreement storage agreement = agreements[agreementID];
-        require(now - item.lastAction >= timeToChallenge, "The time to challenge has not passed yet.");
-        require(!agreement.disputed, "The item is still disputed.");
+        require(now - item.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
         require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(!agreement.executed, "The specified agreement has already been executed.");
         require(!agreement.disputed, "The specified agreement is disputed.");
@@ -384,23 +372,31 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
         item.balance = 0;
 
-        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], _tokenID, item.status, agreement.disputed);
+        emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
     /** @dev Changes the `challengeReward` storage variable.
-     *  @param _challengeReward The new `stake` storage variable.
+     *  @param _challengeReward The new `challengeReward` storage variable.
      */
-    function changeChallengeReward(uint _challengeReward) public {
-        require(msg.sender == challengeRewardGovernor, "The caller is not the fee governor.");
+    function changeChallengeReward(uint _challengeReward) external {
+        require(msg.sender == t2clGovernor, "The caller is not the t2cl governor.");
         challengeReward = _challengeReward;
     }
 
-    /** @dev Changes the `challengeRewardGovernor` storage variable.
-     *  @param _challengeRewardGovernor The new `challengeRewardGovernor` storage variable.
+    /** @dev Changes the `t2clGovernor` storage variable.
+     *  @param _t2clGovernor The new `t2clGovernor` storage variable.
      */
-    function changeChallengeRewardGovernor(address _challengeRewardGovernor) public {
-        require(msg.sender == challengeRewardGovernor, "The caller is not the fee governor.");
-        challengeRewardGovernor = _challengeRewardGovernor;
+    function changeChallengeRewardGovernor(address _t2clGovernor) external {
+        require(msg.sender == t2clGovernor, "The caller is not the t2cl governor.");
+        t2clGovernor = _t2clGovernor;
+    }
+
+    /** @dev Changes the `arbitrationFeesWaitingTime` storage variable.
+     *  @param _arbitrationFeesWaitingTime The new `_arbitrationFeesWaitingTime` storage variable.
+     */
+    function changeArbitrationFeesWaitingTime(uint _arbitrationFeesWaitingTime) external {
+        require(msg.sender == t2clGovernor, "The caller is not the t2cl governor.");
+        arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
     }
 
     /* Public Views */
@@ -422,10 +418,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function isPermitted(bytes32 _tokenID) public view returns (bool allowed) {
         Item storage item = items[_tokenID];
-        Agreement storage latestAgreement = agreements[latestAgreementId(_tokenID)];
-        bool _excluded = item.status <= ItemStatus.Resubmitted ||
-            (item.status == ItemStatus.PreventiveClearingRequested && !latestAgreement.disputed);
-        return !_excluded;
+        return item.status == ItemStatus.Registered || item.status == ItemStatus.ClearingRequested;
     }
 
     /* Internal */
@@ -470,7 +463,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
         super.executeAgreementRuling(_agreementID, _ruling);
         uint256 disputeID = agreements[_agreementID].disputeID;
-        Item storage item = items[disputeIDToItem[disputeID]];
+        Item storage item = items[disputeIDToItemID[disputeID]];
         Agreement storage agreement = agreements[_agreementID];
         require(agreement.disputed, "The item is not disputed.");
 
@@ -505,7 +498,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         agreement.parties[1] = 0x0; // Dispute has been resolved, reset challenger.
         item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
 
-        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], disputeIDToItem[disputeID], item.status, agreement.disputed);
+        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], disputeIDToItemID[disputeID], item.status, agreement.disputed);
     }
 
     /* Interface Views */
@@ -514,15 +507,15 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @dev Return the number of items in the list.
      *  @return The number of items in the list.
      */
-    function itemsCount() public view returns (uint count) {
-        count = itemsList.length;
+    function itemsCount() public view returns (uint) {
+        return itemsList.length;
     }
 
     /**
      *  @dev Return the numbers of items in the list per status.
      *  @return The numbers of items in the list per status.
      */
-    function itemsCounts() public view returns (uint pending, uint challenged, uint accepted, uint rejected) {
+    function itemsCounts() external view returns (uint pending, uint challenged, uint accepted, uint rejected) {
         for (uint i = 0; i < itemsList.length; i++) {
             Item storage item = items[itemsList[i]];
             Agreement storage latestAgreement = agreements[latestAgreementId(itemsList[i])];
@@ -542,7 +535,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _sort The sort order to use.
      *  @return The values of the items found and wether there are more items for the current filter and sort.
      */
-    function queryItems(bytes32 _cursor, uint _count, bool[6] _filter, bool _sort) public view returns (bytes32[] values, bool hasMore) {
+    function queryItems(bytes32 _cursor, uint _count, bool[6] _filter, bool _sort) external view returns (bytes32[] values, bool hasMore) {
         uint _cursorIndex;
         values = new bytes32[](_count);
         uint _index = 0;
