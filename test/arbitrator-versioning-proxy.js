@@ -156,23 +156,34 @@ contract('ArbitrableVersioningProxy', function(accounts) {
   })
 
   it('appeal should transfer the dispute when called the first time', async function() {
-    const CHOICES = 217 // Arbitrary
-    const EXTRA_DATA = 'EXTRA_DATA'
+    const CHOICES = Math.ceil(Math.random() * 100);
 
-    await proxy.createDispute(CHOICES, EXTRA_DATA, { value: 1000000 })
+    await proxy.createDispute(CHOICES, "EXTRA_DATA", { value: 1000000 })
 
-    const IMPLEMENTATION_ADDRESS = await proxy.implementation()
-
-    const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
+    let implementationAddress = await proxy.implementation()
+    let arbitrator = AppealableArbitrator.at(implementationAddress)
 
     const DISPUTE_ID = 0 // First dispute has the ID 0
-    const RULING = CHOICES - 1 // Arbitrary
+    const RULING = Math.floor(Math.random() * CHOICES);
 
     await arbitrator.giveRuling(DISPUTE_ID, RULING)
-    await proxy.appeal(DISPUTE_ID, EXTRA_DATA, {
+
+    const newVersion = await AppealableArbitrator.new(
+      ARBITRATION_FEE + 1,
+      accounts[9],
+      'NEW_EXTRA_DATA',
+      0,
+      { from: accounts[8] }
+    )
+    await proxy.publish("NEXT_TAG", newVersion.address, { from: GOVERNOR })
+
+    await proxy.appeal(DISPUTE_ID, "EXTRA_DATA", {
       gas: 1000000,
       value: 100000000
     })
+
+    implementationAddress = await proxy.implementation()
+    arbitrator = AppealableArbitrator.at(implementationAddress)
 
     const ORIGINAL_DISPUTE = await proxy.disputes(DISPUTE_ID)
     const NEW_DISPUTE = await arbitrator.disputes(DISPUTE_ID) // This is the first dispute of the new arbitrator.
