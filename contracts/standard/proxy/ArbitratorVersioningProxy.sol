@@ -8,7 +8,7 @@ import "./VersioningProxy.sol";
 /**
  *  @title ArbitratorVersioningProxy
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
- *  @notice An Arbitrator proxy that only exposes methods in the Arbitrator spec.
+ *  @dev An Arbitrator proxy that only exposes methods in the Arbitrator spec.
  */
 contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     /* Structs */
@@ -29,7 +29,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     /* Constructor */
 
     /**
-     * @notice Constructs the arbitrator versioning proxy with the first arbitrator contract version address and tags it v0.0.1.
+     * @dev Constructs the arbitrator versioning proxy with the first arbitrator contract version address and tags it v0.0.1.
      * @param _firstAddress The address of the first arbitrator contract version.
      */
     constructor(Arbitrator _firstAddress) VersioningProxy("0.0.1", _firstAddress) public Arbitrable(Arbitrator(msg.sender), "") {}
