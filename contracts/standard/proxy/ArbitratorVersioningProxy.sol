@@ -61,10 +61,10 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      */
     function appeal(uint256 _localDisputeID, bytes _extraData) public payable {
         if (disputes[_localDisputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
-            Arbitrable _arbitrated = disputes[_localDisputeID].arbitrated;
             uint256 _choices = disputes[_localDisputeID].choices;
             uint256 _externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
-            disputes[_localDisputeID] = DisputeStruct({ arbitrated: _arbitrated, arbitrator: Arbitrator(implementation), externalDisputeID: _externalDisputeID, choices: _choices });
+            disputes[_localDisputeID].arbitrator = Arbitrator(implementation);
+            disputes[_localDisputeID].externalDisputeID = _externalDisputeID;
         }
         else{
             Arbitrator(implementation).appeal.value(msg.value)(disputes[_localDisputeID].externalDisputeID, _extraData);
