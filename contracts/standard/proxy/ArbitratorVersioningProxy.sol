@@ -63,7 +63,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         if (disputes[_localDisputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
             transferDispute(_localDisputeID, _extraData);
         }
-        else{
+        else {
             Arbitrator(implementation).appeal.value(msg.value)(disputes[_localDisputeID].externalDisputeID, _extraData);
         }
     }
@@ -85,9 +85,11 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      */
     function appealCost(uint _localDisputeID, bytes _extraData) public view returns(uint _fee) {
         if (disputes[_localDisputeID].arbitrator != implementation) {
-            transferDispute(_localDisputeID, _extraData);
+            _fee = Arbitrator(implementation).arbitrationCost(_extraData);
         }
-        return Arbitrator(implementation).appealCost(disputes[_localDisputeID].externalDisputeID, _extraData);
+        else {
+            _fee = Arbitrator(implementation).appealCost(disputes[_localDisputeID].externalDisputeID, _extraData);
+        }
     }
 
     function transferDispute(uint _localDisputeID, bytes _extraData) internal {

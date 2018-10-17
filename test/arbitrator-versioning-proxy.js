@@ -159,10 +159,36 @@ contract('ArbitrableVersioningProxy', function(accounts) {
     const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
 
     const DISPUTE_ID = 0 // First dispute has the ID 0
-    const RULING = CHOICES - 1 // Arbitrary
 
-    const ACTUAL = await proxy.appealCost(DISPUTE_ID, RULING)
-    const EXPECTED = await arbitrator.appealCost(DISPUTE_ID, RULING)
+    const ACTUAL = await proxy.appealCost(DISPUTE_ID, EXTRA_DATA)
+    const EXPECTED = await arbitrator.appealCost(DISPUTE_ID, EXTRA_DATA)
+
+    assert(ACTUAL.equals(EXPECTED))
+  })
+
+  it('should return arbitrationCost if version changed', async function() {
+    const CHOICES = 217 // Arbitrary
+    const EXTRA_DATA = 'EXTRA_DATA'
+
+    await proxy.createDispute(CHOICES, EXTRA_DATA, { value: 1000000 })
+
+    const newVersion = await AppealableArbitrator.new(
+      ARBITRATION_FEE + 1,
+      accounts[9],
+      'NEW_EXTRA_DATA',
+      0,
+      { from: accounts[8] }
+    )
+    await proxy.publish('NEXT_TAG', newVersion.address, { from: GOVERNOR })
+
+    const IMPLEMENTATION_ADDRESS = await proxy.implementation()
+
+    const arbitrator = AppealableArbitrator.at(IMPLEMENTATION_ADDRESS)
+
+    const DISPUTE_ID = 0 // First dispute has the ID 0
+
+    const ACTUAL = await proxy.appealCost(DISPUTE_ID, EXTRA_DATA)
+    const EXPECTED = await arbitrator.arbitrationCost(EXTRA_DATA)
 
     assert(ACTUAL.equals(EXPECTED))
   })
