@@ -114,7 +114,7 @@ contract MultipleArbitrableTransaction {
 
         emit Ruling(transactionId, Arbitrator(msg.sender), _disputeID, _ruling);
 
-        executeRuling(_disputeID, _ruling);
+        executeRuling(transactionId, _ruling);
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the seller. UNTRUSTED.
@@ -192,7 +192,7 @@ contract MultipleArbitrableTransaction {
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
         require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
 
-        executeRuling(transaction.disputeId, SELLER_WINS);
+        executeRuling(_transactionId, SELLER_WINS);
     }
 
     /** @dev Pay partyB if partyA fails to pay the fee.
@@ -206,7 +206,7 @@ contract MultipleArbitrableTransaction {
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
         require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
 
-        executeRuling(transaction.disputeId, BUYER_WINS);
+        executeRuling(_transactionId, BUYER_WINS);
     }
 
     /** @dev Submit a reference to evidence. EVENT.
@@ -309,14 +309,11 @@ contract MultipleArbitrableTransaction {
 
     /** @dev Execute a ruling of a dispute. It reimburse the fee to the winning party.
      *  This need to be extended by contract inheriting from it.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _transactionId The index of the transaction.
      *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the partyA. 2 : Pay the partyB.
      */
-    function executeRuling(uint _disputeID, uint _ruling) internal {
-        uint transactionId = disputeTxMap[keccak256(msg.sender, _disputeID)];
-        Transaction storage transaction = transactions[transactionId];
-
-        require(_disputeID == transaction.disputeId, "Wrong dispute ID.");
+    function executeRuling(uint _transactionId, uint _ruling) internal {
+        Transaction storage transaction = transactions[_transactionId];
         require(_ruling <= AMOUNT_OF_CHOICES, "Invalid ruling.");
 
         // Give the arbitration fee back.
