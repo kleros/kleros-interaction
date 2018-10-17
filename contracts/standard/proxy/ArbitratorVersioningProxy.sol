@@ -114,16 +114,17 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     }
 
     function rule(uint _externalDisputeID, uint _ruling) public {
-        emit Ruling(Arbitrator(msg.sender), externalDisputeIDToLocalDisputeID[_externalDisputeID], _ruling);
+        uint localDisputeID = externalDisputeIDToLocalDisputeID[_externalDisputeID];
+
+        require(disputes[localDisputeID].arbitrator == msg.sender, "The dispute can only be ruled on by its arbitrator.");
+
+        emit Ruling(Arbitrator(msg.sender), localDisputeID, _ruling);
 
         executeRuling(_externalDisputeID, _ruling);
     }
 
     function executeRuling(uint _externalDisputeID, uint _ruling) internal {
-        uint localDisputeID = externalDisputeIDToLocalDisputeID[_externalDisputeID];
-
-        require(disputes[localDisputeID].arbitrator == msg.sender, "The dispute can only be ruled on by its arbitrator.");
-        disputes[localDisputeID].arbitrated.rule(_externalDisputeID, _ruling);
+        disputes[externalDisputeIDToLocalDisputeID[_externalDisputeID]].arbitrated.rule(_externalDisputeID, _ruling);
     }
 
 }
