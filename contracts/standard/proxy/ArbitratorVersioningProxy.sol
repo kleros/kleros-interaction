@@ -17,7 +17,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         Arbitrable arbitrated;
         uint externalDisputeID;
         Arbitrator arbitrator;
-        uint256 choices;
+        uint choices;
     }
 
     /* Storage */
@@ -41,8 +41,8 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return The ID of the created dispute in the context of this contract.
      */
-    function createDispute(uint256 _choices, bytes _extraData) public payable returns(uint256 _localDisputeID) {
-        uint256 externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
+    function createDispute(uint _choices, bytes _extraData) public payable returns(uint _localDisputeID) {
+        uint externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
         _localDisputeID = disputes.push(
             DisputeStruct({
                 arbitrated: Arbitrable(msg.sender),
@@ -59,10 +59,10 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      *  @param _localDisputeID The ID of the dispute to be appealed.
      *  @param _extraData Can be used to give extra info on the appeal.
      */
-    function appeal(uint256 _localDisputeID, bytes _extraData) public payable {
+    function appeal(uint _localDisputeID, bytes _extraData) public payable {
         if (disputes[_localDisputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
-            uint256 _choices = disputes[_localDisputeID].choices;
-            uint256 _externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
+            uint _choices = disputes[_localDisputeID].choices;
+            uint _externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
             disputes[_localDisputeID].arbitrator = Arbitrator(implementation);
             disputes[_localDisputeID].externalDisputeID = _externalDisputeID;
         }
@@ -77,7 +77,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return _fee The arbitration cost.
      */
-    function arbitrationCost(bytes _extraData) public view returns(uint256 _fee) {
+    function arbitrationCost(bytes _extraData) public view returns(uint _fee) {
         return Arbitrator(implementation).arbitrationCost(_extraData);
     }
 
@@ -86,7 +86,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return _fee The appeal cost.
      */
-    function appealCost(uint256 _localDisputeID, bytes _extraData) public view returns(uint256 _fee) {
+    function appealCost(uint _localDisputeID, bytes _extraData) public view returns(uint _fee) {
         return Arbitrator(implementation).appealCost(disputes[_localDisputeID].externalDisputeID, _extraData);
     }
 
@@ -94,7 +94,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      *  @param _localDisputeID The ID of the dispute.
      *  @return _ruling The current ruling which will be given if there is no appeal or which has been given.
      */
-    function currentRuling(uint256 _localDisputeID) public view returns(uint256 _ruling) {
+    function currentRuling(uint _localDisputeID) public view returns(uint _ruling) {
         return disputes[_localDisputeID].arbitrator.currentRuling(disputes[_localDisputeID].externalDisputeID);
     }
 
@@ -102,7 +102,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      *  @param _localDisputeID The ID of the dispute.
      *  @return _status The status of the dispute.
      */
-    function disputeStatus(uint256 _localDisputeID) public view returns(Arbitrator.DisputeStatus _status) {
+    function disputeStatus(uint _localDisputeID) public view returns(Arbitrator.DisputeStatus _status) {
         return disputes[_localDisputeID].arbitrator.disputeStatus(disputes[_localDisputeID].externalDisputeID);
     }
 
