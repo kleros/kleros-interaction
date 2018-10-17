@@ -61,10 +61,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      */
     function appeal(uint _localDisputeID, bytes _extraData) public payable {
         if (disputes[_localDisputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
-            uint _choices = disputes[_localDisputeID].choices;
-            uint _externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
-            disputes[_localDisputeID].arbitrator = Arbitrator(implementation);
-            disputes[_localDisputeID].externalDisputeID = _externalDisputeID;
+            transferDispute(_localDisputeID, _extraData);
         }
         else{
             Arbitrator(implementation).appeal.value(msg.value)(disputes[_localDisputeID].externalDisputeID, _extraData);
@@ -87,7 +84,17 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
      *  @return _fee The appeal cost.
      */
     function appealCost(uint _localDisputeID, bytes _extraData) public view returns(uint _fee) {
+        if (disputes[_localDisputeID].arbitrator != implementation) {
+            transferDispute(_localDisputeID, _extraData);
+        }
         return Arbitrator(implementation).appealCost(disputes[_localDisputeID].externalDisputeID, _extraData);
+    }
+
+    function transferDispute(uint _localDisputeID, bytes _extraData) internal {
+        uint _choices = disputes[_localDisputeID].choices;
+        uint _externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
+        disputes[_localDisputeID].arbitrator = Arbitrator(implementation);
+        disputes[_localDisputeID].externalDisputeID = _externalDisputeID;
     }
 
     /** @notice Get the current ruling of a dispute. This is useful for parties to know if they should appeal.
