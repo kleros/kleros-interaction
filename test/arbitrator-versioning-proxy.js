@@ -168,9 +168,6 @@ contract('ArbitrableVersioningProxy', function(accounts) {
     const DISPUTE_ID = 0 // First dispute has the ID 0
     const RULING = CHOICES - 1 // Arbitrary
 
-    console.log(await proxy.disputes(0))
-    console.log(await arbitrator.disputes(0))
-
     await arbitrator.giveRuling(DISPUTE_ID, RULING)
     await proxy.appeal(DISPUTE_ID, EXTRA_DATA, {
       gas: 1000000,
