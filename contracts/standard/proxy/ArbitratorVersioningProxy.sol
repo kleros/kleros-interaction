@@ -13,7 +13,6 @@ import "./VersioningProxy.sol";
 contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     /* Structs */
 
-    // Warning! Overrides DisputeStruct from parent.
     struct DisputeStruct {
         Arbitrable arbitrated;
         uint externalDisputeID;
