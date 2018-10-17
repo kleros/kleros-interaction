@@ -114,7 +114,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     }
 
     function rule(uint _externalDisputeID, uint _ruling) public {
-        emit Ruling(Arbitrator(msg.sender), _externalDisputeID, _ruling);
+        emit Ruling(Arbitrator(msg.sender), externalDisputeIDToLocalDisputeID[_externalDisputeID], _ruling);
 
         executeRuling(_externalDisputeID, _ruling);
     }
