@@ -325,6 +325,12 @@ contract MultipleArbitrableTransaction {
         } else if (_ruling == BUYER_WINS) {
             transaction.buyer.send(transaction.sellerFee > transaction.buyerFee ? transaction.sellerFee : transaction.buyerFee);
             transaction.buyer.send(transaction.amount);
+        } else if (_ruling == 0) {
+            transaction.buyer.send(transaction.buyerFee/2);
+            transaction.buyer.send(transaction.amount/2);
+
+            transaction.seller.send(transaction.sellerFee/2);
+            transaction.seller.send(transaction.amount/2);
         }
 
         transaction.amount = 0;
