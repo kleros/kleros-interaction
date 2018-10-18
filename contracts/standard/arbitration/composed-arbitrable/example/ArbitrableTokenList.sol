@@ -220,7 +220,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             "The agreement is already disputed and is not appealable."
         );
         require(_side <= 1, "There are only two sides.");
-        require(msg.value > 0, "The value of the contribution cannot be zero.");
 
         // Prepare storage for first call.
         if (_paidFees.firstContributionTime == 0) {
@@ -268,6 +267,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                     );
             } else require(msg.value >= fundDisputeCache.cost, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
         }
+        require(msg.value > 0, "The value of the contribution cannot be zero.");
 
         // Compute required value.
         if (!fundDisputeCache.appealing) { // First round.
