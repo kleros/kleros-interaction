@@ -575,22 +575,133 @@ contract('ArbitrableTokenList', function(accounts) {
           })
         })
 
-        describe.skip('partyA appeals', () => {
+        describe('partyA appeals', () => {
           describe('arbitrator rules in favor of partyB', () => {})
         })
       })
     })
 
-    describe.skip('challenger fails to fully fund', () => {
-      it('should send challengeReward to submitter', async () => {})
+    describe('sides fails to fully fund', () => {
+      beforeEach(async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        await arbitrableTokenList.fundDispute(agreementID, 1, {
+          from: partyB,
+          value: halfOfArbitrationPrice + challengeReward - 2
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2 + halfOfArbitrationPrice - 2,
+          'contract should have challengeReward * 2 + halfOfArbitrationPrice - 2'
+        )
+      })
 
-      it('should register item', async () => {})
-    })
+      it('should register and reward submitter if he funds more', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
+          from: partyA,
+          value: halfOfArbitrationPrice - 1
+        })
 
-    describe.skip('requester fails to fully fund', () => {
-      it('should send challengeReward to challenger', async () => {})
+        const submitterBalanceBefore = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
 
-      it('should clear item', async () => {})
+        await increaseTime(arbitrationFeesWaitingTime + 1)
+        const gasPrice = 100000000
+
+        const tx = await arbitrableTokenList.fundDispute(agreementID, 0, {
+          from: partyA,
+          gasPrice
+        })
+        const consumed = tx.receipt.gasUsed * gasPrice
+        const submitterBalanceAfter = (await web3.eth.getBalance(
+          partyA
+        )).toNumber()
+
+        const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
+        assert.equal(
+          submitterBalanceAfter,
+          submitterBalanceBefore + challengeReward * 2 - consumed,
+          'submitter should have received challengeReward * 2'
+        )
+
+        const agreementAfter = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(
+          itemAfter[0],
+          ITEM_STATUS.REGISTERED,
+          'item should be registered'
+        )
+        assert.isAbove(
+          itemAfter[1].toNumber(),
+          itemBefore[1].toNumber(),
+          'last action should have increased'
+        )
+        assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be zero')
+        assert.equal(
+          agreementAfter[1][1],
+          0x0,
+          'party 2 should have been cleared'
+        )
+        assert.isFalse(agreementAfter[7], 'agreement should not be disputed')
+        assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
+        assert.isTrue(agreementAfter[10], 'agreement should have been executed')
+      })
+
+      it('should clear item and reward challenger if he funds more', async () => {
+        const agreementID = await arbitrableTokenList.latestAgreementId(
+          TOKEN_ID
+        )
+        const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
+        await arbitrableTokenList.fundDispute(agreementID, 0, {
+          from: partyA,
+          value: halfOfArbitrationPrice - 3
+        })
+
+        const challengerBalanceBefore = (await web3.eth.getBalance(
+          partyB
+        )).toNumber()
+
+        await increaseTime(arbitrationFeesWaitingTime + 1)
+        const gasPrice = 100000000
+        const tx = await arbitrableTokenList.fundDispute(agreementID, 0, {
+          from: partyB,
+          gasPrice
+        })
+        const consumed = tx.receipt.gasUsed * gasPrice
+        challengerBalanceAfter = (await web3.eth.getBalance(partyB)).toNumber()
+
+        assert.equal(
+          challengerBalanceAfter,
+          challengerBalanceBefore + challengeReward * 2 - consumed,
+          'challenger should have received challengeReward * 2'
+        )
+        const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
+        const agreementAfter = await arbitrableTokenList.getAgreementInfo(
+          agreementID
+        )
+        assert.equal(itemAfter[0], ITEM_STATUS.ABSENT, 'item should be absent')
+        assert.isAbove(
+          itemAfter[1].toNumber(),
+          itemBefore[1].toNumber(),
+          'last action should have increased'
+        )
+        assert.equal(itemAfter[2].toNumber(), 0, 'item balance should be zero')
+        assert.equal(
+          agreementAfter[1][1],
+          0x0,
+          'party 2 should have been cleared'
+        )
+        assert.isFalse(agreementAfter[7], 'agreement should not be disputed')
+        assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
+        assert.isTrue(agreementAfter[10], 'agreement should have been executed')
+      })
     })
   })
 
