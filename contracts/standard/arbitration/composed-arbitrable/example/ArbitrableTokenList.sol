@@ -462,43 +462,76 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
         super.executeAgreementRuling(_agreementID, _ruling);
-        uint256 disputeID = agreements[_agreementID].disputeID;
-        Item storage item = items[disputeIDToItemID[disputeID]];
         Agreement storage agreement = agreements[_agreementID];
-        require(agreement.disputed, "The item is not disputed.");
+        PaidFees storage _paidFees = paidFees[_agreementID];
+        Item storage item = items[agreementIDtoItemID[_agreementID]];
 
-        if (_ruling == REGISTER) {
-            if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-                agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        if (_paidFees.stake.length == 1) { // Failed to fund first round.
+            // Rule in favor of whoever paid more.
+            uint8 winner;
+            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1])
+                winner = 0;
             else
-                agreement.parties[1].send(item.balance);
+                winner = 1;
 
-            item.status = ItemStatus.Registered;
-        } else if (_ruling == CLEAR) {
-            if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
-                agreement.parties[0].send(item.balance);
-            else
-                agreement.parties[1].send(item.balance);
+            if (winner == 1) // Ruled in favor of challenger.
+                // Return item to it's previous status.
+                if(item.status == ItemStatus.Resubmitted)
+                    item.status = ItemStatus.Cleared;
+                else if (item.status == ItemStatus.ClearingRequested)
+                    item.status = ItemStatus.Registered;
+                else
+                    item.status = ItemStatus.Absent;
+            else  // Ruled in favor of requester.
+                if(item.status == ItemStatus.Submitted || item.status == ItemStatus.Resubmitted)
+                    item.status = ItemStatus.Registered;
+                else
+                    item.status = ItemStatus.Cleared;
 
-            item.status = ItemStatus.Cleared;
-        } else { // Split the balance 50-50 and give the item the initial status.
-            if (item.status == ItemStatus.Resubmitted)
-                item.status = ItemStatus.Cleared;
-            else if (item.status == ItemStatus.ClearingRequested)
-                item.status = ItemStatus.Registered;
-            else
-                item.status = ItemStatus.Absent;
+            agreement.parties[winner].send(item.balance);
+        } else {
+            //Respect the ruling unless the challenger funded the appeal and the requester side paid less than expected.
+            if (
+                _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
+                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
+            ){
+                revert("Not implemented yet"); // TODO: Implemented this.
+            } else {
+                if (_ruling == REGISTER) {
+                    if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
+                        agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+                    else
+                        agreement.parties[1].send(item.balance);
 
-            agreement.parties[0].send(item.balance / 2);
-            agreement.parties[1].send(item.balance / 2);
+                    item.status = ItemStatus.Registered;
+                } else if (_ruling == CLEAR) {
+                    if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
+                        agreement.parties[0].send(item.balance);
+                    else
+                        agreement.parties[1].send(item.balance);
+
+                    item.status = ItemStatus.Cleared;
+                } else { // Split the balance 50-50 and give the item the initial status.
+                    if (item.status == ItemStatus.Resubmitted)
+                        item.status = ItemStatus.Cleared;
+                    else if (item.status == ItemStatus.ClearingRequested)
+                        item.status = ItemStatus.Registered;
+                    else
+                        item.status = ItemStatus.Absent;
+
+                    agreement.parties[0].send(item.balance / 2);
+                    agreement.parties[1].send(item.balance / 2);
+                }
+            }
         }
 
         agreement.disputed = false;
-        item.balance = 0;
         agreement.parties[1] = 0x0; // Dispute has been resolved, reset challenger.
+        item.lastAction = now;
+        item.balance = 0;
         item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
 
-        emit ItemStatusChange(agreement.parties[0], agreement.parties[1], disputeIDToItemID[disputeID], item.status, agreement.disputed);
+        emit ItemStatusChange(agreement.parties[0], address(0), agreementIDtoItemID[_agreementID], item.status, agreement.disputed);
     }
 
     /* Interface Views */
