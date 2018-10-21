@@ -436,7 +436,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
   })
 
-  it('It should do nothing if the arbitrator decides so', async () => {
+  it('Should split the amount if there is no ruling', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(
       arbitrationFee,
       { from: arbitrator }
@@ -468,20 +468,22 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    const payeeBalanceBeforePay = web3.eth.getBalance(payee)
-    const payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
+    const payerBalanceBeforeRuling = web3.eth.getBalance(payer)
+    const payeeBalanceBeforeRuling = web3.eth.getBalance(payee)
+
     await centralizedArbitrator.giveRuling(0, 0, { from: arbitrator })
-    const newPayeeBalance = web3.eth.getBalance(payee)
-    const newPayerBalance = web3.eth.getBalance(payer)
+    const payerBalanceAfterRuling = web3.eth.getBalance(payer)
+    const payeeBalanceAfterRuling = web3.eth.getBalance(payee)
+
     assert.equal(
-      newPayeeBalance.toString(),
-      payeeBalanceBeforePay.toString(),
-      "The payee got wei while it shouldn't"
+      payerBalanceAfterRuling.toString(),
+      payerBalanceBeforeRuling.plus(510).toString(),
+      'The payee has not been paid properly'
     )
     assert.equal(
-      newPayerBalance.toString(),
-      payerBalanceBeforeReimbursment.toString(),
-      "The payer got wei while it shouldn't"
+      payeeBalanceAfterRuling.toString(),
+      payeeBalanceBeforeRuling.plus(510).toString(),
+      'The payer has not been reimbursed correctly'
     )
   })
 
