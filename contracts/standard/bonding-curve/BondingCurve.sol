@@ -1,7 +1,8 @@
 /**
  *  @title Bonding curve.
  *  @author Yushi Huang - <huang@kleros.io>
- *  This code implements a bonding curve to provide liquidity to a PNK/ETH market.
+ *  This contract implements a bonding curve to provide liquidity to a token-ether market.
+ *  The token in question is an ERC20 token and will be referred to as "TKN" below.
  *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
  */
 
@@ -31,8 +32,8 @@ contract BondingCurve is ApproveAndCallFallBack {
     address public governor; // Address of the governor contract.
 
     // Variables changing during day to day interaction.
-    uint public totalEth; // Amount of ETH the bonding curve owns.
-    uint public totalPnk; // Amount of PNK the bonding curve owns.
+    uint public totalETH; // The amount of Ether the bonding curve owns.
+    uint public totalTKN; // The amount of bonded token the bonding curve owns.
 
     uint public totalDepositPoints;
     mapping (address=>uint) public depositPointMap; // contribution of each market maker. Invariant: sum of all values == totalDepositPoints.
@@ -59,92 +60,92 @@ contract BondingCurve is ApproveAndCallFallBack {
     // ******************************** //
     // *     Market maker Functions   * //
     // ******************************** //
-    /** @dev Deposit ETH and PNK. The transaction value is the intended amount of ETH. A parameter designates the intended amount of PNK. The caller must have approved of at least this amount of PNK to this contract (using approve() method of ERC20 interface). The actually amount of ETH and PNK taken must be of certain ratio. If intended PNK is excessive, only the proper portion of the approved amount is take. If inteded ETH is excessive, it is refunded, in which case the caller account must accept payment. TRUSTED.
-     *  @param _pnk Intended amount of PNK to be deposited.
+    /** @dev Deposit ETH and TKN. The transaction value is the intended amount of ETH. A parameter designates the intended amount of TKN. The caller must have approved of at least this amount of TKN to this contract (using approve() method of ERC20 interface). The actually amount of ETH and TKN taken must be of certain ratio. If intended TKN is excessive, only the proper portion of the approved amount is take. If inteded ETH is excessive, it is refunded, in which case the caller account must accept payment. TRUSTED.
+     *  @param _tkn Intended amount of TKN to be deposited.
      */
-    function deposit(uint _pnk) public payable {
+    function deposit(uint _tkn) public payable {
         uint _eth = msg.value;
 
-        // The actually deposited amounts of ETH and PNK must satisfy:
-        // p / e = totalPnk / totalEth
+        // The actually deposited amounts of ETH and TKN must satisfy:
+        // p / e = totalTKN / totalETH
         // We expect the numbers to be within a range in which the multiplications won't overflow unit256.
-        uint actualEth; // Actual amount of Eth to be deposited.
-        uint actualPnk; // Actual amount of Pnk to be deposited.
-        uint refundEth = 0; // Amount of Eth to be refunded.
+        uint actualETH; // Actual amount of ETH to be deposited.
+        uint actualTKN; // Actual amount of TKN to be deposited.
+        uint refundETH = 0; // Amount of ETH to be refunded.
 
-        if (_pnk.mul(totalEth) == _eth.mul(totalPnk)) {
-            // Note that initally totalEth==totalPnk==0 so the first deposit is handled here where it allows any amounts of PNK and ETH to be deposited. We expect the ratio to reflect the market price at the moment because otherwise there is an immediate arbitrage opportunity.
-            actualEth = _eth;
-            actualPnk = _pnk;
-        } else if (_pnk.mul(totalEth) > _eth.mul(totalPnk)) {
-            // There is excessive PNK
-            actualEth = _eth;
-            actualPnk = _eth.mul(totalPnk).div(totalEth);
+        if (_tkn.mul(totalETH) == _eth.mul(totalTKN)) {
+            // Note that initially totalETH==totalTKN==0 so the first deposit is handled here where it allows any amounts of TKN and ETH to be deposited. We expect the ratio to reflect the market price at the moment because otherwise there is an immediate arbitrage opportunity.
+            actualETH = _eth;
+            actualTKN = _tkn;
+        } else if (_tkn.mul(totalETH) > _eth.mul(totalTKN)) {
+            // There is excessive TKN
+            actualETH = _eth;
+            actualTKN = _eth.mul(totalTKN).div(totalETH);
         } else {
             // There is excessive ETH
-            actualPnk = _pnk;
-            actualEth = _pnk.mul(totalEth).div(totalPnk);
-            refundEth = _eth.sub(actualEth);
+            actualTKN = _tkn;
+            actualETH = _tkn.mul(totalETH).div(totalTKN);
+            refundETH = _eth.sub(actualETH);
         }              
 
-        require(pinakion.transferFrom(msg.sender, this, actualPnk), "PNK transfer failed.");
-        totalEth += actualEth;
-        totalPnk += actualPnk;
+        require(pinakion.transferFrom(msg.sender, this, actualTKN), "TKN transfer failed.");
+        totalETH += actualETH;
+        totalTKN += actualTKN;
 
-        totalDepositPoints += actualEth;
-        depositPointMap[msg.sender] += actualEth;
+        totalDepositPoints += actualETH;
+        depositPointMap[msg.sender] += actualETH;
 
-        // Refund ETH if necessary. No need to refund PNK because we transferred only actual amount.
-        if (refundEth > 0) {
-            msg.sender.transfer(refundEth);
+        // Refund ETH if necessary. No need to refund TKN because we transferred only actual amount.
+        if (refundETH > 0) {
+            msg.sender.transfer(refundETH);
         }
     }
 
-    /** @dev Withdraw ETH and PNK deposited by caller. TRUSTED
-     *  Maintain the ratio of totalEth / totalPnk unchanged.
+    /** @dev Withdraw ETH and TKN deposited by caller. TRUSTED
+     *  Maintain the ratio of totalETH / totalTKN unchanged.
      */
     function withdraw() public {
         uint depositPoints = depositPointMap[msg.sender];
 
-        uint ethWithdraw = totalEth.mul(depositPoints).div(totalDepositPoints);
-        uint pnkWithdraw = totalPnk.mul(depositPoints).div(totalDepositPoints);
+        uint ethWithdraw = totalETH.mul(depositPoints).div(totalDepositPoints);
+        uint tknWithdraw = totalTKN.mul(depositPoints).div(totalDepositPoints);
 
         depositPointMap[msg.sender] = 0;
         totalDepositPoints -= depositPoints;
 
-        require(pinakion.transfer(msg.sender, pnkWithdraw), "PNK transfer failed.");
+        require(pinakion.transfer(msg.sender, tknWithdraw), "TKN transfer failed.");
         msg.sender.transfer(ethWithdraw);
     }
 
     // ************************ //
     // *     User Functions   * //
     // ************************ //
-    /** @dev Buy PNK with ETH. TRUSTED
-     *  @param receiver The account the brought PNK is accredited to.
-     *  @param minPnk Minimum amount of PNK expected in return. If the price of PNK relative to ETH hikes so much before the transaction is mined that the contract could not give minPnk PNK to the buyer, it will fail.
+    /** @dev Buy TKN with ETH. TRUSTED
+     *  @param receiver The account the brought TKN is accredited to.
+     *  @param minTKN Minimum amount of TKN expected in return. If the price of TKN relative to ETH hikes so much before the transaction is mined that the contract could not give minTKN TKN to the buyer, it will fail.
      */
-    function buy(address receiver, uint minPnk) public payable {
-        // Calculate the amount of PNK that should be paid to buyer:
-        // To maintain (totalEth+msg.value)*(totalPnk-pnk) == totalEth*totalPnk 
-        // we get pnk = msg.value * totalPnk / (totalEth+msg.value), then we charge the spread
-        uint pnk = msg.value.mul(totalPnk).mul(SPREAD_DIVISOR)
-            .div(totalEth.add(msg.value)).div(SPREAD_DIVISOR.add(spread));
+    function buy(address receiver, uint minTKN) public payable {
+        // Calculate the amount of TKN that should be paid to buyer:
+        // To maintain (totalETH+msg.value)*(totalTKN-tkn) == totalETH*totalTKN 
+        // we get tkn = msg.value * totalTKN / (totalETH+msg.value), then we charge the spread
+        uint tkn = msg.value.mul(totalTKN).mul(SPREAD_DIVISOR)
+            .div(totalETH.add(msg.value)).div(SPREAD_DIVISOR.add(spread));
 
-        require(pnk > minPnk, "Price exceeds limit.");
-        require(pinakion.transfer(receiver, pnk), "PNK transfer failed.");
-        totalEth += msg.value;
-        totalPnk -= pnk;
+        require(tkn > minTKN, "Price exceeds limit.");
+        require(pinakion.transfer(receiver, tkn), "TKN transfer failed.");
+        totalETH += msg.value;
+        totalTKN -= tkn;
     }
 
-    // To sell PNK, the user must call approveAndCall() of the Pinakion token account, whose parameter list is: (address _spender, uint256 _amount, bytes _extraData).
+    // To sell TKN, the user must call approveAndCall() of the Pinakion token account, whose parameter list is: (address _spender, uint256 _amount, bytes _extraData).
     // _spender must be this contract.
-    // _amount is the amount of PNK the user wishes to sell.
+    // _amount is the amount of TKN the user wishes to sell.
     // _extraData 0~3 bytes must be the string "bcs1".
     //            4~23 bytes is recipient address of ETH.
-    //            24~55 bytes is an uint256 representing the minimum amount of ETH the seller wishes the receive. If by the time the transaction is mined the price of PNK drops so that the contract could not give the seller this amount, the transaction is aborted.
-    /** @dev Callback of approveAndCall - the only use case is to sell PNK. Should be called by the pinakion contract. TRUSTED.
+    //            24~55 bytes is an uint256 representing the minimum amount of ETH the seller wishes the receive. If by the time the transaction is mined the price of TKN drops so that the contract could not give the seller this amount, the transaction is aborted.
+    /** @dev Callback of approveAndCall - the only use case is to sell TKN. Should be called by the pinakion contract. TRUSTED.
      *  @param _from The address of seller.
-     *  @param _amount Amount of PNK to sell .
+     *  @param _amount Amount of TKN to sell .
      * @param _extraData Packed bytes according to above spec.
      */
     function receiveApproval(address _from, uint _amount, address, bytes _extraData) public onlyBy(pinakion) {
@@ -158,21 +159,21 @@ contract BondingCurve is ApproveAndCallFallBack {
             "Expect magic number.");
 
         address recipient = BytesLib.toAddress(_extraData, 4);
-        uint minEth = BytesLib.toUint(_extraData, 24);
+        uint minETH = BytesLib.toUint(_extraData, 24);
 
         // Calculate the amount of ETH that should be paid to seller:
-        // To maintain (totalEth - eth)*(totalPnk+_amount) == totalEth*totalPnk
-        // we get eth = totalEth * _amount / (totalPnk + _amount)
+        // To maintain (totalETH - eth)*(totalTKN+_amount) == totalETH*totalTKN
+        // we get eth = totalETH * _amount / (totalTKN + _amount)
         // Then charge a spread. 
-        uint eth = totalEth.mul(_amount).mul(SPREAD_DIVISOR)
-            .div(totalPnk.add(_amount)).div(SPREAD_DIVISOR.add(spread));
+        uint eth = totalETH.mul(_amount).mul(SPREAD_DIVISOR)
+            .div(totalTKN.add(_amount)).div(SPREAD_DIVISOR.add(spread));
 
-        require(eth >= minEth, "PNK price must be above minimum expected value.");
+        require(eth >= minETH, "TKN price must be above minimum expected value.");
         recipient.transfer(eth);
-        require(pinakion.transferFrom(_from, this, _amount), "PNK transfer failed.");
+        require(pinakion.transferFrom(_from, this, _amount), "Bonded token transfer failed.");
 
-        totalEth -= eth;
-        totalPnk += _amount;          
+        totalETH -= eth;
+        totalTKN += _amount;          
     }
 
     // **************************** //

@@ -31,8 +31,8 @@ contract('BondingCurve', function(accounts) {
   it('should accept deposit', async function() {
     await pinakion.approve(bondingCurve.address, mmp1, { from: mm1 })
     await bondingCurve.deposit(mmp1, { value: mme1, from: mm1 })
-    assert.equal((await bondingCurve.totalEth()).toNumber(), mme1)
-    assert.equal((await bondingCurve.totalPnk()).toNumber(), mmp1)
+    assert.equal((await bondingCurve.totalETH()).toNumber(), mme1)
+    assert.equal((await bondingCurve.totalTKN()).toNumber(), mmp1)
   })
 
   it('should allow to withdraw', async function() {
@@ -52,8 +52,8 @@ contract('BondingCurve', function(accounts) {
     await bondingCurve.deposit(mmp1, { value: mme1, from: mm1 })
 
     const price0 =
-      (await bondingCurve.totalEth()).toNumber() /
-      (await bondingCurve.totalPnk()).toNumber()
+      (await bondingCurve.totalETH()).toNumber() /
+      (await bondingCurve.totalTKN()).toNumber()
 
     const pnk0 = (await pinakion.balanceOf(u1)).toNumber()
 
@@ -70,8 +70,8 @@ contract('BondingCurve', function(accounts) {
 
   it('should allow to sell PNK', async function() {
     const price0 =
-      (await bondingCurve.totalEth()).toNumber() /
-      (await bondingCurve.totalPnk()).toNumber()
+      (await bondingCurve.totalETH()).toNumber() /
+      (await bondingCurve.totalTKN()).toNumber()
 
     const eth0 = (await web3.eth.getBalance(u1)).toNumber()
     const pnk0 = await pinakion.balanceOf(u1) // .toNumber() leads to rounding error
