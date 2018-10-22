@@ -185,7 +185,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('Governance', async () => {
+  describe('governance', async () => {
     beforeEach(async () => {
       await deployArbitrators()
       await deployArbitrableTokenList(appealableArbitrator)
@@ -1743,10 +1743,11 @@ contract('ArbitrableTokenList', function(accounts) {
             await arbitrableTokenList.latestAgreementId(TOKEN_ID)
           )
           assert.equal(agreement[1][1].toString(), governor)
-          const disputeID = agreement[6]
           assert.equal(agreement[7], true, 'agreement should be disputed')
           assert.equal(
-            web3.toUtf8(await arbitrableTokenList.disputeIDToItemID(disputeID)),
+            web3.toUtf8(
+              await arbitrableTokenList.agreementIDToItemID(agreementID)
+            ),
             TOKEN_ID
           )
         })
@@ -2011,7 +2012,6 @@ contract('ArbitrableTokenList', function(accounts) {
           const agreement = await arbitrableTokenList.getAgreementInfo(
             await arbitrableTokenList.latestAgreementId(TOKEN_ID)
           )
-          const disputeID = agreement[6].toNumber()
 
           assert.equal(agreement[1][1], governor)
           assert.equal(
@@ -2020,7 +2020,9 @@ contract('ArbitrableTokenList', function(accounts) {
           )
           assert.equal(agreement[7], true, 'item should be disputed')
           assert.equal(
-            web3.toUtf8(await arbitrableTokenList.disputeIDToItemID(disputeID)),
+            web3.toUtf8(
+              await arbitrableTokenList.agreementIDToItemID(agreementID)
+            ),
             TOKEN_ID
           )
         })
@@ -2243,7 +2245,6 @@ contract('ArbitrableTokenList', function(accounts) {
           const agreement = await arbitrableTokenList.getAgreementInfo(
             agreementID
           )
-          const disputeID = agreement[6].toNumber()
 
           assert.equal(agreement[1][1], partyA)
           assert.equal(
@@ -2252,7 +2253,9 @@ contract('ArbitrableTokenList', function(accounts) {
           )
           assert.equal(agreement[7], true)
           assert.equal(
-            web3.toUtf8(await arbitrableTokenList.disputeIDToItemID(disputeID)),
+            web3.toUtf8(
+              await arbitrableTokenList.agreementIDToItemID(agreementID)
+            ),
             TOKEN_ID
           )
         })
@@ -2462,10 +2465,11 @@ contract('ArbitrableTokenList', function(accounts) {
             (await arbitrableTokenList.items(TOKEN_ID))[2].toNumber(),
             challengeReward * 2
           )
-          const disputeID = agreement[6].toNumber()
           assert.equal(agreement[7], true)
           assert.equal(
-            web3.toUtf8(await arbitrableTokenList.disputeIDToItemID(disputeID)),
+            web3.toUtf8(
+              await arbitrableTokenList.agreementIDToItemID(agreementID)
+            ),
             TOKEN_ID
           )
         })

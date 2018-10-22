@@ -71,12 +71,11 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     // Items
     mapping(bytes32 => Item) public items;
-    mapping(uint => bytes32) public disputeIDToItemID;
     bytes32[] public itemsList;
 
     // Agreement and Item Extension
     mapping(bytes32 => uint) public itemIDToAgreementCount;
-    mapping(bytes32 => bytes32) public agreementIDtoItemID;
+    mapping(bytes32 => bytes32) public agreementIDToItemID;
 
     /* Constructor */
 
@@ -142,13 +141,13 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         _parties[0] = msg.sender;
 
         _createAgreement(
-            _tokenID,
             _metaEvidence,
             _parties,
             2,
             new bytes(0),
             arbitrationFeesWaitingTime,
-            arbitrator
+            arbitrator,
+            _tokenID
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra ETH.
@@ -189,13 +188,13 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         _parties[0] = msg.sender;
 
         _createAgreement(
-            _tokenID,
             _metaEvidence,
             _parties,
             2,
             new bytes(0),
             arbitrationFeesWaitingTime,
-            arbitrator
+            arbitrator,
+            _tokenID
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
@@ -212,7 +211,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     function fundDispute(bytes32 _agreementID, uint _side) public payable {
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
-        Item storage item = items[agreementIDtoItemID[_agreementID]];
+        Item storage item = items[agreementIDToItemID[_agreementID]];
         require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(!agreement.executed, "You cannot fund disputes for executed agreements.");
         require(
@@ -325,7 +324,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                     if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side == 0 ? 1 : 0] < fundDisputeCache.requiredValueForSide) return;
                     agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
                     agreement.disputed = true;
-                    disputeIDToItemID[agreement.disputeID] = agreementIDtoItemID[_agreementID];
                     arbitratorAndDisputeIDToAgreementID[agreement.arbitrator][agreement.disputeID] = _agreementID;
                     emit Dispute(agreement.arbitrator, agreement.disputeID, uint(_agreementID));
                 } else { // Appeal.
@@ -430,26 +428,26 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /* Internal */
 
     /** @dev Extends parent to use counter identify agreements.
-     *  @param _tokenID The item id.
      *  @param _metaEvidence The meta evidence of the agreement.
      *  @param _parties The `parties` value of the agreement.
      *  @param _numberOfChoices The `numberOfChoices` value of the agreement.
      *  @param _extraData The `extraData` value of the agreement.
      *  @param _arbitrationFeesWaitingTime The `arbitrationFeesWaitingTime` value of the agreement.
      *  @param _arbitrator The `arbitrator` value of the agreement.
+     *  @param _tokenID The item id.
      */
     function _createAgreement(
-        bytes32 _tokenID,
         string _metaEvidence,
         address[] _parties,
         uint _numberOfChoices,
         bytes _extraData,
         uint _arbitrationFeesWaitingTime,
-        Arbitrator _arbitrator
+        Arbitrator _arbitrator,
+        bytes32 _tokenID
     ) internal {
         itemIDToAgreementCount[_tokenID]++;
         bytes32 agreementID = keccak256(abi.encodePacked(_tokenID, itemIDToAgreementCount[_tokenID]));
-        agreementIDtoItemID[agreementID] = _tokenID;
+        agreementIDToItemID[agreementID] = _tokenID;
 
         super._createAgreement(
             agreementID,
@@ -471,7 +469,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         require(_ruling <= 2, "Ruling must be valid");
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
-        Item storage item = items[agreementIDtoItemID[_agreementID]];
+        Item storage item = items[agreementIDToItemID[_agreementID]];
 
         if (_paidFees.stake.length == 1) { // Failed to fund first round.
             // Rule in favor of whoever paid more.
@@ -500,7 +498,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected and the arbitrator did not refuse to rule.
             uint ruling;
             if (
-                _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] && 
+                _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
                 _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] &&
                 _ruling != 0 // Respect the ruling if the arbitrator refused to rule.
             ){
@@ -550,7 +548,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         item.balance = 0;
         item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
 
-        emit ItemStatusChange(agreement.parties[0], address(0), agreementIDtoItemID[_agreementID], item.status, agreement.disputed);
+        emit ItemStatusChange(agreement.parties[0], address(0), agreementIDToItemID[_agreementID], item.status, agreement.disputed);
     }
 
     /* Interface Views */
