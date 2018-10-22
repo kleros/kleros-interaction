@@ -463,7 +463,7 @@ contract('ArbitrableTokenList', function(accounts) {
       })
 
       it('should change item and agreement state for each submission phase', async () => {
-        const firstAgreementId = await arbitrableTokenList.latestAgreementId(
+        const firstAgreementId = await arbitrableTokenList.latestAgreementID(
           TOKEN_ID
         )
         const agreementBefore = await arbitrableTokenList.getAgreementInfo(
@@ -549,7 +549,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
       describe('both sides fully fund, dispute is raised', () => {
         beforeEach(async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -605,7 +605,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
         describe('arbitrator rules in favor of partyA', () => {
           beforeEach(async () => {
-            const agreementID = await arbitrableTokenList.latestAgreementId(
+            const agreementID = await arbitrableTokenList.latestAgreementID(
               TOKEN_ID
             )
             const agreementBefore = await arbitrableTokenList.getAgreementInfo(
@@ -620,7 +620,7 @@ contract('ArbitrableTokenList', function(accounts) {
           })
 
           it('no appeals, item should be registered', async () => {
-            const agreementID = await arbitrableTokenList.latestAgreementId(
+            const agreementID = await arbitrableTokenList.latestAgreementID(
               TOKEN_ID
             )
             const agreementBefore = await arbitrableTokenList.getAgreementInfo(
@@ -709,7 +709,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
         describe('arbitrator rules in favor of partyB', () => {
           beforeEach(async () => {
-            const agreementID = await arbitrableTokenList.latestAgreementId(
+            const agreementID = await arbitrableTokenList.latestAgreementID(
               TOKEN_ID
             )
             const agreementBefore = await arbitrableTokenList.getAgreementInfo(
@@ -725,7 +725,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           describe('no appeals', () => {
             it('should send funds to partyB', async () => {
-              const agreementID = await arbitrableTokenList.latestAgreementId(
+              const agreementID = await arbitrableTokenList.latestAgreementID(
                 TOKEN_ID
               )
               const agreementBefore = await arbitrableTokenList.getAgreementInfo(
@@ -790,7 +790,7 @@ contract('ArbitrableTokenList', function(accounts) {
             })
 
             it('should clear item, execute and resolve dispute', async () => {
-              const agreementID = await arbitrableTokenList.latestAgreementId(
+              const agreementID = await arbitrableTokenList.latestAgreementID(
                 TOKEN_ID
               )
               const agreementBefore = await arbitrableTokenList.getAgreementInfo(
@@ -849,7 +849,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
       describe('sides fails to fully fund', () => {
         beforeEach(async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -864,7 +864,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('should register and reward submitter if he funds more', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
@@ -924,7 +924,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('should clear item and reward challenger if he funds more', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           const itemBefore = await arbitrableTokenList.items(TOKEN_ID)
@@ -995,7 +995,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
         await increaseTime(1)
         await arbitrableTokenList.executeRequest(TOKEN_ID)
-        const firstAgreementId = await arbitrableTokenList.latestAgreementId(
+        const firstAgreementId = await arbitrableTokenList.latestAgreementID(
           TOKEN_ID
         )
         const agreementSetup = await arbitrableTokenList.getAgreementInfo(
@@ -1040,7 +1040,7 @@ contract('ArbitrableTokenList', function(accounts) {
           value: challengeReward
         })
 
-        const agreementId = await arbitrableTokenList.latestAgreementId(
+        const agreementId = await arbitrableTokenList.latestAgreementID(
           TOKEN_ID
         )
         const agreementBefore = await arbitrableTokenList.getAgreementInfo(
@@ -1119,7 +1119,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('partyA wins arbitration, item is cleared', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -1250,7 +1250,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('partyA looses arbitration, item is kept', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -1440,7 +1440,7 @@ contract('ArbitrableTokenList', function(accounts) {
               value: challengeReward
             }
           )
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1463,7 +1463,7 @@ contract('ArbitrableTokenList', function(accounts) {
               }
             ) // To satisfy `require(item.status==ItemStatus.Resubmitted || item.status==ItemStatus.Submitted)`
 
-            const agreementID = await arbitrableTokenList.latestAgreementId(
+            const agreementID = await arbitrableTokenList.latestAgreementID(
               TOKEN_ID
             )
             await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -1484,13 +1484,13 @@ contract('ArbitrableTokenList', function(accounts) {
           )
 
           const agreement = await arbitrableTokenList.getAgreementInfo(
-            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+            await arbitrableTokenList.latestAgreementID(TOKEN_ID)
           )
           assert.equal(agreement[7], true, 'agreement should be disputed')
         })
 
         it('registration dispute', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1501,7 +1501,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('clearing dispute', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1521,7 +1521,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('registration dispute', async function() {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1532,7 +1532,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('clearing dispute', async function() {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1582,7 +1582,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling challangeBlacklisting should revert', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1593,7 +1593,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling challangeClearing should revert', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1660,19 +1660,8 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it('calling challangeBlacklisting should revert', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
-            TOKEN_ID
-          )
-          await expectThrow(
-            arbitrableTokenList.fundDispute(agreementID, 1, {
-              value: challengeReward + halfOfArbitrationPrice
-            })
-          )
-        })
-
         it('calling challangeClearing should revert', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1747,7 +1736,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling fundDispute should create a dispute', async function() {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -1758,7 +1747,7 @@ contract('ArbitrableTokenList', function(accounts) {
           })
 
           const agreement = await arbitrableTokenList.getAgreementInfo(
-            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+            await arbitrableTokenList.latestAgreementID(TOKEN_ID)
           )
           assert.equal(agreement[1][1].toString(), governor)
           assert.equal(agreement[7], true, 'agreement should be disputed')
@@ -1774,7 +1763,7 @@ contract('ArbitrableTokenList', function(accounts) {
           let disputeID
 
           beforeEach('create a dispute', async function() {
-            const agreementID = await arbitrableTokenList.latestAgreementId(
+            const agreementID = await arbitrableTokenList.latestAgreementID(
               TOKEN_ID
             )
             await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -1785,7 +1774,7 @@ contract('ArbitrableTokenList', function(accounts) {
               value: halfOfArbitrationPrice
             })
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
 
             disputeID = agreement[6].toNumber()
@@ -1799,7 +1788,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const submitter = agreement[1][0]
             const submitterBalance = web3.eth.getBalance(submitter)
@@ -1829,7 +1818,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const challenger = agreement[1][1]
             const challengerBalance = web3.eth.getBalance(challenger)
@@ -1860,7 +1849,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the cleared state', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const submitter = agreement[1][0]
             const challenger = agreement[1][1]
@@ -1922,7 +1911,7 @@ contract('ArbitrableTokenList', function(accounts) {
             ITEM_STATUS.REGISTERED
           )
           const agreement = await arbitrableTokenList.getAgreementInfo(
-            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+            await arbitrableTokenList.latestAgreementID(TOKEN_ID)
           )
           assert.isTrue(agreement[10], 'agreement should be executed')
         })
@@ -1951,7 +1940,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling fund dispute over executed agreement should revert', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -1962,7 +1951,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling clearing dispute should revert', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await expectThrow(
@@ -2017,7 +2006,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling challangeBlacklisting should create a dispute', async function() {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -2028,7 +2017,7 @@ contract('ArbitrableTokenList', function(accounts) {
           })
 
           const agreement = await arbitrableTokenList.getAgreementInfo(
-            await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+            await arbitrableTokenList.latestAgreementID(TOKEN_ID)
           )
 
           assert.equal(agreement[1][1], governor)
@@ -2059,7 +2048,7 @@ contract('ArbitrableTokenList', function(accounts) {
           let disputeID
 
           beforeEach('create a dispute', async function() {
-            const agreementID = await arbitrableTokenList.latestAgreementId(
+            const agreementID = await arbitrableTokenList.latestAgreementID(
               TOKEN_ID
             )
             await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -2072,13 +2061,13 @@ contract('ArbitrableTokenList', function(accounts) {
             })
 
             disputeID = (await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             ))[6].toNumber()
           })
 
           beforeEach('assert pre-conditions', async () => {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             assert.notEqual(
               agreement[1][0],
@@ -2089,7 +2078,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const submitter = agreement[0]
             const submitterBalance = web3.eth.getBalance(submitter)
@@ -2122,7 +2111,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const challenger = agreement[1][1]
             const challengerBalance = web3.eth.getBalance(challenger)
@@ -2153,7 +2142,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const submitter = agreement[1][0]
             const challenger = agreement[1][1]
@@ -2248,7 +2237,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling challangeClearing should create a dispute', async function() {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -2294,7 +2283,7 @@ contract('ArbitrableTokenList', function(accounts) {
           let disputeID
 
           beforeEach('create a dispute', async function() {
-            const agreementID = await arbitrableTokenList.latestAgreementId(
+            const agreementID = await arbitrableTokenList.latestAgreementID(
               TOKEN_ID
             )
             await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -2312,7 +2301,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const challenger = agreement[1][1]
             const challengerBalance = web3.eth.getBalance(challenger)
@@ -2341,7 +2330,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const submitter = agreement[1][0]
             const submitterBalance = web3.eth.getBalance(submitter)
@@ -2370,7 +2359,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the registered state', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const submitter = agreement[1][0]
             const challenger = agreement[1][1]
@@ -2431,7 +2420,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling isPermitted on a disputed item should return false', async () => {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -2463,7 +2452,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling challangeClearing should create a dispute', async function() {
-          const agreementID = await arbitrableTokenList.latestAgreementId(
+          const agreementID = await arbitrableTokenList.latestAgreementID(
             TOKEN_ID
           )
           await arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -2506,7 +2495,7 @@ contract('ArbitrableTokenList', function(accounts) {
           let disputeID
 
           beforeEach('create a dispute', async function() {
-            const agreementID = await arbitrableTokenList.latestAgreementId(
+            const agreementID = await arbitrableTokenList.latestAgreementID(
               TOKEN_ID
             )
             const agreement = await arbitrableTokenList.getAgreementInfo(
@@ -2525,7 +2514,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const challenger = agreement[1][1]
             const challengerBalance = web3.eth.getBalance(challenger)
@@ -2551,7 +2540,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const submitter = agreement[1][0]
             const submitterBalance = web3.eth.getBalance(submitter)
@@ -2575,7 +2564,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
           it('calling executeRuling with OTHER should split item.balance between challenger and submitter and move item into the absent state', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
-              await arbitrableTokenList.latestAgreementId(TOKEN_ID)
+              await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
             const submitter = agreement[1][0]
             const challenger = agreement[1][1]

@@ -39,6 +39,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         uint lastAction; // Time of the last action.
         uint balance; // The amount of funds placed at stake for this item. Does not include arbitrationFees.
         uint challengeReward; // The challengeReward of the item for the round.
+        bytes32 latestAgreementID; // The ID of the latest agreement for the item.
     }
 
     /* Modifiers */
@@ -76,7 +77,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     bytes32[] public itemsList;
 
     // Agreement and Item Extension
-    mapping(bytes32 => uint) public itemIDToAgreementCount;
     mapping(bytes32 => bytes32) public agreementIDToItemID;
 
     /* Constructor */
@@ -120,7 +120,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         string _metaEvidence
     ) external payable {
         Item storage item = items[_tokenID];
-        Agreement storage prevAgreement = agreements[latestAgreementId(_tokenID)];
+        Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
         require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
@@ -153,8 +153,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra ETH.
-        Agreement storage agreement = agreements[latestAgreementId(_tokenID)];
-        emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
+        // Agreement storage agreement = agreements[latestAgreementID(_tokenID)];
+        // emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
     /**
@@ -167,7 +167,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         string _metaEvidence
     ) external payable {
         Item storage item = items[_tokenID];
-        Agreement storage prevAgreement = agreements[latestAgreementId(_tokenID)];
+        Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
         require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
@@ -200,7 +200,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
-        Agreement storage agreement = agreements[latestAgreementId(_tokenID)];
+        Agreement storage agreement = agreements[latestAgreementID(_tokenID)];
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
@@ -354,7 +354,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function executeRequest(bytes32 _tokenID) external {
         Item storage item = items[_tokenID];
-        bytes32 agreementID = latestAgreementId(_tokenID);
+        bytes32 agreementID = latestAgreementID(_tokenID);
         Agreement storage agreement = agreements[agreementID];
         require(now - item.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
         require(agreement.creator != address(0), "The specified agreement does not exist.");
@@ -412,8 +412,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _tokenID The tokenID of the item to check.
      *  @return The latest agreementID
      */
-    function latestAgreementId(bytes32 _tokenID) public view returns (bytes32) {
-        return keccak256(abi.encodePacked(_tokenID, itemIDToAgreementCount[_tokenID]));
+    function latestAgreementID(bytes32 _tokenID) public view returns (bytes32) {
+        return items[_tokenID].latestAgreementID;
     }
 
     /**
@@ -447,8 +447,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Arbitrator _arbitrator,
         bytes32 _tokenID
     ) internal {
-        itemIDToAgreementCount[_tokenID]++;
-        bytes32 agreementID = keccak256(abi.encodePacked(_tokenID, itemIDToAgreementCount[_tokenID]));
+        Item storage item = items[_tokenID];
+        bytes32 agreementID;
+        if(item.latestAgreementID == 0x0)
+            agreementID = keccak256(abi.encodePacked(_tokenID));
+        else
+            agreementID = keccak256(abi.encodePacked(item.latestAgreementID));
+
+        item.latestAgreementID = agreementID;
         agreementIDToItemID[agreementID] = _tokenID;
 
         super._createAgreement(
@@ -573,7 +579,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     {
         for (uint i = 0; i < itemsList.length; i++) {
             Item storage item = items[itemsList[i]];
-            Agreement storage latestAgreement = agreements[latestAgreementId(itemsList[i])];
+            Agreement storage latestAgreement = agreements[latestAgreementID(itemsList[i])];
 
             if (latestAgreement.disputed) disputed++;
             else if (item.status == ItemStatus.Absent) absent++;
@@ -618,8 +624,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             ) { // Oldest or newest first.
             bytes32 itemID = itemsList[_sort ? i : itemsList.length - i];
             Item storage item = items[itemID];
-            bytes32 agreementId = latestAgreementId(itemID);
-            Agreement storage agreement = agreements[agreementId];
+            Agreement storage agreement = agreements[item.latestAgreementID];
             if (
                     (_filter[0] && agreement.disputed) ||
                     (_filter[1] && item.status == ItemStatus.Absent) ||
