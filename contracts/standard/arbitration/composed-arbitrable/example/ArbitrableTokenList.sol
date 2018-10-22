@@ -26,6 +26,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         PreventiveClearingRequested // The item has never been registered, but someone asked to clear it preemptively to avoid it being shown as not registered during the dispute resolution process.
     }
 
+    enum RulingOption {
+        OTHER, // Arbitrator did not rule of refused to rule.
+        REGISTER, // Rule to register the item.
+        CLEAR // Rule to clear the item.
+    }
+
     /* Structs */
 
     struct Item {
@@ -64,10 +70,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     uint public timeToChallenge; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees if the dispute is raised.
     address public t2clGovernor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
-
-    // Ruling Options
-    uint8 constant REGISTER = 1;
-    uint8 constant CLEAR = 2;
 
     // Items
     mapping(bytes32 => Item) public items;
@@ -496,7 +498,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             agreement.parties[winner].send(item.balance);
         } else {
             // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected and the arbitrator did not refuse to rule.
-            uint ruling;
+            RulingOption ruling;
             if (
                 _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
                 _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] &&
@@ -505,22 +507,22 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 // Rule in favor of the loosing party.
                 // Ruling in favor of the loosing party here means inverting the decision of the arbitrator. This is the
                 // case because not enough funds were raised to raise a new dispute.
-                if (_ruling == REGISTER)
-                    ruling = CLEAR;
+                if (_ruling == uint(RulingOption.REGISTER))
+                    ruling = RulingOption.CLEAR;
                 else
-                    ruling = REGISTER;
+                    ruling = RulingOption.REGISTER;
 
             } else
-                ruling = _ruling; // Respect ruling
+                ruling = RulingOption(_ruling); // Respect ruling
 
-            if (ruling == REGISTER) {
+            if (ruling == RulingOption.REGISTER) {
                 if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
                     agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
                 else
                     agreement.parties[1].send(item.balance);
 
                 item.status = ItemStatus.Registered;
-            } else if (ruling == CLEAR) {
+            } else if (ruling == RulingOption.CLEAR) {
                 if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
                     agreement.parties[0].send(item.balance);
                 else
@@ -539,7 +541,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 agreement.parties[1].send(item.balance / 2);
             }
 
-            agreement.ruling = ruling;
+            agreement.ruling = uint(ruling);
         }
 
         agreement.disputed = false;
