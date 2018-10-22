@@ -377,6 +377,13 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
+    /** @dev Changes the `timeToChallenge` storage variable.
+     *  @param _timeToChallenge The new `timeToChallenge` storage variable.
+     */
+    function changeTimeToChallenge(uint _timeToChallenge) external onlyT2CLGovernor {
+        timeToChallenge = _timeToChallenge;
+    }
+
     /** @dev Changes the `challengeReward` storage variable.
      *  @param _challengeReward The new `challengeReward` storage variable.
      */

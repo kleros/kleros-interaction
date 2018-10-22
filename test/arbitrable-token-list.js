@@ -185,7 +185,7 @@ contract('ArbitrableTokenList', function(accounts) {
     })
   })
 
-  describe('challengeReward governance', async () => {
+  describe('Governance', async () => {
     beforeEach(async () => {
       await deployArbitrators()
       await deployArbitrableTokenList(appealableArbitrator)
@@ -262,6 +262,27 @@ contract('ArbitrableTokenList', function(accounts) {
           arbitrationFeesWaitingTimeAfter.toNumber(),
           newarbitrationFeesWaitingTime,
           'arbitrationFeesWaitingTime should have changed'
+        )
+      })
+
+      it('should update timeToChallenge', async () => {
+        const timeToChallengeBefore = await arbitrableTokenList.timeToChallenge()
+        const newTimeToChallenge = timeToChallengeBefore.toNumber() + 1000
+
+        await arbitrableTokenList.changeTimeToChallenge(newTimeToChallenge, {
+          from: t2clGovernor
+        })
+
+        const timeToChallengeAfter = await arbitrableTokenList.timeToChallenge()
+        assert.notEqual(
+          timeToChallengeAfter.toNumber(),
+          timeToChallengeBefore.toNumber(),
+          'timeToChallenge should have changed'
+        )
+        assert.equal(
+          timeToChallengeAfter.toNumber(),
+          newTimeToChallenge,
+          'timeToChallenge should have changed'
         )
       })
     })
@@ -343,6 +364,29 @@ contract('ArbitrableTokenList', function(accounts) {
           arbitrationFeesWaitingTimeAfter.toNumber(),
           newArbitrationFeesWaitingTime,
           'arbitrationFeesWaitingTime should not have changed'
+        )
+      })
+
+      it('should not update timeToChallenge', async () => {
+        const timeToChallengeBefore = await arbitrableTokenList.timeToChallenge()
+        const newTimeToChallenge = timeToChallengeBefore.toNumber() + 1000
+
+        await expectThrow(
+          arbitrableTokenList.changeTimeToChallenge(newTimeToChallenge, {
+            from: partyA
+          })
+        )
+
+        const timeToChallengeAfter = await arbitrableTokenList.timeToChallenge()
+        assert.equal(
+          timeToChallengeAfter.toNumber(),
+          timeToChallengeBefore.toNumber(),
+          'timeToChallenge should not have changed'
+        )
+        assert.notEqual(
+          timeToChallengeAfter.toNumber(),
+          newTimeToChallenge,
+          'timeToChallenge should not have changed'
         )
       })
     })
