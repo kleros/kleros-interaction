@@ -556,25 +556,33 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /* Interface Views */
 
     /**
-     *  @dev Return the number of items in the list.
-     *  @return The number of items in the list.
-     */
-    function itemsCount() public view returns (uint) {
-        return itemsList.length;
-    }
-
-    /**
      *  @dev Return the numbers of items in the list per status.
      *  @return The numbers of items in the list per status.
      */
-    function itemsCounts() external view returns (uint pending, uint challenged, uint accepted, uint rejected) {
+    function itemsCounts()
+        external
+        view
+        returns (
+            uint disputed,
+            uint absent,
+            uint cleared,
+            uint resubmitted,
+            uint submitted,
+            uint clearingRequested,
+            uint preventiveClearingRequested
+        )
+    {
         for (uint i = 0; i < itemsList.length; i++) {
             Item storage item = items[itemsList[i]];
             Agreement storage latestAgreement = agreements[latestAgreementId(itemsList[i])];
-            if (latestAgreement.disputed) challenged++;
-            else if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted) pending++;
-            else if (item.status == ItemStatus.Registered) accepted++;
-            else if (item.status == ItemStatus.Cleared) rejected++;
+
+            if (latestAgreement.disputed) disputed++;
+            else if (item.status == ItemStatus.Absent) absent++;
+            else if (item.status == ItemStatus.Cleared) cleared++;
+            else if (item.status == ItemStatus.Submitted) submitted++;
+            else if (item.status == ItemStatus.Resubmitted) resubmitted++;
+            else if (item.status == ItemStatus.ClearingRequested) clearingRequested++;
+            else if (item.status == ItemStatus.PreventiveClearingRequested) preventiveClearingRequested++;
         }
     }
 
