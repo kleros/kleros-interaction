@@ -32,7 +32,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         ItemStatus status; // Status of the item.
         uint lastAction; // Time of the last action.
         uint balance; // The amount of funds placed at stake for this item. Does not include arbitrationFees.
-        uint challengeReward; // The challengeReward for the item, if it is in a pending challenge.
+        uint challengeReward; // The challengeReward of the item for the round.
     }
 
     /* Modifiers */
@@ -60,7 +60,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /* Storage */
 
     // Settings
-    uint public challengeReward; // The stake deposit required in addition to arbitration fees for challenging a registration or clearing request.
+    uint public challengeReward; // The stake deposit required in addition to arbitration fees for challenging a request.
     uint public timeToChallenge; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees if the dispute is raised.
     address public t2clGovernor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
@@ -136,7 +136,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         item.balance = challengeReward;
         item.lastAction = now;
-        item.challengeReward = challengeReward;
+        item.challengeReward = challengeReward; // Update challengeReward
 
         address[] memory _parties = new address[](2);
         _parties[0] = msg.sender;
@@ -181,7 +181,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             itemsList.push(_tokenID);
         }
 
-        item.balance = challengeReward;
+        item.balance = challengeReward; // Update challengeReward
         item.lastAction = now;
         item.challengeReward = challengeReward;
 
@@ -289,7 +289,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         else
             fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
 
-
         if(item.balance == item.challengeReward) { // Party is attempting to start a dispute.
             require(msg.value >= item.challengeReward, "Party challenging agreement must place value at stake");
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - item.challengeReward
@@ -298,7 +297,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.balance += item.challengeReward;
             fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue - item.challengeReward;
             agreement.parties[1] = msg.sender;
-        } else { // Party that started attempt to raise dispute already placed value at stake.
+        } else { // Party that started dispute already placed value at stake.
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value
                 ? msg.value
                 : fundDisputeCache.stillRequiredValueForSide;
@@ -462,6 +461,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
         super.executeAgreementRuling(_agreementID, _ruling);
+        require(_ruling <= 2, "Ruling must be valid");
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
         Item storage item = items[agreementIDtoItemID[_agreementID]];
@@ -490,39 +490,51 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
             agreement.parties[winner].send(item.balance);
         } else {
-            //Respect the ruling unless the challenger funded the appeal and the requester side paid less than expected.
+            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected and the arbitrator did not refuse to rule.
+            uint ruling;
             if (
-                _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
-                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
+                _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] && 
+                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] &&
+                _ruling != 0 // Respect the ruling if the arbitrator refused to rule.
             ){
-                revert("Not implemented yet"); // TODO: Implemented this.
-            } else {
-                if (_ruling == REGISTER) {
-                    if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-                        agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                    else
-                        agreement.parties[1].send(item.balance);
+                // Rule in favor of the loosing party.
+                // Ruling in favor of the loosing party here means inverting the decision of the arbitrator. This is the
+                // case because not enough funds were raised to raise a new dispute.
+                if (_ruling == REGISTER)
+                    ruling = CLEAR;
+                else
+                    ruling = REGISTER;
 
-                    item.status = ItemStatus.Registered;
-                } else if (_ruling == CLEAR) {
-                    if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
-                        agreement.parties[0].send(item.balance);
-                    else
-                        agreement.parties[1].send(item.balance);
+            } else
+                ruling = _ruling; // Respect ruling
 
+            if (ruling == REGISTER) {
+                if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
+                    agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+                else
+                    agreement.parties[1].send(item.balance);
+
+                item.status = ItemStatus.Registered;
+            } else if (ruling == CLEAR) {
+                if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
+                    agreement.parties[0].send(item.balance);
+                else
+                    agreement.parties[1].send(item.balance);
+
+                item.status = ItemStatus.Cleared;
+            } else { // Split the balance 50-50 and give the item the initial status.
+                if (item.status == ItemStatus.Resubmitted)
                     item.status = ItemStatus.Cleared;
-                } else { // Split the balance 50-50 and give the item the initial status.
-                    if (item.status == ItemStatus.Resubmitted)
-                        item.status = ItemStatus.Cleared;
-                    else if (item.status == ItemStatus.ClearingRequested)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Absent;
+                else if (item.status == ItemStatus.ClearingRequested)
+                    item.status = ItemStatus.Registered;
+                else
+                    item.status = ItemStatus.Absent;
 
-                    agreement.parties[0].send(item.balance / 2);
-                    agreement.parties[1].send(item.balance / 2);
-                }
+                agreement.parties[0].send(item.balance / 2);
+                agreement.parties[1].send(item.balance / 2);
             }
+
+            agreement.ruling = ruling;
         }
 
         agreement.disputed = false;
