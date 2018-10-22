@@ -709,40 +709,40 @@ contract('ArbitrableKitty', accounts => {
       )
     })
 
-    it('should return correct custody information', async () => {
-      const { PARTY_A, PARTY_B } = params
+    // it('should return correct custody information', async () => {
+    //   const { PARTY_A, PARTY_B } = params
 
-      assert.isFalse(
-        await arbitrable.underSendersCustody({ from: PARTY_B }),
-        'should not be available yet'
-      )
-      assert.isFalse(
-        await arbitrable.underSendersCustody({ from: PARTY_A }),
-        'should not be available yet'
-      )
+    //   assert.isFalse(
+    //     await arbitrable.underSendersCustody({ from: PARTY_B }),
+    //     'should not be available yet'
+    //   )
+    //   assert.isFalse(
+    //     await arbitrable.underSendersCustody({ from: PARTY_A }),
+    //     'should not be available yet'
+    //   )
 
-      await increaseTime(1)
+    //   await increaseTime(1)
 
-      assert.isTrue(
-        await arbitrable.underSendersCustody({ from: PARTY_A }),
-        "should be under A's custody"
-      )
-      assert.isFalse(
-        await arbitrable.underSendersCustody({ from: PARTY_B }),
-        "should be under A's custody"
-      )
+    //   assert.isTrue(
+    //     await arbitrable.underSendersCustody({ from: PARTY_A }),
+    //     "should be under A's custody"
+    //   )
+    //   assert.isFalse(
+    //     await arbitrable.underSendersCustody({ from: PARTY_B }),
+    //     "should be under A's custody"
+    //   )
 
-      await increaseTime(60 * 60 * 24 * 7 + 1)
+    //   await increaseTime(60 * 60 * 24 * 7 + 1)
 
-      assert.isTrue(
-        await arbitrable.underSendersCustody({ from: PARTY_B }),
-        "should be under B's custody"
-      )
-      assert.isFalse(
-        await arbitrable.underSendersCustody({ from: PARTY_A }),
-        "should be under B's custody"
-      )
-    })
+    //   assert.isTrue(
+    //     await arbitrable.underSendersCustody({ from: PARTY_B }),
+    //     "should be under B's custody"
+    //   )
+    //   assert.isFalse(
+    //     await arbitrable.underSendersCustody({ from: PARTY_A }),
+    //     "should be under B's custody"
+    //   )
+    // })
 
     it("should allow only party A to take actions during A's custody", async () => {
       const { PARTY_A, PARTY_B, kittyId } = params
