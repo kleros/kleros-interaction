@@ -541,7 +541,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 agreement.parties[1].send(item.balance / 2);
             }
 
-            agreement.ruling = uint(ruling);
         }
 
         agreement.disputed = false;
