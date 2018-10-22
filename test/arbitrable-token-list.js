@@ -98,18 +98,24 @@ contract('ArbitrableTokenList', function(accounts) {
       const cursor = 0
       const count = 1
 
-      const pending = false
-      const challenged = false
-      const accepted = false
-      const rejected = false
+      const disputed = false
+      const absent = false
+      const cleared = false
+      const submitted = false
+      const resubmitted = false
+      const clearingRequested = false
+      const preventiveClearingRequested = false
       const mySubmissions = true
       const myChallenges = false
 
       const filter = [
-        pending,
-        challenged,
-        accepted,
-        rejected,
+        disputed,
+        absent,
+        cleared,
+        submitted,
+        resubmitted,
+        clearingRequested,
+        preventiveClearingRequested,
         mySubmissions,
         myChallenges
       ]
@@ -125,22 +131,28 @@ contract('ArbitrableTokenList', function(accounts) {
       assert.equal(web3.toUtf8(item[0]), TOKEN_ID)
     })
 
-    it('should succesfully retrieve pending', async function() {
+    it('should succesfully retrieve submitted', async function() {
       const cursor = 0
       const count = 1
 
-      const pending = true
-      const challenged = false
-      const accepted = false
-      const rejected = false
+      const disputed = false
+      const absent = false
+      const cleared = false
+      const submitted = true
+      const resubmitted = false
+      const clearingRequested = false
+      const preventiveClearingRequested = false
       const mySubmissions = false
       const myChallenges = false
 
       const filter = [
-        pending,
-        challenged,
-        accepted,
-        rejected,
+        disputed,
+        absent,
+        cleared,
+        submitted,
+        resubmitted,
+        clearingRequested,
+        preventiveClearingRequested,
         mySubmissions,
         myChallenges
       ]
@@ -160,18 +172,24 @@ contract('ArbitrableTokenList', function(accounts) {
       const cursor = 1
       const count = 1
 
-      const pending = true
-      const challenged = false
-      const accepted = false
-      const rejected = false
+      const disputed = false
+      const absent = false
+      const cleared = false
+      const submitted = true
+      const resubmitted = false
+      const clearingRequested = false
+      const preventiveClearingRequested = false
       const mySubmissions = false
       const myChallenges = false
 
       const filter = [
-        pending,
-        challenged,
-        accepted,
-        rejected,
+        disputed,
+        absent,
+        cleared,
+        submitted,
+        resubmitted,
+        clearingRequested,
+        preventiveClearingRequested,
         mySubmissions,
         myChallenges
       ]
