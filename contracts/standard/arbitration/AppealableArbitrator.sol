@@ -96,7 +96,7 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
             require(msg.sender == owner, "Not appealed disputes must be ruled by the owner.");
             if (disputes[_disputeID].status == DisputeStatus.Appealable) {
                 if (now - appealDisputes[_disputeID].rulingTime > timeOut)
-                    super._giveRuling(_disputeID, _ruling);
+                    super._giveRuling(_disputeID, disputes[_disputeID].ruling);
                 else revert("Time out time has not passed yet.");
             } else {
                 disputes[_disputeID].ruling = _ruling;
