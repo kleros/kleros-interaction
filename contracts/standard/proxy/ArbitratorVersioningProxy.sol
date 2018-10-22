@@ -8,7 +8,7 @@ import "./VersioningProxy.sol";
 /**
  *  @title ArbitratorVersioningProxy
  *  @author Enrique Piqueras - <epiquerass@gmail.com>
- *  @dev An Arbitrator proxy that only exposes methods in the Arbitrator spec.
+ *  @dev An arbitrator versioning proxy that only exposes methods in the Arbitrator spec.
  */
 contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     /* Structs */
@@ -36,7 +36,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
 
     /* Public */
 
-    /** @notice Creates a dispute in the current `implementation` contract. Must be called by the arbitrable contract.
+    /** @dev Creates a dispute in the current `implementation` contract. Must be called by the arbitrable contract.
      *  @param _choices The amount of choices the arbitrator can make in this dispute.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return The ID of the created dispute in the context of this contract.
@@ -55,13 +55,16 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         externalDisputeIDToLocalDisputeID[externalDisputeID] = _localDisputeID;
     }
 
-    /** @notice Appeals a ruling to the current `implementation` contract.
+    /** @dev Appeals a ruling to the current `implementation` contract.
      *  @param _localDisputeID The ID of the dispute to be appealed.
      *  @param _extraData Can be used to give extra info on the appeal.
      */
     function appeal(uint _localDisputeID, bytes _extraData) public payable {
         if (disputes[_localDisputeID].arbitrator != implementation) { // Arbitrator has been upgraded, create a new dispute in the new arbitrator
-            transferDispute(_localDisputeID, _extraData);
+            uint _choices = disputes[_localDisputeID].choices;
+            uint _externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
+            disputes[_localDisputeID].arbitrator = Arbitrator(implementation);
+            disputes[_localDisputeID].externalDisputeID = _externalDisputeID;
         }
         else {
             Arbitrator(implementation).appeal.value(msg.value)(disputes[_localDisputeID].externalDisputeID, _extraData);
@@ -70,7 +73,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
 
     /* Public Views */
 
-    /** @notice Computes the cost of arbitration in the current `implementation` contract. It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
+    /** @dev Computes the cost of arbitration in the current `implementation` contract. It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return _fee The arbitration cost.
      */
@@ -78,7 +81,8 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         return Arbitrator(implementation).arbitrationCost(_extraData);
     }
 
-    /** @notice Computes the cost of appealing to the current `implementation` contract. It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
+    /** @dev Computes the cost of appealing to the current `implementation` contract.
+          It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _localDisputeID The ID of the dispute to be appealed.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return _fee The appeal cost.
@@ -92,14 +96,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         }
     }
 
-    function transferDispute(uint _localDisputeID, bytes _extraData) internal {
-        uint _choices = disputes[_localDisputeID].choices;
-        uint _externalDisputeID = Arbitrator(implementation).createDispute.value(msg.value)(_choices, _extraData);
-        disputes[_localDisputeID].arbitrator = Arbitrator(implementation);
-        disputes[_localDisputeID].externalDisputeID = _externalDisputeID;
-    }
-
-    /** @notice Get the current ruling of a dispute. This is useful for parties to know if they should appeal.
+    /** @dev Get the current ruling of a dispute. This is useful for parties to know if they should appeal.
      *  @param _localDisputeID The ID of the dispute.
      *  @return _ruling The current ruling which will be given if there is no appeal or which has been given.
      */
@@ -107,7 +104,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         return disputes[_localDisputeID].arbitrator.currentRuling(disputes[_localDisputeID].externalDisputeID);
     }
 
-    /** @notice Get the status of a dispute.
+    /** @dev Get the status of a dispute.
      *  @param _localDisputeID The ID of the dispute.
      *  @return _status The status of the dispute.
      */
@@ -115,6 +112,11 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         return disputes[_localDisputeID].arbitrator.disputeStatus(disputes[_localDisputeID].externalDisputeID);
     }
 
+    /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
+     *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
+     *  @param _externalDisputeID ID of the dispute in the Arbitrator contract.
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
+     */
     function rule(uint _externalDisputeID, uint _ruling) public {
         uint localDisputeID = externalDisputeIDToLocalDisputeID[_externalDisputeID];
 
@@ -125,6 +127,10 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
         executeRuling(_externalDisputeID, _ruling);
     }
 
+    /** @dev Execute a ruling of a dispute.
+     *  @param _externalDisputeID ID of the dispute in the Arbitrator contract.
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
+     */
     function executeRuling(uint _externalDisputeID, uint _ruling) internal {
         disputes[externalDisputeIDToLocalDisputeID[_externalDisputeID]].arbitrated.rule(_externalDisputeID, _ruling);
     }
