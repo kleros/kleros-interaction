@@ -154,8 +154,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra ETH.
-        // Agreement storage agreement = agreements[latestAgreementID(_tokenID)];
-        // emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
+        Agreement storage agreement = agreements[latestAgreementID(_tokenID)];
+        emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
     /**
