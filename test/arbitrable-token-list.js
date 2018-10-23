@@ -652,9 +652,13 @@ contract('ArbitrableTokenList', function(accounts) {
             assert.equal(
               agreementAfter[1][0],
               partyA,
-              'side 0 should be party A'
+              'side 0 should still be party A'
             )
-            assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
+            assert.equal(
+              agreementAfter[1][1],
+              partyB,
+              'side 1 should still be party B'
+            )
             assert.isFalse(
               agreementAfter[7],
               'agreement should no be disputed anymore'
@@ -812,12 +816,12 @@ contract('ArbitrableTokenList', function(accounts) {
               assert.equal(
                 agreementAfter[1][0],
                 partyA,
-                'side 0 should be party A'
+                'side 0 should still be party A'
               )
               assert.equal(
                 agreementAfter[1][1],
-                0x0,
-                'side 1 should be cleared'
+                partyB,
+                'side 1 should still be party B'
               )
               assert.isFalse(
                 agreementAfter[7],
@@ -911,9 +915,14 @@ contract('ArbitrableTokenList', function(accounts) {
             'item balance should be zero'
           )
           assert.equal(
+            agreementAfter[1][0],
+            partyA,
+            'side 0 should still be party A'
+          )
+          assert.equal(
             agreementAfter[1][1],
-            0x0,
-            'party 2 should have been cleared'
+            partyB,
+            'side 1 should still be party B'
           )
           assert.isFalse(agreementAfter[7], 'agreement should not be disputed')
           assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
@@ -972,9 +981,14 @@ contract('ArbitrableTokenList', function(accounts) {
             'item balance should be zero'
           )
           assert.equal(
+            agreementAfter[1][0],
+            partyA,
+            'side 0 should still be party A'
+          )
+          assert.equal(
             agreementAfter[1][1],
-            0x0,
-            'party 2 should have been cleared'
+            partyB,
+            'side 1 should still be party B'
           )
           assert.isFalse(agreementAfter[7], 'agreement should not be disputed')
           assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
@@ -1201,8 +1215,16 @@ contract('ArbitrableTokenList', function(accounts) {
           const agreementAfter = await arbitrableTokenList.getAgreementInfo(
             agreementID
           )
-          assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-          assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
+          assert.equal(
+            agreementAfter[1][0],
+            partyA,
+            'side 0 should still be party A'
+          )
+          assert.equal(
+            agreementAfter[1][1],
+            partyB,
+            'side 1 should still be party B'
+          )
           assert.isFalse(
             agreementAfter[7],
             'agreement should no be disputed anymore'
@@ -1332,8 +1354,16 @@ contract('ArbitrableTokenList', function(accounts) {
           const agreementAfter = await arbitrableTokenList.getAgreementInfo(
             agreementID
           )
-          assert.equal(agreementAfter[1][0], partyA, 'side 0 should be party A')
-          assert.equal(agreementAfter[1][1], 0x0, 'side 1 should be cleared')
+          assert.equal(
+            agreementAfter[1][0],
+            partyA,
+            'side 0 should still be party A'
+          )
+          assert.equal(
+            agreementAfter[1][1],
+            partyB,
+            'side 1 should still be party B'
+          )
           assert.isFalse(
             agreementAfter[7],
             'agreement should no be disputed anymore'
