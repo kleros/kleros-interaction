@@ -511,7 +511,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             if (
                 _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
                 _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] &&
-                _ruling != 0 // Respect the ruling if the arbitrator refused to rule.
+                _ruling != uint(RulingOption.OTHER) // Respect the ruling if the arbitrator refused to rule.
             ){
                 // Rule in favor of the loosing party.
                 // Ruling in favor of the loosing party here means inverting the decision of the arbitrator. This is the
