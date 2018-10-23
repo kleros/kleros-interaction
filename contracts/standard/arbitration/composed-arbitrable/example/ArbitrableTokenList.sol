@@ -122,7 +122,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     ) external payable {
         Item storage item = items[_tokenID];
         Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
-        if(item.latestAgreementID != 0x0) // Not the first request for this tokenID
+        if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
             require(prevAgreement.executed && !prevAgreement.disputed, "There is already a request in place.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
@@ -139,7 +139,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         item.balance = challengeReward;
         item.lastAction = now;
-        item.challengeReward = challengeReward; // Update challengeReward
+        item.challengeReward = challengeReward; // Update challengeReward.
 
         address[] memory _parties = new address[](2);
         _parties[0] = msg.sender;
@@ -185,7 +185,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             itemsList.push(_tokenID);
         }
 
-        item.balance = challengeReward; // Update challengeReward
+        item.balance = challengeReward; // Update challengeReward.
         item.lastAction = now;
         item.challengeReward = challengeReward;
 
@@ -374,6 +374,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
         agreement.executed = true;
         item.lastAction = now;
+        item.challengeReward = 0; // Clear challengeReward once a request has been executed.
         item.balance = 0;
 
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
@@ -410,9 +411,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /* Public Views */
 
     /**
-     *  @dev Returns the latest agreement for an item
+     *  @dev Returns the latest agreement for an item.
      *  @param _tokenID The tokenID of the item to check.
-     *  @return The latest agreementID
+     *  @return The latest agreementID.
      */
     function latestAgreementID(bytes32 _tokenID) public view returns (bytes32) {
         return items[_tokenID].latestAgreementID;
