@@ -45,7 +45,7 @@ contract('ArbitrableTokenList', function(accounts) {
     PREVENTIVE_CLEARING_REQUESTED: 6
   }
 
-  const RULING = { OTHER: 0, REGISTER: 1, CLEAR: 2 }
+  const RULING = { OTHER: 0, EXECUTE: 1, REFUSE: 2 }
   const TOKEN_ID = 'pnk'
 
   const deployArbitrators = async () => {
@@ -615,7 +615,7 @@ contract('ArbitrableTokenList', function(accounts) {
             // Rule in favor of partyA
             await appealableArbitrator.giveRuling(
               agreementBefore[6],
-              RULING.REGISTER
+              RULING.EXECUTE
             )
           })
 
@@ -635,7 +635,7 @@ contract('ArbitrableTokenList', function(accounts) {
             await increaseTime(appealPeriodDuration + 1)
             await appealableArbitrator.giveRuling(
               agreementBefore[6],
-              RULING.REGISTER
+              RULING.EXECUTE
             )
 
             agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
@@ -723,7 +723,7 @@ contract('ArbitrableTokenList', function(accounts) {
             // Rule in favor of partyB
             await appealableArbitrator.giveRuling(
               agreementBefore[6],
-              RULING.CLEAR
+              RULING.REFUSE
             )
           })
 
@@ -745,7 +745,7 @@ contract('ArbitrableTokenList', function(accounts) {
               await increaseTime(appealPeriodDuration + 1)
               await appealableArbitrator.giveRuling(
                 agreementBefore[6],
-                RULING.CLEAR
+                RULING.REFUSE
               )
 
               agreement = await arbitrableTokenList.getAgreementInfo(
@@ -804,7 +804,7 @@ contract('ArbitrableTokenList', function(accounts) {
               await increaseTime(appealPeriodDuration + 1)
               await appealableArbitrator.giveRuling(
                 agreementBefore[6],
-                RULING.CLEAR
+                RULING.REFUSE
               )
 
               agreement = await arbitrableTokenList.getAgreementInfo(
@@ -1198,12 +1198,12 @@ contract('ArbitrableTokenList', function(accounts) {
           // Rule in favor of partyA
           await appealableArbitrator.giveRuling(
             agreementBefore[6],
-            RULING.CLEAR
+            RULING.EXECUTE
           )
           await increaseTime(appealPeriodDuration + 1)
           await appealableArbitrator.giveRuling(
             agreementBefore[6],
-            RULING.CLEAR
+            RULING.EXECUTE
           )
 
           agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
@@ -1337,12 +1337,12 @@ contract('ArbitrableTokenList', function(accounts) {
           // Rule in favor of partyB
           await appealableArbitrator.giveRuling(
             agreementBefore[6],
-            RULING.REGISTER
+            RULING.REFUSE
           )
           await increaseTime(appealPeriodDuration + 1)
           await appealableArbitrator.giveRuling(
             agreementBefore[6],
-            RULING.REGISTER
+            RULING.REFUSE
           )
 
           agreement = await arbitrableTokenList.getAgreementInfo(agreementID)
@@ -1816,7 +1816,7 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          it('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
+          it('calling executeRuling with EXECUTE should send item.balance to submitter', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
               await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
@@ -1824,9 +1824,9 @@ contract('ArbitrableTokenList', function(accounts) {
             const submitterBalance = web3.eth.getBalance(submitter)
             const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
 
-            await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER)
+            await appealableArbitrator.giveRuling(disputeID, RULING.EXECUTE)
             await increaseTime(appealPeriodDuration + 1)
-            await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER)
+            await appealableArbitrator.giveRuling(disputeID, RULING.EXECUTE)
 
             const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
             const expectedBalanceOfSubmitter = submitterBalance.plus(
@@ -1846,7 +1846,7 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          it('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
+          it('calling executeRuling with REFUSE should send item.balance to challenger', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
               await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
@@ -1854,9 +1854,9 @@ contract('ArbitrableTokenList', function(accounts) {
             const challengerBalance = web3.eth.getBalance(challenger)
             const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
 
-            await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+            await appealableArbitrator.giveRuling(disputeID, RULING.REFUSE)
             await increaseTime(appealPeriodDuration + 1)
-            await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+            await appealableArbitrator.giveRuling(disputeID, RULING.REFUSE)
 
             const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
             const expectedBalanceOfChallenger = itemBalance.plus(
@@ -2106,7 +2106,7 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          it('calling executeRuling with REGISTER should send item.balance to submitter', async function() {
+          it('calling executeRuling with EXECUTE should send item.balance to submitter', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
               await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
@@ -2114,9 +2114,9 @@ contract('ArbitrableTokenList', function(accounts) {
             const submitterBalance = web3.eth.getBalance(submitter)
             const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
 
-            await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER)
+            await appealableArbitrator.giveRuling(disputeID, RULING.EXECUTE)
             await increaseTime(appealPeriodDuration + 1)
-            await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER)
+            await appealableArbitrator.giveRuling(disputeID, RULING.EXECUTE)
 
             const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
             const expectedBalanceOfSubmitter = itemBalance.plus(
@@ -2139,7 +2139,7 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          it('calling executeRuling with CLEAR should send item.balance to challenger', async function() {
+          it('calling executeRuling with REFUSE should send item.balance to challenger', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
               await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
@@ -2147,9 +2147,9 @@ contract('ArbitrableTokenList', function(accounts) {
             const challengerBalance = web3.eth.getBalance(challenger)
             const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
 
-            await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+            await appealableArbitrator.giveRuling(disputeID, RULING.REFUSE)
             await increaseTime(appealPeriodDuration + 1)
-            await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+            await appealableArbitrator.giveRuling(disputeID, RULING.REFUSE)
 
             const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
             const expectedBalanceOfChallenger = challengerBalance.plus(
@@ -2329,7 +2329,7 @@ contract('ArbitrableTokenList', function(accounts) {
             disputeID = agreement[6].toNumber()
           })
 
-          it('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
+          it('calling executeRuling with REFUSE should send item.balance to challenger', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
               await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
@@ -2337,9 +2337,9 @@ contract('ArbitrableTokenList', function(accounts) {
             const challengerBalance = web3.eth.getBalance(challenger)
             const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
 
-            await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER)
+            await appealableArbitrator.giveRuling(disputeID, RULING.REFUSE)
             await increaseTime(appealPeriodDuration + 1)
-            await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER)
+            await appealableArbitrator.giveRuling(disputeID, RULING.REFUSE)
 
             const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
             const expectedBalanceOfChallenger = challengerBalance.plus(
@@ -2358,7 +2358,7 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          it('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
+          it('calling executeRuling with EXECUTE should send item.balance to submitter', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
               await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
@@ -2366,9 +2366,9 @@ contract('ArbitrableTokenList', function(accounts) {
             const submitterBalance = web3.eth.getBalance(submitter)
             const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
 
-            await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+            await appealableArbitrator.giveRuling(disputeID, RULING.EXECUTE)
             await increaseTime(appealPeriodDuration + 1)
-            await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+            await appealableArbitrator.giveRuling(disputeID, RULING.EXECUTE)
 
             const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
             const expectedBalanceOfSubmitter = submitterBalance.plus(
@@ -2542,7 +2542,7 @@ contract('ArbitrableTokenList', function(accounts) {
             disputeID = agreement[6].toNumber()
           })
 
-          it('calling executeRuling with REGISTER should send item.balance to challenger', async function() {
+          it('calling executeRuling with REFUSE should send item.balance to challenger', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
               await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
@@ -2550,9 +2550,9 @@ contract('ArbitrableTokenList', function(accounts) {
             const challengerBalance = web3.eth.getBalance(challenger)
             const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
 
-            await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER)
+            await appealableArbitrator.giveRuling(disputeID, RULING.REFUSE)
             await increaseTime(appealPeriodDuration + 1)
-            await appealableArbitrator.giveRuling(disputeID, RULING.REGISTER)
+            await appealableArbitrator.giveRuling(disputeID, RULING.REFUSE)
 
             const actualBalanceOfChallenger = web3.eth.getBalance(challenger)
             const expectedBalanceOfChallenger = challengerBalance.plus(
@@ -2568,7 +2568,7 @@ contract('ArbitrableTokenList', function(accounts) {
             )
           })
 
-          it('calling executeRuling with CLEAR should send item.balance to submitter', async function() {
+          it('calling executeRuling with EXECUTE should send item.balance to submitter', async function() {
             const agreement = await arbitrableTokenList.getAgreementInfo(
               await arbitrableTokenList.latestAgreementID(TOKEN_ID)
             )
@@ -2576,9 +2576,9 @@ contract('ArbitrableTokenList', function(accounts) {
             const submitterBalance = web3.eth.getBalance(submitter)
             const itemBalance = (await arbitrableTokenList.items(TOKEN_ID))[2]
 
-            await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+            await appealableArbitrator.giveRuling(disputeID, RULING.EXECUTE)
             await increaseTime(appealPeriodDuration + 1)
-            await appealableArbitrator.giveRuling(disputeID, RULING.CLEAR)
+            await appealableArbitrator.giveRuling(disputeID, RULING.EXECUTE)
 
             const actualBalanceOfSubmitter = web3.eth.getBalance(submitter)
             const expectedBalanceOfSubmitter = itemBalance.plus(

@@ -29,8 +29,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     enum RulingOption {
         OTHER, // Arbitrator did not rule of refused to rule.
-        REGISTER, // Rule to register the item.
-        CLEAR // Rule to clear the item.
+        EXECUTE, // Execute request. Rule in favor of requester.
+        REFUSE // Refuse request. Rule in favor of challenger.
     }
 
     /* Structs */
@@ -51,14 +51,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /**
      *  @dev Called when the item's status changes or when it is challenged/resolved.
-     *  @param submitter Address of the submitter.
+     *  @param requester Address of the requester.
      *  @param challenger Address of the challenger, if any.
      *  @param tokenID The tokenID of the item.
      *  @param status The status of the item.
      *  @param disputed Wether the item is being disputed.
      */
     event ItemStatusChange(
-        address indexed submitter,
+        address indexed requester,
         address indexed challenger,
         bytes32 indexed tokenID,
         ItemStatus status,
@@ -484,70 +484,90 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         if (_paidFees.stake.length == 1) { // Failed to fund first round.
             // Rule in favor of whoever paid more.
-            uint8 winner;
-            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1])
-                winner = 0;
-            else
-                winner = 1;
+            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1]){
+                // Ruled in favor of the requester.
+                if(item.status == ItemStatus.Submitted || item.status == ItemStatus.Resubmitted)
+                    item.status = ItemStatus.Registered;
+                else
+                    item.status = ItemStatus.Cleared;
 
-            if (winner == 1) // Ruled in favor of challenger.
-                // Return item to it's previous status.
+                agreement.parties[0].send(item.balance);
+            } else {
+                // Ruled in favor of the challenger.
                 if(item.status == ItemStatus.Resubmitted)
                     item.status = ItemStatus.Cleared;
                 else if (item.status == ItemStatus.ClearingRequested)
                     item.status = ItemStatus.Registered;
                 else
                     item.status = ItemStatus.Absent;
-            else  // Ruled in favor of requester.
-                if(item.status == ItemStatus.Submitted || item.status == ItemStatus.Resubmitted)
-                    item.status = ItemStatus.Registered;
-                else
-                    item.status = ItemStatus.Cleared;
 
-            agreement.parties[winner].send(item.balance);
+                agreement.parties[1].send(item.balance);
+            }
         } else {
-            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected and the arbitrator did not refuse to rule.
-            RulingOption ruling;
+            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected
+            // and the arbitrator did not refuse to rule.
             if (
                 _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
                 _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] &&
                 _ruling != uint(RulingOption.OTHER) // Respect the ruling if the arbitrator refused to rule.
-            ){
+            ) {
                 // Rule in favor of the loosing party.
-                // Ruling in favor of the loosing party here means inverting the decision of the arbitrator. This is the
-                // case because not enough funds were raised to raise a new dispute.
-                if (_ruling == uint(RulingOption.REGISTER))
-                    ruling = RulingOption.CLEAR;
-                else
-                    ruling = RulingOption.REGISTER;
+                // Ruling in favor of the loosing party here means doing the opposite of the decision of the arbitrator.
+                // This is the case because not enough funds were raised to raise a new dispute.
+                if (_ruling == uint(RulingOption.EXECUTE)) {
+                    // Revert to previous state.
+                    if (item.status == ItemStatus.Resubmitted)
+                        item.status = ItemStatus.Cleared;
+                    else if (item.status == ItemStatus.ClearingRequested)
+                        item.status = ItemStatus.Registered;
+                    else
+                        item.status = ItemStatus.Absent;
 
-            } else
-                ruling = RulingOption(_ruling); // Respect ruling
+                    // Reward challenger.
+                    agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+                } else {
+                    // Execute request.
+                    if (item.status == ItemStatus.Submitted || item.status == ItemStatus.Resubmitted)
+                        item.status = ItemStatus.Registered;
+                    else
+                        item.status = ItemStatus.Cleared;
 
-            if (ruling == RulingOption.REGISTER) {
-                if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
+                    // Reward requester.
                     agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                else
+                }
+            } else {
+                // Respect the ruling.
+                if (_ruling == uint(RulingOption.EXECUTE)) {
+                    // Execute the request.
+                    if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
+                        item.status = ItemStatus.Registered;
+                    else
+                        item.status = ItemStatus.Cleared;
+
+                    // Send rewards to requester.
+                    agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+                } else if (_ruling == uint(RulingOption.REFUSE)) {
+                    if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
+                        item.status = ItemStatus.Cleared;
+                    else
+                        item.status = ItemStatus.Registered;
+
+                    // Send rewards to challenger.
                     agreement.parties[1].send(item.balance);
+                } else {
+                    // Arbitrator refused to rule.
+                    // Revert to previous state.
+                    if (item.status == ItemStatus.Resubmitted)
+                        item.status = ItemStatus.Cleared;
+                    else if (item.status == ItemStatus.ClearingRequested)
+                        item.status = ItemStatus.Registered;
+                    else
+                        item.status = ItemStatus.Absent;
 
-                item.status = ItemStatus.Registered;
-            } else if (ruling == RulingOption.CLEAR) {
-                if (item.status == ItemStatus.PreventiveClearingRequested || item.status == ItemStatus.ClearingRequested)
-                    agreement.parties[0].send(item.balance);
-                else
-                    agreement.parties[1].send(item.balance);
-
-                item.status = ItemStatus.Cleared;
-            } else { // Split the balance 50-50 and give the item the initial status.
-                if (item.status == ItemStatus.Resubmitted)
-                    item.status = ItemStatus.Cleared;
-                else if (item.status == ItemStatus.ClearingRequested)
-                    item.status = ItemStatus.Registered;
-                else
-                    item.status = ItemStatus.Absent;
-
-                agreement.parties[0].send(item.balance / 2);
-                agreement.parties[1].send(item.balance / 2);
+                    // Split the balance 50-50 and give the item the initial status.
+                    agreement.parties[0].send(item.balance / 2);
+                    agreement.parties[1].send(item.balance / 2);
+                }
             }
 
         }
