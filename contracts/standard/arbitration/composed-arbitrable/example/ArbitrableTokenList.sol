@@ -491,7 +491,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 else
                     item.status = ItemStatus.Cleared;
 
-                agreement.parties[0].send(item.balance);
+                agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             } else {
                 // Ruled in favor of the challenger.
                 if(item.status == ItemStatus.Resubmitted)
@@ -501,7 +501,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 else
                     item.status = ItemStatus.Absent;
 
-                agreement.parties[1].send(item.balance);
+                agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             }
         } else {
             // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected
@@ -553,7 +553,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                         item.status = ItemStatus.Registered;
 
                     // Send rewards to challenger.
-                    agreement.parties[1].send(item.balance);
+                    agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
                 } else {
                     // Arbitrator refused to rule.
                     // Revert to previous state.
@@ -565,8 +565,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                         item.status = ItemStatus.Absent;
 
                     // Split the balance 50-50 and give the item the initial status.
-                    agreement.parties[0].send(item.balance / 2);
-                    agreement.parties[1].send(item.balance / 2);
+                    agreement.parties[0].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+                    agreement.parties[1].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
                 }
             }
 
