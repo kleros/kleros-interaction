@@ -1,6 +1,7 @@
 /**
  *  @title ArbitrableTokenList
  *  @author Matheus Alencar - <mtsalenc@gmail.com>
+ *  This code hasn't undertaken bug bounty programs yet.
  */
 
 pragma solidity ^0.4.24;
