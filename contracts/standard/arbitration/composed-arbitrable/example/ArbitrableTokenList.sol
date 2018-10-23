@@ -361,7 +361,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         require(agreement.creator != address(0), "The specified agreement does not exist.");
         require(!agreement.executed, "The specified agreement has already been executed.");
         require(!agreement.disputed, "The specified agreement is disputed.");
-        agreement.executed = true;
 
         if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
             item.status = ItemStatus.Registered;
@@ -370,9 +369,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         else
             revert("Item in wrong status for executing request.");
 
-        item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
-        item.lastAction = now;
         agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        agreement.executed = true;
+        item.lastAction = now;
         item.balance = 0;
 
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
@@ -551,8 +550,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         agreement.disputed = false;
+        agreement.executed = true;
         item.lastAction = now;
         item.balance = 0;
+        item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
 
         emit ItemStatusChange(agreement.parties[0], address(0), agreementIDToItemID[_agreementID], item.status, agreement.disputed);
     }
