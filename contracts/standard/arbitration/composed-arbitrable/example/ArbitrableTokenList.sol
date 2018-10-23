@@ -122,7 +122,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     ) external payable {
         Item storage item = items[_tokenID];
         Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
-        require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place.");
+        if(item.latestAgreementID != 0x0) // Not the first request for this tokenID
+            require(prevAgreement.executed && !prevAgreement.disputed, "There is already a request in place.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
@@ -169,7 +170,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     ) external payable {
         Item storage item = items[_tokenID];
         Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
-        require(!prevAgreement.disputed || prevAgreement.executed, "There is already a request in place.");
+        if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
+            require(prevAgreement.executed && !prevAgreement.disputed, "There is already a request in place.");
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
