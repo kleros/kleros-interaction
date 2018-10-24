@@ -65,7 +65,7 @@ contract VersioningProxy {
      */
     function rollback() external onlyOwner returns(bool _success) {
         uint256 tagsLen = tags.length;
-        if (tagsLen <= 2) // We don't have a previous deployment, return false
+        if (tagsLen < 2) // We don't have a previous deployment, return false
             return false;
 
         // Roll back and return true
