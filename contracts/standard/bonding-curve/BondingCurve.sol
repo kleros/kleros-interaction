@@ -9,7 +9,7 @@
 pragma solidity ^0.4.24;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import { MiniMeTokenERC20 as Pinakion } from "../arbitration/ArbitrableTokens/MiniMeTokenERC20.sol";
+import { MiniMeTokenERC20 as TokenContract } from "../arbitration/ArbitrableTokens/MiniMeTokenERC20.sol";
 import { ApproveAndCallFallBack } from "minimetoken/contracts/MiniMeToken.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 
@@ -22,7 +22,7 @@ contract BondingCurve is ApproveAndCallFallBack {
     // **************************** //
 
     // Variables which should not change after initialization.
-    Pinakion public pinakion;
+    TokenContract public tokenContract;
 
     // Variables which will subject to the governance mechanism.
     // Spread factor charged when buying and selling when divided by SPREAD_DIVISOR. 
@@ -46,12 +46,12 @@ contract BondingCurve is ApproveAndCallFallBack {
     modifier onlyGovernor() {require(msg.sender == governor, "Only callable by the governor."); _;}
 
     /** @dev Constructor.
-     *  @param _pinakion The address of the pinakion contract.
+     *  @param _tokenContract The address of the token contract.
      *  @param _governor Address of the governor contract.
      *  @param _spread Spread.
      */
-    constructor(Pinakion _pinakion, address _governor, uint _spread) public {
-        pinakion = _pinakion;
+    constructor(TokenContract _tokenContract, address _governor, uint _spread) public {
+        tokenContract = _tokenContract;
         governor = _governor;
         spread = _spread;
     }
@@ -88,7 +88,7 @@ contract BondingCurve is ApproveAndCallFallBack {
             refundETH = _eth.sub(actualETH);
         }              
 
-        require(pinakion.transferFrom(msg.sender, this, actualTKN), "TKN transfer failed.");
+        require(tokenContract.transferFrom(msg.sender, this, actualTKN), "TKN transfer failed.");
         totalETH += actualETH;
         totalTKN += actualTKN;
 
@@ -113,7 +113,7 @@ contract BondingCurve is ApproveAndCallFallBack {
         depositPointMap[msg.sender] = 0;
         totalDepositPoints -= depositPoints;
 
-        require(pinakion.transfer(msg.sender, tknWithdraw), "TKN transfer failed.");
+        require(tokenContract.transfer(msg.sender, tknWithdraw), "TKN transfer failed.");
         msg.sender.transfer(ethWithdraw);
     }
 
@@ -132,23 +132,23 @@ contract BondingCurve is ApproveAndCallFallBack {
             .div(totalETH.add(msg.value)).div(SPREAD_DIVISOR.add(spread));
 
         require(tkn > minTKN, "Price exceeds limit.");
-        require(pinakion.transfer(receiver, tkn), "TKN transfer failed.");
+        require(tokenContract.transfer(receiver, tkn), "TKN transfer failed.");
         totalETH += msg.value;
         totalTKN -= tkn;
     }
 
-    // To sell TKN, the user must call approveAndCall() of the Pinakion token account, whose parameter list is: (address _spender, uint256 _amount, bytes _extraData).
+    // To sell TKN, the user must call approveAndCall() of the token account, whose parameter list is: (address _spender, uint256 _amount, bytes _extraData).
     // _spender must be this contract.
     // _amount is the amount of TKN the user wishes to sell.
     // _extraData 0~3 bytes must be the string "bcs1".
     //            4~23 bytes is recipient address of ETH.
     //            24~55 bytes is an uint256 representing the minimum amount of ETH the seller wishes the receive. If by the time the transaction is mined the price of TKN drops so that the contract could not give the seller this amount, the transaction is aborted.
-    /** @dev Callback of approveAndCall - the only use case is to sell TKN. Should be called by the pinakion contract. TRUSTED.
+    /** @dev Callback of approveAndCall - the only use case is to sell TKN. Should be called by the token contract. TRUSTED.
      *  @param _from The address of seller.
      *  @param _amount Amount of TKN to sell .
      * @param _extraData Packed bytes according to above spec.
      */
-    function receiveApproval(address _from, uint _amount, address, bytes _extraData) public onlyBy(pinakion) {
+    function receiveApproval(address _from, uint _amount, address, bytes _extraData) public onlyBy(tokenContract) {
         require(_extraData.length == 56, "extraData length is incorrect.");
 
         // solium-disable-next-line indentation
@@ -170,7 +170,7 @@ contract BondingCurve is ApproveAndCallFallBack {
 
         require(eth >= minETH, "TKN price must be above minimum expected value.");
         recipient.transfer(eth);
-        require(pinakion.transferFrom(_from, this, _amount), "Bonded token transfer failed.");
+        require(tokenContract.transferFrom(_from, this, _amount), "Bonded token transfer failed.");
 
         totalETH -= eth;
         totalTKN += _amount;          
