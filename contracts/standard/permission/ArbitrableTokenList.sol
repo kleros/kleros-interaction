@@ -29,7 +29,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     enum RulingOption {
         OTHER, // Arbitrator did not rule of refused to rule.
-        EXECUTE, // Execute request. Rule in favor of requester.
+        ACCEPT, // Execute request. Rule in favor of requester.
         REFUSE // Refuse request. Rule in favor of challenger.
     }
 
@@ -211,7 +211,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  - Parent's fundDispute doesn't take into account `challengeReward` when calculating ETH.
      *  - For calls that initiate a dispute, msg.value must also include `challengeReward`.
      *  @param _agreementID The ID of the agreement.
-     *  @param _side The side. 0 for the side that lost the previous round, if any, and 1 for the one that won.
+     *  @param _side The side with respect to paidFees. 0 for the side that lost the previous round, if any, and 1 for the one that won.
      */
     function fundDispute(bytes32 _agreementID, uint _side) public payable {
         Agreement storage agreement = agreements[_agreementID];
@@ -287,13 +287,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             }
         }
 
-        // Take contribution.
+        // Calculate value still required.
         if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide)
             fundDisputeCache.stillRequiredValueForSide = 0;
         else
             fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
 
-        if(item.balance == item.challengeReward) { // Party is attempting to start a dispute.
+        if(item.balance == item.challengeReward) {
+            // Party is attempting to start a dispute.
             require(msg.value >= item.challengeReward, "Party challenging agreement must place value at stake");
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - item.challengeReward
                 ? msg.value - item.challengeReward
@@ -301,13 +302,17 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.balance += item.challengeReward;
             fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue - item.challengeReward;
             agreement.parties[1] = msg.sender;
-        } else { // Party that started dispute already placed value at stake.
+        } else {
+            // Party that started dispute already placed value at stake, in other words: item.balance == item.challengeReward * 2.
+            // This means the caller is contributing to fees crowdfunding.
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value
                 ? msg.value
                 : fundDisputeCache.stillRequiredValueForSide;
+
             fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue;
         }
 
+        // Take the contribution
         if (fundDisputeCache.keptValue > 0) {
             _paidFees.totalValue[_paidFees.totalValue.length - 1] += fundDisputeCache.keptValue;
             _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] += fundDisputeCache.keptValue;
@@ -504,17 +509,15 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
             }
         } else {
-            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected
-            // and the arbitrator did not refuse to rule.
+            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected.
             if (
                 _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
-                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] &&
-                _ruling != uint(RulingOption.OTHER) // Respect the ruling if the arbitrator refused to rule.
+                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
             ) {
-                // Rule in favor of the loosing party.
-                // Ruling in favor of the loosing party here means doing the opposite of the decision of the arbitrator.
+                // Rule in favor of the losing party.
+                // Ruling in favor of the losing party here means doing the opposite of the decision of the arbitrator.
                 // This is the case because not enough funds were raised to raise a new dispute.
-                if (_ruling == uint(RulingOption.EXECUTE)) {
+                if (_ruling == uint(RulingOption.ACCEPT)) {
                     // Revert to previous state.
                     if (item.status == ItemStatus.Resubmitted)
                         item.status = ItemStatus.Cleared;
@@ -537,7 +540,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                 }
             } else {
                 // Respect the ruling.
-                if (_ruling == uint(RulingOption.EXECUTE)) {
+                if (_ruling == uint(RulingOption.ACCEPT)) {
                     // Execute the request.
                     if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
                         item.status = ItemStatus.Registered;
