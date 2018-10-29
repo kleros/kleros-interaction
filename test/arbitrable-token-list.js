@@ -659,9 +659,9 @@ contract('ArbitrableTokenList', function(accounts) {
               partyB,
               'side 1 should still be party B'
             )
-            assert.isFalse(
+            assert.isTrue(
               agreementAfter[7],
-              'agreement should no be disputed anymore'
+              'agreement still be disputed to maintain history'
             )
             assert.isFalse(
               agreementAfter[8],
@@ -823,9 +823,9 @@ contract('ArbitrableTokenList', function(accounts) {
                 partyB,
                 'side 1 should still be party B'
               )
-              assert.isFalse(
+              assert.isTrue(
                 agreementAfter[7],
-                'agreement should no be disputed anymore'
+                'agreement still be disputed to maintain history'
               )
               assert.isFalse(
                 agreementAfter[8],
@@ -1225,9 +1225,9 @@ contract('ArbitrableTokenList', function(accounts) {
             partyB,
             'side 1 should still be party B'
           )
-          assert.isFalse(
+          assert.isTrue(
             agreementAfter[7],
-            'agreement should no be disputed anymore'
+            'agreement still be disputed to maintain history'
           )
           assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
           assert.isTrue(
@@ -1364,9 +1364,9 @@ contract('ArbitrableTokenList', function(accounts) {
             partyB,
             'side 1 should still be party B'
           )
-          assert.isFalse(
+          assert.isTrue(
             agreementAfter[7],
-            'agreement should no be disputed anymore'
+            'agreement still be disputed to maintain history'
           )
           assert.isFalse(agreementAfter[8], 'agreement should not be appealed')
           assert.isTrue(
