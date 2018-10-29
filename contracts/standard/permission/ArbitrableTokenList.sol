@@ -598,7 +598,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             Agreement storage latestAgreement = agreements[item.latestAgreementID];
 
             if (latestAgreement.disputed) disputed++;
-            else if (item.status == ItemStatus.Absent) absent++;
+            if (item.status == ItemStatus.Absent) absent++;
             else if (item.status == ItemStatus.Cleared) cleared++;
             else if (item.status == ItemStatus.Submitted) submitted++;
             else if (item.status == ItemStatus.Resubmitted) resubmitted++;
