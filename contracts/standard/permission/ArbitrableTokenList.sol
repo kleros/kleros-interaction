@@ -474,7 +474,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
         super.executeAgreementRuling(_agreementID, _ruling);
-        require(_ruling <= 2, "Ruling must be valid");
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
         Item storage item = items[agreementIDToItemID[_agreementID]];
