@@ -111,6 +111,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /* Public */
 
+    // ************************ //
+    // *       Requests       * //
+    // ************************ //
+
     /** @dev Request for an item to be registered.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _metaEvidence The meta evidence for the potential dispute.
@@ -379,6 +383,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
+
+    // ************************ //
+    // *      Governance      * //
+    // ************************ //
 
     /** @dev Changes the `timeToChallenge` storage variable.
      *  @param _timeToChallenge The new `timeToChallenge` storage variable.
