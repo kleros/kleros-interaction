@@ -8,7 +8,6 @@ pragma solidity ^0.4.24;
 
 import "../arbitration/composed-arbitrable/composed/MultiPartyInsurableArbitrableAgreementsBase.sol";
 
-
 /**
  *  @title ArbitrableTokenList
  *  This is a T2CL for tokens. Tokens can be submitted and cleared with a time out for challenging.
@@ -234,17 +233,18 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _paidFees.totalContributedPerSide.push([0, 0]);
             _paidFees.loserFullyFunded.push(false);
             _paidFees.contributions.length++;
-        } else { // Reset cache.
-            fundDisputeCache.cost = 0;
-            fundDisputeCache.appealing = false;
-            (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = (0, 0);
-            fundDisputeCache.appealPeriodSupported = false;
-            fundDisputeCache.requiredValueForSide = 0;
-            fundDisputeCache.expectedValue = 0;
-            fundDisputeCache.stillRequiredValueForSide = 0;
-            fundDisputeCache.keptValue = 0;
-            fundDisputeCache.refundedValue = 0;
         }
+
+        // Reset cache.
+        fundDisputeCache.cost = 0;
+        fundDisputeCache.appealing = false;
+        (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = (0, 0);
+        fundDisputeCache.appealPeriodSupported = false;
+        fundDisputeCache.requiredValueForSide = 0;
+        fundDisputeCache.expectedValue = 0;
+        fundDisputeCache.stillRequiredValueForSide = 0;
+        fundDisputeCache.keptValue = 0;
+        fundDisputeCache.refundedValue = 0;
 
         // Check time outs and requirements.
         if (_paidFees.stake.length == 1) { // First round.
@@ -563,7 +563,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                     agreement.parties[1].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
                 }
             }
-
         }
 
         agreement.executed = true;
