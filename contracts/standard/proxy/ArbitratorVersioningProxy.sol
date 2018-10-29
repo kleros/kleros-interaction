@@ -82,7 +82,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     }
 
     /** @dev Computes the cost of appealing to the current `implementation` contract.
-          It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
+          It is recommended not to increase it often, as it can be highly tim e and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _localDisputeID The ID of the dispute to be appealed.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return _fee The appeal cost.
@@ -128,11 +128,11 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     }
 
     /** @dev Execute a ruling of a dispute.
-     *  @param _externalDisputeID ID of the dispute in the Arbitrator contract.
+     *  @param _localDisputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
-    function executeRuling(uint _externalDisputeID, uint _ruling) internal {
-        disputes[externalDisputeIDToLocalDisputeID[_externalDisputeID]].arbitrated.rule(_externalDisputeID, _ruling);
+    function executeRuling(uint _localDisputeID, uint _ruling) internal {
+        disputes[_localDisputeID].arbitrated.rule(disputes[_localDisputeID].externalDisputeID, _ruling);
     }
 
 }
