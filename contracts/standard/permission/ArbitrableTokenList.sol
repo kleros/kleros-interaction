@@ -123,6 +123,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
         if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
             require(prevAgreement.executed, "There is a pending request in place.");
+        else
+            itemsList.push(_tokenID);
+
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
@@ -131,10 +134,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.status = ItemStatus.Resubmitted;
         else
             revert("Item in wrong status for registration."); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
-
-        if (item.lastAction == 0) {
-            itemsList.push(_tokenID);
-        }
 
         item.balance = challengeReward;
         item.lastAction = now;
@@ -170,6 +169,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
         if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
             require(prevAgreement.executed, "There is already a request in place.");
+        else
+            itemsList.push(_tokenID);
+
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
@@ -178,10 +180,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.status = ItemStatus.PreventiveClearingRequested;
         else
             revert("Item in wrong status for clearing."); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
-
-        if (item.lastAction == 0) {
-            itemsList.push(_tokenID);
-        }
 
         item.balance = challengeReward; // Update challengeReward.
         item.lastAction = now;
