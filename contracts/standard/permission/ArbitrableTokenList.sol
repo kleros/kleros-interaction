@@ -120,7 +120,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         string _metaEvidence
     ) external payable {
         Item storage item = items[_tokenID];
-        Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
+        Agreement storage prevAgreement = agreements[item.latestAgreementID];
         if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
             require(prevAgreement.executed, "There is a pending request in place.");
         else
@@ -153,7 +153,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra ETH.
-        Agreement storage agreement = agreements[latestAgreementID(_tokenID)];
+        Agreement storage agreement = agreements[item.latestAgreementID];
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
@@ -166,7 +166,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         string _metaEvidence
     ) external payable {
         Item storage item = items[_tokenID];
-        Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
+        Agreement storage prevAgreement = agreements[item.latestAgreementID];
         if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
             require(prevAgreement.executed, "There is already a request in place.");
         else
@@ -199,7 +199,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
-        Agreement storage agreement = agreements[latestAgreementID(_tokenID)];
+        Agreement storage agreement = agreements[item.latestAgreementID];
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
@@ -357,7 +357,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function executeRequest(bytes32 _tokenID) external {
         Item storage item = items[_tokenID];
-        bytes32 agreementID = latestAgreementID(_tokenID);
+        bytes32 agreementID = item.latestAgreementID;
         Agreement storage agreement = agreements[agreementID];
         require(now - item.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
         require(agreement.creator != address(0), "The specified agreement does not exist.");
@@ -409,15 +409,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     }
 
     /* Public Views */
-
-    /**
-     *  @dev Returns the latest agreement for an item.
-     *  @param _tokenID The tokenID of the item to check.
-     *  @return The latest agreementID.
-     */
-    function latestAgreementID(bytes32 _tokenID) public view returns (bytes32) {
-        return items[_tokenID].latestAgreementID;
-    }
 
     /** @dev Return true if the item is allowed. We consider the item to be in the list if its status is contested and it has not won a dispute previously.
      *  @param _tokenID The tokenID of the item to check.
@@ -596,7 +587,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     {
         for (uint i = 0; i < itemsList.length; i++) {
             Item storage item = items[itemsList[i]];
-            Agreement storage latestAgreement = agreements[latestAgreementID(itemsList[i])];
+            Agreement storage latestAgreement = agreements[item.latestAgreementID];
 
             if (latestAgreement.disputed) disputed++;
             else if (item.status == ItemStatus.Absent) absent++;
