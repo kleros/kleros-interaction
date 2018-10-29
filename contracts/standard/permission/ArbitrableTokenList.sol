@@ -111,8 +111,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /* Public */
 
-    /**
-     *  @dev Request for an item to be registered.
+    /** @dev Request for an item to be registered.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _metaEvidence The meta evidence for the potential dispute.
      */
@@ -159,8 +158,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
-    /**
-     *  @dev Request an item to be cleared.
+    /** @dev Request an item to be cleared.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _metaEvidence The meta evidence for the potential dispute.
      */
@@ -356,8 +354,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
     }
 
-    /**
-     *  @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
+    /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _tokenID The tokenID of the item with the request to execute.
      */
     function executeRequest(bytes32 _tokenID) external {
@@ -424,9 +421,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         return items[_tokenID].latestAgreementID;
     }
 
-    /**
-     *  @dev Return true if the item is allowed.
-     *  We consider the item to be in the list if its status is contested and it has not won a dispute previously.
+    /** @dev Return true if the item is allowed. We consider the item to be in the list if its status is contested and it has not won a dispute previously.
      *  @param _tokenID The tokenID of the item to check.
      *  @return allowed True if the item is allowed, false otherwise.
      */
@@ -586,8 +581,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /* Interface Views */
 
-    /**
-     *  @dev Return the numbers of items in the list per status.
+    /** @dev Return the numbers of items in the list per status.
      *  @return The numbers of items in the list per status.
      */
     function itemsCounts()
@@ -617,9 +611,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
     }
 
-    /**
-     *  @dev Return the values of the items the query finds.
-     *  This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+    /** @dev Return the values of the items the query finds. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @param _cursor The pagination cursor.
      *  @param _count The number of items to return.
      *  @param _filter The filter to use.
