@@ -8,7 +8,6 @@ pragma solidity ^0.4.24;
 
 import "../arbitration/composed-arbitrable/composed/MultiPartyInsurableArbitrableAgreementsBase.sol";
 
-
 /**
  *  @title ArbitrableTokenList
  *  This is a T2CL for tokens. Tokens can be submitted and cleared with a time out for challenging.
@@ -29,8 +28,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     enum RulingOption {
         OTHER, // Arbitrator did not rule of refused to rule.
-        EXECUTE, // Execute request. Rule in favor of requester.
+        ACCEPT, // Execute request. Rule in favor of requester.
         REFUSE // Refuse request. Rule in favor of challenger.
+    }
+
+    enum Party {
+        Requester,
+        Challenger,
+        None
     }
 
     /* Structs */
@@ -111,8 +116,11 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /* Public */
 
-    /**
-     *  @dev Request for an item to be registered.
+    // ************************ //
+    // *       Requests       * //
+    // ************************ //
+
+    /** @dev Request for an item to be registered.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _metaEvidence The meta evidence for the potential dispute.
      */
@@ -121,9 +129,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         string _metaEvidence
     ) external payable {
         Item storage item = items[_tokenID];
-        Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
+        Agreement storage prevAgreement = agreements[item.latestAgreementID];
         if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
-            require(prevAgreement.executed && !prevAgreement.disputed, "There is already a request in place.");
+            require(prevAgreement.executed, "There is a pending request in place.");
+        else
+            itemsList.push(_tokenID);
+
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Absent)
@@ -132,10 +143,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.status = ItemStatus.Resubmitted;
         else
             revert("Item in wrong status for registration."); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
-
-        if (item.lastAction == 0) {
-            itemsList.push(_tokenID);
-        }
 
         item.balance = challengeReward;
         item.lastAction = now;
@@ -155,12 +162,11 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra ETH.
-        Agreement storage agreement = agreements[latestAgreementID(_tokenID)];
+        Agreement storage agreement = agreements[item.latestAgreementID];
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
-    /**
-     *  @dev Request an item to be cleared.
+    /** @dev Request an item to be cleared.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _metaEvidence The meta evidence for the potential dispute.
      */
@@ -169,9 +175,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         string _metaEvidence
     ) external payable {
         Item storage item = items[_tokenID];
-        Agreement storage prevAgreement = agreements[latestAgreementID(_tokenID)];
+        Agreement storage prevAgreement = agreements[item.latestAgreementID];
         if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
-            require(prevAgreement.executed && !prevAgreement.disputed, "There is already a request in place.");
+            require(prevAgreement.executed, "There is already a request in place.");
+        else
+            itemsList.push(_tokenID);
+
         require(msg.value >= challengeReward, "Not enough ETH.");
 
         if (item.status == ItemStatus.Registered)
@@ -180,10 +189,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.status = ItemStatus.PreventiveClearingRequested;
         else
             revert("Item in wrong status for clearing."); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
-
-        if (item.lastAction == 0) {
-            itemsList.push(_tokenID);
-        }
 
         item.balance = challengeReward; // Update challengeReward.
         item.lastAction = now;
@@ -203,7 +208,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
 
         if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
-        Agreement storage agreement = agreements[latestAgreementID(_tokenID)];
+        Agreement storage agreement = agreements[item.latestAgreementID];
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
 
@@ -211,7 +216,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  - Parent's fundDispute doesn't take into account `challengeReward` when calculating ETH.
      *  - For calls that initiate a dispute, msg.value must also include `challengeReward`.
      *  @param _agreementID The ID of the agreement.
-     *  @param _side The side. 0 for the side that lost the previous round, if any, and 1 for the one that won.
+     *  @param _side The side with respect to paidFees. 0 for the side that lost the previous round, if any, and 1 for the one that won.
      */
     function fundDispute(bytes32 _agreementID, uint _side) public payable {
         Agreement storage agreement = agreements[_agreementID];
@@ -234,17 +239,18 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             _paidFees.totalContributedPerSide.push([0, 0]);
             _paidFees.loserFullyFunded.push(false);
             _paidFees.contributions.length++;
-        } else { // Reset cache.
-            fundDisputeCache.cost = 0;
-            fundDisputeCache.appealing = false;
-            (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = (0, 0);
-            fundDisputeCache.appealPeriodSupported = false;
-            fundDisputeCache.requiredValueForSide = 0;
-            fundDisputeCache.expectedValue = 0;
-            fundDisputeCache.stillRequiredValueForSide = 0;
-            fundDisputeCache.keptValue = 0;
-            fundDisputeCache.refundedValue = 0;
         }
+
+        // Reset cache.
+        fundDisputeCache.cost = 0;
+        fundDisputeCache.appealing = false;
+        (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = (0, 0);
+        fundDisputeCache.appealPeriodSupported = false;
+        fundDisputeCache.requiredValueForSide = 0;
+        fundDisputeCache.expectedValue = 0;
+        fundDisputeCache.stillRequiredValueForSide = 0;
+        fundDisputeCache.keptValue = 0;
+        fundDisputeCache.refundedValue = 0;
 
         // Check time outs and requirements.
         if (_paidFees.stake.length == 1) { // First round.
@@ -287,13 +293,14 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             }
         }
 
-        // Take contribution.
+        // Calculate value still required.
         if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide)
             fundDisputeCache.stillRequiredValueForSide = 0;
         else
             fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
 
-        if(item.balance == item.challengeReward) { // Party is attempting to start a dispute.
+        if(item.balance == item.challengeReward) {
+            // Party is attempting to start a dispute.
             require(msg.value >= item.challengeReward, "Party challenging agreement must place value at stake");
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - item.challengeReward
                 ? msg.value - item.challengeReward
@@ -301,13 +308,17 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             item.balance += item.challengeReward;
             fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue - item.challengeReward;
             agreement.parties[1] = msg.sender;
-        } else { // Party that started dispute already placed value at stake.
+        } else {
+            // Party that started dispute already placed value at stake, in other words: item.balance == item.challengeReward * 2.
+            // This means the caller is contributing to fees crowdfunding.
             fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value
                 ? msg.value
                 : fundDisputeCache.stillRequiredValueForSide;
+
             fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue;
         }
 
+        // Take the contribution
         if (fundDisputeCache.keptValue > 0) {
             _paidFees.totalValue[_paidFees.totalValue.length - 1] += fundDisputeCache.keptValue;
             _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] += fundDisputeCache.keptValue;
@@ -351,13 +362,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
     }
 
-    /**
-     *  @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
+    /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _tokenID The tokenID of the item with the request to execute.
      */
     function executeRequest(bytes32 _tokenID) external {
         Item storage item = items[_tokenID];
-        bytes32 agreementID = latestAgreementID(_tokenID);
+        bytes32 agreementID = item.latestAgreementID;
         Agreement storage agreement = agreements[agreementID];
         require(now - item.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
         require(agreement.creator != address(0), "The specified agreement does not exist.");
@@ -379,6 +389,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
         emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
     }
+
+    // ************************ //
+    // *      Governance      * //
+    // ************************ //
 
     /** @dev Changes the `timeToChallenge` storage variable.
      *  @param _timeToChallenge The new `timeToChallenge` storage variable.
@@ -410,18 +424,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /* Public Views */
 
-    /**
-     *  @dev Returns the latest agreement for an item.
-     *  @param _tokenID The tokenID of the item to check.
-     *  @return The latest agreementID.
-     */
-    function latestAgreementID(bytes32 _tokenID) public view returns (bytes32) {
-        return items[_tokenID].latestAgreementID;
-    }
-
-    /**
-     *  @dev Return true if the item is allowed.
-     *  We consider the item to be in the list if its status is contested and it has not won a dispute previously.
+    /** @dev Return true if the item is allowed. We consider the item to be in the list if its status is contested and it has not won a dispute previously.
      *  @param _tokenID The tokenID of the item to check.
      *  @return allowed True if the item is allowed, false otherwise.
      */
@@ -477,102 +480,64 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      */
     function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
         super.executeAgreementRuling(_agreementID, _ruling);
-        require(_ruling <= 2, "Ruling must be valid");
         Agreement storage agreement = agreements[_agreementID];
         PaidFees storage _paidFees = paidFees[_agreementID];
         Item storage item = items[agreementIDToItemID[_agreementID]];
 
-        if (_paidFees.stake.length == 1) { // Failed to fund first round.
+        Party winner = Party.None;
+        if (_paidFees.stake.length == 1)  // Failed to fund first round.
             // Rule in favor of whoever paid more.
-            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1]){
-                // Ruled in favor of the requester.
-                if(item.status == ItemStatus.Submitted || item.status == ItemStatus.Resubmitted)
-                    item.status = ItemStatus.Registered;
-                else
-                    item.status = ItemStatus.Cleared;
-
-                agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-            } else {
-                // Ruled in favor of the challenger.
-                if(item.status == ItemStatus.Resubmitted)
-                    item.status = ItemStatus.Cleared;
-                else if (item.status == ItemStatus.ClearingRequested)
-                    item.status = ItemStatus.Registered;
-                else
-                    item.status = ItemStatus.Absent;
-
-                agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-            }
-        } else {
-            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected
-            // and the arbitrator did not refuse to rule.
+            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1])
+                winner = Party.Requester;
+            else
+                winner = Party.Challenger;
+        else
+            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected.
             if (
                 _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
-                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] &&
-                _ruling != uint(RulingOption.OTHER) // Respect the ruling if the arbitrator refused to rule.
-            ) {
-                // Rule in favor of the loosing party.
-                // Ruling in favor of the loosing party here means doing the opposite of the decision of the arbitrator.
-                // This is the case because not enough funds were raised to raise a new dispute.
-                if (_ruling == uint(RulingOption.EXECUTE)) {
-                    // Revert to previous state.
-                    if (item.status == ItemStatus.Resubmitted)
-                        item.status = ItemStatus.Cleared;
-                    else if (item.status == ItemStatus.ClearingRequested)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Absent;
+                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
+            )
+                // Rule in favor of the losing party.
+                // If an arbitrator ruled to execute a request, the losing party is the challenger. If
+                // The arbitrator ruled to refuse a request, the losing party is the requester.
+                // Ruling in favor of the losing party means inverting the decision of the arbitrator.
 
-                    // Reward challenger.
-                    agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                } else {
-                    // Execute request.
-                    if (item.status == ItemStatus.Submitted || item.status == ItemStatus.Resubmitted)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Cleared;
-
-                    // Reward requester.
-                    agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                }
-            } else {
+                if (_ruling == uint(RulingOption.ACCEPT))
+                    winner = Party.Challenger;
+                else
+                    winner = Party.Requester;
+            else
                 // Respect the ruling.
-                if (_ruling == uint(RulingOption.EXECUTE)) {
-                    // Execute the request.
-                    if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Cleared;
+                if (_ruling == uint(RulingOption.ACCEPT))
+                    winner = Party.Requester;
+                else if (_ruling == uint(RulingOption.REFUSE))
+                    winner = Party.Challenger;
 
-                    // Send rewards to requester.
-                    agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                } else if (_ruling == uint(RulingOption.REFUSE)) {
-                    if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-                        item.status = ItemStatus.Cleared;
-                    else
-                        item.status = ItemStatus.Registered;
+        // Update item state
+        if(winner == Party.Requester)
+            // Execute Request
+            if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
+                item.status = ItemStatus.Registered;
+            else
+                item.status = ItemStatus.Cleared;
+        else
+            // Revert to previous state.
+            if (item.status == ItemStatus.Resubmitted)
+                item.status = ItemStatus.Cleared;
+            else if (item.status == ItemStatus.ClearingRequested)
+                item.status = ItemStatus.Registered;
+            else
+                item.status = ItemStatus.Absent;
 
-                    // Send rewards to challenger.
-                    agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                } else {
-                    // Arbitrator refused to rule.
-                    // Revert to previous state.
-                    if (item.status == ItemStatus.Resubmitted)
-                        item.status = ItemStatus.Cleared;
-                    else if (item.status == ItemStatus.ClearingRequested)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Absent;
+        // Send item balance
+        if(winner == Party.None) {
+            // Split the balance 50-50 and give the item the initial status.
+            agreement.parties[uint(Party.Requester)].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+            agreement.parties[uint(Party.Challenger)].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        } else
+            agreement.parties[uint(winner)].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
-                    // Split the balance 50-50 and give the item the initial status.
-                    agreement.parties[0].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                    agreement.parties[1].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                }
-            }
 
-        }
-
-        agreement.disputed = false;
         agreement.executed = true;
         item.lastAction = now;
         item.balance = 0;
@@ -583,8 +548,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
 
     /* Interface Views */
 
-    /**
-     *  @dev Return the numbers of items in the list per status.
+    /** @dev Return the numbers of items in the list per status.
      *  @return The numbers of items in the list per status.
      */
     function itemsCounts()
@@ -602,10 +566,10 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     {
         for (uint i = 0; i < itemsList.length; i++) {
             Item storage item = items[itemsList[i]];
-            Agreement storage latestAgreement = agreements[latestAgreementID(itemsList[i])];
+            Agreement storage latestAgreement = agreements[item.latestAgreementID];
 
             if (latestAgreement.disputed) disputed++;
-            else if (item.status == ItemStatus.Absent) absent++;
+            if (item.status == ItemStatus.Absent) absent++;
             else if (item.status == ItemStatus.Cleared) cleared++;
             else if (item.status == ItemStatus.Submitted) submitted++;
             else if (item.status == ItemStatus.Resubmitted) resubmitted++;
@@ -614,9 +578,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
     }
 
-    /**
-     *  @dev Return the values of the items the query finds.
-     *  This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+    /** @dev Return the values of the items the query finds. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @param _cursor The pagination cursor.
      *  @param _count The number of items to return.
      *  @param _filter The filter to use.
@@ -649,6 +611,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             Item storage item = items[itemID];
             Agreement storage agreement = agreements[item.latestAgreementID];
             if (
+                    /* solium-disable operator-whitespace */
                     (_filter[0] && agreement.disputed) ||
                     (_filter[1] && item.status == ItemStatus.Absent) ||
                     (_filter[2] && item.status == ItemStatus.Cleared) ||
@@ -658,6 +621,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                     (_filter[6] && item.status == ItemStatus.PreventiveClearingRequested) ||
                     (_filter[7] && agreement.parties[0] == msg.sender) || // My Submissions.
                     (_filter[8] && agreement.parties[1] == msg.sender) // My Challenges.
+                    /* solium-enable operator-whitespace */
             ) {
                 if (_index < _count) {
                     values[_index] = itemsList[_sort ? i : itemsList.length - i];
