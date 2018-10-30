@@ -1,11 +1,6 @@
-/* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
 const {
   expectThrow
 } = require("openzeppelin-solidity/test/helpers/expectThrow");
-const {
-  increaseTime
-} = require("openzeppelin-solidity/test/helpers/increaseTime");
-
 const ArbitrablePermissionList = artifacts.require(
   "./ArbitrablePermissionList.sol"
 );
@@ -188,7 +183,7 @@ contract("ArbitrablePermissionList", function(accounts) {
       "Fee not set up properly"
     );
   });
-  // it("Should not be able to challenge registration when arbitration fee increases", async () => {
+  // it('Should not be able to challenge registration when arbitration fee increases', async () => {
   //   const centralizedArbitrator = await CentralizedArbitrator.new(
   //     arbitrationFee,
   //     { from: arbitrator }
@@ -226,7 +221,7 @@ contract("ArbitrablePermissionList", function(accounts) {
   //       .plus(arbitrationFee)
   //       .minus(submitterTxFee)
   //       .toString(),
-  //     "Submitter has not received the refund appropriately"
+  //     'Submitter has not received the refund appropriately'
   //   );
   //   assert.equal(
   //     await web3.eth.getBalance(challenger).toStrin(),
@@ -234,7 +229,7 @@ contract("ArbitrablePermissionList", function(accounts) {
   //       .plus(arbitrationFee)
   //       .minus(challengerTxFee)
   //       .toString(),
-  //     "Challenger not received refund properly"
+  //     'Challenger not received refund properly'
   //   );
   // });
   it("Should create a dispute when someone challenges clearing ", async () => {
@@ -307,7 +302,7 @@ contract("ArbitrablePermissionList", function(accounts) {
     );
   });
 
-  // it("Should not be able to challenge clearing if arbitration fee has increased", async () => {
+  // it('Should not be able to challenge clearing if arbitration fee has increased', async () => {
   //   const centralizedArbitrator = await CentralizedArbitrator.new(
   //     arbitrationFee,
   //     { from: arbitrator }
@@ -351,7 +346,7 @@ contract("ArbitrablePermissionList", function(accounts) {
   //       .plus(stake + arbitrationFee)
   //       .minus(submitterTxCost)
   //       .toString(),
-  //     "Submitter has not been refunded properly"
+  //     'Submitter has not been refunded properly'
   //   );
   //   assert.equal(
   //     await web3.eth.getBalance(challenger).toString(),
@@ -359,7 +354,7 @@ contract("ArbitrablePermissionList", function(accounts) {
   //       .plus(stake + arbitrationFee)
   //       .minus(challengerTxCost)
   //       .toString(),
-  //     "Submitter has not been refunded properly"
+  //     'Submitter has not been refunded properly'
   //   );
   // });
   it("Should reward if ruling is REGISTER and rechallenge is possible", async () => {
