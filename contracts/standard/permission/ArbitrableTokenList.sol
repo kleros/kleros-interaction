@@ -611,6 +611,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             Item storage item = items[itemID];
             Agreement storage agreement = agreements[item.latestAgreementID];
             if (
+                    /* eslint-disable operator-whitespace */
                     (_filter[0] && agreement.disputed) ||
                     (_filter[1] && item.status == ItemStatus.Absent) ||
                     (_filter[2] && item.status == ItemStatus.Cleared) ||
@@ -620,6 +621,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
                     (_filter[6] && item.status == ItemStatus.PreventiveClearingRequested) ||
                     (_filter[7] && agreement.parties[0] == msg.sender) || // My Submissions.
                     (_filter[8] && agreement.parties[1] == msg.sender) // My Challenges.
+                    /* eslint-disable operator-whitespace */
             ) {
                 if (_index < _count) {
                     values[_index] = itemsList[_sort ? i : itemsList.length - i];

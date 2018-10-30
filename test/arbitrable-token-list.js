@@ -237,7 +237,7 @@ contract('ArbitrableTokenList', function(accounts) {
         )
       })
 
-      it('should update challangeReward', async () => {
+      it('should update challengeReward', async () => {
         const challengeRewardBefore = await arbitrableTokenList.challengeReward()
         const newChallengeReward = challengeRewardBefore.toNumber() + 1000
 
@@ -335,7 +335,7 @@ contract('ArbitrableTokenList', function(accounts) {
         )
       })
 
-      it('should not update challangeReward', async () => {
+      it('should not update challengeReward', async () => {
         const challengeRewardBefore = await arbitrableTokenList.challengeReward()
         const newChallengeReward = challengeRewardBefore.toNumber() + 1000
 
@@ -1571,7 +1571,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it('calling challangeBlacklisting should revert', async () => {
+        it('calling funding a dispute should revert', async () => {
           const agreementID = (await arbitrableTokenList.items(TOKEN_ID))[4]
           await expectThrow(
             arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -1580,7 +1580,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it('calling challangeClearing should revert', async () => {
+        it('calling challengeClearing should revert', async () => {
           const agreementID = (await arbitrableTokenList.items(TOKEN_ID))[4]
           await expectThrow(
             arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -1646,7 +1646,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it('calling challangeClearing should revert', async () => {
+        it('calling challengeClearing should revert', async () => {
           const agreementID = (await arbitrableTokenList.items(TOKEN_ID))[4]
           await expectThrow(
             arbitrableTokenList.fundDispute(agreementID, 1, {
@@ -1981,7 +1981,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it('calling challangeBlacklisting should create a dispute', async function() {
+        it('calling funding a dispute should revert', async function() {
           const agreementID = (await arbitrableTokenList.items(TOKEN_ID))[4]
           await arbitrableTokenList.fundDispute(agreementID, 1, {
             value: challengeReward + halfOfArbitrationPrice
@@ -2209,7 +2209,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it('calling challangeClearing should create a dispute', async function() {
+        it('calling challengeClearing should create a dispute', async function() {
           const agreementID = (await arbitrableTokenList.items(TOKEN_ID))[4]
           await arbitrableTokenList.fundDispute(agreementID, 1, {
             from: partyA,
@@ -2418,7 +2418,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
         })
 
-        it('calling challangeClearing should create a dispute', async function() {
+        it('calling challengeClearing should create a dispute', async function() {
           const agreementID = (await arbitrableTokenList.items(TOKEN_ID))[4]
           await arbitrableTokenList.fundDispute(agreementID, 1, {
             value: challengeReward + halfOfArbitrationPrice,
