@@ -781,7 +781,7 @@ contract('ArbitrableTokenList', function(accounts) {
               )
             })
 
-            it('should clear item, execute and resolve dispute', async () => {
+            it('should revert to previous state, execute and resolve dispute', async () => {
               const agreementID = (await arbitrableTokenList.items(TOKEN_ID))[4]
               const agreementBefore = await arbitrableTokenList.getAgreementInfo(
                 agreementID
@@ -825,8 +825,8 @@ contract('ArbitrableTokenList', function(accounts) {
               const itemAfter = await arbitrableTokenList.items(TOKEN_ID)
               assert.equal(
                 itemAfter[0].toNumber(),
-                ITEM_STATUS.CLEARED,
-                'item should be cleared'
+                ITEM_STATUS.ABSENT,
+                'should have reverted item state'
               )
             })
           })
@@ -2108,7 +2108,8 @@ contract('ArbitrableTokenList', function(accounts) {
 
             assert.equal(
               (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
-              ITEM_STATUS.CLEARED
+              ITEM_STATUS.ABSENT,
+              'should have reverted item state'
             )
           })
 
@@ -2496,7 +2497,8 @@ contract('ArbitrableTokenList', function(accounts) {
             )
             assert.equal(
               (await arbitrableTokenList.items(TOKEN_ID))[0].toNumber(),
-              ITEM_STATUS.REGISTERED
+              ITEM_STATUS.ABSENT,
+              'should revert item state'
             )
           })
 

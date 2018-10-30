@@ -32,6 +32,12 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         REFUSE // Refuse request. Rule in favor of challenger.
     }
 
+    enum Party {
+        Requester,
+        Challenger,
+        None
+    }
+
     /* Structs */
 
     struct Item {
@@ -478,92 +484,59 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         PaidFees storage _paidFees = paidFees[_agreementID];
         Item storage item = items[agreementIDToItemID[_agreementID]];
 
-        if (_paidFees.stake.length == 1) { // Failed to fund first round.
+        Party winner = Party.None;
+        if (_paidFees.stake.length == 1)  // Failed to fund first round.
             // Rule in favor of whoever paid more.
-            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1]){
-                // Ruled in favor of the requester.
-                if(item.status == ItemStatus.Submitted || item.status == ItemStatus.Resubmitted)
-                    item.status = ItemStatus.Registered;
-                else
-                    item.status = ItemStatus.Cleared;
-
-                agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-            } else {
-                // Ruled in favor of the challenger.
-                if(item.status == ItemStatus.Resubmitted)
-                    item.status = ItemStatus.Cleared;
-                else if (item.status == ItemStatus.ClearingRequested)
-                    item.status = ItemStatus.Registered;
-                else
-                    item.status = ItemStatus.Absent;
-
-                agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-            }
-        } else {
+            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1])
+                winner = Party.Requester;
+            else
+                winner = Party.Challenger;
+        else
             // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected.
             if (
                 _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
                 _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
-            ) {
+            )
                 // Rule in favor of the losing party.
-                // Ruling in favor of the losing party here means doing the opposite of the decision of the arbitrator.
-                // This is the case because not enough funds were raised to raise a new dispute.
-                if (_ruling == uint(RulingOption.ACCEPT)) {
-                    // Revert to previous state.
-                    if (item.status == ItemStatus.Resubmitted)
-                        item.status = ItemStatus.Cleared;
-                    else if (item.status == ItemStatus.ClearingRequested)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Absent;
+                // If an arbitrator ruled to execute a request, the losing party is the challenger. If
+                // The arbitrator ruled to refuse a request, the losing party is the requester.
+                // Ruling in favor of the losing party means inverting the decision of the arbitrator.
 
-                    // Reward challenger.
-                    agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                } else {
-                    // Execute request.
-                    if (item.status == ItemStatus.Submitted || item.status == ItemStatus.Resubmitted)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Cleared;
-
-                    // Reward requester.
-                    agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                }
-            } else {
+                if (_ruling == uint(RulingOption.ACCEPT))
+                    winner = Party.Challenger;
+                else
+                    winner = Party.Requester;
+            else
                 // Respect the ruling.
-                if (_ruling == uint(RulingOption.ACCEPT)) {
-                    // Execute the request.
-                    if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Cleared;
+                if (_ruling == uint(RulingOption.ACCEPT))
+                    winner = Party.Requester;
+                else if (_ruling == uint(RulingOption.REFUSE))
+                    winner = Party.Challenger;
 
-                    // Send rewards to requester.
-                    agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                } else if (_ruling == uint(RulingOption.REFUSE)) {
-                    if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-                        item.status = ItemStatus.Cleared;
-                    else
-                        item.status = ItemStatus.Registered;
+        // Update item state
+        if(winner == Party.Requester)
+            // Execute Request
+            if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
+                item.status = ItemStatus.Registered;
+            else
+                item.status = ItemStatus.Cleared;
+        else
+            // Revert to previous state.
+            if (item.status == ItemStatus.Resubmitted)
+                item.status = ItemStatus.Cleared;
+            else if (item.status == ItemStatus.ClearingRequested)
+                item.status = ItemStatus.Registered;
+            else
+                item.status = ItemStatus.Absent;
 
-                    // Send rewards to challenger.
-                    agreement.parties[1].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                } else {
-                    // Arbitrator refused to rule.
-                    // Revert to previous state.
-                    if (item.status == ItemStatus.Resubmitted)
-                        item.status = ItemStatus.Cleared;
-                    else if (item.status == ItemStatus.ClearingRequested)
-                        item.status = ItemStatus.Registered;
-                    else
-                        item.status = ItemStatus.Absent;
+        // Send item balance
+        if(winner == Party.None) {
+            // Split the balance 50-50 and give the item the initial status.
+            agreement.parties[uint(Party.Requester)].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+            agreement.parties[uint(Party.Challenger)].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        } else
+            agreement.parties[uint(winner)].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
-                    // Split the balance 50-50 and give the item the initial status.
-                    agreement.parties[0].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                    agreement.parties[1].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-                }
-            }
-        }
 
         agreement.executed = true;
         item.lastAction = now;
