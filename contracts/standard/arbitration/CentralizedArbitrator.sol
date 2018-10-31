@@ -87,16 +87,13 @@ contract CentralizedArbitrator is Arbitrator {
     function _giveRuling(uint _disputeID, uint _ruling) internal {
         DisputeStruct dispute = disputes[_disputeID];
         require(_ruling <= dispute.choices, "Invalid ruling.");
+        require(dispute.status != DisputeStatus.Solved, "The dispute must not be solved already.");
 
-        uint fee = dispute.fee;
-        Arbitrable arbitrated = dispute.arbitrated;
-        dispute.arbitrated = Arbitrable(0x0); // Clean up to get gas back and prevent calling it again.
-        dispute.fee = 0;
         dispute.ruling = _ruling;
         dispute.status = DisputeStatus.Solved;
 
-        msg.sender.send(fee); // Avoid blocking.
-        arbitrated.rule(_disputeID,_ruling);
+        msg.sender.send(dispute.fee); // Avoid blocking.
+        dispute.arbitrated.rule(_disputeID,_ruling);
     }
 
     /** @dev Give a ruling. UNTRUSTED.
