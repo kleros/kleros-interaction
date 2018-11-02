@@ -585,7 +585,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _sort The sort order to use.
      *  @return The values of the items found and wether there are more items for the current filter and sort.
      */
-    function queryItems(bytes32 _cursor, uint _count, bool[9] _filter, bool _sort) external view returns (bytes32[] values, bool hasMore) {
+    function queryItems(bytes32 _cursor, uint _count, bool[13] _filter, bool _sort) external view returns (bytes32[] values, bool hasMore) {
         uint _cursorIndex;
         values = new bytes32[](_count);
         uint _index = 0;
@@ -612,15 +612,19 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             Agreement storage agreement = agreements[item.latestAgreementID];
             if (
                     /* solium-disable operator-whitespace */
-                    (_filter[0] && agreement.disputed) ||
-                    (_filter[1] && item.status == ItemStatus.Absent) ||
+                    (_filter[0] && item.status == ItemStatus.Absent) ||
+                    (_filter[1] && item.status == ItemStatus.Registered) ||
                     (_filter[2] && item.status == ItemStatus.Cleared) ||
-                    (_filter[3] && item.status == ItemStatus.Submitted) ||
-                    (_filter[4] && item.status == ItemStatus.Resubmitted) ||
-                    (_filter[5] && item.status == ItemStatus.ClearingRequested) ||
-                    (_filter[6] && item.status == ItemStatus.PreventiveClearingRequested) ||
-                    (_filter[7] && agreement.parties[0] == msg.sender) || // My Submissions.
-                    (_filter[8] && agreement.parties[1] == msg.sender) // My Challenges.
+                    (_filter[3] && item.status == ItemStatus.Submitted && !agreement.disputed) ||
+                    (_filter[4] && item.status == ItemStatus.Resubmitted && !agreement.disputed) ||
+                    (_filter[5] && item.status == ItemStatus.ClearingRequested && !agreement.disputed) ||
+                    (_filter[6] && item.status == ItemStatus.PreventiveClearingRequested && !agreement.disputed) ||
+                    (_filter[7] && item.status == ItemStatus.Submitted && agreement.disputed) ||
+                    (_filter[8] && item.status == ItemStatus.Resubmitted && agreement.disputed) ||
+                    (_filter[9] && item.status == ItemStatus.ClearingRequested && agreement.disputed) ||
+                    (_filter[10] && item.status == ItemStatus.PreventiveClearingRequested && agreement.disputed) ||
+                    (_filter[11] && agreement.parties[0] == msg.sender) || // My Submissions.
+                    (_filter[12] && agreement.parties[1] == msg.sender) // My Challenges.
                     /* solium-enable operator-whitespace */
             ) {
                 if (_index < _count) {
