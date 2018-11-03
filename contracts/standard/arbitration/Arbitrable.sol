@@ -6,7 +6,7 @@
 
 pragma solidity ^0.4.15;
 
-import "./Arbitrator.sol";
+import "./IArbitrable.sol";
 
 /** @title Arbitrable
  *  Arbitrable abstract contract.
@@ -16,39 +16,11 @@ import "./Arbitrator.sol";
  *      -Call arbitrator.createDispute.value(_fee)(_choices,_extraData);
  *      -Create the event Dispute(_arbitrator,_disputeID,_rulingOptions);
  */
-contract Arbitrable{
+contract Arbitrable is IArbitrable {
     Arbitrator public arbitrator;
     bytes public arbitratorExtraData; // Extra data to require particular dispute and appeal behaviour.
 
     modifier onlyArbitrator {require(msg.sender == address(arbitrator), "Can only be called by the arbitrator."); _;}
-
-    /** @dev To be emmited when meta-evidence is submitted.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence.
-     *  @param _evidence A link to the meta-evidence JSON.
-     */
-    event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
-
-    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID
-     *  @param _arbitrator The arbitrator of the contract.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence.
-     */
-    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
-
-    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
-     *  @param _arbitrator The arbitrator of the contract.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _party The address of the party submiting the evidence. Note that 0x0 refers to evidence not submitted by any party.
-     *  @param _evidence A URI to the evidence JSON file whose name should be its keccak256 hash followed by .json.
-     */
-    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address indexed _party, string _evidence);
-
-    /** @dev To be raised when a ruling is given.
-     *  @param _arbitrator The arbitrator giving the ruling.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling The ruling which was given.
-     */
-    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
     /** @dev Constructor. Choose the arbitrator.
      *  @param _arbitrator The arbitrator of the contract.
