@@ -537,8 +537,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         } else
             agreement.parties[uint(winner)].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
-
-        agreement.executed = true;
         item.lastAction = now;
         item.balance = 0;
         item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
