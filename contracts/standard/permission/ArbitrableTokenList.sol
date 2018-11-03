@@ -474,7 +474,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
     }
 
-    /** @dev Executes the ruling on the specified agreement.
+    /** @dev Extends parent to set item state and transfer rewards.
      *  @param _agreementID The ID of the agreement.
      *  @param _ruling The ruling.
      */
@@ -579,7 +579,20 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /** @dev Return the values of the items the query finds. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @param _cursor The pagination cursor.
      *  @param _count The number of items to return.
-     *  @param _filter The filter to use.
+     *  @param _filter The filter to use. Each element of the array in sequence means:
+     *  - Include absent items in result;
+     *  - Include registered items in result;
+     *  - Include cleared items in result;
+     *  - Include submited items that are not disputed in result;
+     *  - Include resubmitted items that are not disputed in result;
+     *  - Include items with clearing requests that are not disputed in result;
+     *  - Include items with preventive clearing requests that are not disputed in result;
+     *  - Include submited and disputed items in result;
+     *  - Include resubmitted and disputed items in result;
+     *  - Include disputed items items with clearing requests in result;
+     *  - Include disputed items items with preventive clearing requests in result;
+     *  - Include items submitted by the caller;
+     *  - Include items challenged by the caller;
      *  @param _sort The sort order to use.
      *  @return The values of the items found and wether there are more items for the current filter and sort.
      */
