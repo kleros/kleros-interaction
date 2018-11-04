@@ -16,6 +16,11 @@
 
 Smart contracts able to interact with Kleros and standard proposals.
 
+## Get Started
+
+1.  Clone this repo.
+2.  Run `yarn` to install dependencies and then `yarn run build` to compile the contracts.
+
 ## Scripts
 
 - `yarn run prettify` - Apply prettier to the entire project.
