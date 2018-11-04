@@ -1,11 +1,7 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
 
-const {
-  expectThrow
-} = require('openzeppelin-solidity/test/helpers/expectThrow')
-const {
-  increaseTime
-} = require('openzeppelin-solidity/test/helpers/increaseTime')
+const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail')
+const time = require('openzeppelin-solidity/test/helpers/time')
 
 const ArbitrableKitty = artifacts.require('ArbitrableKitty')
 const KittyCore = artifacts.require('KittyCore')
@@ -188,7 +184,7 @@ contract('ArbitrableKitty', accounts => {
       let { isGestating } = await kittyCore._getKittyHelper(kittyId)
       assert.isTrue(isGestating, 'kitty should be pregnant')
 
-      await increaseTime(60 * 60)
+      await time.increase(60 * 60)
 
       await arbitrable.giveBirth(kittyId, { from: PARTY_B })
       isGestating = (await kittyCore._getKittyHelper(kittyId)).isGestating
@@ -226,7 +222,7 @@ contract('ArbitrableKitty', accounts => {
     it('should only allow party A to transfer kitty out of the contract if B consents', async () => {
       const { kittyId, PARTY_A, PARTY_B } = params
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.transfer(PARTY_A, kittyId, { from: PARTY_A })
       )
 
@@ -249,7 +245,7 @@ contract('ArbitrableKitty', accounts => {
     it('should only allow party B to transfer kitty out of the contract if A consents', async () => {
       const { kittyId, PARTY_A, PARTY_B, OTHER_USER } = params
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.transfer(OTHER_USER, kittyId, { from: PARTY_B })
       )
 
@@ -272,7 +268,7 @@ contract('ArbitrableKitty', accounts => {
     it('should only allow party B to sell kitty if A consents', async () => {
       const { kittyId, PARTY_A, PARTY_B } = params
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_B })
       )
       assert.equal(
@@ -295,7 +291,7 @@ contract('ArbitrableKitty', accounts => {
     it('should only allow party A to sell kitty if B consents', async () => {
       const { kittyId, PARTY_A, PARTY_B } = params
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_A })
       )
 
@@ -324,7 +320,7 @@ contract('ArbitrableKitty', accounts => {
         await arbitrable.partyConsentsToSell(PARTY_B, kittyId, 150, 300, 20)
       )
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.createSaleAuction(kittyId, 100, 200, 60, { from: PARTY_A })
       )
 
@@ -381,7 +377,7 @@ contract('ArbitrableKitty', accounts => {
       await arbitrator.giveRuling(0, PARTY_A_WINS, { from: ARBITRATOR })
 
       // Party B should not be allowed to cancel siring auction
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.cancelSiringAuction(kittyId, { from: PARTY_B })
       )
 
@@ -427,7 +423,7 @@ contract('ArbitrableKitty', accounts => {
       await arbitrator.giveRuling(0, PARTY_B_WINS, { from: ARBITRATOR })
 
       // Party B should not be allowed to cancel siring auction
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.cancelSiringAuction(kittyId, { from: PARTY_A })
       )
 
@@ -478,7 +474,7 @@ contract('ArbitrableKitty', accounts => {
       await arbitrator.giveRuling(0, PARTY_A_WINS, { from: ARBITRATOR })
 
       // Party B should not be allowed to cancel sale auction
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.cancelSaleAuction(kittyId, { from: PARTY_B })
       )
 
@@ -524,7 +520,7 @@ contract('ArbitrableKitty', accounts => {
       await arbitrator.giveRuling(0, PARTY_B_WINS, { from: ARBITRATOR })
 
       // Party B should not be allowed to cancel sale auction
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.cancelSaleAuction(kittyId, { from: PARTY_A })
       )
 
@@ -587,7 +583,7 @@ contract('ArbitrableKitty', accounts => {
     it('should allow only party A to transfer kitty if arbitrator ruled as such', async () => {
       const { PARTY_A, PARTY_B, OTHER_USER, kittyId } = params
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.transfer(PARTY_B, kittyId, { from: PARTY_B })
       )
 
@@ -649,7 +645,7 @@ contract('ArbitrableKitty', accounts => {
     it('should allow only party B to transfer kitty if arbitrator ruled as such', async () => {
       const { PARTY_A, PARTY_B, OTHER_USER, kittyId } = params
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.transfer(PARTY_A, kittyId, { from: PARTY_A })
       )
 
@@ -721,7 +717,7 @@ contract('ArbitrableKitty', accounts => {
     //     'should not be available yet'
     //   )
 
-    //   await increaseTime(1)
+    //   await time.increase(1)
 
     //   assert.isTrue(
     //     await arbitrable.underSendersCustody({ from: PARTY_A }),
@@ -732,7 +728,7 @@ contract('ArbitrableKitty', accounts => {
     //     "should be under A's custody"
     //   )
 
-    //   await increaseTime(60 * 60 * 24 * 7 + 1)
+    //   await time.increase(60 * 60 * 24 * 7 + 1)
 
     //   assert.isTrue(
     //     await arbitrable.underSendersCustody({ from: PARTY_B }),
@@ -746,9 +742,9 @@ contract('ArbitrableKitty', accounts => {
 
     it("should allow only party A to take actions during A's custody", async () => {
       const { PARTY_A, PARTY_B, kittyId } = params
-      await increaseTime(1)
+      await time.increase(1)
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.createSiringAuction(kittyId, 100, 200, 60, { from: PARTY_B })
       )
 
@@ -756,7 +752,7 @@ contract('ArbitrableKitty', accounts => {
         from: PARTY_A
       })
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.cancelSiringAuction(kittyId, { from: PARTY_B })
       )
 
@@ -765,7 +761,7 @@ contract('ArbitrableKitty', accounts => {
       const kitty2Id = await mintKitty(5000, arbitrable.address)
       const autoBirthFee = await kittyCore.autoBirthFee()
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.breedWithAuto(kitty2Id, kittyId, {
           from: PARTY_B,
           value: autoBirthFee
@@ -780,14 +776,14 @@ contract('ArbitrableKitty', accounts => {
 
     it("should allow only party B to take actions during B's custody", async () => {
       const { PARTY_A, PARTY_B, kittyId, OTHER_USER } = params
-      await increaseTime(60 * 60 * 24 * 7 + 1)
+      await time.increase(60 * 60 * 24 * 7 + 1)
 
       const otherKittyId = await kittyToSiringAuction(
         await mintKitty(2000, OTHER_USER),
         OTHER_USER
       )
 
-      await expectThrow(
+      await shouldFail.reverting(
         arbitrable.bidOnSiringAuction(otherKittyId, kittyId, {
           from: PARTY_A,
           value: 200
@@ -798,9 +794,9 @@ contract('ArbitrableKitty', accounts => {
         value: 200
       })
 
-      await increaseTime(60 * 60)
+      await time.increase(60 * 60)
 
-      await expectThrow(arbitrable.giveBirth(kittyId, { from: PARTY_A }))
+      await shouldFail.reverting(arbitrable.giveBirth(kittyId, { from: PARTY_A }))
 
       await arbitrable.giveBirth(kittyId, { from: PARTY_B })
     })
@@ -812,7 +808,7 @@ contract('ArbitrableKitty', accounts => {
     it('should calculate modulus correctly', async () => {
       assert.equal((await arbitrable.modulus(21999, 1661)).toNumber(), 406)
       assert.equal((await arbitrable.modulus(2, 4)).toNumber(), 2)
-      await expectThrow(arbitrable.modulus(2, 0))
+      await shouldFail.reverting(arbitrable.modulus(2, 0))
     })
 
     it('should return custody correctly for input', async () => {

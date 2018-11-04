@@ -6,14 +6,14 @@
 
 
 pragma solidity ^0.4.15;
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol ";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
 
 
 /** @title Locked Token
  *  @dev A token when created coins are locked and unlock accross time.
  *  Note that we use steps for one month. In the future, when float are available, we could use law of exponential decay to avoid steps and have a smoothed unlocking.
  */
-contract LockedToken is MintableToken {
+contract LockedToken is ERC20Mintable {
     uint public lockMultiplierPerMillionPerMonth; // The amount we must multiply the locked balance each month.
     uint constant LOCK_DIVISOR = 1E6;
     mapping (address => uint) public lastUnlock; // Last time tokens were unlocked.
@@ -72,7 +72,7 @@ contract LockedToken is MintableToken {
      */
     function transfer(address _to, uint256 _value) public returns (bool) {
         unlock(msg.sender);
-        require(balances[msg.sender].sub(amountLocked[msg.sender]) >= _value, "Not enough balance.");
+        require(balanceOf(msg.sender).sub(amountLocked[msg.sender]) >= _value, "Not enough balance.");
 
         assert(super.transfer(_to,_value));
         return true;
@@ -85,7 +85,7 @@ contract LockedToken is MintableToken {
      */
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
         unlock(_from);
-        require(balances[_from].sub(amountLocked[_from]) >= _value, "Not enough balance.");
+        require(balanceOf(_from).sub(amountLocked[_from]) >= _value, "Not enough balance.");
 
         assert(super.transferFrom(_from,_to,_value));
         return true;

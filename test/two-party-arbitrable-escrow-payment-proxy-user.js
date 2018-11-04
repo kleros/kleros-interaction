@@ -1,10 +1,6 @@
 /* globals artifacts, contract, expect, web3 */
-const {
-  increaseTime
-} = require('openzeppelin-solidity/test/helpers/increaseTime')
-const {
-  expectThrow
-} = require('openzeppelin-solidity/test/helpers/expectThrow')
+const time = require('openzeppelin-solidity/test/helpers/time')
+const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail')
 
 const MultiPartyInsurableArbitrableAgreementsProxy = artifacts.require(
   './standard/arbitration/composed-arbitrable/proxy/MultiPartyInsurableArbitrableAgreementsProxy.sol'
@@ -32,7 +28,7 @@ const checkOnlyByGovernor = async (
   expect(await getter()).to.deep.equal(
     nextValue === Number(nextValue) ? web3.toBigNumber(nextValue) : nextValue
   ) // Check it was set properly
-  await expectThrow(method(value, { from: invalidFrom })) // Throw when setting from a non governor address
+  await shouldFail.reverting(method(value, { from: invalidFrom })) // Throw when setting from a non governor address
   await method(value, nextFrom && { from: nextFrom }) // Set back to the original value
 }
 
@@ -182,7 +178,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
       const arbitratorAddress = payment.directAppeal
         ? appealableArbitrator.address
         : enhancedAppealableArbitrator.address
-      await expectThrow(
+      await shouldFail.reverting(
         // Should throw without value
         twoPartyArbitrableEscrowPaymentProxyUser.createPayment(
           payment.ID,
@@ -203,7 +199,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
         { value: payment.value }
       )
     }
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw when ID is already being used
       twoPartyArbitrableEscrowPaymentProxyUser.createPayment(
         payments[0].ID,
@@ -218,28 +214,28 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
     )
 
     // Payment time outs
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw for non-existent payments
       twoPartyArbitrableEscrowPaymentProxyUser.executePayment('0x00')
     )
     for (const payment of payments)
       if (payment.timeOut > 0) {
-        await expectThrow(
+        await shouldFail.reverting(
           // Should throw when not disputed
           multiPartyInsurableArbitrableAgreementsProxy.submitEvidence(
             payment.ID,
             evidence
           )
         )
-        await expectThrow(
+        await shouldFail.reverting(
           // Should throw when not enough time has passed
           twoPartyArbitrableEscrowPaymentProxyUser.executePayment(payment.ID)
         )
-        await increaseTime(payment.timeOut + 1)
+        await time.increase(payment.timeOut + 1)
         await twoPartyArbitrableEscrowPaymentProxyUser.executePayment(
           payment.ID
         )
-        await expectThrow(
+        await shouldFail.reverting(
           // Should throw when already executed
           twoPartyArbitrableEscrowPaymentProxyUser.executePayment(payment.ID)
         )
@@ -249,13 +245,13 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
     const arbitrationFeesTimeoutPayment = payments.find(
       p => p.arbitrationFeesWaitingTime >= 0
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw for non-existent payments
       multiPartyInsurableArbitrableAgreementsProxy.fundDispute('0x00', 0, {
         value: halfOfArbitrationPrice
       })
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw for invalid sides
       multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
         arbitrationFeesTimeoutPayment.ID,
@@ -265,7 +261,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
         }
       )
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw without value
       multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
         arbitrationFeesTimeoutPayment.ID,
@@ -282,7 +278,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
               value: payment.contributionsPerSide[0][i]
             }
           )
-        await increaseTime(payment.arbitrationFeesWaitingTime + 1)
+        await time.increase(payment.arbitrationFeesWaitingTime + 1)
         await multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
           payment.ID,
           0,
@@ -290,7 +286,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
             value: payment.contributionsPerSide[0][0]
           }
         )
-        await expectThrow(
+        await shouldFail.reverting(
           // Should throw for already executed payments
           multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
             payment.ID,
@@ -318,7 +314,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
     const appealTimeOutPayment = payments.find(
       p => p.timeOut <= 0 && p.arbitrationFeesWaitingTime < 0 && !p.directAppeal
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw when payment is disputed
       twoPartyArbitrableEscrowPaymentProxyUser.executePayment(
         appealTimeOutPayment.ID
@@ -328,14 +324,14 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
       appealTimeOutPayment.ID,
       evidence
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw for non-existent payments
       multiPartyInsurableArbitrableAgreementsProxy.submitEvidence(
         '0x00',
         evidence
       )
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw when sent from a party that is not involved in the payment
       multiPartyInsurableArbitrableAgreementsProxy.submitEvidence(
         appealTimeOutPayment.ID,
@@ -350,7 +346,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
         appealTimeOutPayment.ID
       ))[5]
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw when not appealable
       multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
         appealTimeOutPayment.ID,
@@ -361,7 +357,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
       )
     )
     await enhancedAppealableArbitrator.giveRuling(rulingDisputeID, sendRuling)
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw when not the side's turn
       multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
         appealTimeOutPayment.ID,
@@ -376,8 +372,8 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
       0,
       { value: appealTimeOutPayment.contributionsPerSide[1][0] }
     )
-    await increaseTime(timeOut + 1)
-    await expectThrow(
+    await time.increase(timeOut + 1)
+    await shouldFail.reverting(
       // Should throw when not the side's turn
       multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
         appealTimeOutPayment.ID,
@@ -387,14 +383,14 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
         }
       )
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw when not sent from the arbitrator
       multiPartyInsurableArbitrableAgreementsProxy.rule(
         rulingDisputeID,
         sendRuling
       )
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw for a non-existent dispute
       enhancedAppealableArbitrator.giveRuling(-1, sendRuling)
     )
@@ -405,14 +401,14 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
         value: appealTimeOutPayment.contributionsPerSide[1][1]
       }
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw when already appealed
       multiPartyInsurableArbitrableAgreementsProxy.submitEvidence(
         appealTimeOutPayment.ID,
         evidence
       )
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw when still disputed
       multiPartyInsurableArbitrableAgreementsProxy.withdrawReward(
         appealTimeOutPayment.ID,
@@ -444,7 +440,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
 
             for (let j = 0; j < payment.contributionsPerSide[i].length; j++) {
               if (payment.contributionsPerSide[i][j] < 0)
-                await expectThrow(
+                await shouldFail.reverting(
                   // Should throw when losing side did not fully fund
                   multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
                     payment.ID,
@@ -462,12 +458,12 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
                     value: payment.contributionsPerSide[i][j]
                   }
                 )
-              await increaseTime(timeOut / 2)
+              await time.increase(timeOut / 2)
             }
           }
 
-        await increaseTime(timeOut / 2 + 1)
-        await expectThrow(
+        await time.increase(timeOut / 2 + 1)
+        await shouldFail.reverting(
           // Should throw when not called by the arbitrable proxy
           twoPartyArbitrableEscrowPaymentProxyUser.executeAgreementRuling(
             appealTimeOutPayment.ID,
@@ -480,7 +476,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
           ),
           sendRuling
         )
-        await expectThrow(
+        await shouldFail.reverting(
           // Should throw when already executed
           enhancedAppealableArbitrator.giveRuling(
             await enhancedAppealableArbitrator.getAppealDisputeID(
@@ -507,7 +503,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
           )
 
           if (payment.contributionsPerSide[i][0] < arbitrationPrice)
-            await expectThrow(
+            await shouldFail.reverting(
               multiPartyInsurableArbitrableAgreementsProxy.fundDispute(
                 payment.ID,
                 0,
@@ -526,7 +522,7 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
             )
         }
 
-        await increaseTime(timeOut + 1)
+        await time.increase(timeOut + 1)
         await appealableArbitrator.giveRuling(
           await appealableArbitrator.getAppealDisputeID(paymentDisputeID),
           sendRuling
@@ -534,18 +530,18 @@ contract('TwoPartyArbitrableEscrowPaymentProxyUser', accounts =>
       }
 
     // Withdraw contribution rewards
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw for a non-existent payment
       multiPartyInsurableArbitrableAgreementsProxy.withdrawReward('0x00', 1)
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw for an invalid round
       multiPartyInsurableArbitrableAgreementsProxy.withdrawReward(
         appealTimeOutPayment.ID,
         -1
       )
     )
-    await expectThrow(
+    await shouldFail.reverting(
       // Should throw for the first round if appealed
       multiPartyInsurableArbitrableAgreementsProxy.withdrawReward(
         appealTimeOutPayment.ID,

@@ -45,6 +45,7 @@
   },
   "homepage": "https://github.com/kleros/kleros-interaction#readme",
   "devDependencies": {
+    "chai": "^4.2.0",
     "coveralls": "^3.0.2",
     "eth-gas-reporter": "0.1.1",
     "ganache-cli": "^6.1.6",

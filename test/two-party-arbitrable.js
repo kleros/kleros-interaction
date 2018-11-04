@@ -1,10 +1,6 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
-const {
-  expectThrow
-} = require('openzeppelin-solidity/test/helpers/expectThrow')
-const {
-  increaseTime
-} = require('openzeppelin-solidity/test/helpers/increaseTime')
+const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail')
+const time = require('openzeppelin-solidity/test/helpers/time')
 
 const TwoPartyArbitrable = artifacts.require('./TwoPartyArbitrable.sol')
 const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
@@ -128,13 +124,13 @@ contract('TwoPartyArbitrable', function(accounts) {
       metaEvidenceUri,
       { from: partyA }
     )
-    await expectThrow(
+    await shouldFail.reverting(
       arbitrable.payArbitrationFeeByPartyB({
         from: partyB,
         value: arbitrationFee - 1
       })
     )
-    await expectThrow(
+    await shouldFail.reverting(
       arbitrable.payArbitrationFeeByPartyA({
         from: partyA,
         value: arbitrationFee - 1
@@ -144,7 +140,7 @@ contract('TwoPartyArbitrable', function(accounts) {
       from: partyB,
       value: arbitrationFee
     })
-    await expectThrow(
+    await shouldFail.reverting(
       arbitrable.payArbitrationFeeByPartyA({
         from: partyA,
         value: arbitrationFee - 1
@@ -292,7 +288,7 @@ contract('TwoPartyArbitrable', function(accounts) {
       from: partyA,
       value: arbitrationFee
     })
-    await increaseTime(timeout + 1)
+    await time.increase(timeout + 1)
     const partyABalanceBeforeReimbursment = web3.eth.getBalance(partyA)
     const tx = await arbitrable.timeOutByPartyA({
       from: partyA,
@@ -324,15 +320,15 @@ contract('TwoPartyArbitrable', function(accounts) {
       metaEvidenceUri,
       { from: partyA }
     )
-    await expectThrow(
+    await shouldFail.reverting(
       arbitrable.timeOutByPartyA({ from: partyA, gasPrice: gasPrice })
     )
     await arbitrable.payArbitrationFeeByPartyA({
       from: partyA,
       value: arbitrationFee
     })
-    await increaseTime(1)
-    await expectThrow(
+    await time.increase(1)
+    await shouldFail.reverting(
       arbitrable.timeOutByPartyA({ from: partyA, gasPrice: gasPrice })
     )
   })
@@ -355,7 +351,7 @@ contract('TwoPartyArbitrable', function(accounts) {
       from: partyB,
       value: arbitrationFee
     })
-    await increaseTime(timeout + 1)
+    await time.increase(timeout + 1)
     const partyBBalanceBeforeReimbursment = web3.eth.getBalance(partyB)
     const tx = await arbitrable.timeOutByPartyB({
       from: partyB,
@@ -387,15 +383,15 @@ contract('TwoPartyArbitrable', function(accounts) {
       metaEvidenceUri,
       { from: partyA }
     )
-    await expectThrow(
+    await shouldFail.reverting(
       arbitrable.timeOutByPartyB({ from: partyB, gasPrice: gasPrice })
     )
     await arbitrable.payArbitrationFeeByPartyB({
       from: partyB,
       value: arbitrationFee
     })
-    await increaseTime(1)
-    await expectThrow(
+    await time.increase(1)
+    await shouldFail.reverting(
       arbitrable.timeOutByPartyB({ from: partyB, gasPrice: gasPrice })
     )
   })
@@ -481,7 +477,7 @@ contract('TwoPartyArbitrable', function(accounts) {
       from: partyB,
       value: arbitrationFee
     })
-    await expectThrow(arbitrable.submitEvidence('ipfs:/X', { from: other }))
+    await shouldFail.reverting(arbitrable.submitEvidence('ipfs:/X', { from: other }))
   })
 
   // appeal

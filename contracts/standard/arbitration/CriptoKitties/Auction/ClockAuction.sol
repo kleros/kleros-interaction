@@ -14,6 +14,13 @@ import "openzeppelin-solidity/contracts/lifecycle/Pausable.sol";
 /// @title Clock auction for non-fungible tokens.
 contract ClockAuction is Pausable, ClockAuctionBase {
 
+    address owner;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
     /// @dev Constructor creates a reference to the NFT ownership contract
     ///  and verifies the owner cut is in the valid range.
     /// @param _nftAddress - address of a deployed contract implementing
@@ -27,6 +34,7 @@ contract ClockAuction is Pausable, ClockAuctionBase {
         ERC721 candidateContract = ERC721(_nftAddress);
         require(candidateContract.implementsERC721());
         nonFungibleContract = candidateContract;
+        owner = msg.sender;
     }
 
     /// @dev Remove all Ether from the contract, which is the owner's cuts

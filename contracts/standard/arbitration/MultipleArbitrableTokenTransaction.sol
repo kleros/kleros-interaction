@@ -248,7 +248,7 @@ contract MultipleArbitrableTokenTransaction {
         // Verifies if contract is authorized to move funds across wallets.
         require(ERC20Interface.allowance(msg.sender, address(this)) >= _amount, "Contract not authorized to move funds.");
         // Transfers token from sender wallet to contract.
-        // require(ERC20Interface.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough funds.");
+        require(ERC20Interface.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough funds.");
 
         transactions.push(Transaction({
             seller: _seller,

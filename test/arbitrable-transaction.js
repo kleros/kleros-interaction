@@ -1,10 +1,6 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
-const {
-  expectThrow
-} = require('openzeppelin-solidity/test/helpers/expectThrow')
-const {
-  increaseTime
-} = require('openzeppelin-solidity/test/helpers/increaseTime')
+const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail')
+const time = require('openzeppelin-solidity/test/helpers/time')
 
 const ArbitrableTransaction = artifacts.require('./ArbitrableTransaction.sol')
 const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
@@ -73,7 +69,7 @@ contract('ArbitrableTransaction', function(accounts) {
       metaEvidenceUri,
       { from: payer, value: amount }
     )
-    await expectThrow(arbitrableTransaction.pay({ from: payee }))
+    await shouldFail.reverting(arbitrableTransaction.pay({ from: payee }))
   })
 
   // Reimburse
@@ -142,7 +138,7 @@ contract('ArbitrableTransaction', function(accounts) {
       metaEvidenceUri,
       { from: payer, value: amount }
     )
-    await expectThrow(arbitrableTransaction.reimburse(1003, { from: payee }))
+    await shouldFail.reverting(arbitrableTransaction.reimburse(1003, { from: payee }))
   })
 
   it('Should fail if the payer to it', async () => {
@@ -154,7 +150,7 @@ contract('ArbitrableTransaction', function(accounts) {
       metaEvidenceUri,
       { from: payer, value: amount }
     )
-    await expectThrow(arbitrableTransaction.reimburse(1000, { from: payer }))
+    await shouldFail.reverting(arbitrableTransaction.reimburse(1000, { from: payer }))
   })
 
   // executeRuling
@@ -276,7 +272,7 @@ contract('ArbitrableTransaction', function(accounts) {
       from: payer,
       value: arbitrationFee
     })
-    await increaseTime(timeout + 1)
+    await time.increase(timeout + 1)
     const payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
     const tx = await arbitrableTransaction.timeOutByPartyA({
       from: payer,
@@ -307,15 +303,15 @@ contract('ArbitrableTransaction', function(accounts) {
       metaEvidenceUri,
       { from: payer, value: amount }
     )
-    await expectThrow(
+    await shouldFail.reverting(
       arbitrableTransaction.timeOutByPartyA({ from: payer, gasPrice: gasPrice })
     )
     await arbitrableTransaction.payArbitrationFeeByPartyA({
       from: payer,
       value: arbitrationFee
     })
-    await increaseTime(1)
-    await expectThrow(
+    await time.increase(1)
+    await shouldFail.reverting(
       arbitrableTransaction.timeOutByPartyA({ from: payer, gasPrice: gasPrice })
     )
   })
@@ -337,7 +333,7 @@ contract('ArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    await increaseTime(timeout + 1)
+    await time.increase(timeout + 1)
     const payeeBalanceBeforeReimbursment = web3.eth.getBalance(payee)
     const tx = await arbitrableTransaction.timeOutByPartyB({
       from: payee,
@@ -368,15 +364,15 @@ contract('ArbitrableTransaction', function(accounts) {
       metaEvidenceUri,
       { from: payer, value: amount }
     )
-    await expectThrow(
+    await shouldFail.reverting(
       arbitrableTransaction.timeOutByPartyB({ from: payee, gasPrice: gasPrice })
     )
     await arbitrableTransaction.payArbitrationFeeByPartyB({
       from: payee,
       value: arbitrationFee
     })
-    await increaseTime(1)
-    await expectThrow(
+    await time.increase(1)
+    await shouldFail.reverting(
       arbitrableTransaction.timeOutByPartyB({ from: payee, gasPrice: gasPrice })
     )
   })
@@ -463,7 +459,7 @@ contract('ArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    await expectThrow(
+    await shouldFail.reverting(
       arbitrableTransaction.submitEvidence('ipfs:/X', { from: other })
     )
   })

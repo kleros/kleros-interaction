@@ -1,10 +1,6 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
-const {
-  expectThrow
-} = require('openzeppelin-solidity/test/helpers/expectThrow')
-const {
-  increaseTime
-} = require('openzeppelin-solidity/test/helpers/increaseTime')
+const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail')
+const time = require('openzeppelin-solidity/test/helpers/time')
 
 const AppealableArbitrator = artifacts.require('./AppealableArbitrator.sol')
 const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
@@ -62,7 +58,7 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-    await expectThrow(
+    await shouldFail.reverting(
       appealableArbitrator.changeArbitrator(other, { from: other })
     )
   })
@@ -79,7 +75,7 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-    await expectThrow(appealableArbitrator.changeTimeOut(5, { from: other }))
+    await shouldFail.reverting(appealableArbitrator.changeTimeOut(5, { from: other }))
   })
 
   it('Non-owner cant rule none-appealed disputes', async () => {
@@ -97,7 +93,7 @@ contract('AppealableArbitrator', function(accounts) {
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-    await expectThrow(appealableArbitrator.giveRuling(0, 1, { from: other }))
+    await shouldFail.reverting(appealableArbitrator.giveRuling(0, 1, { from: other }))
   })
 
   it('Ruling should set correct values in none-appealed disputes and create AppealPossible event', async () => {
@@ -179,8 +175,8 @@ contract('AppealableArbitrator', function(accounts) {
     })
     //
     await appealableArbitrator.giveRuling(0, 1)
-    increaseTime(1)
-    await expectThrow(appealableArbitrator.giveRuling(0, 1))
+    time.increase(1)
+    await shouldFail.reverting(appealableArbitrator.giveRuling(0, 1))
   })
 
   it('Shouldnt be possible to pay less than appeal fee', async () => {
@@ -198,14 +194,14 @@ contract('AppealableArbitrator', function(accounts) {
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-    await expectThrow(
+    await shouldFail.reverting(
       appealableArbitrator.appeal(0, arbitratorExtraData, {
         from: appealable,
         value: 20
       })
     )
     await appealableArbitrator.giveRuling(0, 1)
-    await expectThrow(
+    await shouldFail.reverting(
       appealableArbitrator.appeal(0, arbitratorExtraData, {
         from: appealable,
         value: arbitrationFee - 1
@@ -382,10 +378,10 @@ contract('AppealableArbitrator', function(accounts) {
       from: appealable,
       value: arbitrationFee
     })
-    await expectThrow(
+    await shouldFail.reverting(
       appealableArbitrator.giveRuling(0, 1, { from: appealable })
     )
-    await expectThrow(appealableArbitrator.giveRuling(0, 1, { from: partyA }))
+    await shouldFail.reverting(appealableArbitrator.giveRuling(0, 1, { from: partyA }))
   })
 
   it('Should set correct values in disputes after final ruling after appeal', async () => {

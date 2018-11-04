@@ -1,10 +1,6 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
-const {
-  expectThrow
-} = require('openzeppelin-solidity/test/helpers/expectThrow')
-const {
-  increaseTime
-} = require('openzeppelin-solidity/test/helpers/increaseTime')
+const shouldFail = require('openzeppelin-solidity/test/helpers/shouldFail')
+const time = require('openzeppelin-solidity/test/helpers/time')
 
 const MultipleArbitrableTransaction = artifacts.require(
   './MultipleArbitrableTransaction.sol'
@@ -182,7 +178,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await increaseTime(timeout + 1)
+    await time.increase(timeout + 1)
     const tx = await multipleContract.withdraw(arbitrableTransactionId, {
       from: payee
     })
@@ -213,7 +209,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       }
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
-    await expectThrow(
+    await shouldFail.reverting(
       multipleContract.withdraw(arbitrableTransactionId, { from: payer })
     )
   })
@@ -320,7 +316,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await expectThrow(
+    await shouldFail.reverting(
       multipleContract.reimburse(arbitrableTransactionId, 1003, { from: payee })
     )
   })
@@ -345,7 +341,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await expectThrow(
+    await shouldFail.reverting(
       multipleContract.reimburse(arbitrableTransactionId, 1000, { from: payer })
     )
   })
@@ -516,7 +512,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payer,
       value: arbitrationFee
     })
-    await increaseTime(timeout + 1)
+    await time.increase(timeout + 1)
     const payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
     const tx = await multipleContract.timeOutByBuyer(arbitrableTransactionId, {
       from: payer,
@@ -559,7 +555,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await expectThrow(
+    await shouldFail.reverting(
       multipleContract.timeOutByBuyer(arbitrableTransactionId, {
         from: payer,
         gasPrice: gasPrice
@@ -569,8 +565,8 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payer,
       value: arbitrationFee
     })
-    await increaseTime(1)
-    await expectThrow(
+    await time.increase(1)
+    await shouldFail.reverting(
       multipleContract.timeOutByBuyer(arbitrableTransactionId, {
         from: payer,
         gasPrice: gasPrice
@@ -607,7 +603,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    await increaseTime(timeout + 1)
+    await time.increase(timeout + 1)
     const payeeBalanceBeforeReimbursment = web3.eth.getBalance(payee)
     const tx = await multipleContract.timeOutBySeller(arbitrableTransactionId, {
       from: payee,
@@ -650,7 +646,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await expectThrow(
+    await shouldFail.reverting(
       multipleContract.timeOutBySeller(arbitrableTransactionId, {
         from: payee,
         gasPrice: gasPrice
@@ -660,8 +656,8 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    await increaseTime(1)
-    await expectThrow(
+    await time.increase(1)
+    await shouldFail.reverting(
       multipleContract.timeOutBySeller(arbitrableTransactionId, {
         from: payee,
         gasPrice: gasPrice
@@ -791,7 +787,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    await expectThrow(
+    await shouldFail.reverting(
       multipleContract.submitEvidence(arbitrableTransactionId, 'ipfs:/X', {
         from: other
       })
