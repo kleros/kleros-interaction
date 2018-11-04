@@ -6,7 +6,7 @@
 
 
 pragma solidity ^0.4.15;
-import "openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol ";
 
 
 /** @title Locked Token
