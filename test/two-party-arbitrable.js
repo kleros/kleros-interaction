@@ -477,7 +477,9 @@ contract('TwoPartyArbitrable', function(accounts) {
       from: partyB,
       value: arbitrationFee
     })
-    await shouldFail.reverting(arbitrable.submitEvidence('ipfs:/X', { from: other }))
+    await shouldFail.reverting(
+      arbitrable.submitEvidence('ipfs:/X', { from: other })
+    )
   })
 
   // appeal

@@ -796,7 +796,9 @@ contract('ArbitrableKitty', accounts => {
 
       await time.increase(60 * 60)
 
-      await shouldFail.reverting(arbitrable.giveBirth(kittyId, { from: PARTY_A }))
+      await shouldFail.reverting(
+        arbitrable.giveBirth(kittyId, { from: PARTY_A })
+      )
 
       await arbitrable.giveBirth(kittyId, { from: PARTY_B })
     })

@@ -592,7 +592,9 @@ contract('ArbitrableTokenList', function(accounts) {
             challengeReward * 2,
             'item balance should hold funds from party A and B'
           )
-          await shouldFail.reverting(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
+          await shouldFail.reverting(
+            arbitrableTokenList.executeRequest(TOKEN_ID)
+          ) // should fail since item is disputed
         })
 
         describe('arbitrator rules in favor of partyA', () => {
@@ -1163,7 +1165,9 @@ contract('ArbitrableTokenList', function(accounts) {
             partyB
           )).toNumber()
 
-          await shouldFail.reverting(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
+          await shouldFail.reverting(
+            arbitrableTokenList.executeRequest(TOKEN_ID)
+          ) // should fail since item is disputed
 
           // Rule in favor of partyA
           await appealableArbitrator.giveRuling(
@@ -1300,7 +1304,9 @@ contract('ArbitrableTokenList', function(accounts) {
             partyB
           )).toNumber()
 
-          await shouldFail.reverting(arbitrableTokenList.executeRequest(TOKEN_ID)) // should fail since item is disputed
+          await shouldFail.reverting(
+            arbitrableTokenList.executeRequest(TOKEN_ID)
+          ) // should fail since item is disputed
 
           // Rule in favor of partyB
           await appealableArbitrator.giveRuling(
@@ -1586,7 +1592,9 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling executeRequest should revert', async () => {
-          await shouldFail.reverting(arbitrableTokenList.executeRequest(TOKEN_ID))
+          await shouldFail.reverting(
+            arbitrableTokenList.executeRequest(TOKEN_ID)
+          )
         })
       })
 
@@ -1652,7 +1660,9 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling executeRequest should revert', async () => {
-          await shouldFail.reverting(arbitrableTokenList.executeRequest(TOKEN_ID))
+          await shouldFail.reverting(
+            arbitrableTokenList.executeRequest(TOKEN_ID)
+          )
         })
       })
 
@@ -1934,7 +1944,9 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('calling executeRequest should revert', async function() {
-          await shouldFail.reverting(arbitrableTokenList.executeRequest(TOKEN_ID))
+          await shouldFail.reverting(
+            arbitrableTokenList.executeRequest(TOKEN_ID)
+          )
         })
       })
 

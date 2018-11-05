@@ -75,7 +75,9 @@ contract('AppealableArbitrator', function(accounts) {
       timeOut,
       { from: appealable }
     )
-    await shouldFail.reverting(appealableArbitrator.changeTimeOut(5, { from: other }))
+    await shouldFail.reverting(
+      appealableArbitrator.changeTimeOut(5, { from: other })
+    )
   })
 
   it('Non-owner cant rule none-appealed disputes', async () => {
@@ -93,7 +95,9 @@ contract('AppealableArbitrator', function(accounts) {
     await appealableArbitrator.createDispute(choices, arbitratorExtraData, {
       value: arbitrationFee
     })
-    await shouldFail.reverting(appealableArbitrator.giveRuling(0, 1, { from: other }))
+    await shouldFail.reverting(
+      appealableArbitrator.giveRuling(0, 1, { from: other })
+    )
   })
 
   it('Ruling should set correct values in none-appealed disputes and create AppealPossible event', async () => {
@@ -381,7 +385,9 @@ contract('AppealableArbitrator', function(accounts) {
     await shouldFail.reverting(
       appealableArbitrator.giveRuling(0, 1, { from: appealable })
     )
-    await shouldFail.reverting(appealableArbitrator.giveRuling(0, 1, { from: partyA }))
+    await shouldFail.reverting(
+      appealableArbitrator.giveRuling(0, 1, { from: partyA })
+    )
   })
 
   it('Should set correct values in disputes after final ruling after appeal', async () => {

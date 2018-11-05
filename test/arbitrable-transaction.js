@@ -138,7 +138,9 @@ contract('ArbitrableTransaction', function(accounts) {
       metaEvidenceUri,
       { from: payer, value: amount }
     )
-    await shouldFail.reverting(arbitrableTransaction.reimburse(1003, { from: payee }))
+    await shouldFail.reverting(
+      arbitrableTransaction.reimburse(1003, { from: payee })
+    )
   })
 
   it('Should fail if the payer to it', async () => {
@@ -150,7 +152,9 @@ contract('ArbitrableTransaction', function(accounts) {
       metaEvidenceUri,
       { from: payer, value: amount }
     )
-    await shouldFail.reverting(arbitrableTransaction.reimburse(1000, { from: payer }))
+    await shouldFail.reverting(
+      arbitrableTransaction.reimburse(1000, { from: payer })
+    )
   })
 
   // executeRuling
