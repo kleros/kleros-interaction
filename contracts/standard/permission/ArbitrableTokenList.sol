@@ -580,19 +580,19 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @param _cursor The pagination cursor.
      *  @param _count The number of items to return.
      *  @param _filter The filter to use. Each element of the array in sequence means:
-     *  - Include absent items in result;
-     *  - Include registered items in result;
-     *  - Include cleared items in result;
-     *  - Include submited items that are not disputed in result;
-     *  - Include resubmitted items that are not disputed in result;
-     *  - Include items with clearing requests that are not disputed in result;
-     *  - Include items with preventive clearing requests that are not disputed in result;
-     *  - Include submited and disputed items in result;
-     *  - Include resubmitted and disputed items in result;
-     *  - Include disputed items items with clearing requests in result;
-     *  - Include disputed items items with preventive clearing requests in result;
-     *  - Include items submitted by the caller;
-     *  - Include items challenged by the caller;
+     *  - Include absent items in result.
+     *  - Include registered items in result.
+     *  - Include cleared items in result.
+     *  - Include submitted items that are not disputed in result.
+     *  - Include resubmitted items that are not disputed in result.
+     *  - Include items with clearing requests that are not disputed in result.
+     *  - Include items with preventive clearing requests that are not disputed in result.
+     *  - Include submitted and disputed items in result.
+     *  - Include resubmitted and disputed items in result.
+     *  - Include disputed items with clearing requests in result.
+     *  - Include disputed items with preventive clearing requests in result.
+     *  - Include items submitted by the caller.
+     *  - Include items challenged by the caller.
      *  @param _sort The sort order to use.
      *  @return The values of the items found and wether there are more items for the current filter and sort.
      */
