@@ -474,7 +474,7 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         );
     }
 
-    /** @dev Executes the ruling on the specified agreement.
+    /** @dev Extends parent to set item state and transfer rewards.
      *  @param _agreementID The ID of the agreement.
      *  @param _ruling The ruling.
      */
@@ -537,8 +537,6 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         } else
             agreement.parties[uint(winner)].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
-
-        agreement.executed = true;
         item.lastAction = now;
         item.balance = 0;
         item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
@@ -581,11 +579,24 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /** @dev Return the values of the items the query finds. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @param _cursor The pagination cursor.
      *  @param _count The number of items to return.
-     *  @param _filter The filter to use.
+     *  @param _filter The filter to use. Each element of the array in sequence means:
+     *  - Include absent items in result.
+     *  - Include registered items in result.
+     *  - Include cleared items in result.
+     *  - Include submitted items that are not disputed in result.
+     *  - Include resubmitted items that are not disputed in result.
+     *  - Include items with clearing requests that are not disputed in result.
+     *  - Include items with preventive clearing requests that are not disputed in result.
+     *  - Include submitted and disputed items in result.
+     *  - Include resubmitted and disputed items in result.
+     *  - Include disputed items with clearing requests in result.
+     *  - Include disputed items with preventive clearing requests in result.
+     *  - Include items submitted by the caller.
+     *  - Include items challenged by the caller.
      *  @param _sort The sort order to use.
      *  @return The values of the items found and wether there are more items for the current filter and sort.
      */
-    function queryItems(bytes32 _cursor, uint _count, bool[9] _filter, bool _sort) external view returns (bytes32[] values, bool hasMore) {
+    function queryItems(bytes32 _cursor, uint _count, bool[13] _filter, bool _sort) external view returns (bytes32[] values, bool hasMore) {
         uint _cursorIndex;
         values = new bytes32[](_count);
         uint _index = 0;
@@ -612,15 +623,19 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
             Agreement storage agreement = agreements[item.latestAgreementID];
             if (
                     /* solium-disable operator-whitespace */
-                    (_filter[0] && agreement.disputed) ||
-                    (_filter[1] && item.status == ItemStatus.Absent) ||
+                    (_filter[0] && item.status == ItemStatus.Absent) ||
+                    (_filter[1] && item.status == ItemStatus.Registered) ||
                     (_filter[2] && item.status == ItemStatus.Cleared) ||
-                    (_filter[3] && item.status == ItemStatus.Submitted) ||
-                    (_filter[4] && item.status == ItemStatus.Resubmitted) ||
-                    (_filter[5] && item.status == ItemStatus.ClearingRequested) ||
-                    (_filter[6] && item.status == ItemStatus.PreventiveClearingRequested) ||
-                    (_filter[7] && agreement.parties[0] == msg.sender) || // My Submissions.
-                    (_filter[8] && agreement.parties[1] == msg.sender) // My Challenges.
+                    (_filter[3] && item.status == ItemStatus.Submitted && !agreement.disputed) ||
+                    (_filter[4] && item.status == ItemStatus.Resubmitted && !agreement.disputed) ||
+                    (_filter[5] && item.status == ItemStatus.ClearingRequested && !agreement.disputed) ||
+                    (_filter[6] && item.status == ItemStatus.PreventiveClearingRequested && !agreement.disputed) ||
+                    (_filter[7] && item.status == ItemStatus.Submitted && agreement.disputed) ||
+                    (_filter[8] && item.status == ItemStatus.Resubmitted && agreement.disputed) ||
+                    (_filter[9] && item.status == ItemStatus.ClearingRequested && agreement.disputed) ||
+                    (_filter[10] && item.status == ItemStatus.PreventiveClearingRequested && agreement.disputed) ||
+                    (_filter[11] && agreement.parties[0] == msg.sender) || // My Submissions.
+                    (_filter[12] && agreement.parties[1] == msg.sender) // My Challenges.
                     /* solium-enable operator-whitespace */
             ) {
                 if (_index < _count) {

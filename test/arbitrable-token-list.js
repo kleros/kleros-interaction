@@ -98,24 +98,32 @@ contract('ArbitrableTokenList', function(accounts) {
       const cursor = 0
       const count = 1
 
-      const disputed = false
       const absent = false
+      const registered = false
       const cleared = false
-      const submitted = false
-      const resubmitted = false
-      const clearingRequested = false
-      const preventiveClearingRequested = false
+      const undisputedSubmitted = false
+      const undisputedResubmitted = false
+      const undisputedClearingRequested = false
+      const undisputedPreventiveClearingRequested = false
+      const disputedSubmitted = false
+      const disputedResubmitted = false
+      const disputedClearingRequested = false
+      const disputedPreventiveClearingRequested = false
       const mySubmissions = true
       const myChallenges = false
 
       const filter = [
-        disputed,
         absent,
+        registered,
         cleared,
-        submitted,
-        resubmitted,
-        clearingRequested,
-        preventiveClearingRequested,
+        undisputedSubmitted,
+        undisputedResubmitted,
+        undisputedClearingRequested,
+        undisputedPreventiveClearingRequested,
+        disputedSubmitted,
+        disputedResubmitted,
+        disputedClearingRequested,
+        disputedPreventiveClearingRequested,
         mySubmissions,
         myChallenges
       ]
