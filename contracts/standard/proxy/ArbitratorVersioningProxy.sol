@@ -82,7 +82,7 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     }
 
     /** @dev Computes the cost of appealing to the current `implementation` contract.
-          It is recommended not to increase it often, as it can be highly tim e and gas consuming for the arbitrated contracts to cope with fee augmentation.
+     *  It is recommended not to increase it often, as it can be highly time and gas consuming for the arbitrated contracts to cope with fee augmentation.
      *  @param _localDisputeID The ID of the dispute to be appealed.
      *  @param _extraData Can be used to give additional info on the dispute to be created.
      *  @return _fee The appeal cost.
