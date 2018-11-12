@@ -1,5 +1,5 @@
 {
-  "name": "kleros-interaction",
+  "name": "@kleros/kleros-interaction",
   "version": "0.1.0",
   "description": "Smart contracts interacting with Kleros.",
   "main": "index.js",
