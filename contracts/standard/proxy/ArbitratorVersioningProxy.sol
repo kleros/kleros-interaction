@@ -128,11 +128,12 @@ contract ArbitratorVersioningProxy is Arbitrator, Arbitrable, VersioningProxy {
     }
 
     /** @dev Execute a ruling of a dispute.
-     *  @param _localDisputeID ID of the dispute in the Arbitrator contract.
+     *  @param _externalDisputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
-    function executeRuling(uint _localDisputeID, uint _ruling) internal {
-        disputes[_localDisputeID].arbitrated.rule(disputes[_localDisputeID].externalDisputeID, _ruling);
+    function executeRuling(uint _externalDisputeID, uint _ruling) internal {
+        uint localDisputeID = externalDisputeIDToLocalDisputeID[_externalDisputeID];
+        disputes[localDisputeID].arbitrated.rule(localDisputeID, _ruling);
     }
 
 }
