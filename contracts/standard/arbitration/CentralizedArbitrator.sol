@@ -1,8 +1,10 @@
 /**
-*  @title Arbitration Standard
-*  @author Clément Lesaege - <clement@lesaege.com>
-*  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
-*/
+ * @authors: [@clesaege]
+ * @reviewers: []
+ * @auditors: []
+ * @bounties: []
+ * @deployments: []
+ */
 
 pragma solidity ^0.4.15;
 
