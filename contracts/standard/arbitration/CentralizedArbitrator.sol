@@ -11,9 +11,8 @@ pragma solidity ^0.4.15;
 import "./Arbitrator.sol";
 
 /** @title Centralized Arbitrator
-*  This is a centralized arbitrator deciding alone of the result of disputes.
-*  No appeals are possible.
-*/
+ *  @dev This is a centralized arbitrator deciding alone on the result of disputes. No appeals are possible.
+ */
 contract CentralizedArbitrator is Arbitrator {
 
     address public owner=msg.sender;
