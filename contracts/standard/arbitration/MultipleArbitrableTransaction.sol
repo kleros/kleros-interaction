@@ -1,15 +1,18 @@
 /**
- *  @title Multiple Arbitrable Transaction
- *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
+ * @authors: []
+ * @reviewers: []
+ * @auditors: []
+ * @bounties: []
+ * @deployments: []
  */
 
-
 pragma solidity ^0.4.15;
+
 import "./Arbitrator.sol";
 
 /** @title Multiple Arbitrable Transaction
- *  This is a a contract for multiple arbitrated transactions which can be reversed by an arbitrator.
- *  This can be used for buying goods, services and for paying freelancers.
+ *  @dev This is a contract for multiple arbitrable transactions which can be reversed by an arbitrator.
+ *  This can be used for buying goods, services, and for paying freelancers.
  *  Parties are identified as "seller" and "buyer".
  */
 contract MultipleArbitrableTransaction {
