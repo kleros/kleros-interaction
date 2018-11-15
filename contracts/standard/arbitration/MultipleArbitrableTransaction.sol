@@ -1,18 +1,18 @@
 /**
- * @authors: []
+ * @authors: [@eburgos, @n1c01a5]
  * @reviewers: []
  * @auditors: []
  * @bounties: []
  * @deployments: []
  */
 
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.23;
 
 import "./Arbitrator.sol";
 
 /** @title Multiple Arbitrable Transaction
  *  @dev This is a contract for multiple arbitrable transactions which can be reversed by an arbitrator.
- *  This can be used for buying goods, services, and for paying freelancers.
+ *  This can be used for buying goods, services and for paying freelancers.
  *  Parties are identified as "seller" and "buyer".
  */
 contract MultipleArbitrableTransaction {
@@ -85,11 +85,6 @@ contract MultipleArbitrableTransaction {
      *  @param _party The party who has to pay.
      */
     event HasToPayFee(uint indexed _transactionId, Party _party);
-
-    /** @dev Constructor.
-     */
-    constructor() public {
-    }
 
     // **************************** //
     // *    Arbitrable functions  * //
@@ -179,8 +174,6 @@ contract MultipleArbitrableTransaction {
      */
     function timeOutBySeller(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
-        require(msg.sender == transaction.seller, "The caller must be the seller.");
-
 
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
         require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
@@ -193,8 +186,6 @@ contract MultipleArbitrableTransaction {
      */
     function timeOutByBuyer(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
-        require(msg.sender == transaction.buyer, "The caller must be the buyer.");
-
 
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
         require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
@@ -300,7 +291,7 @@ contract MultipleArbitrableTransaction {
     }
 
     /** @dev Execute a ruling of a dispute. It reimburse the fee to the winning party.
-     *  This need to be extended by contract inheriting from it.
+     *  This needs to be extended by contract inheriting from it.
      *  @param _transactionId The index of the transaction.
      *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the buyer. 2 : Pay the seller.
      */
