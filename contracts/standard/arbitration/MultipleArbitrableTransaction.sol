@@ -1,6 +1,6 @@
 /**
- * @authors: [@clesaege, @n1c01a5, @epiqueras, @satello, @ferittuncer, @eburgos, @dannybabbev]
- * @reviewers: [@clesaege, @n1c01a5, @epiqueras, @satello, @ferittuncer, @mtsalenc, @yushih]
+ * @authors: [@eburgos, @n1c01a5]
+ * @reviewers: []
  * @auditors: []
  * @bounties: []
  * @deployments: []
