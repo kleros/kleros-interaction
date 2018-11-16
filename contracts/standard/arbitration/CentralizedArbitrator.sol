@@ -1,5 +1,5 @@
 /**
- * @authors: [@clesaege]
+ * @authors: [@clesaege, @n1c01a5, @epiqueras, @ferittuncer]
  * @reviewers: []
  * @auditors: []
  * @bounties: []
