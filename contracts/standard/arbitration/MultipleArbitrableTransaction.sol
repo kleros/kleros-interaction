@@ -1,9 +1,9 @@
 /**
- * @authors: [@eburgos, @n1c01a5]
- * @reviewers: []
- * @auditors: []
- * @bounties: []
- * @deployments: []
+ *  @authors: [@eburgos, @n1c01a5]
+ *  @reviewers: []
+ *  @auditors: []
+ *  @bounties: []
+ *  @deployments: []
  */
 
 pragma solidity ^0.4.23;
