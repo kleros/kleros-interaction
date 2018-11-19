@@ -116,21 +116,27 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // *       Requests       * //
     // ************************ //
 
-    /** @dev Request for an item to be registered.
+    /** @dev Submits a request to change the item status.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      */
-    function requestRegistration(bytes32 _tokenID) external payable {
+    function requestStatusChange(bytes32 _tokenID) external payable {
         Item storage item = items[_tokenID];
         require(msg.value >= challengeReward, "Not enough ETH.");
-        require(item.status == ItemStatus.Absent, "Item in wrong status for registration.");
+        require(!item.disputed, "Item must not be disputed for submitting status change request");
 
-        item.status = ItemStatus.RegistrationRequested;
+        if (item.status == ItemStatus.Absent)
+            item.status = ItemStatus.RegistrationRequested;
+        else if (item.status == ItemStatus.Registered)
+            item.status = ItemStatus.ClearingRequested;
+        else
+            revert("Item in wrong status for request.");
+
         item.balance = msg.value;
         item.lastAction = now;
         item.challengeReward = challengeReward; // Set the challengeReward for this request.
         item.submitter = msg.sender;
 
-        emit ItemStatusChange(msg.sender, address(0), _tokenID, item.status, item.disputed);
+        emit ItemStatusChange(msg.sender, address(0), _tokenID, item.status, false);
     }
 
     // ************************ //
