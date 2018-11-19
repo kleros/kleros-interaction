@@ -27,9 +27,9 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     }
 
     enum RulingOption {
-        OTHER, // Arbitrator did not rule of refused to rule.
-        ACCEPT, // Execute request. Rule in favor of requester.
-        REFUSE // Refuse request. Rule in favor of challenger.
+        Other, // Arbitrator did not rule of refused to rule.
+        Accept, // Execute request. Rule in favor of requester.
+        Refuse // Refuse request. Rule in favor of challenger.
     }
 
     enum Party {
