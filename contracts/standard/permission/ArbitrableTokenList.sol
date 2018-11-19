@@ -155,7 +155,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Interface Views */
 
-    /** @dev Return the numbers of items in the list per status.
+    /** @dev Return the numbers of items in the list per status. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @return The numbers of items in the list per status.
      */
     function itemsCounts()
