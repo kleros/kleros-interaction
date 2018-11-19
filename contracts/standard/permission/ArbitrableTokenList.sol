@@ -152,4 +152,31 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Item storage item = items[_tokenID];
         return item.status == ItemStatus.Registered || item.status == ItemStatus.ClearingRequested;
     }
+
+    /* Interface Views */
+
+    /** @dev Return the numbers of items in the list per status.
+     *  @return The numbers of items in the list per status.
+     */
+    function itemsCounts()
+        external
+        view
+        returns (
+            uint disputed,
+            uint absent,
+            uint registered,
+            uint submitted,
+            uint clearingRequested
+        )
+    {
+        for (uint i = 0; i < itemsList.length; i++) {
+            Item storage item = items[itemsList[i]];
+
+            if (item.disputed) disputed++;
+            if (item.status == ItemStatus.Absent) absent++;
+            else if (item.status == ItemStatus.Registered) registered++;
+            else if (item.status == ItemStatus.RegistrationRequested) submitted++;
+            else if (item.status == ItemStatus.ClearingRequested) clearingRequested++;
+        }
+    }
 }
