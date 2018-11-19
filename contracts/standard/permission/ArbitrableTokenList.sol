@@ -148,29 +148,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit ItemStatusChange(msg.sender, address(0), _tokenID, item.status, false);
     }
 
-    /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
-     *  @param _tokenID The tokenID of the item with the request to execute.
-     */
-    function executeRequest(bytes32 _tokenID) external {
-        Item storage item = items[_tokenID];
-        require(now - item.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
-        require(item.submitter != address(0), "The specified agreement does not exist.");
-        require(!item.disputed, "The specified agreement is disputed.");
-
-        if (item.status == ItemStatus.RegistrationRequested)
-            item.status = ItemStatus.Registered;
-        else if (item.status == ItemStatus.ClearingRequested)
-            item.status = ItemStatus.Absent;
-        else
-            revert("Item in wrong status for executing request.");
-
-        item.lastAction = now;
-        item.balance = 0;
-        item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-
-        emit ItemStatusChange(item.submitter, address(0), _tokenID, item.status, false);
-    }
-
     /** @dev Challenge and fully fund challenger side of the dispute.
      *  @param _tokenID The tokenID of the item with the request to execute.
      */
@@ -196,6 +173,29 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         item.lastAction = now;
 
         emit Contribution(_tokenID, msg.sender, item.challengerFees);
+    }
+
+    /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
+     *  @param _tokenID The tokenID of the item with the request to execute.
+     */
+    function executeRequest(bytes32 _tokenID) external {
+        Item storage item = items[_tokenID];
+        require(now - item.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
+        require(item.submitter != address(0), "The specified agreement does not exist.");
+        require(!item.disputed, "The specified agreement is disputed.");
+
+        if (item.status == ItemStatus.RegistrationRequested)
+            item.status = ItemStatus.Registered;
+        else if (item.status == ItemStatus.ClearingRequested)
+            item.status = ItemStatus.Absent;
+        else
+            revert("Item in wrong status for executing request.");
+
+        item.lastAction = now;
+        item.balance = 0;
+        item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+
+        emit ItemStatusChange(item.submitter, address(0), _tokenID, item.status, false);
     }
 
     // ************************ //
