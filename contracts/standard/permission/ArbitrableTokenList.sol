@@ -88,6 +88,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @dev Constructs the arbitrable token list.
      *  @param _arbitrator The chosen arbitrator.
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
+     *  @param _metaEvidence The URI of the meta evidence object.
      *  @param _governor The governor of this contract.
      *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition to the arbitration fees.
@@ -96,6 +97,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
+        string _metaEvidence,
         address _governor,
         uint _arbitrationFeesWaitingTime,
         uint _challengeReward,
@@ -105,17 +107,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         timeToChallenge = _timeToChallenge;
         governor = _governor;
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
-    }
-
-    /* Public Views */
-
-    /** @dev Return true if the item is allowed. We consider the item to be in the list if its status is contested and it has not won a dispute previously.
-     *  @param _tokenID The tokenID of the item to check.
-     *  @return allowed True if the item is allowed, false otherwise.
-     */
-    function isPermitted(bytes32 _tokenID) public view returns (bool allowed) {
-        Item storage item = items[_tokenID];
-        return item.status == ItemStatus.Registered || item.status == ItemStatus.ClearingRequested;
+        emit MetaEvidence(0, _metaEvidence);
     }
 
 }
