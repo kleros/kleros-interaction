@@ -30,9 +30,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     enum Party {
+        None,
         Requester,
-        Challenger,
-        None
+        Challenger
     }
 
     /* Structs */
@@ -42,12 +42,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint lastAction; // Time of the last action.
         uint balance; // The amount of funds placed at stake for this item. Does not include arbitrationFees.
         uint challengeReward; // The challengeReward of the item for the round.
-        bytes32 latestAgreementID; // The ID of the latest agreement for the item.
+        address submitter; // Address of the submitter of the item status change request, if any.
+        address challenger; // Address of the challenger, if any.
+        bool disputed; // True if a dispute is taking place.
+        uint disputeID; // ID of the dispute, if any.
     }
 
     /* Modifiers */
 
-    modifier onlyT2CLGovernor {require(msg.sender == t2clGovernor, "The caller is not the t2cl governor."); _;}
+    modifier onlyGovernor {require(msg.sender == governor, "The caller is not the governor."); _;}
 
     /* Events */
 
@@ -73,14 +76,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     uint public challengeReward; // The stake deposit required in addition to arbitration fees for challenging a request.
     uint public timeToChallenge; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees if the dispute is raised.
-    address public t2clGovernor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
+    address public governor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
 
     // Items
     mapping(bytes32 => Item) public items;
     bytes32[] public itemsList;
-
-    // Agreement and Item Extension
-    mapping(bytes32 => bytes32) public agreementIDToItemID;
 
     /* Constructor */
 
@@ -88,7 +88,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @dev Constructs the arbitrable token list.
      *  @param _arbitrator The chosen arbitrator.
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
-     *  @param _t2clGovernor The t2clGovernor address. This address can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
+     *  @param _governor The governor of this contract.
      *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition to the arbitration fees.
      *  @param _timeToChallenge The time in seconds, parties have to challenge.
@@ -96,14 +96,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        address _t2clGovernor,
+        address _governor,
         uint _arbitrationFeesWaitingTime,
         uint _challengeReward,
         uint _timeToChallenge
     ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
         challengeReward = _challengeReward;
         timeToChallenge = _timeToChallenge;
-        t2clGovernor = _t2clGovernor;
+        governor = _governor;
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
     }
 
