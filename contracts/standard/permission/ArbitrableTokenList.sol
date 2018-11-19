@@ -110,4 +110,36 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit MetaEvidence(0, _metaEvidence);
     }
 
+    // ************************ //
+    // *      Governance      * //
+    // ************************ //
+
+    /** @dev Changes the `timeToChallenge` storage variable.
+     *  @param _timeToChallenge The new `timeToChallenge` storage variable.
+     */
+    function changeTimeToChallenge(uint _timeToChallenge) external onlyGovernor {
+        timeToChallenge = _timeToChallenge;
+    }
+
+    /** @dev Changes the `challengeReward` storage variable.
+     *  @param _challengeReward The new `challengeReward` storage variable.
+     */
+    function changeChallengeReward(uint _challengeReward) external onlyGovernor {
+        challengeReward = _challengeReward;
+    }
+
+    /** @dev Changes the `governor` storage variable.
+     *  @param _governor The new `governor` storage variable.
+     */
+    function changeGovernor(address _governor) external onlyGovernor {
+        governor = _governor;
+    }
+
+    /** @dev Changes the `arbitrationFeesWaitingTime` storage variable.
+     *  @param _arbitrationFeesWaitingTime The new `_arbitrationFeesWaitingTime` storage variable.
+     */
+    function changeArbitrationFeesWaitingTime(uint _arbitrationFeesWaitingTime) external onlyGovernor {
+        arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
+    }
+
 }
