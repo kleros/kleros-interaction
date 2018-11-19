@@ -139,7 +139,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit ItemStatusChange(msg.sender, address(0), _tokenID, item.status, false);
     }
 
-     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
+    /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _tokenID The tokenID of the item with the request to execute.
      */
     function executeRequest(bytes32 _tokenID) external {
@@ -248,9 +248,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @return The values of the items found and wether there are more items for the current filter and sort.
      */
     function queryItems(
-        bytes32 _cursor, 
-        uint _count, 
-        bool[8] _filter, 
+        bytes32 _cursor,
+        uint _count,
+        bool[8] _filter,
         bool _oldestFirst
     ) external view returns (bytes32[] values, bool hasMore) {
         uint _cursorIndex;
