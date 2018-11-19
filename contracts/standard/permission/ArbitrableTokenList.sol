@@ -179,4 +179,72 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             else if (item.status == ItemStatus.ClearingRequested) clearingRequested++;
         }
     }
+
+    /** @dev Return the values of the items the query finds. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+     *  @param _cursor The pagination cursor.
+     *  @param _count The number of items to return.
+     *  @param _filter The filter to use. Each element of the array in sequence means:
+     *  - Include absent items in result.
+     *  - Include registered items in result.
+     *  - Include items with registration requests that are not disputed in result.
+     *  - Include items with clearing requests that are not disputed in result.
+     *  - Include disputed items with registration requests in result.
+     *  - Include disputed items with clearing requests in result.
+     *  - Include items submitted by the caller.
+     *  - Include items challenged by the caller.
+     *  @param _oldestFirst The sort order to use.
+     *  @return The values of the items found and wether there are more items for the current filter and sort.
+     */
+    function queryItems(
+        bytes32 _cursor, 
+        uint _count, 
+        bool[8] _filter, 
+        bool _oldestFirst
+    ) external view returns (bytes32[] values, bool hasMore) {
+        uint _cursorIndex;
+        values = new bytes32[](_count);
+        uint _index = 0;
+
+        if (_cursor == 0)
+            _cursorIndex = 0;
+        else {
+            for (uint j = 0; j < itemsList.length; j++) {
+                if (itemsList[j] == _cursor) {
+                    _cursorIndex = j;
+                    break;
+                }
+            }
+            require(_cursorIndex != 0, "The cursor is invalid.");
+        }
+
+        for (
+                uint i = _cursorIndex == 0 ? (_oldestFirst ? 0 : 1) : (_oldestFirst ? _cursorIndex + 1 : itemsList.length - _cursorIndex + 1);
+                _oldestFirst ? i < itemsList.length : i <= itemsList.length;
+                i++
+            ) { // Oldest or newest first.
+            bytes32 itemID = itemsList[_oldestFirst ? i : itemsList.length - i];
+            Item storage item = items[itemID];
+            if (
+                    /* solium-disable operator-whitespace */
+                    (_filter[0] && item.status == ItemStatus.Absent) ||
+                    (_filter[1] && item.status == ItemStatus.Registered) ||
+                    (_filter[2] && item.status == ItemStatus.RegistrationRequested && !item.disputed) ||
+                    (_filter[3] && item.status == ItemStatus.ClearingRequested && !item.disputed) ||
+                    (_filter[4] && item.status == ItemStatus.RegistrationRequested && item.disputed) ||
+                    (_filter[5] && item.status == ItemStatus.ClearingRequested && item.disputed) ||
+                    (_filter[6] && item.submitter == msg.sender) || // My Submissions.
+                    (_filter[7] && item.challenger == msg.sender) // My Challenges.
+                    /* solium-enable operator-whitespace */
+            ) {
+                if (_index < _count) {
+                    values[_index] = itemsList[_oldestFirst ? i : itemsList.length - i];
+                    _index++;
+                } else {
+                    hasMore = true;
+                    break;
+                }
+            }
+        }
+    }
+
 }
