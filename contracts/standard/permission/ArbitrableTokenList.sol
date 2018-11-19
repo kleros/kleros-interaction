@@ -142,4 +142,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
     }
 
+    /* Public Views */
+
+    /** @dev Return true if the item is allowed. We consider the item to be in the list if its status is contested and it has not won a dispute previously.
+     *  @param _tokenID The tokenID of the item to check.
+     *  @return allowed True if the item is allowed, false otherwise.
+     */
+    function isPermitted(bytes32 _tokenID) public view returns (bool allowed) {
+        Item storage item = items[_tokenID];
+        return item.status == ItemStatus.Registered || item.status == ItemStatus.ClearingRequested;
+    }
 }
