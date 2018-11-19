@@ -44,6 +44,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint challengeReward; // The challengeReward of the item for the round.
         address submitter; // Address of the submitter of the item status change request, if any.
         address challenger; // Address of the challenger, if any.
+        uint submitterFees; // The amount of fees paid for the submitter side.
+        uint challengerFees; // The amount of fees papid for the challenger side.
         bool disputed; // True if a dispute is taking place.
         uint disputeID; // ID of the dispute, if any.
     }
@@ -69,6 +71,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         ItemStatus status,
         bool disputed
     );
+
+    /** @dev Emitted when a contribution is made.
+     *  @param _tokenID The ID of the token that the contribution was made to.
+     *  @param _contributor The address that sent the contribution.
+     *  @param _value The value of the contribution.
+     */
+    event Contribution(bytes32 indexed _tokenID, address indexed _contributor, uint _value);
 
     /* Storage */
 
@@ -160,6 +169,33 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
         emit ItemStatusChange(item.submitter, address(0), _tokenID, item.status, false);
+    }
+
+    /** @dev Challenge and fully fund challenger side of the dispute.
+     *  @param _tokenID The tokenID of the item with the request to execute.
+     */
+    function fundedChallenge(bytes32 _tokenID) external payable {
+        Item storage item = items[_tokenID];
+        require(item.submitter != address(0), "The specified item does not exist.");
+        require(
+            !item.disputed || arbitrator.disputeStatus(item.disputeID) == Arbitrator.DisputeStatus.Appealable,
+            "The agreement is already disputed and is not appealable."
+        );
+        require(
+            item.status == ItemStatus.RegistrationRequested || item.status == ItemStatus.ClearingRequested,
+            "Item does not have any pending requests"
+        );
+        require(
+            msg.value >= item.challengeReward + arbitrator.arbitrationCost(new bytes(0)),
+            "Not enough ETH."
+        );
+
+        item.balance += item.challengeReward;
+        item.challengerFees = msg.value - item.challengeReward;
+        item.challenger = msg.sender;
+        item.lastAction = now;
+
+        emit Contribution(_tokenID, msg.sender, item.challengerFees);
     }
 
     // ************************ //
