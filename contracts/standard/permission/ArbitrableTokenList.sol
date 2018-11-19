@@ -17,13 +17,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Enums */
 
     enum ItemStatus {
-        Absent, // The item has never been submitted.
-        Cleared, // The item has been submitted and the dispute resolution process determined it should not be added or a clearing request has been submitted and the dispute resolution process determined it should be cleared or the clearing was never contested.
-        Resubmitted, // The item has been cleared but someone has resubmitted it.
-        Registered, // The item has been submitted and the dispute resolution process determined it should be added or the submission was never contested.
-        Submitted, // The item has been submitted.
-        ClearingRequested, // The item is registered, but someone has requested to remove it.
-        PreventiveClearingRequested // The item has never been registered, but someone asked to clear it preemptively to avoid it being shown as not registered during the dispute resolution process.
+        Absent, // The item is not on the list.
+        Registered, // The item is on the list.
+        RegistrationRequested, // The item has a request to be added to the list.
+        ClearingRequested // The item has a request to be removed from the list.
     }
 
     enum RulingOption {
