@@ -31,7 +31,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     enum Party {
         None,
-        Requester,
+        Submitter,
         Challenger
     }
 
@@ -89,6 +89,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     // Items
     mapping(bytes32 => Item) public items;
+    mapping(uint => bytes32) public disputeIDToItem;
     bytes32[] public itemsList;
 
     /* Constructor */
@@ -163,7 +164,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             "Item does not have any pending requests"
         );
         require(
-            msg.value >= item.challengeReward + arbitrator.arbitrationCost(new bytes(0)),
+            msg.value >= item.challengeReward + (arbitrator.arbitrationCost(arbitratorExtraData) / 2),
             "Not enough ETH."
         );
 
@@ -173,6 +174,34 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         item.lastAction = now;
 
         emit Contribution(_tokenID, msg.sender, item.challengerFees);
+    }
+
+    /** @dev Fund a side of the dispute.
+     *  @param _tokenID The tokenID of the item with the request to execute.
+     *  @param _party The side to fund fees. 0 for the submitter and 1 for the challenger.
+     */
+    function fundDispute(bytes32 _tokenID, Party _party) public payable {
+        require(_party == Party.Submitter || _party == Party.Challenger, "Invalid party selection");
+        Item storage item = items[_tokenID];
+        require(item.submitter != address(0), "The specified item does not exist.");
+        require(item.balance == item.challengeReward * 2, "Both sides must have staked ETH.");
+        require(
+            item.status == ItemStatus.RegistrationRequested || item.status == ItemStatus.ClearingRequested,
+            "Item does not have any pending requests"
+        );
+
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        uint costForSide = arbitrationCost / 2;
+        if (_party == Party.Submitter)
+            item.submitterFees += msg.value;
+        else
+            item.challengerFees += msg.value;
+
+        if (item.submitterFees >= costForSide && item.challengerFees >= costForSide) {
+            item.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToItem[item.disputeID] = _tokenID;
+            item.disputed = true;
+        }
     }
 
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
@@ -192,8 +221,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             revert("Item in wrong status for executing request.");
 
         item.lastAction = now;
-        item.balance = 0;
         item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        item.balance = 0;
 
         emit ItemStatusChange(item.submitter, address(0), _tokenID, item.status, false);
     }
