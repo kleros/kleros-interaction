@@ -69,7 +69,7 @@ contract('ArbitrableTokenList', function(accounts) {
     )
   }
 
-  describe.skip('governance', async () => {
+  describe('governance', async () => {
     beforeEach(async () => {
       await deployArbitrators()
       await deployArbitrableTokenList(appealableArbitrator)
