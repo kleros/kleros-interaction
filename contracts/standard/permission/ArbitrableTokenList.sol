@@ -313,7 +313,46 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        // TODO
+        bytes32 tokenID = disputeIDToTokenID[_disputeID];
+        Token storage token = tokens[tokenID];
+        Party winner;
+        if (_ruling == uint(RulingOption.Accept))
+            winner = Party.Requester;
+        else if (_ruling == uint(RulingOption.Refuse))
+            winner = Party.Challenger;
+
+        // Update token state
+        if(winner == Party.Requester)
+            // Execute Request
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Registered;
+            else
+                token.status = TokenStatus.Absent;
+        else
+            // Revert to previous state.
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Absent;
+            else if (token.status == TokenStatus.ClearingRequested)
+                token.status = TokenStatus.Registered;
+
+        // Send token balance and reimburse fees.
+        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        if(winner == Party.Challenger)
+            token.parties[uint(Party.Challenger)].send(token.challengeReward + token.paidFees[uint(Party.Challenger)]);
+        else if(winner == Party.Requester)
+            token.parties[uint(Party.Requester)].send(token.challengeReward + token.paidFees[uint(Party.Requester)]);
+        else {
+            // Reimburse parties.
+            token.parties[uint(Party.Requester)].send(token.challengeReward + token.paidFees[uint(Party.Requester)]);
+            token.parties[uint(Party.Challenger)].send(token.challengeReward + token.paidFees[uint(Party.Challenger)]);
+        }
+
+
+        token.lastAction = now;
+        token.challengeRewardBalance = 0;
+        token.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
+
+        emit TokenStatusChange(token.parties[uint(Party.Requester)], token.parties[uint(Party.Challenger)], tokenID, token.status, token.disputed);
     }
 
     /* Interface Views */
