@@ -265,9 +265,20 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _tokenID The tokenID of the item to check.
      *  @return allowed True if the item is allowed, false otherwise.
      */
-    function isPermitted(bytes32 _tokenID) public view returns (bool allowed) {
+    function isPermitted(bytes32 _tokenID) external view returns (bool allowed) {
         Item storage item = items[_tokenID];
         return item.status == ItemStatus.Registered || item.status == ItemStatus.ClearingRequested;
+    }
+
+    /* Internal */
+
+    /**
+     *  @dev Execute the ruling of a dispute.
+     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
+     */
+    function executeRuling(uint _disputeID, uint _ruling) internal {
+        // TODO
     }
 
     /* Interface Views */
