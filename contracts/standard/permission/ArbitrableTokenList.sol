@@ -229,7 +229,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function executeRequest(bytes32 _tokenID) external {
         Token storage token = tokens[_tokenID];
         require(token.lastAction + timeToChallenge > now, "The time to challenge has not passed yet.");
-        require(token.parties[uint(Party.Requester)]!= address(0), "The specified agreement does not exist.");
         require(!token.disputed, "The specified agreement is disputed.");
 
         if (token.status == TokenStatus.RegistrationRequested)
