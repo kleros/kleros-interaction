@@ -40,7 +40,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     struct Token {
         TokenStatus status; // Status of the item.
         uint lastAction; // Time of the last action.
-        uint balance; // The amount of funds placed at stake for this item. Does not include arbitrationFees.
+        uint challengeRewardBalance; // The amount of funds placed at stake for this item. Does not include arbitrationFees.
         uint challengeReward; // The challengeReward of the item for the round.
         address submitter; // Address of the submitter of the item status change request, if any.
         address challenger; // Address of the challenger, if any.
@@ -148,7 +148,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         else
             revert("Token in wrong status for request.");
 
-        item.balance = msg.value;
+        item.challengeRewardBalance = msg.value;
         item.lastAction = now;
         item.submitter = msg.sender;
 
@@ -178,7 +178,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             "Not enough ETH."
         );
 
-        item.balance += item.challengeReward;
+        item.challengeRewardBalance += item.challengeReward;
         item.challengerFees = msg.value - item.challengeReward;
         item.challenger = msg.sender;
         item.lastAction = now;
@@ -194,7 +194,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         require(_party == Party.Submitter || _party == Party.Challenger, "Invalid party selection");
         Token storage item = items[_tokenID];
         require(item.submitter != address(0), "The specified item does not exist.");
-        require(item.balance == item.challengeReward * 2, "Both sides must have staked ETH.");
+        require(item.challengeRewardBalance == item.challengeReward * 2, "Both sides must have staked ETH.");
+        require(!item.disputed, "Item is already disputed");
         require(
             item.status == TokenStatus.RegistrationRequested || item.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
@@ -230,8 +231,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             revert("Token in wrong status for executing request.");
 
         item.lastAction = now;
-        item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        item.balance = 0;
+        item.submitter.send(item.challengeRewardBalance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        item.challengeRewardBalance = 0;
 
         emit TokenStatusChange(item.submitter, address(0), _tokenID, item.status, false);
     }
