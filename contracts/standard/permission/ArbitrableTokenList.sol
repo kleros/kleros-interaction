@@ -17,10 +17,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Enums */
 
     enum TokenStatus {
-        Absent, // The item is not on the list.
-        Registered, // The item is on the list.
-        RegistrationRequested, // The item has a request to be added to the list.
-        ClearingRequested // The item has a request to be removed from the list.
+        Absent, // The token is not on the list.
+        Registered, // The token is on the list.
+        RegistrationRequested, // The token has a request to be added to the list.
+        ClearingRequested // The token has a request to be removed from the list.
     }
 
     enum RulingOption {
@@ -38,11 +38,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Structs */
 
     struct Token {
-        TokenStatus status; // Status of the item.
+        TokenStatus status; // Status of the token.
         uint lastAction; // Time of the last action.
-        uint challengeRewardBalance; // The amount of funds placed at stake for this item. Does not include arbitrationFees.
-        uint challengeReward; // The challengeReward of the item for the round.
-        address submitter; // Address of the submitter of the item status change request, if any.
+        uint challengeRewardBalance; // The amount of funds placed at stake for this token. Does not include arbitrationFees.
+        uint challengeReward; // The challengeReward of the token for the round.
+        address submitter; // Address of the submitter of the token status change request, if any.
         address challenger; // Address of the challenger, if any.
         uint submitterFees; // The amount of fees paid for the submitter side.
         uint challengerFees; // The amount of fees paid for the challenger side.
@@ -60,12 +60,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Events */
 
     /**
-     *  @dev Called when the item's status changes or when it is challenged/resolved.
+     *  @dev Called when the token's status changes or when it is challenged/resolved.
      *  @param requester Address of the requester.
      *  @param challenger Address of the challenger, if any.
-     *  @param tokenID The tokenID of the item.
-     *  @param status The status of the item.
-     *  @param disputed Wether the item is being disputed.
+     *  @param tokenID The tokenID of the token.
+     *  @param status The status of the token.
+     *  @param disputed Wether the token is being disputed.
      */
     event TokenStatusChange(
         address indexed requester,
@@ -92,9 +92,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     address public governor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
 
     // Tokens
-    mapping(bytes32 => Token) public items;
+    mapping(bytes32 => Token) public tokens;
     mapping(uint => bytes32) public disputeIDToTokenID;
-    bytes32[] public itemsList;
+    bytes32[] public tokensList;
 
     /* Constructor */
 
@@ -133,117 +133,117 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // *       Requests       * //
     // ************************ //
 
-    /** @dev Submits a request to change the item status.
+    /** @dev Submits a request to change the token status.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      */
     function requestStatusChange(bytes32 _tokenID) external payable {
-        Token storage item = items[_tokenID];
+        Token storage token = tokens[_tokenID];
         require(msg.value >= challengeReward, "Not enough ETH.");
-        require(!item.disputed, "Token must not be disputed for submitting status change request");
+        require(!token.disputed, "Token must not be disputed for submitting status change request");
 
-        if (item.status == TokenStatus.Absent)
-            item.status = TokenStatus.RegistrationRequested;
-        else if (item.status == TokenStatus.Registered)
-            item.status = TokenStatus.ClearingRequested;
+        if (token.status == TokenStatus.Absent)
+            token.status = TokenStatus.RegistrationRequested;
+        else if (token.status == TokenStatus.Registered)
+            token.status = TokenStatus.ClearingRequested;
         else
             revert("Token in wrong status for request.");
 
-        item.challengeRewardBalance = msg.value;
-        item.lastAction = now;
-        item.submitter = msg.sender;
+        token.challengeRewardBalance = msg.value;
+        token.lastAction = now;
+        token.submitter = msg.sender;
 
-        item.challengeReward = challengeReward;
-        item.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
-        item.timeToChallenge = timeToChallenge;
+        token.challengeReward = challengeReward;
+        token.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
+        token.timeToChallenge = timeToChallenge;
 
-        emit TokenStatusChange(msg.sender, address(0), _tokenID, item.status, false);
+        emit TokenStatusChange(msg.sender, address(0), _tokenID, token.status, false);
     }
 
     /** @dev Challenge and fully fund challenger side of the dispute.
-     *  @param _tokenID The tokenID of the item with the request to execute.
+     *  @param _tokenID The tokenID of the token with the request to execute.
      */
     function fundedChallenge(bytes32 _tokenID) external payable {
-        Token storage item = items[_tokenID];
-        require(item.submitter != address(0), "The specified item does not exist.");
+        Token storage token = tokens[_tokenID];
+        require(token.submitter != address(0), "The specified token does not exist.");
         require(
-            !item.disputed || arbitrator.disputeStatus(item.disputeID) == Arbitrator.DisputeStatus.Appealable,
+            !token.disputed || arbitrator.disputeStatus(token.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The agreement is already disputed and is not appealable."
         );
         require(
-            item.status == TokenStatus.RegistrationRequested || item.status == TokenStatus.ClearingRequested,
+            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
         require(
-            msg.value >= item.challengeReward + arbitrator.arbitrationCost(arbitratorExtraData),
+            msg.value >= token.challengeReward + arbitrator.arbitrationCost(arbitratorExtraData),
             "Not enough ETH."
         );
 
-        item.challengeRewardBalance += item.challengeReward;
-        item.challengerFees = msg.value - item.challengeReward;
-        item.challenger = msg.sender;
-        item.lastAction = now;
+        token.challengeRewardBalance += token.challengeReward;
+        token.challengerFees = msg.value - token.challengeReward;
+        token.challenger = msg.sender;
+        token.lastAction = now;
 
-        emit Contribution(_tokenID, msg.sender, item.challengerFees);
+        emit Contribution(_tokenID, msg.sender, token.challengerFees);
     }
 
     /** @dev Fund a side of the dispute.
-     *  @param _tokenID The tokenID of the item with the request to execute.
+     *  @param _tokenID The tokenID of the token with the request to execute.
      *  @param _party The side to fund fees. 1 for the submitter and 2 for the challenger.
      */
     function fundDispute(bytes32 _tokenID, Party _party) public payable {
         require(_party == Party.Submitter || _party == Party.Challenger, "Invalid party selection");
-        Token storage item = items[_tokenID];
-        require(item.submitter != address(0), "The specified item does not exist.");
-        require(item.challengeRewardBalance == item.challengeReward * 2, "Both sides must have staked ETH.");
-        require(!item.disputed, "Item is already disputed");
+        Token storage token = tokens[_tokenID];
+        require(token.submitter != address(0), "The specified token does not exist.");
+        require(token.challengeRewardBalance == token.challengeReward * 2, "Both sides must have staked ETH.");
+        require(!token.disputed, "Token is already disputed");
         require(
-            item.status == TokenStatus.RegistrationRequested || item.status == TokenStatus.ClearingRequested,
+            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         if (_party == Party.Submitter)
-            item.submitterFees += msg.value;
+            token.submitterFees += msg.value;
         else
-            item.challengerFees += msg.value;
+            token.challengerFees += msg.value;
 
-        if (item.submitterFees >= arbitrationCost && item.challengerFees >= arbitrationCost) {
-            item.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
-            disputeIDToTokenID[item.disputeID] = _tokenID;
-            item.disputed = true;
+        if (token.submitterFees >= arbitrationCost && token.challengerFees >= arbitrationCost) {
+            token.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToTokenID[token.disputeID] = _tokenID;
+            token.disputed = true;
         }
     }
 
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
-     *  @param _tokenID The tokenID of the item with the request to execute.
+     *  @param _tokenID The tokenID of the token with the request to execute.
      */
     function executeRequest(bytes32 _tokenID) external {
-        Token storage item = items[_tokenID];
-        require(now - item.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
-        require(item.submitter != address(0), "The specified agreement does not exist.");
-        require(!item.disputed, "The specified agreement is disputed.");
+        Token storage token = tokens[_tokenID];
+        require(now - token.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
+        require(token.submitter != address(0), "The specified agreement does not exist.");
+        require(!token.disputed, "The specified agreement is disputed.");
 
-        if (item.status == TokenStatus.RegistrationRequested)
-            item.status = TokenStatus.Registered;
-        else if (item.status == TokenStatus.ClearingRequested)
-            item.status = TokenStatus.Absent;
+        if (token.status == TokenStatus.RegistrationRequested)
+            token.status = TokenStatus.Registered;
+        else if (token.status == TokenStatus.ClearingRequested)
+            token.status = TokenStatus.Absent;
         else
             revert("Token in wrong status for executing request.");
 
-        item.lastAction = now;
-        item.submitter.send(item.challengeRewardBalance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        item.challengeRewardBalance = 0;
+        token.lastAction = now;
+        token.submitter.send(token.challengeRewardBalance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        token.challengeRewardBalance = 0;
 
-        emit TokenStatusChange(item.submitter, address(0), _tokenID, item.status, false);
+        emit TokenStatusChange(token.submitter, address(0), _tokenID, token.status, false);
     }
 
     /** @dev Submit a reference to evidence. EVENT.
      *  @param _evidence A link to an evidence using its URI.
      */
     function submitEvidence(bytes32 _tokenID, string _evidence) public {
-        Token storage item = items[_tokenID];
-        require(item.disputed, "The item is not disputed");
-        emit Evidence(arbitrator, item.disputeID, msg.sender, _evidence);
+        Token storage token = tokens[_tokenID];
+        require(token.disputed, "The token is not disputed");
+        emit Evidence(arbitrator, token.disputeID, msg.sender, _evidence);
     }
 
     // ************************ //
@@ -287,13 +287,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Public Views */
 
-    /** @dev Return true if the item is allowed. We consider the item to be in the list if its status is contested and it has not won a dispute previously.
-     *  @param _tokenID The tokenID of the item to check.
-     *  @return allowed True if the item is allowed, false otherwise.
+    /** @dev Return true if the token is allowed. We consider the token to be in the list if its status is contested and it has not won a dispute previously.
+     *  @param _tokenID The tokenID of the token to check.
+     *  @return allowed True if the token is allowed, false otherwise.
      */
     function isPermitted(bytes32 _tokenID) external view returns (bool allowed) {
-        Token storage item = items[_tokenID];
-        return item.status == TokenStatus.Registered || item.status == TokenStatus.ClearingRequested;
+        Token storage token = tokens[_tokenID];
+        return token.status == TokenStatus.Registered || token.status == TokenStatus.ClearingRequested;
     }
 
     /* Internal */
@@ -309,10 +309,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Interface Views */
 
-    /** @dev Return the numbers of items in the list per status. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
-     *  @return The numbers of items in the list per status.
+    /** @dev Return the numbers of tokens in the list per status. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+     *  @return The numbers of tokens in the list per status.
      */
-    function itemsCounts()
+    function tokensCounts()
         external
         view
         returns (
@@ -323,31 +323,31 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             uint clearingRequested
         )
     {
-        for (uint i = 0; i < itemsList.length; i++) {
-            Token storage item = items[itemsList[i]];
+        for (uint i = 0; i < tokensList.length; i++) {
+            Token storage token = tokens[tokensList[i]];
 
-            if (item.disputed) disputed++;
-            if (item.status == TokenStatus.Absent) absent++;
-            else if (item.status == TokenStatus.Registered) registered++;
-            else if (item.status == TokenStatus.RegistrationRequested) submitted++;
-            else if (item.status == TokenStatus.ClearingRequested) clearingRequested++;
+            if (token.disputed) disputed++;
+            if (token.status == TokenStatus.Absent) absent++;
+            else if (token.status == TokenStatus.Registered) registered++;
+            else if (token.status == TokenStatus.RegistrationRequested) submitted++;
+            else if (token.status == TokenStatus.ClearingRequested) clearingRequested++;
         }
     }
 
-    /** @dev Return the values of the items the query finds. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+    /** @dev Return the values of the tokens the query finds. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @param _cursor The pagination cursor.
-     *  @param _count The number of items to return.
+     *  @param _count The number of tokens to return.
      *  @param _filter The filter to use. Each element of the array in sequence means:
-     *  - Include absent items in result.
-     *  - Include registered items in result.
-     *  - Include items with registration requests that are not disputed in result.
-     *  - Include items with clearing requests that are not disputed in result.
-     *  - Include disputed items with registration requests in result.
-     *  - Include disputed items with clearing requests in result.
-     *  - Include items submitted by the caller.
-     *  - Include items challenged by the caller.
+     *  - Include absent tokens in result.
+     *  - Include registered tokens in result.
+     *  - Include tokens with registration requests that are not disputed in result.
+     *  - Include tokens with clearing requests that are not disputed in result.
+     *  - Include disputed tokens with registration requests in result.
+     *  - Include disputed tokens with clearing requests in result.
+     *  - Include tokens submitted by the caller.
+     *  - Include tokens challenged by the caller.
      *  @param _oldestFirst The sort order to use.
-     *  @return The values of the items found and wether there are more items for the current filter and sort.
+     *  @return The values of the tokens found and wether there are more tokens for the current filter and sort.
      */
     function queryTokens(
         bytes32 _cursor,
@@ -362,8 +362,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (_cursor == 0)
             _cursorIndex = 0;
         else {
-            for (uint j = 0; j < itemsList.length; j++) {
-                if (itemsList[j] == _cursor) {
+            for (uint j = 0; j < tokensList.length; j++) {
+                if (tokensList[j] == _cursor) {
                     _cursorIndex = j;
                     break;
                 }
@@ -372,26 +372,26 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
 
         for (
-                uint i = _cursorIndex == 0 ? (_oldestFirst ? 0 : 1) : (_oldestFirst ? _cursorIndex + 1 : itemsList.length - _cursorIndex + 1);
-                _oldestFirst ? i < itemsList.length : i <= itemsList.length;
+                uint i = _cursorIndex == 0 ? (_oldestFirst ? 0 : 1) : (_oldestFirst ? _cursorIndex + 1 : tokensList.length - _cursorIndex + 1);
+                _oldestFirst ? i < tokensList.length : i <= tokensList.length;
                 i++
             ) { // Oldest or newest first.
-            bytes32 itemID = itemsList[_oldestFirst ? i : itemsList.length - i];
-            Token storage item = items[itemID];
+            bytes32 tokenID = tokensList[_oldestFirst ? i : tokensList.length - i];
+            Token storage token = tokens[tokenID];
             if (
                     /* solium-disable operator-whitespace */
-                    (_filter[0] && item.status == TokenStatus.Absent) ||
-                    (_filter[1] && item.status == TokenStatus.Registered) ||
-                    (_filter[2] && item.status == TokenStatus.RegistrationRequested && !item.disputed) ||
-                    (_filter[3] && item.status == TokenStatus.ClearingRequested && !item.disputed) ||
-                    (_filter[4] && item.status == TokenStatus.RegistrationRequested && item.disputed) ||
-                    (_filter[5] && item.status == TokenStatus.ClearingRequested && item.disputed) ||
-                    (_filter[6] && item.submitter == msg.sender) || // My Submissions.
-                    (_filter[7] && item.challenger == msg.sender) // My Challenges.
+                    (_filter[0] && token.status == TokenStatus.Absent) ||
+                    (_filter[1] && token.status == TokenStatus.Registered) ||
+                    (_filter[2] && token.status == TokenStatus.RegistrationRequested && !token.disputed) ||
+                    (_filter[3] && token.status == TokenStatus.ClearingRequested && !token.disputed) ||
+                    (_filter[4] && token.status == TokenStatus.RegistrationRequested && token.disputed) ||
+                    (_filter[5] && token.status == TokenStatus.ClearingRequested && token.disputed) ||
+                    (_filter[6] && token.submitter == msg.sender) || // My Submissions.
+                    (_filter[7] && token.challenger == msg.sender) // My Challenges.
                     /* solium-enable operator-whitespace */
             ) {
                 if (_index < _count) {
-                    values[_index] = itemsList[_oldestFirst ? i : itemsList.length - i];
+                    values[_index] = tokensList[_oldestFirst ? i : tokensList.length - i];
                     _index++;
                 } else {
                     hasMore = true;
