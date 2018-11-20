@@ -38,7 +38,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Structs */
 
     struct Token {
-        TokenStatus status; // Status of the token.
+        TokenStatus status;
+        string name;
+        address addr;
+        string ticker;
         uint lastAction; // Time of the last action.
         uint challengeRewardBalance; // The amount of funds placed at stake for this token. Does not include arbitrationFees.
         uint challengeReward; // The challengeReward of the token for the round.
@@ -135,11 +138,25 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /** @dev Submits a request to change the token status.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
+     *  @param _name The name of the token.
+     *  @param _ticker The token ticker.
+     *  @param _addr The token address.
      */
-    function requestStatusChange(bytes32 _tokenID) external payable {
+    function requestStatusChange(
+        bytes32 _tokenID,
+        string _name,
+        string _ticker,
+        address _addr
+    ) external payable {
         Token storage token = tokens[_tokenID];
         require(msg.value >= challengeReward, "Not enough ETH.");
         require(!token.disputed, "Token must not be disputed for submitting status change request");
+
+        if(token.lastAction == 0) { // Initial token registration
+            token.name = _name;
+            token.ticker = _ticker;
+            token.addr = _addr;
+        }
 
         if (token.status == TokenStatus.Absent)
             token.status = TokenStatus.RegistrationRequested;
