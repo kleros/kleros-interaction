@@ -88,6 +88,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     uint public challengeReward; // The stake deposit required in addition to arbitration fees for challenging a request.
     uint public timeToChallenge; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees if the dispute is raised.
+    uint public stake; // The stake parameter for arbitration fees crowdfunding.
     address public governor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
 
     // Tokens
@@ -106,6 +107,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition to the arbitration fees.
      *  @param _timeToChallenge The time in seconds, parties have to challenge.
+     *  @param _stake The stake parameter for sharing fees.
      */
     constructor(
         Arbitrator _arbitrator,
@@ -114,12 +116,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         address _governor,
         uint _arbitrationFeesWaitingTime,
         uint _challengeReward,
-        uint _timeToChallenge
+        uint _timeToChallenge,
+        uint _stake
     ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
         challengeReward = _challengeReward;
         timeToChallenge = _timeToChallenge;
         governor = _governor;
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
+        stake = _stake;
         emit MetaEvidence(0, _metaEvidence);
     }
 
@@ -264,6 +268,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function changeGovernor(address _governor) external onlyGovernor {
         governor = _governor;
+    }
+
+    /** @dev Changes the `stake` storage variable.
+     *  @param _stake The new `stake` storage variable.
+     */
+    function changeStake(uint _stake) public onlyGovernor {
+        stake = _stake;
     }
 
     /** @dev Changes the `arbitrationFeesWaitingTime` storage variable.

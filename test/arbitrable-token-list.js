@@ -18,11 +18,12 @@ contract('ArbitrableTokenList', function(accounts) {
   const partyB = accounts[8]
   const arbitratorExtraData = 0x08575
   const challengeReward = 10 ** 10
-  const arbitrationPrice = 100
+  const arbitrationPrice = 101
+  const feeStake = 101
   const timeToChallenge = 0
   const metaEvidence = 'evidence'
-  const arbitrationFeesWaitingTime = 1000
-  const appealPeriodDuration = 1000
+  const arbitrationFeesWaitingTime = 1001
+  const appealPeriodDuration = 1001
 
   let appealableArbitrator
   let enhancedAppealableArbitrator
@@ -65,7 +66,8 @@ contract('ArbitrableTokenList', function(accounts) {
       governor, // governor
       arbitrationFeesWaitingTime,
       challengeReward,
-      timeToChallenge
+      timeToChallenge,
+      feeStake
     )
   }
 
