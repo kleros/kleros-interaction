@@ -227,6 +227,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit ItemStatusChange(item.submitter, address(0), _tokenID, item.status, false);
     }
 
+    /** @dev Submit a reference to evidence. EVENT.
+     *  @param _evidence A link to an evidence using its URI.
+     */
+    function submitEvidence(bytes32 _tokenID, string _evidence) public {
+        Item storage item = items[_tokenID];
+        require(item.disputed, "The item is not disputed");
+        emit Evidence(arbitrator,item.disputeID,msg.sender,_evidence);
+    }
+
     // ************************ //
     // *      Governance      * //
     // ************************ //
