@@ -48,6 +48,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint challengerFees; // The amount of fees paid for the challenger side.
         bool disputed; // True if a dispute is taking place.
         uint disputeID; // ID of the dispute, if any.
+        uint firstContributionTime; // The time the first contribution was made at.
+        uint arbitrationFeesWaitingTime; // The waiting time for fees for each round.
+        uint timeToChallenge; // The time to challenge for each round.
     }
 
     /* Modifiers */
@@ -143,8 +146,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         item.balance = msg.value;
         item.lastAction = now;
-        item.challengeReward = challengeReward; // Set the challengeReward for this request.
         item.submitter = msg.sender;
+
+        item.challengeReward = challengeReward;
+        item.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
+        item.timeToChallenge = timeToChallenge;
 
         emit TokenStatusChange(msg.sender, address(0), _tokenID, item.status, false);
     }
@@ -232,7 +238,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function submitEvidence(bytes32 _tokenID, string _evidence) public {
         Token storage item = items[_tokenID];
         require(item.disputed, "The item is not disputed");
-        emit Evidence(arbitrator,item.disputeID,msg.sender,_evidence);
+        emit Evidence(arbitrator, item.disputeID, msg.sender, _evidence);
     }
 
     // ************************ //
