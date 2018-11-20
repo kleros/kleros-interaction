@@ -178,7 +178,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /** @dev Fund a side of the dispute.
      *  @param _tokenID The tokenID of the item with the request to execute.
-     *  @param _party The side to fund fees. 0 for the submitter and 1 for the challenger.
+     *  @param _party The side to fund fees. 1 for the submitter and 2 for the challenger.
      */
     function fundDispute(bytes32 _tokenID, Party _party) public payable {
         require(_party == Party.Submitter || _party == Party.Challenger, "Invalid party selection");
