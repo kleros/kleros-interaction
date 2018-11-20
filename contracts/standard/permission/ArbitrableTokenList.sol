@@ -164,7 +164,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             "Item does not have any pending requests"
         );
         require(
-            msg.value >= item.challengeReward + (arbitrator.arbitrationCost(arbitratorExtraData) / 2),
+            msg.value >= item.challengeReward + arbitrator.arbitrationCost(arbitratorExtraData),
             "Not enough ETH."
         );
 
@@ -191,13 +191,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint costForSide = arbitrationCost / 2;
         if (_party == Party.Submitter)
             item.submitterFees += msg.value;
         else
             item.challengerFees += msg.value;
 
-        if (item.submitterFees >= costForSide && item.challengerFees >= costForSide) {
+        if (item.submitterFees >= arbitrationCost && item.challengerFees >= arbitrationCost) {
             item.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _tokenID;
             item.disputed = true;
