@@ -75,32 +75,28 @@ contract('ArbitrableTokenList', function(accounts) {
       await deployArbitrableTokenList(appealableArbitrator)
     })
 
-    describe('caller is t2clGovernor', () => {
+    describe('caller is governor', () => {
       beforeEach(async () => {
         assert.notEqual(
           partyB,
-          t2clGovernor,
-          'partyB and t2clGovernor should be different for this test'
+          governor,
+          'partyB and governor should be different for this test'
         )
       })
 
-      it('should update t2clGovernor', async () => {
-        const challengeRewardBefore = await arbitrableTokenList.t2clGovernor()
-        await arbitrableTokenList.changeT2CLGovernor(partyB, {
-          from: t2clGovernor
+      it('should update governor', async () => {
+        const challengeRewardBefore = await arbitrableTokenList.governor()
+        await arbitrableTokenList.changeGovernor(partyB, {
+          from: governor
         })
 
-        const challengeRewardAfter = await arbitrableTokenList.t2clGovernor()
+        const challengeRewardAfter = await arbitrableTokenList.governor()
         assert.notEqual(
           challengeRewardAfter,
           challengeRewardBefore,
-          't2clGovernor should have changed'
+          'governor should have changed'
         )
-        assert.equal(
-          challengeRewardAfter,
-          partyB,
-          't2clGovernor should be partyB'
-        )
+        assert.equal(challengeRewardAfter, partyB, 'governor should be partyB')
       })
 
       it('should update challengeReward', async () => {
@@ -108,7 +104,7 @@ contract('ArbitrableTokenList', function(accounts) {
         const newChallengeReward = challengeRewardBefore.toNumber() + 1000
 
         await arbitrableTokenList.changeChallengeReward(newChallengeReward, {
-          from: t2clGovernor
+          from: governor
         })
 
         const challengeRewardAfter = await arbitrableTokenList.challengeReward()
@@ -132,7 +128,7 @@ contract('ArbitrableTokenList', function(accounts) {
         await arbitrableTokenList.changeArbitrationFeesWaitingTime(
           newarbitrationFeesWaitingTime,
           {
-            from: t2clGovernor
+            from: governor
           }
         )
 
@@ -154,7 +150,7 @@ contract('ArbitrableTokenList', function(accounts) {
         const newTimeToChallenge = timeToChallengeBefore.toNumber() + 1000
 
         await arbitrableTokenList.changeTimeToChallenge(newTimeToChallenge, {
-          from: t2clGovernor
+          from: governor
         })
 
         const timeToChallengeAfter = await arbitrableTokenList.timeToChallenge()
@@ -171,34 +167,30 @@ contract('ArbitrableTokenList', function(accounts) {
       })
     })
 
-    describe('caller is not t2clGovernor', () => {
+    describe('caller is not governor', () => {
       beforeEach(async () => {
         assert.notEqual(
           partyA,
-          t2clGovernor,
-          'partyA and t2clGovernor should be different for this test'
+          governor,
+          'partyA and governor should be different for this test'
         )
       })
 
-      it('should not update t2clGovernor', async () => {
-        const t2clGovernorBefore = await arbitrableTokenList.t2clGovernor()
+      it('should not update governor', async () => {
+        const governorBefore = await arbitrableTokenList.governor()
         await expectThrow(
-          arbitrableTokenList.changeT2CLGovernor(partyB, {
+          arbitrableTokenList.changeGovernor(partyB, {
             from: partyB
           })
         )
 
-        const t2clGovernorAfter = await arbitrableTokenList.t2clGovernor()
+        const governorAfter = await arbitrableTokenList.governor()
         assert.equal(
-          t2clGovernorAfter,
-          t2clGovernorBefore,
-          't2clGovernor should not have changed'
+          governorAfter,
+          governorBefore,
+          'governor should not have changed'
         )
-        assert.notEqual(
-          t2clGovernorAfter,
-          partyB,
-          't2clGovernor should not be partyB'
-        )
+        assert.notEqual(governorAfter, partyB, 'governor should not be partyB')
       })
 
       it('should not update challengeReward', async () => {
