@@ -181,7 +181,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function fullyFundChallenger(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(token.parties[uint(Party.Requester)] != address(0), "The specified token does not exist.");
+        require(token.lastAction == 0, "The specified token does not exist.");
         require(!token.disputed, "The token is already disputed");
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
@@ -205,7 +205,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function fullyFundRequester(bytes32 _tokenID) public payable {
         require(msg.value == arbitrationCost, "Not enough ETH.");
         Token storage token = tokens[_tokenID];
-        require(token.parties[uint(Party.Requester)] != address(0), "The specified token does not exist.");
+        require(token.lastAction == 0, "The specified token does not exist.");
         require(token.challengeRewardBalance == token.challengeReward * 2, "Both sides must have staked ETH.");
         require(!token.disputed, "The token is already disputed");
         require(
