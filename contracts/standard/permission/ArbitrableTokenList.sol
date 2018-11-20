@@ -322,14 +322,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             winner = Party.Challenger;
 
         // Update token state
-        if(winner == Party.Requester)
-            // Execute Request
+        if(winner == Party.Requester) // Execute Request
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Registered;
             else
                 token.status = TokenStatus.Absent;
-        else
-            // Revert to previous state.
+        else // Revert to previous state.
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Absent;
             else if (token.status == TokenStatus.ClearingRequested)
@@ -347,10 +345,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.parties[uint(Party.Challenger)].send(token.challengeReward + token.paidFees[uint(Party.Challenger)]);
         }
 
-
         token.lastAction = now;
         token.challengeRewardBalance = 0;
-        token.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
+        token.paidFees[uint(Party.Requester)] = 0;
+        token.paidFees[uint(Party.Challenger)] = 0;
+        token.challengeReward = 0; // Reset challengeReward once a dispute is resolved.
 
         emit TokenStatusChange(token.parties[uint(Party.Requester)], token.parties[uint(Party.Challenger)], tokenID, token.status, token.disputed);
     }
