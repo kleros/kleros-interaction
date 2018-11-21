@@ -10,9 +10,11 @@ pragma solidity ^0.4.18;
 import "../ERC721.sol";
 import "./ClockAuctionBase.sol";
 import "openzeppelin-solidity/contracts/lifecycle/Pausable.sol";
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
+
 
 /// @title Clock auction for non-fungible tokens.
-contract ClockAuction is Pausable, ClockAuctionBase {
+contract ClockAuction is Pausable, Ownable, ClockAuctionBase {
 
     /// @dev Constructor creates a reference to the NFT ownership contract
     ///  and verifies the owner cut is in the valid range.
