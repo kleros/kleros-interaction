@@ -78,7 +78,6 @@ contract CentralizedArbitrator is Arbitrator {
             status: DisputeStatus.Waiting
             })) - 1; // Create the dispute and return its number.
         emit DisputeCreation(disputeID, Arbitrable(msg.sender));
-        return disputeID;
     }
 
     /** @dev Give a ruling. UNTRUSTED.
