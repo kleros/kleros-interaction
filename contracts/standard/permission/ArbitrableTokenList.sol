@@ -37,23 +37,37 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Structs */
 
+    // Array of party balances have 3 elements to map with the Party enum for better readability:
+    // - 0 is unused, matches Party.None.
+    // - 1 for Party.Requester
+    // - 2 for Party.Challenger
+
     struct Token {
         TokenStatus status;
         string name;
         address addr;
         string ticker;
         uint lastAction; // Time of the last action.
-        uint challengeRewardBalance; // The amount of funds placed at stake for this token. Does not include arbitrationFees.
-        uint challengeReward; // The challengeReward of the token for the round.
+        Request[] requests;
+    }
+
+    struct Request {
         bool disputed; // True if a dispute is taking place.
         uint disputeID; // ID of the dispute, if any.
         uint firstContributionTime; // The time the first contribution was made at.
         uint arbitrationFeesWaitingTime; // The waiting time for fees for each round.
         uint timeToChallenge; // The time to challenge for each round.
-
-        // Positions map with the Party enum, 1 for requester and 2 for challenger. Position 0 is Party.None, not used.
+        uint challengeRewardBalance; // The amount of funds placed at stake for this token.
+        uint challengeReward; // The challengeReward of the token for the round.
+        uint requiredFeeStake; // The required stake.
+        uint[3] paidFeeStake; // The stake paid by each side, if any.
         address[3] parties; // Address of requester and challenger, if any.
-        uint[3] paidFees; // The amount of fees paid by each side if there, if any.
+        Round[] rounds; // Tracks fees for each round of dispute and appeals.
+    }
+
+    struct Round {
+        uint[3] paidFees; // The amount of fees paid for each side, if any.
+        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
 
     /* Modifiers */
@@ -84,6 +98,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _value The value of the contribution.
      */
     event Contribution(bytes32 indexed _tokenID, address indexed _contributor, uint _value);
+
+    // TODO: Add event for challengeRequested
 
     /* Storage */
 
@@ -148,15 +164,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         string _ticker,
         address _addr
     ) external payable {
+        require(msg.value == challengeReward, "Not enough ETH.");
         Token storage token = tokens[_tokenID];
-        require(msg.value >= challengeReward, "Not enough ETH.");
-        require(!token.disputed, "Token must not be disputed for submitting status change request");
-
-        if(token.lastAction == 0) { // Initial token registration
+        if(token.requests.length == 0) {
+            // Initial token registration
             token.name = _name;
             token.ticker = _ticker;
             token.addr = _addr;
-        }
+        } else
+            require(
+                !token.requests[token.requests.length - 1].disputed,
+                "Token must not be disputed for submitting status change request"
+            );
 
         if (token.status == TokenStatus.Absent)
             token.status = TokenStatus.RegistrationRequested;
@@ -165,61 +184,105 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         else
             revert("Token in wrong status for request.");
 
-        token.challengeRewardBalance = msg.value;
-        token.lastAction = now;
-        token.parties[uint(Party.Requester)] = msg.sender;
+        token.requests.length++;
 
-        token.challengeReward = challengeReward;
-        token.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
-        token.timeToChallenge = timeToChallenge;
+        Request storage request = token.requests[token.requests.length - 1];
+        request.challengeReward = challengeReward;
+        request.challengeRewardBalance = msg.value;
+        request.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
+        request.requiredFeeStake = stake;
+        request.timeToChallenge = timeToChallenge;
+        request.parties[uint(Party.Requester)] = msg.sender;
+
+        token.lastAction = now;
 
         emit TokenStatusChange(msg.sender, address(0), _tokenID, token.status, false);
     }
 
-    /** @dev Fully fund the challenger side of the dispute.
+    /** @dev Challenge a request for a token.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
-    function fullyFundChallenger(bytes32 _tokenID) external payable {
+    function challengeRequest(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction == 0, "The specified token does not exist.");
-        require(!token.disputed, "The token is already disputed");
+        require(token.lastAction + request.timeToChallenge < now, "The time to challenge has already passed.");
+        require(!request.disputed, "The token is already disputed");
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
+        require(token.requests.length == 0, "The specified token does not exist.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(request.challengeRewardBalance == request.challengeReward, "There isn't a pending request for this token.");
         require(
-            msg.value == token.challengeReward + arbitrator.arbitrationCost(arbitratorExtraData),
+            msg.value >= request.challengeReward + request.requiredFeeStake,
             "Not enough ETH."
         );
-        require(token.lastAction + timeToChallenge < now, "The time to challenge has already passed.");
+        require(
+            request.paidFeeStake[uint(Party.Challenger)] >= request.requiredFeeStake && request.challengeRewardBalance == request.challengeReward,
+            "There is already funded pending challenge request"
+        );
 
-        token.challengeRewardBalance = token.challengeReward;
-        token.paidFees[uint(Party.Challenger)] = token.challengeReward;
-        token.parties[uint(Party.Challenger)]= msg.sender;
+        request.parties[uint(Party.Challenger)] = msg.sender;
+        request.challengeRewardBalance += request.challengeReward;
+        request.paidFeeStake[uint(Party.Challenger)] = request.requiredFeeStake;
+        uint remainingETH = msg.value - request.challengeReward - request.requiredFeeStake;
+
+        request.rounds.length++;
+        Round storage round = request.rounds[request.rounds.length - 1];
+
+        if(remainingETH > 0) {
+            round.paidFees[uint(Party.Challenger)] = remainingETH;
+            round.contributions[msg.sender][uint(Party.Challenger)] += remainingETH;
+            request.firstContributionTime = now;
+            emit Contribution(_tokenID, msg.sender, remainingETH);
+        }
+
         token.lastAction = now;
     }
 
-    /** @dev Fully fund the requester side of the dispute.
+    /** @dev Fund the requester side of the dispute. Contributes to fee stake first, then to the crowdfunding.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
-    function fullyFundRequester(bytes32 _tokenID) public payable {
-        require(msg.value == arbitrationCost, "Not enough ETH.");
+    function fundRequester(bytes32 _tokenID) public payable {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction == 0, "The specified token does not exist.");
-        require(token.challengeRewardBalance == token.challengeReward * 2, "Both sides must have staked ETH.");
-        require(!token.disputed, "The token is already disputed");
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        token.paidFees[uint(Party.Requester)] += msg.value;
+        require(token.requests.length == 0, "The specified token does not exist.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(!request.disputed, "The token is already disputed");
+        require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
+        require(msg.value >= request.requiredFeeStake, "Not enough ETH.");
+        require(request.paidFeeStake[uint(Party.Challenger)] == request.requiredFeeStake, "Fee stake already funded.");
+
+        Round storage round = request.rounds[request.rounds.length - 1];
+        uint remainingETH = msg.value;
+        if(request.paidFeeStake[uint(Party.Challenger)] <= request.requiredFeeStake)
+            (request.paidFeeStake[uint(Party.Challenger)], remainingETH) =
+                calculateContribution(remainingETH, request.requiredFeeStake);
+
+        if(remainingETH > 0) {
+            round.paidFees[uint(Party.Challenger)] = remainingETH;
+            round.contributions[msg.sender][uint(Party.Challenger)] += remainingETH;
+            request.firstContributionTime = now;
+            emit Contribution(_tokenID, msg.sender, remainingETH);
+        }
+
         token.lastAction = now;
 
-        if (token.paidFees[uint(Party.Requester)] >= arbitrationCost && token.paidFees[uint(Party.Challenger)] >= arbitrationCost) {
-            token.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
-            disputeIDToTokenID[token.disputeID] = _tokenID;
-            token.disputed = true;
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        if (round.paidFees[uint(Party.Requester)] >= arbitrationCost && round.paidFees[uint(Party.Challenger)] >= arbitrationCost) {
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToTokenID[request.disputeID] = _tokenID;
+            request.disputed = true;
+            emit TokenStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _tokenID,
+                token.status,
+                request.disputed
+            );
         }
     }
 
@@ -228,8 +291,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function executeRequest(bytes32 _tokenID) external {
         Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[token.requests.length - 1];
         require(token.lastAction + timeToChallenge > now, "The time to challenge has not passed yet.");
-        require(!token.disputed, "The specified agreement is disputed.");
+        require(!request.disputed, "The specified agreement is disputed.");
 
         if (token.status == TokenStatus.RegistrationRequested)
             token.status = TokenStatus.Registered;
@@ -239,10 +303,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             revert("Token in wrong status for executing request.");
 
         token.lastAction = now;
-        token.parties[uint(Party.Requester)].send(token.challengeRewardBalance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        token.challengeRewardBalance = 0;
+        request.parties[uint(Party.Requester)].send(request.challengeRewardBalance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        request.challengeRewardBalance = 0;
 
-        emit TokenStatusChange(token.parties[uint(Party.Requester)], address(0), _tokenID, token.status, false);
+        emit TokenStatusChange(request.parties[uint(Party.Requester)], address(0), _tokenID, token.status, false);
     }
 
     /** @dev Submit a reference to evidence. EVENT.
@@ -250,8 +314,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function submitEvidence(bytes32 _tokenID, string _evidence) public {
         Token storage token = tokens[_tokenID];
-        require(token.disputed, "The token is not disputed");
-        emit Evidence(arbitrator, token.disputeID, msg.sender, _evidence);
+        Request storage request = token.requests[token.requests.length - 1];
+        require(request.disputed, "The request is not disputed");
+        emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
     }
 
     // ************************ //
@@ -332,26 +397,28 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             else if (token.status == TokenStatus.ClearingRequested)
                 token.status = TokenStatus.Registered;
 
+        Request storage request = token.requests[token.requests.length - 1];
+        Round storage round = request.rounds[request.rounds.length - 1];
         // Send token balance and reimburse fees.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
         if(winner == Party.Challenger)
-            token.parties[uint(Party.Challenger)].send(token.challengeReward + token.paidFees[uint(Party.Challenger)]);
+            request.parties[uint(Party.Challenger)].send(request.challengeReward + round.paidFees[uint(Party.Challenger)]);
         else if(winner == Party.Requester)
-            token.parties[uint(Party.Requester)].send(token.challengeReward + token.paidFees[uint(Party.Requester)]);
+            request.parties[uint(Party.Requester)].send(request.challengeReward + round.paidFees[uint(Party.Requester)]);
         else {
             // Reimburse parties.
-            token.parties[uint(Party.Requester)].send(token.challengeReward + token.paidFees[uint(Party.Requester)]);
-            token.parties[uint(Party.Challenger)].send(token.challengeReward + token.paidFees[uint(Party.Challenger)]);
+            request.parties[uint(Party.Requester)].send(request.challengeReward + round.paidFees[uint(Party.Requester)]);
+            request.parties[uint(Party.Challenger)].send(request.challengeReward + round.paidFees[uint(Party.Challenger)]);
         }
 
         token.lastAction = now;
-        token.disputed = false;
-        token.challengeRewardBalance = 0;
-        token.paidFees[uint(Party.Requester)] = 0;
-        token.paidFees[uint(Party.Challenger)] = 0;
-        token.challengeReward = 0; // Reset challengeReward once a dispute is resolved.
+        request.disputed = false;
+        request.challengeRewardBalance = 0;
+        round.paidFees[uint(Party.Requester)] = 0;
+        round.paidFees[uint(Party.Challenger)] = 0;
+        request.challengeReward = 0; // Reset challengeReward once a dispute is resolved.
 
-        emit TokenStatusChange(token.parties[uint(Party.Requester)], token.parties[uint(Party.Challenger)], tokenID, token.status, token.disputed);
+        emit TokenStatusChange(request.parties[uint(Party.Requester)], request.parties[uint(Party.Challenger)], tokenID, token.status, request.disputed);
     }
 
     /* Interface Views */
@@ -372,8 +439,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     {
         for (uint i = 0; i < tokensList.length; i++) {
             Token storage token = tokens[tokensList[i]];
+            Request storage request = token.requests[token.requests.length - 1];
 
-            if (token.disputed) disputed++;
+            if (request.disputed) disputed++;
             if (token.status == TokenStatus.Absent) absent++;
             else if (token.status == TokenStatus.Registered) registered++;
             else if (token.status == TokenStatus.RegistrationRequested) submitted++;
@@ -425,16 +493,17 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             ) { // Oldest or newest first.
             bytes32 tokenID = tokensList[_oldestFirst ? i : tokensList.length - i];
             Token storage token = tokens[tokenID];
+            Request storage request = token.requests[token.requests.length - 1];
             if (
                     /* solium-disable operator-whitespace */
                     (_filter[0] && token.status == TokenStatus.Absent) ||
                     (_filter[1] && token.status == TokenStatus.Registered) ||
-                    (_filter[2] && token.status == TokenStatus.RegistrationRequested && !token.disputed) ||
-                    (_filter[3] && token.status == TokenStatus.ClearingRequested && !token.disputed) ||
-                    (_filter[4] && token.status == TokenStatus.RegistrationRequested && token.disputed) ||
-                    (_filter[5] && token.status == TokenStatus.ClearingRequested && token.disputed) ||
-                    (_filter[6] && token.parties[uint(Party.Requester)]== msg.sender) || // My Submissions.
-                    (_filter[7] && token.parties[uint(Party.Challenger)]== msg.sender) // My Challenges.
+                    (_filter[2] && token.status == TokenStatus.RegistrationRequested && !request.disputed) ||
+                    (_filter[3] && token.status == TokenStatus.ClearingRequested && !request.disputed) ||
+                    (_filter[4] && token.status == TokenStatus.RegistrationRequested && request.disputed) ||
+                    (_filter[5] && token.status == TokenStatus.ClearingRequested && request.disputed) ||
+                    (_filter[6] && request.parties[uint(Party.Requester)]== msg.sender) || // My Submissions.
+                    (_filter[7] && request.parties[uint(Party.Challenger)]== msg.sender) // My Challenges.
                     /* solium-enable operator-whitespace */
             ) {
                 if (_index < _count) {
@@ -446,6 +515,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 }
             }
         }
+    }
+
+    function calculateContribution(uint available, uint requiredAmount) public view returns(uint, uint remainder) {
+        if(available < requiredAmount)
+            return (available, 0);
+
+        remainder = available - requiredAmount;
+        return (requiredAmount, remainder);
     }
 
 }
