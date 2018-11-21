@@ -39,7 +39,7 @@ contract ClockAuction is Pausable, Ownable, ClockAuctionBase {
         address nftAddress = address(nonFungibleContract);
 
         require(
-            msg.sender == owner ||
+            msg.sender == owner() ||
             msg.sender == nftAddress
         );
         nftAddress.transfer(this.balance);
