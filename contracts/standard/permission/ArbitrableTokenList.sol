@@ -202,7 +202,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /** @dev Challenge a request for a token.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
-    function challengeRequest(bytes32 _tokenID) external payable {
+    function fundChallenger(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
         require(token.lastAction + request.timeToChallenge < now, "The time to challenge has already passed.");
         require(!request.disputed, "The token is already disputed");
@@ -243,7 +243,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /** @dev Fund the requester side of the dispute. Contributes to fee stake first, then to the crowdfunding.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
-    function fundRequester(bytes32 _tokenID) public payable {
+    function fundRequester(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
