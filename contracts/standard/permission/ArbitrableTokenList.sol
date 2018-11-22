@@ -444,13 +444,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Send token balance and reimburse fees.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
         if(winner == Party.Challenger)
-            request.parties[uint(Party.Challenger)].send(request.challengeReward + round.paidFees[uint(Party.Challenger)]);
+            request.parties[uint(Party.Challenger)].send(request.challengeReward * 2);
         else if(winner == Party.Requester)
-            request.parties[uint(Party.Requester)].send(request.challengeReward + round.paidFees[uint(Party.Requester)]);
+            request.parties[uint(Party.Requester)].send(request.challengeReward * 2);
         else {
             // Reimburse parties.
-            request.parties[uint(Party.Requester)].send(request.challengeReward + round.paidFees[uint(Party.Requester)]);
-            request.parties[uint(Party.Challenger)].send(request.challengeReward + round.paidFees[uint(Party.Challenger)]);
+            request.parties[uint(Party.Requester)].send(request.challengeReward);
+            request.parties[uint(Party.Challenger)].send(request.challengeReward);
         }
 
         token.lastAction = now;
