@@ -340,12 +340,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint appealPeriodDuration = appealPeriodEnd - appealPeriodStart;
         require(now < appealPeriodStart + (appealPeriodDuration / 2), "Appeal period for funding the losing side ended.");
 
+        // Calculate the amount required.
         uint remainingETH = msg.value;
         uint appealCost = arbitrator.appealCost(request.disputeID, arbitratorExtraData);
-
         Round storage round = request.rounds[request.rounds.length - 1];
         uint totalRequiredFees = appealCost + (2 * round.requiredFeeStake);
 
+        //The the contribution, if any.
         if (totalRequiredFees > round.paidFees[uint(losingSide)]) {
             uint amountStillRequired = totalRequiredFees - round.paidFees[uint(losingSide)];
             uint amountKept;
@@ -606,7 +607,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @return The amount of ETH left from the contribution.
      */
     function calculateContribution(uint _available, uint _requiredAmount)
-        public
+        internal
         pure
         returns(uint, uint remainder)
     {
