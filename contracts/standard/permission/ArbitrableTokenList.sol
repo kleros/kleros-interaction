@@ -200,6 +200,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.challengeReward = challengeReward;
         request.challengeRewardBalance += challengeReward;
 
+        // Setup first round.
         request.rounds.length++;
         Round storage round = request.rounds[request.rounds.length - 1];
         round.requiredFeeStake = stake;
@@ -525,7 +526,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Public Views */
 
-    /** @dev Return true if the token is allowed. We consider the token to be in the list if its status is contested and it has not won a dispute previously.
+    /** @dev Return true if the token is on the list.
      *  @param _tokenID The tokenID of the token to check.
      *  @return allowed True if the token is allowed, false otherwise.
      */
@@ -588,6 +589,63 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.parties[uint(Party.Challenger)],
             tokenID, token.status, request.disputed
         );
+    }
+
+     /** @dev Returns the contribution value and remainder from available ETH and required amount.
+     *  @param _available The amount of ETH available for the contribution.
+     *  @param _requiredAmount The amount of ETH required for the contribution.
+     *  @return The amount of ETH taken.
+     *  @return The amount of ETH left from the contribution.
+     */
+    function calculateContribution(uint _available, uint _requiredAmount)
+        internal
+        pure
+        returns(uint, uint remainder)
+    {
+        if(_requiredAmount > _available)
+            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
+
+        remainder = _available - _requiredAmount;
+        return (_requiredAmount, remainder);
+    }
+
+    /** @dev Returns the amount of fees a the winner of a dispute must pay to fully fund his side of an appeal.
+     *  @param _amountPaidByLoser The amount of fees the loser paid to fund the appeal.
+     *  @param _requiredFeeStake The required fee stake for the round.
+     *  @param _appealCost The current appeal cost.
+     *  @return The amount of fees a the winner of a dispute must pay to fully fund his side of an appeal.
+     */
+    function calculateWinnerRequiredFees(
+        uint _amountPaidByLoser,
+        uint _requiredFeeStake,
+        uint _appealCost
+    )
+        internal
+        pure
+        returns (uint)
+    {
+        uint expectedValue = _amountPaidByLoser - _requiredFeeStake;
+        return _appealCost > _amountPaidByLoser + expectedValue
+            ? _appealCost - _amountPaidByLoser
+            : expectedValue;
+    }
+
+    /** @dev Returns the winner and loser based on the ruling.
+     *  @param _ruling The ruling given by an arbitrator.
+     *  @return The party that won the dispute.
+     *  @return The party that lost the dispute.
+     */
+    function returnWinnerAndLoser(uint _ruling) internal pure returns (Party winner, Party loser) {
+        RulingOption ruling = RulingOption(_ruling);
+        require(ruling != RulingOption.Other, "There isn't a winner or loser if the arbitrator refused to rule.");
+
+        if (ruling == RulingOption.Accept) {
+            winner = Party.Requester;
+            loser = Party.Challenger;
+        } else {
+            winner = Party.Challenger;
+            loser = Party.Requester;
+        }
     }
 
     /* Interface Views */
@@ -682,63 +740,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                     break;
                 }
             }
-        }
-    }
-
-    /** @dev Returns the contribution value and remainder from available ETH and required amount.
-     *  @param _available The amount of ETH available for the contribution.
-     *  @param _requiredAmount The amount of ETH required for the contribution.
-     *  @return The amount of ETH taken.
-     *  @return The amount of ETH left from the contribution.
-     */
-    function calculateContribution(uint _available, uint _requiredAmount)
-        internal
-        pure
-        returns(uint, uint remainder)
-    {
-        if(_requiredAmount > _available)
-            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
-
-        remainder = _available - _requiredAmount;
-        return (_requiredAmount, remainder);
-    }
-
-    /** @dev Returns the amount of fees a the winner of a dispute must pay to fully fund his side of an appeal.
-     *  @param _amountPaidByLoser The amount of fees the loser paid to fund the appeal.
-     *  @param _requiredFeeStake The required fee stake for the round.
-     *  @param _appealCost The current appeal cost.
-     *  @return The amount of fees a the winner of a dispute must pay to fully fund his side of an appeal.
-     */
-    function calculateWinnerRequiredFees(
-        uint _amountPaidByLoser,
-        uint _requiredFeeStake,
-        uint _appealCost
-    )
-        internal
-        pure
-        returns (uint)
-    {
-        uint expectedValue = _amountPaidByLoser - _requiredFeeStake;
-        return _appealCost > _amountPaidByLoser + expectedValue
-            ? _appealCost - _amountPaidByLoser
-            : expectedValue;
-    }
-
-    /** @dev Returns the winner and loser based on the ruling.
-     *  @param _ruling The ruling given by an arbitrator.
-     *  @return The party that won the dispute.
-     *  @return The party that lost the dispute.
-     */
-    function returnWinnerAndLoser(uint _ruling) internal pure returns (Party winner, Party loser) {
-        RulingOption ruling = RulingOption(_ruling);
-        require(ruling != RulingOption.Other, "There isn't a winner or loser if the arbitrator refused to rule.");
-
-        if (ruling == RulingOption.Accept) {
-            winner = Party.Requester;
-            loser = Party.Challenger;
-        } else {
-            winner = Party.Challenger;
-            loser = Party.Requester;
         }
     }
 
