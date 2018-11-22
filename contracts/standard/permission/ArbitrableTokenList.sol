@@ -181,6 +181,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 "Token must not be disputed for submitting status change request"
             );
 
+        // Update token status.
         if (token.status == TokenStatus.Absent)
             token.status = TokenStatus.RegistrationRequested;
         else if (token.status == TokenStatus.Registered)
@@ -188,20 +189,20 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         else
             revert("Token in wrong status for request.");
 
+        // Setup request.
         token.requests.length++;
-
         Request storage request = token.requests[token.requests.length - 1];
-
-        request.challengeReward = challengeReward;
-        request.challengeRewardBalance = msg.value;
         request.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
         request.timeToChallenge = timeToChallenge;
         request.parties[uint(Party.Requester)] = msg.sender;
 
+        // Place deposit.
+        request.challengeReward = challengeReward;
+        request.challengeRewardBalance += challengeReward;
+
         request.rounds.length++;
         Round storage round = request.rounds[request.rounds.length - 1];
         round.requiredFeeStake = stake;
-
         token.lastAction = now;
 
         emit TokenStatusChange(msg.sender, address(0), _tokenID, token.status, false);
@@ -222,34 +223,46 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         require(token.lastAction + request.timeToChallenge < now, "The time to challenge has already passed.");
         require(request.challengeRewardBalance >= request.challengeReward, "There isn't a pending request for this token.");
 
-        request.parties[uint(Party.Challenger)] = msg.sender;
         Round storage round = request.rounds[request.rounds.length - 1];
         uint remainingETH = msg.value;
 
         // Check if caller is starting the challenge.
         if(request.challengeRewardBalance == request.challengeReward) { // This means the token only has the requester's deposit.
-            // Caller is starting the challenge, take deposit.
+            // Caller is starting the challenge.
             require(msg.value >= request.challengeReward, "Not enough ETH. Party starting dispute must place a deposit.");
+
+            // Take the deposit.
+            request.parties[uint(Party.Challenger)] = msg.sender;
             (, remainingETH) = calculateContribution(remainingETH, request.challengeReward);
             request.challengeRewardBalance += request.challengeReward;
-            request.firstContributionTime = now;
+
             emit ChallengeDepositPlaced(_tokenID, msg.sender);
+
+            token.lastAction = now;
         }
 
-        // Take contributions, if any.
+        // Calculate the amount of fees required.
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         uint totalAmountRequired = arbitrationCost + round.requiredFeeStake;
+
+        // Take contributions, if any.
+        // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
         if(remainingETH > 0 && round.paidFees[uint(Party.Challenger)] < totalAmountRequired) {
+
+            if(round.paidFees[uint(Party.Challenger)] == 0)
+                request.firstContributionTime = now; // This is the first contribution.
+
             uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Challenger)];
             uint contribution;
             (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
             round.paidFees[uint(Party.Challenger)] += contribution;
             round.contributions[msg.sender][uint(Party.Challenger)] += contribution;
+            emit Contribution(_tokenID, msg.sender, contribution);
 
             // Refund remaining ETH.
             msg.sender.transfer(remainingETH);
 
-            emit Contribution(_tokenID, msg.sender, contribution);
+            token.lastAction = now;
         }
 
         // Raise dispute if both sides are fully funded.
@@ -257,9 +270,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
-            request.rounds.length++;
-            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
-
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
                 request.parties[uint(Party.Challenger)],
@@ -267,9 +277,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 token.status,
                 request.disputed
             );
-        }
 
-        token.lastAction = now;
+            //Prepare for next round.
+            request.rounds.length++;
+            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
+
+            token.lastAction = now;
+        }
     }
 
     /** @dev Fund the requester side of the dispute.
@@ -287,33 +301,32 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
         Round storage round = request.rounds[request.rounds.length - 1];
 
-        // Take contribution, if any.
+        // Calculate amount required.
         uint remainingETH = msg.value;
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         uint totalAmountRequired = arbitrationCost + round.requiredFeeStake;
+
+        // Take contribution, if any.
+        // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
         if(remainingETH > 0 && round.paidFees[uint(Party.Requester)] < totalAmountRequired) {
             uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Requester)];
             uint contribution;
             (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
             round.paidFees[uint(Party.Requester)] += contribution;
             round.contributions[msg.sender][uint(Party.Requester)] += contribution;
+            emit Contribution(_tokenID, msg.sender, contribution);
 
             // Refund remaining ETH.
             msg.sender.transfer(remainingETH);
 
-            emit Contribution(_tokenID, msg.sender, contribution);
+            token.lastAction = now;
         }
-
-        token.lastAction = now;
 
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired && round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
             request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
-            request.rounds.length++;
-            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
-
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
                 request.parties[uint(Party.Challenger)],
@@ -321,6 +334,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 token.status,
                 request.disputed
             );
+
+            //Prepare for next round.
+            request.rounds.length++;
+            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
+
+            token.lastAction = now;
         }
     }
 
@@ -352,7 +371,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint totalRequiredFees = appealCost + (2 * round.requiredFeeStake);
 
         //The the contribution, if any.
-        if (totalRequiredFees > round.paidFees[uint(losingSide)]) {
+        // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
+        if (remainingETH > 0 && totalRequiredFees > round.paidFees[uint(losingSide)]) {
             uint amountStillRequired = totalRequiredFees - round.paidFees[uint(losingSide)];
             uint amountKept;
             (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
@@ -363,8 +383,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             if (round.paidFees[uint(losingSide)] >= totalRequiredFees)
                 round.loserFullyFunded = true;
 
-            token.lastAction = now;
             if (remainingETH > 0) msg.sender.transfer(remainingETH);
+
+            token.lastAction = now;
         }
     }
 
@@ -403,7 +424,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
 
         // Take the contribution, if any.
-        if (totalRequiredFees > round.paidFees[uint(winningSide)]) {
+        // Necessary to check that msg.value > 0, otherwise caller can set lastAction without making a contribution.
+        if (msg.value > 0 && totalRequiredFees > round.paidFees[uint(winningSide)]) {
             uint remainingETH = msg.value;
             uint amountStillRequired = totalRequiredFees - round.paidFees[uint(winningSide)];
             uint amountKept;
@@ -412,13 +434,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.contributions[msg.sender][uint(winningSide)] += amountKept;
             emit Contribution(_tokenID, msg.sender, amountKept);
 
-            tokens[_tokenID].lastAction = now;
             if (remainingETH > 0) msg.sender.transfer(remainingETH);
+            tokens[_tokenID].lastAction = now;
         }
 
         // Raise appeal if both sides are fully funded.
-        if (round.paidFees[uint(winningSide)] >= totalRequiredFees)
+        if (round.paidFees[uint(winningSide)] >= totalRequiredFees) {
             arbitrator.appeal.value(arbitrator.appealCost(request.disputeID, arbitratorExtraData))(request.disputeID, arbitratorExtraData);
+
+            //Prepare for next round.
+            request.rounds.length++;
+            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
+        }
     }
 
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
@@ -438,11 +465,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         else
             revert("Token in wrong status for executing request.");
 
-        token.lastAction = now;
-
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
         request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
         request.challengeRewardBalance = 0;
+
+        token.lastAction = now;
 
         emit TokenStatusChange(request.parties[uint(Party.Requester)], address(0), _tokenID, token.status, false);
     }
@@ -537,7 +564,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
-        // Send token balance and reimburse fees.
+        // Send token balance.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
         if(winner == Party.Challenger)
             request.parties[uint(Party.Challenger)].send(request.challengeReward * 2);
@@ -670,7 +697,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         returns(uint, uint remainder)
     {
         if(_requiredAmount > _available)
-            return (_available, 0); // Take whatever is available.
+            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
 
         remainder = _available - _requiredAmount;
         return (_requiredAmount, remainder);
