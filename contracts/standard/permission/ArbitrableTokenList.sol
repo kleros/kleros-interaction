@@ -326,6 +326,41 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
+    function fundAppealLosingSide(bytes32 _tokenID) external payable {
+        Token storage token = tokens[_tokenID];
+        require(token.requests.length == 0, "The specified token does not exist.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(
+            arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
+            "The ruling for the token is not appealable."
+        );
+
+        RulingOption currentRuling = RulingOption(arbitrator.currentRuling(request.disputeID));
+        require(currentRuling != RulingOption.Other, "Cannot appeal a dispute on which the arbitrator refused to rule.");
+
+        Party losingSide = currentRuling == RulingOption.Accept ? Party.Challenger : Party.Requester;
+
+        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
+        uint appealPeriodDuration = appealPeriodEnd - appealPeriodStart;
+        require(now < appealPeriodStart + (appealPeriodDuration / 2), "Appeal period for funding the losing side ended.");
+
+        uint remainingETH = msg.value;
+        uint appealCost = arbitrator.appealCost(request.disputeID, arbitratorExtraData);
+        uint totalRequiredFees = appealCost + (2 * request.requiredFeeStake);
+        Round storage round = request.rounds[request.rounds.length - 1];
+
+        if (totalRequiredFees > round.paidFees[uint(losingSide)]) {
+            uint amountStillRequired = totalRequiredFees - round.paidFees[uint(losingSide)];
+            uint amountKept;
+            (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
+            round.paidFees[uint(losingSide)] += amountKept;
+            round.contributions[msg.sender][uint(losingSide)] += amountKept;
+            emit Contribution(_tokenID, msg.sender, amountKept);
+        }
+
+        msg.sender.transfer(remainingETH);
+    }
+
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
