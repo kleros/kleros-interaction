@@ -66,6 +66,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     struct Round {
         uint requiredFeeStake; // The required stake.
         uint[3] paidFees; // The amount of fees paid for each side, if any.
+        bool loserFullyFunded; // True if there the loosing side of a dispute fully funded his side of an appeal.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
 
@@ -352,9 +353,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.paidFees[uint(losingSide)] += amountKept;
             round.contributions[msg.sender][uint(losingSide)] += amountKept;
             emit Contribution(_tokenID, msg.sender, amountKept);
-        }
 
-        msg.sender.transfer(remainingETH);
+            if (round.paidFees[uint(losingSide)] >= totalRequiredFees)
+                round.loserFullyFunded = true;
+
+            token.lastAction = now;
+            if (remainingETH > 0) msg.sender.transfer(remainingETH);
+        }
     }
 
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
