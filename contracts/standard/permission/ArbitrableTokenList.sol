@@ -450,7 +450,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /** @dev Submit a reference to evidence. EVENT.
      *  @param _evidence A link to an evidence using its URI.
      */
-    function submitEvidence(bytes32 _tokenID, string _evidence) public {
+    function submitEvidence(bytes32 _tokenID, string _evidence) external {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         require(request.disputed, "The request is not disputed");
