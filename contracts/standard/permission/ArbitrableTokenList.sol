@@ -291,24 +291,26 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function crowdfundDispute(bytes32 _tokenID, Party _party) external payable {
         Token storage token = tokens[_tokenID];
+        require(token.requests.length == 0, "The specified token does not exist.");
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
-        require(token.requests.length == 0, "The specified token does not exist.");
         require(!request.disputed, "The token is already disputed");
         require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
 
+        uint remainingETH = msg.value;
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         uint amountRequired = arbitrationCost - round.paidFees[uint(_party)];
-        (uint amountKept, uint amountRefunded) = calculateContribution(msg.value, amountRequired);
+        uint amountKept;
+        (amountKept, remainingETH) = calculateContribution(remainingETH, amountRequired);
 
         round.paidFees[uint(_party)] += amountKept;
         round.contributions[msg.sender][uint(_party)] += amountKept;
 
-        msg.sender.transfer(amountRefunded);
+        msg.sender.transfer(remainingETH);
         emit Contribution(_tokenID, msg.sender, amountKept);
 
         // Create dispute if both sides are fully funded.
