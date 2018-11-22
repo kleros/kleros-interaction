@@ -259,8 +259,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Round storage round = request.rounds[request.rounds.length - 1];
         uint remainingETH = msg.value;
         if(request.paidFeeStake[uint(Party.Challenger)] <= request.requiredFeeStake)
-            (request.paidFeeStake[uint(Party.Challenger)], remainingETH) =
-                calculateContribution(remainingETH, request.requiredFeeStake);
+            (request.paidFeeStake[uint(Party.Challenger)], remainingETH) = calculateContribution(remainingETH, request.requiredFeeStake);
 
         if(remainingETH > 0) {
             round.paidFees[uint(Party.Challenger)] = remainingETH;
@@ -286,11 +285,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Contribute to crowdfunding of fees of a party.
+    /** @dev Contribute to crowdfunding of a dispute fees of a party.
      *  @param _tokenID The tokenID of the token with the request to execute.
      *  @param _party The party to contribute to. 1 for requester, 2 for challenger.
      */
-    function crowdfund(bytes32 _tokenID, Party _party) external payable {
+    function crowdfundDispute(bytes32 _tokenID, Party _party) external payable {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
@@ -344,7 +343,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             revert("Token in wrong status for executing request.");
 
         token.lastAction = now;
-        request.parties[uint(Party.Requester)].send(request.challengeRewardBalance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+
+        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
         request.challengeRewardBalance = 0;
 
         emit TokenStatusChange(request.parties[uint(Party.Requester)], address(0), _tokenID, token.status, false);
@@ -459,7 +460,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.paidFees[uint(Party.Challenger)] = 0;
         request.challengeReward = 0; // Reset challengeReward once a dispute is resolved.
 
-        emit TokenStatusChange(request.parties[uint(Party.Requester)], request.parties[uint(Party.Challenger)], tokenID, token.status, request.disputed);
+        emit TokenStatusChange(
+            request.parties[uint(Party.Requester)],
+            request.parties[uint(Party.Challenger)],
+            tokenID, token.status, request.disputed
+        );
     }
 
     /* Interface Views */
@@ -558,12 +563,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    function calculateContribution(uint available, uint requiredAmount) public view returns(uint, uint remainder) {
-        if(available < requiredAmount)
-            return (available, 0);
+    /** @dev Returns the contribution value and remainder from available ETH and required amount.
+     *  @param _available The amount of ETH available for the contribution.
+     *  @param _requiredAmount The amount of ETH required for the contribution.
+     *  @return The amount of ETH taken.
+     *  @return The amount of ETH left from the contribution.
+     */
+    function calculateContribution(uint _available, uint _requiredAmount) public view returns(uint, uint remainder) {
+        if(_available < _requiredAmount)
+            return (_available, 0); // Take whatever is available.
 
-        remainder = available - requiredAmount;
-        return (requiredAmount, remainder);
+        remainder = _available - _requiredAmount;
+        return (_requiredAmount, remainder);
     }
 
 }
