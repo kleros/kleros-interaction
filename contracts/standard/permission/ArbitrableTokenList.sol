@@ -363,6 +363,59 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
+    /** @dev Fund the loosing side of the appeal. Callable only on the first half of the appeal period.
+     *  @param _tokenID The tokenID of the token to fund.
+     */
+    function fundAppealWinningSide(bytes32 _tokenID) external payable {
+        require(tokens[_tokenID].lastAction == 0, "The specified token was never submitted.");
+        Request storage request = tokens[_tokenID].requests[tokens[_tokenID].requests.length - 1]; // Take the last request.
+        require(
+            arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
+            "The ruling for the token is not appealable."
+        );
+        Round storage round = request.rounds[request.rounds.length - 1];
+        require(
+            round.loserFullyFunded,
+            "It is the winning side's turn to fund the appeal, only if the losing side already fully funded it."
+        );
+        require(
+            RulingOption(arbitrator.currentRuling(request.disputeID)) != RulingOption.Other,
+            "Cannot appeal a dispute on which the arbitrator refused to rule."
+        );
+        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
+        uint appealPeriodDuration = appealPeriodEnd - appealPeriodStart;
+        require(
+            now > appealPeriodStart + (appealPeriodDuration / 2),
+            "It's the losing side's turn to fund the appeal."
+        );
+
+        // Calculate the amount required.
+        (Party winningSide, Party losingSide) = returnWinnerAndLoser(arbitrator.currentRuling(request.disputeID));
+        uint totalRequiredFees = calculateWinnerRequiredFees(
+            round.paidFees[uint(losingSide)],
+            round.requiredFeeStake,
+            arbitrator.appealCost(request.disputeID, arbitratorExtraData)
+        );
+
+        // Take the contribution, if any.
+        if (totalRequiredFees > round.paidFees[uint(winningSide)]) {
+            uint remainingETH = msg.value;
+            uint amountStillRequired = totalRequiredFees - round.paidFees[uint(winningSide)];
+            uint amountKept;
+            (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
+            round.paidFees[uint(winningSide)] += amountKept;
+            round.contributions[msg.sender][uint(winningSide)] += amountKept;
+            emit Contribution(_tokenID, msg.sender, amountKept);
+
+            tokens[_tokenID].lastAction = now;
+            if (remainingETH > 0) msg.sender.transfer(remainingETH);
+        }
+
+        // Raise appeal if both sides are fully funded.
+        if (round.paidFees[uint(winningSide)] >= totalRequiredFees)
+            arbitrator.appeal.value(arbitrator.appealCost(request.disputeID, arbitratorExtraData))(request.disputeID, arbitratorExtraData);
+    }
+
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
@@ -616,6 +669,45 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         remainder = _available - _requiredAmount;
         return (_requiredAmount, remainder);
+    }
+
+    /** @dev Returns the amount of fees a the winner of a dispute must pay to fully fund his side of an appeal.
+     *  @param _amountPaidByLoser The amount of fees the loser paid to fund the appeal.
+     *  @param _requiredFeeStake The required fee stake for the round.
+     *  @param _appealCost The current appeal cost.
+     *  @return The amount of fees a the winner of a dispute must pay to fully fund his side of an appeal.
+     */
+    function calculateWinnerRequiredFees(
+        uint _amountPaidByLoser,
+        uint _requiredFeeStake,
+        uint _appealCost
+    )
+        internal
+        pure
+        returns (uint)
+    {
+        uint expectedValue = _amountPaidByLoser - _requiredFeeStake;
+        return _appealCost > _amountPaidByLoser + expectedValue
+            ? _appealCost - _amountPaidByLoser
+            : expectedValue;
+    }
+
+    /** @dev Returns the winner and loser based on the ruling.
+     *  @param _ruling The ruling given by an arbitrator.
+     *  @return The party that won the dispute.
+     *  @return The party that lost the dispute.
+     */
+    function returnWinnerAndLoser(uint _ruling) internal pure returns (Party winner, Party loser) {
+        RulingOption ruling = RulingOption(_ruling);
+        require(ruling != RulingOption.Other, "There isn't a winner or loser if the arbitrator refused to rule.");
+
+        if (ruling == RulingOption.Accept) {
+            winner = Party.Requester;
+            loser = Party.Challenger;
+        } else {
+            winner = Party.Challenger;
+            loser = Party.Requester;
+        }
     }
 
 }
