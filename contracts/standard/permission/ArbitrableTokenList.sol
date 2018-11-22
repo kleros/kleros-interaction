@@ -292,7 +292,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Contribute to crowdfunding of a dispute fees of a party.
-     *  @param _tokenID The tokenID of the token with the request to execute.
+     *  @param _tokenID The tokenID of the token to fund.
      *  @param _party The party to contribute to. 1 for requester, 2 for challenger.
      */
     function crowdfundDispute(bytes32 _tokenID, Party _party) external payable {
@@ -337,6 +337,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
+    /** @dev Fund the loosing side of the appeal. Callable only on the first half of the appeal period.
+     *  @param _tokenID The tokenID of the token to fund.
+     */
     function fundAppealLosingSide(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
         require(token.lastAction == 0 || token.requests.length == 0, "The specified token does not exist.");
