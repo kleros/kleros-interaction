@@ -485,7 +485,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /** @dev Changes the `stake` storage variable.
      *  @param _stake The new `stake` storage variable.
      */
-    function changeStake(uint _stake) public onlyGovernor {
+    function changeStake(uint _stake) external onlyGovernor {
         stake = _stake;
     }
 
