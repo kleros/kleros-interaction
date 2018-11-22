@@ -510,12 +510,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _oldestFirst The sort order to use.
      *  @return The values of the tokens found and wether there are more tokens for the current filter and sort.
      */
-    function queryTokens(
-        bytes32 _cursor,
-        uint _count,
-        bool[8] _filter,
-        bool _oldestFirst
-    ) external view returns (bytes32[] values, bool hasMore) {
+    function queryTokens(bytes32 _cursor, uint _count, bool[8] _filter, bool _oldestFirst)
+        external
+        view
+        returns (bytes32[] values, bool hasMore)
+    {
         uint _cursorIndex;
         values = new bytes32[](_count);
         uint _index = 0;
@@ -569,7 +568,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @return The amount of ETH taken.
      *  @return The amount of ETH left from the contribution.
      */
-    function calculateContribution(uint _available, uint _requiredAmount) public view returns(uint, uint remainder) {
+    function calculateContribution(uint _available, uint _requiredAmount)
+        public
+        pure
+        returns(uint, uint remainder)
+    {
         if(_available < _requiredAmount)
             return (_available, 0); // Take whatever is available.
 
