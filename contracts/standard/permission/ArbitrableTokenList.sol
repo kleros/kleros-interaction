@@ -65,7 +65,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     struct Round {
         uint requiredFeeStake; // The required stake.
-        uint[3] paidFeeStake; // The stake paid by each side, if any.
         uint[3] paidFees; // The amount of fees paid for each side, if any.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
@@ -216,61 +215,39 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The token is already disputed");
         require(token.lastAction + request.timeToChallenge < now, "The time to challenge has already passed.");
-        require(request.challengeRewardBalance == request.challengeReward, "There isn't a pending request for this token.");
-        Round storage round = request.rounds[request.rounds.length - 1];
-        require(
-            msg.value >= request.challengeReward + round.requiredFeeStake,
-            "Not enough ETH."
-        );
+        require(request.challengeRewardBalance >= request.challengeReward, "There isn't a pending request for this token.");
 
         request.parties[uint(Party.Challenger)] = msg.sender;
-        request.challengeRewardBalance += request.challengeReward;
-        round.paidFeeStake[uint(Party.Challenger)] = round.requiredFeeStake;
-        uint remainingETH = msg.value - request.challengeReward - round.requiredFeeStake;
-
-        if(remainingETH > 0) {
-            round.paidFees[uint(Party.Challenger)] = remainingETH;
-            round.contributions[msg.sender][uint(Party.Challenger)] += remainingETH;
-            request.firstContributionTime = now;
-            emit Contribution(_tokenID, msg.sender, remainingETH);
-        }
-
-        token.lastAction = now;
-    }
-
-    /** @dev Fund the requester side of the dispute. Contributes to fee stake first, then to the crowdfunding.
-     *  @param _tokenID The tokenID of the token with the request to execute.
-     */
-    function fundRequester(bytes32 _tokenID) external payable {
-        Token storage token = tokens[_tokenID];
-        require(
-            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "Token does not have any pending requests"
-        );
-        require(token.lastAction == 0 || token.requests.length == 0, "The specified token does not exist.");
-        Request storage request = token.requests[token.requests.length - 1];
-        require(!request.disputed, "The token is already disputed");
-        require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
         Round storage round = request.rounds[request.rounds.length - 1];
-        require(msg.value >= round.requiredFeeStake, "Not enough ETH.");
-        require(round.paidFeeStake[uint(Party.Challenger)] == round.requiredFeeStake, "Fee stake already funded.");
-
         uint remainingETH = msg.value;
-        if(round.paidFeeStake[uint(Party.Challenger)] <= round.requiredFeeStake)
-            (round.paidFeeStake[uint(Party.Challenger)], remainingETH) = calculateContribution(remainingETH, round.requiredFeeStake);
 
-        if(remainingETH > 0) {
-            round.paidFees[uint(Party.Challenger)] = remainingETH;
-            round.contributions[msg.sender][uint(Party.Challenger)] += remainingETH;
+        // Check if caller is starting the challenge.
+        if(request.challengeRewardBalance == request.challengeReward) { // This means the token only has the requester's deposit.
+            // Caller is starting the challenge, take deposit.
+            require(msg.value >= request.challengeReward, "Not enough ETH. Party starting dispute must place a deposit.");
+            (, remainingETH) = calculateContribution(remainingETH, request.challengeReward);
+            request.challengeRewardBalance += request.challengeReward;
             request.firstContributionTime = now;
-            emit Contribution(_tokenID, msg.sender, remainingETH);
         }
 
-        token.lastAction = now;
-
-        // Create dispute if both sides are fully funded.
+        // Take contributions, if any.
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        if (round.paidFees[uint(Party.Requester)] >= arbitrationCost && round.paidFees[uint(Party.Challenger)] >= arbitrationCost) {
+        uint totalAmountRequired = arbitrationCost + round.requiredFeeStake;
+        if(remainingETH > 0 && round.paidFees[uint(Party.Challenger)] < totalAmountRequired) {
+            uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Challenger)];
+            uint contribution;
+            (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
+            round.paidFees[uint(Party.Challenger)] += contribution;
+            round.contributions[msg.sender][uint(Party.Challenger)] += contribution;
+
+            // Refund remaining ETH.
+            msg.sender.transfer(remainingETH);
+
+            emit Contribution(_tokenID, msg.sender, contribution);
+        }
+
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired && round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
             request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
@@ -285,38 +262,46 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 request.disputed
             );
         }
+
+        token.lastAction = now;
     }
 
-    /** @dev Contribute to crowdfunding of a dispute fees of a party.
-     *  @param _tokenID The tokenID of the token to fund.
-     *  @param _party The party to contribute to. 1 for requester, 2 for challenger.
+    /** @dev Fund the requester side of the dispute.
+     *  @param _tokenID The tokenID of the token with the request to execute.
      */
-    function crowdfundDispute(bytes32 _tokenID, Party _party) external payable {
+    function fundRequester(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction == 0 || token.requests.length == 0, "The specified token does not exist.");
-        Request storage request = token.requests[token.requests.length - 1];
-        Round storage round = request.rounds[request.rounds.length - 1];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
+        require(token.lastAction == 0 || token.requests.length == 0, "The specified token does not exist.");
+        Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The token is already disputed");
         require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
+        Round storage round = request.rounds[request.rounds.length - 1];
 
+        // Take contribution, if any.
         uint remainingETH = msg.value;
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint amountRequired = arbitrationCost - round.paidFees[uint(_party)];
-        uint amountKept;
-        (amountKept, remainingETH) = calculateContribution(remainingETH, amountRequired);
+        uint totalAmountRequired = arbitrationCost + round.requiredFeeStake;
+        if(remainingETH > 0 && round.paidFees[uint(Party.Requester)] < totalAmountRequired) {
+            uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Requester)];
+            uint contribution;
+            (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
+            round.paidFees[uint(Party.Requester)] += contribution;
+            round.contributions[msg.sender][uint(Party.Requester)] += contribution;
 
-        round.paidFees[uint(_party)] += amountKept;
-        round.contributions[msg.sender][uint(_party)] += amountKept;
+            // Refund remaining ETH.
+            msg.sender.transfer(remainingETH);
 
-        msg.sender.transfer(remainingETH);
-        emit Contribution(_tokenID, msg.sender, amountKept);
+            emit Contribution(_tokenID, msg.sender, contribution);
+        }
 
-        // Create dispute if both sides are fully funded.
-        if (round.paidFees[uint(Party.Requester)] >= arbitrationCost && round.paidFees[uint(Party.Challenger)] >= arbitrationCost) {
+        token.lastAction = now;
+
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired && round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
             request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
