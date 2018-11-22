@@ -59,13 +59,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint timeToChallenge; // The time to challenge for each round.
         uint challengeRewardBalance; // The amount of funds placed at stake for this token.
         uint challengeReward; // The challengeReward of the token for the round.
-        uint requiredFeeStake; // The required stake.
-        uint[3] paidFeeStake; // The stake paid by each side, if any.
         address[3] parties; // Address of requester and challenger, if any.
         Round[] rounds; // Tracks fees for each round of dispute and appeals.
     }
 
     struct Round {
+        uint requiredFeeStake; // The required stake.
+        uint[3] paidFeeStake; // The stake paid by each side, if any.
         uint[3] paidFees; // The amount of fees paid for each side, if any.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
@@ -187,12 +187,16 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         token.requests.length++;
 
         Request storage request = token.requests[token.requests.length - 1];
+
         request.challengeReward = challengeReward;
         request.challengeRewardBalance = msg.value;
         request.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
-        request.requiredFeeStake = stake;
         request.timeToChallenge = timeToChallenge;
         request.parties[uint(Party.Requester)] = msg.sender;
+
+        request.rounds.length++;
+        Round storage round = request.rounds[request.rounds.length - 1];
+        round.requiredFeeStake = stake;
 
         token.lastAction = now;
 
@@ -213,22 +217,20 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         require(!request.disputed, "The token is already disputed");
         require(token.lastAction + request.timeToChallenge < now, "The time to challenge has already passed.");
         require(request.challengeRewardBalance == request.challengeReward, "There isn't a pending request for this token.");
+        Round storage round = request.rounds[request.rounds.length - 1];
         require(
-            msg.value >= request.challengeReward + request.requiredFeeStake,
+            msg.value >= request.challengeReward + round.requiredFeeStake,
             "Not enough ETH."
         );
         require(
-            request.paidFeeStake[uint(Party.Challenger)] >= request.requiredFeeStake && request.challengeRewardBalance == request.challengeReward,
+            round.paidFeeStake[uint(Party.Challenger)] >= round.requiredFeeStake && request.challengeRewardBalance == request.challengeReward,
             "There is already funded pending challenge request"
         );
 
         request.parties[uint(Party.Challenger)] = msg.sender;
         request.challengeRewardBalance += request.challengeReward;
-        request.paidFeeStake[uint(Party.Challenger)] = request.requiredFeeStake;
-        uint remainingETH = msg.value - request.challengeReward - request.requiredFeeStake;
-
-        request.rounds.length++;
-        Round storage round = request.rounds[request.rounds.length - 1];
+        round.paidFeeStake[uint(Party.Challenger)] = round.requiredFeeStake;
+        uint remainingETH = msg.value - request.challengeReward - round.requiredFeeStake;
 
         if(remainingETH > 0) {
             round.paidFees[uint(Party.Challenger)] = remainingETH;
@@ -253,13 +255,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The token is already disputed");
         require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
-        require(msg.value >= request.requiredFeeStake, "Not enough ETH.");
-        require(request.paidFeeStake[uint(Party.Challenger)] == request.requiredFeeStake, "Fee stake already funded.");
-
         Round storage round = request.rounds[request.rounds.length - 1];
+        require(msg.value >= round.requiredFeeStake, "Not enough ETH.");
+        require(round.paidFeeStake[uint(Party.Challenger)] == round.requiredFeeStake, "Fee stake already funded.");
+
         uint remainingETH = msg.value;
-        if(request.paidFeeStake[uint(Party.Challenger)] <= request.requiredFeeStake)
-            (request.paidFeeStake[uint(Party.Challenger)], remainingETH) = calculateContribution(remainingETH, request.requiredFeeStake);
+        if(round.paidFeeStake[uint(Party.Challenger)] <= round.requiredFeeStake)
+            (round.paidFeeStake[uint(Party.Challenger)], remainingETH) = calculateContribution(remainingETH, round.requiredFeeStake);
 
         if(remainingETH > 0) {
             round.paidFees[uint(Party.Challenger)] = remainingETH;
@@ -277,6 +279,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
             request.rounds.length++;
+            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -322,7 +325,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
             request.rounds.length++;
-            
+            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
+
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
                 request.parties[uint(Party.Challenger)],
@@ -353,8 +357,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         uint remainingETH = msg.value;
         uint appealCost = arbitrator.appealCost(request.disputeID, arbitratorExtraData);
-        uint totalRequiredFees = appealCost + (2 * request.requiredFeeStake);
+
         Round storage round = request.rounds[request.rounds.length - 1];
+        uint totalRequiredFees = appealCost + (2 * round.requiredFeeStake);
 
         if (totalRequiredFees > round.paidFees[uint(losingSide)]) {
             uint amountStillRequired = totalRequiredFees - round.paidFees[uint(losingSide)];
