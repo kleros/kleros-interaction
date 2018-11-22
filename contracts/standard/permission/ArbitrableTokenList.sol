@@ -270,6 +270,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         token.lastAction = now;
 
+        // Create dispute if both sides are fully funded.
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         if (round.paidFees[uint(Party.Requester)] >= arbitrationCost && round.paidFees[uint(Party.Challenger)] >= arbitrationCost) {
             request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
@@ -370,7 +371,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         require(token.lastAction + timeToChallenge > now, "The time to challenge has not passed yet.");
-        require(!request.disputed, "The specified agreement is disputed.");
+        require(!request.disputed, "The specified token is disputed.");
 
         if (token.status == TokenStatus.RegistrationRequested)
             token.status = TokenStatus.Registered;
@@ -610,7 +611,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         pure
         returns(uint, uint remainder)
     {
-        if(_available < _requiredAmount)
+        if(_requiredAmount > _available)
             return (_available, 0); // Take whatever is available.
 
         remainder = _available - _requiredAmount;
