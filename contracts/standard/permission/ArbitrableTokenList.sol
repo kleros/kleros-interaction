@@ -286,6 +286,47 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
+    /** @dev Contribute to crowdfunding of fees of a party.
+     *  @param _tokenID The tokenID of the token with the request to execute.
+     *  @param _party The party to contribute to. 1 for requester, 2 for challenger.
+     */
+    function crowdfund(bytes32 _tokenID, Party _party) external payable {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[token.requests.length - 1];
+        Round storage round = request.rounds[request.rounds.length - 1];
+        require(
+            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
+            "Token does not have any pending requests"
+        );
+        require(token.requests.length == 0, "The specified token does not exist.");
+        require(!request.disputed, "The token is already disputed");
+        require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
+
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        uint amountRequired = arbitrationCost - round.paidFees[uint(_party)];
+        (uint amountKept, uint amountRefunded) = calculateContribution(msg.value, amountRequired);
+
+        round.paidFees[uint(_party)] += amountKept;
+        round.contributions[msg.sender][uint(_party)] += amountKept;
+
+        msg.sender.transfer(amountRefunded);
+        emit Contribution(_tokenID, msg.sender, amountKept);
+
+        // Create dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= arbitrationCost && round.paidFees[uint(Party.Challenger)] >= arbitrationCost) {
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToTokenID[request.disputeID] = _tokenID;
+            request.disputed = true;
+            emit TokenStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _tokenID,
+                token.status,
+                request.disputed
+            );
+        }
+    }
+
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
