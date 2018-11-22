@@ -446,6 +446,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             //Prepare for next round.
             request.rounds.length++;
             request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
+
+            tokens[_tokenID].lastAction = now;
         }
     }
 
