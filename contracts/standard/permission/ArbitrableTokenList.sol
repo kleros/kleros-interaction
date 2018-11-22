@@ -222,10 +222,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             msg.value >= request.challengeReward + round.requiredFeeStake,
             "Not enough ETH."
         );
-        require(
-            round.paidFeeStake[uint(Party.Challenger)] >= round.requiredFeeStake && request.challengeRewardBalance == request.challengeReward,
-            "There is already funded pending challenge request"
-        );
 
         request.parties[uint(Party.Challenger)] = msg.sender;
         request.challengeRewardBalance += request.challengeReward;
