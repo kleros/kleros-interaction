@@ -99,7 +99,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     event Contribution(bytes32 indexed _tokenID, address indexed _contributor, uint _value);
 
-    // TODO: Add event for challengeRequested
+    /** @dev Emitted a deposit is made to challenge a request.
+     *  @param _tokenID The ID of the token that the contribution was made to.
+     *  @param _challenger The address that placed the deposit.
+     */
+    event ChallengeDepositPlaced(bytes32 indexed _tokenID, address indexed _challenger);
 
     /* Storage */
 
@@ -229,6 +233,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             (, remainingETH) = calculateContribution(remainingETH, request.challengeReward);
             request.challengeRewardBalance += request.challengeReward;
             request.firstContributionTime = now;
+            emit ChallengeDepositPlaced(_tokenID, msg.sender);
         }
 
         // Take contributions, if any.
