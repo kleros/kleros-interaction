@@ -15,7 +15,7 @@ import "./Arbitrator.sol";
  */
 contract CentralizedArbitrator is Arbitrator {
 
-    address public owner=msg.sender;
+    address public owner = msg.sender;
     uint arbitrationPrice; // Not public because arbitrationCost already acts as an accessor.
     uint constant NOT_PAYABLE_VALUE = (2**256-2)/2; // High value to be sure that the appeal is too expensive.
 
@@ -69,7 +69,7 @@ contract CentralizedArbitrator is Arbitrator {
      *  @return disputeID ID of the dispute created.
      */
     function createDispute(uint _choices, bytes _extraData) public payable returns(uint disputeID)  {
-        super.createDispute(_choices,_extraData);
+        super.createDispute(_choices, _extraData);
         disputeID = disputes.push(DisputeStruct({
             arbitrated: Arbitrable(msg.sender),
             choices: _choices,
@@ -85,7 +85,7 @@ contract CentralizedArbitrator is Arbitrator {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
      */
     function _giveRuling(uint _disputeID, uint _ruling) internal {
-        DisputeStruct dispute = disputes[_disputeID];
+        DisputeStruct storage dispute = disputes[_disputeID];
         require(_ruling <= dispute.choices, "Invalid ruling.");
         require(dispute.status != DisputeStatus.Solved, "The dispute must not be solved already.");
 
