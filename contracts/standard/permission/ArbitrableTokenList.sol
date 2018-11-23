@@ -31,13 +31,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     enum Party {
         None,
-        Requester,
-        Challenger
+        Requester, // Party that placed a request to change a token status.
+        Challenger // Party challenging a request.
     }
 
     /* Structs */
 
-    // Array of party balances have 3 elements to map with the Party enum for better readability:
+    // Arrays of parties and balances have 3 elements to map with the Party enum for better readability:
     // - 0 is unused, matches Party.None.
     // - 1 for Party.Requester
     // - 2 for Party.Challenger
@@ -368,7 +368,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         RulingOption currentRuling = RulingOption(arbitrator.currentRuling(request.disputeID));
         require(currentRuling != RulingOption.Other, "Cannot appeal a dispute on which the arbitrator refused to rule.");
 
-        Party losingSide = currentRuling == RulingOption.Accept ? Party.Challenger : Party.Requester;
+        Party loser = currentRuling == RulingOption.Accept ? Party.Challenger : Party.Requester;
 
         (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
         uint appealPeriodDuration = appealPeriodEnd - appealPeriodStart;
@@ -382,15 +382,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         //The the contribution, if any.
         // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
-        if (remainingETH > 0 && totalRequiredFees > round.paidFees[uint(losingSide)]) {
-            uint amountStillRequired = totalRequiredFees - round.paidFees[uint(losingSide)];
+        if (remainingETH > 0 && totalRequiredFees > round.paidFees[uint(loser)]) {
+            uint amountStillRequired = totalRequiredFees - round.paidFees[uint(loser)];
             uint amountKept;
             (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
-            round.paidFees[uint(losingSide)] += amountKept;
-            round.contributions[msg.sender][uint(losingSide)] += amountKept;
+            round.paidFees[uint(loser)] += amountKept;
+            round.contributions[msg.sender][uint(loser)] += amountKept;
             emit Contribution(_tokenID, msg.sender, amountKept);
 
-            if (round.paidFees[uint(losingSide)] >= totalRequiredFees)
+            if (round.paidFees[uint(loser)] >= totalRequiredFees)
                 round.loserFullyFunded = true;
 
             if (remainingETH > 0) msg.sender.transfer(remainingETH);
@@ -426,22 +426,23 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
 
         // Calculate the amount required.
-        (Party winningSide, Party losingSide) = returnWinnerAndLoser(arbitrator.currentRuling(request.disputeID));
+        (Party winner, Party loser) = returnWinnerAndLoser(arbitrator.currentRuling(request.disputeID));
         uint totalRequiredFees = calculateWinnerRequiredFees(
-            round.paidFees[uint(losingSide)],
+            round.paidFees[uint(loser)],
             round.requiredFeeStake,
             arbitrator.appealCost(request.disputeID, arbitratorExtraData)
         );
 
         // Take the contribution, if any.
+        // TODO: Don't punish the winner if appeal fees raised too much.
         // Necessary to check that msg.value > 0, otherwise caller can set lastAction without making a contribution.
-        if (msg.value > 0 && totalRequiredFees > round.paidFees[uint(winningSide)]) {
+        if (msg.value > 0 && totalRequiredFees > round.paidFees[uint(winner)]) {
             uint remainingETH = msg.value;
-            uint amountStillRequired = totalRequiredFees - round.paidFees[uint(winningSide)];
+            uint amountStillRequired = totalRequiredFees - round.paidFees[uint(winner)];
             uint amountKept;
             (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
-            round.paidFees[uint(winningSide)] += amountKept;
-            round.contributions[msg.sender][uint(winningSide)] += amountKept;
+            round.paidFees[uint(winner)] += amountKept;
+            round.contributions[msg.sender][uint(winner)] += amountKept;
             emit Contribution(_tokenID, msg.sender, amountKept);
 
             if (remainingETH > 0) msg.sender.transfer(remainingETH);
@@ -449,7 +450,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
 
         // Raise appeal if both sides are fully funded.
-        if (round.paidFees[uint(winningSide)] >= totalRequiredFees) {
+        if (round.paidFees[uint(winner)] >= totalRequiredFees) {
             arbitrator.appeal.value(arbitrator.appealCost(request.disputeID, arbitratorExtraData))(request.disputeID, arbitratorExtraData);
 
             // Save the ruling. Used for reimbursing unused crowdfunding fees and withdrawing rewards.
@@ -651,7 +652,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             request.parties[uint(Party.Challenger)],
-            tokenID, token.status, request.disputed
+            tokenID,
+            token.status,
+            request.disputed
         );
     }
 
