@@ -507,12 +507,16 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
     function executeRequest(bytes32 _tokenID) external {
-        // TODO: Prevent execution if anyone made some contribution to a dispute. In that case, force using feeTimeoutFirstRound().
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
         require(token.lastAction + timeToChallenge > now, "The time to challenge has not passed yet.");
         require(!request.disputed, "The specified token is disputed.");
+        require(
+            request.challengeRewardBalance == request.challengeReward,
+            "Only callable if no one contests the request."
+        );
+
 
         if (token.status == TokenStatus.RegistrationRequested)
             token.status = TokenStatus.Registered;
