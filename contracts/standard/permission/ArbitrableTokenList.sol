@@ -776,6 +776,71 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Interface Views */
 
+    /** @dev Gets the info on a request of a token.
+     *  @param _tokenID The ID of the token.
+     *  @param _request The position of the request we want.
+     *  @return The information.
+     */
+    function getRequestInfo(bytes32 _tokenID, uint _request)
+        external
+        view
+        returns (bool, uint, uint, uint, uint, uint, uint, address[3])
+    {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        return (
+            request.disputed,
+            request.disputeID,
+            request.firstContributionTime,
+            request.arbitrationFeesWaitingTime,
+            request.timeToChallenge,
+            request.challengeRewardBalance,
+            request.challengeReward,
+            request.parties
+        );
+    }
+
+    /** @dev Gets the info on a round of a request.
+     *  @param _tokenID The ID of the token.
+     *  @param _request The position of the request we want.
+     *  @param _round The position of the round we want.
+     *  @return The information.
+     */
+    function getRoundInfo(bytes32 _tokenID, uint _request, uint _round)
+        external
+        view
+        returns (uint, uint[3], bool, RulingOption)
+    {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        Round storage round = request.rounds[_round];
+        return (
+            round.requiredFeeStake,
+            round.paidFees,
+            round.loserFullyFunded,
+            round.ruling
+        );
+    }
+
+    /** @dev Gets the contributions of a request.
+     *  @param _tokenID The ID of the token.
+     *  @param _request The position of the request.
+     *  @param _round The podition of the round.
+     *  @param _contributor The address of the contributor.
+     *  @return The contributions.
+     */
+    function getContributions(
+        bytes32 _tokenID,
+        uint _request,
+        uint _round,
+        address _contributor
+    ) external view returns(uint[3] contributions) {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        Round storage round = request.rounds[_round];
+        contributions = round.contributions[_contributor];
+    }
+
     /** @dev Return the numbers of tokens in the list per status. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @return The numbers of tokens in the list per status.
      */
