@@ -598,11 +598,26 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function executeRuling(uint _disputeID, uint _ruling) internal {
         bytes32 tokenID = disputeIDToTokenID[_disputeID];
         Token storage token = tokens[tokenID];
-        Party winner;
-        if (_ruling == uint(RulingOption.Accept))
-            winner = Party.Requester;
-        else if (_ruling == uint(RulingOption.Refuse))
-            winner = Party.Challenger;
+        Request storage request = token.requests[token.requests.length - 1];
+        Round storage round = request.rounds[request.rounds.length - 1];
+
+        // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected.
+        (Party winner, Party loser) = returnWinnerAndLoser(_ruling);
+        if (
+            round.loserFullyFunded &&
+            round.paidFees[uint(winner)] < round.paidFees[uint(loser)] - round.requiredFeeStake
+        )
+            // Rule in favor of the losing party.
+            if (_ruling == uint(RulingOption.Accept))
+                winner = Party.Challenger;
+            else
+                winner = Party.Requester;
+        else
+            // Respect the ruling.
+            if (_ruling == uint(RulingOption.Accept))
+                winner = Party.Requester;
+            else if (_ruling == uint(RulingOption.Refuse))
+                winner = Party.Challenger;
 
         // Update token state
         if(winner == Party.Requester) // Execute Request
@@ -616,8 +631,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             else if (token.status == TokenStatus.ClearingRequested)
                 token.status = TokenStatus.Registered;
 
-        Request storage request = token.requests[token.requests.length - 1];
-        Round storage round = request.rounds[request.rounds.length - 1];
         // Send token balance.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
         if(winner == Party.Challenger)
