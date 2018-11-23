@@ -165,7 +165,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // *       Requests       * //
     // ************************ //
 
-    /** @dev Submits a request to change the token status. TODO: Decide what to do with extra ETH sent.
+    /** @dev Submits a request to change the token status.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _name The name of the token.
      *  @param _ticker The token ticker.
