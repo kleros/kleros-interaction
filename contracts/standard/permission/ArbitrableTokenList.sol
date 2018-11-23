@@ -214,7 +214,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function fundChallenger(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction == 0 || token.requests.length == 0, "The specified token does not exist.");
+        require(token.lastAction > 0 || token.requests.length > 0, "The specified token was never submitted");
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
@@ -296,7 +296,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
-        require(token.lastAction == 0 || token.requests.length == 0, "The specified token does not exist.");
+        require(token.lastAction > 0 || token.requests.length > 0, "The specified token was never submitted");
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The token is already disputed");
         require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
@@ -349,7 +349,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function fundAppealLosingSide(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction == 0 || token.requests.length == 0, "The specified token does not exist.");
+        require(token.lastAction > 0 || token.requests.length > 0, "The specified token was never submitted");
         Request storage request = token.requests[token.requests.length - 1];
         require(
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
@@ -394,7 +394,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _tokenID The tokenID of the token to fund.
      */
     function fundAppealWinningSide(bytes32 _tokenID) external payable {
-        require(tokens[_tokenID].lastAction == 0, "The specified token was never submitted.");
+        require(tokens[_tokenID].lastAction > 0, "The specified token was never submitted.");
         Request storage request = tokens[_tokenID].requests[tokens[_tokenID].requests.length - 1]; // Take the last request.
         require(
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
@@ -456,7 +456,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function executeRequest(bytes32 _tokenID) external {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction == 0 || token.requests.length == 0, "The specified token does not exist.");
+        require(token.lastAction > 0 || token.requests.length > 0, "The specified token was never submitted");
         Request storage request = token.requests[token.requests.length - 1];
         require(token.lastAction + timeToChallenge > now, "The time to challenge has not passed yet.");
         require(!request.disputed, "The specified token is disputed.");
