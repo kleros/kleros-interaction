@@ -533,6 +533,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function submitEvidence(bytes32 _tokenID, string _evidence) external {
         Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
         require(request.disputed, "The request is not disputed");
         emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
