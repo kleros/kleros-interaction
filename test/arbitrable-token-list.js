@@ -19,8 +19,8 @@ contract('ArbitrableTokenList', function(accounts) {
   const arbitratorExtraData = 0x08575
   const challengeReward = 10 ** 10
   const arbitrationPrice = 101
-  const feeStake = 101
-  const timeToChallenge = 0
+  const feeStake = 1001
+  const timeToChallenge = 1
   const metaEvidence = 'evidence'
   const arbitrationFeesWaitingTime = 1001
   const appealPeriodDuration = 1001
@@ -28,13 +28,6 @@ contract('ArbitrableTokenList', function(accounts) {
   let appealableArbitrator
   let enhancedAppealableArbitrator
   let arbitrableTokenList
-
-  const ITEM_STATUS = {
-    ABSENT: 0,
-    REGISTERED: 1,
-    SUBMITTED: 2,
-    CLEARING_REQUESTED: 3
-  }
 
   const TOKEN_ID = 'pnk'
 
@@ -71,7 +64,41 @@ contract('ArbitrableTokenList', function(accounts) {
     )
   }
 
-  describe('governance', async () => {
+  describe('registration request', () => {
+    before(async () => {
+      await deployArbitrators()
+      await deployArbitrableTokenList(appealableArbitrator)
+      arbitrableTokenList.requestStatusChange(
+        TOKEN_ID,
+        'Pinakion',
+        'PNK',
+        0x0,
+        { from: partyA, value: challengeReward }
+      )
+    })
+
+    it('should require deposit', async () => {
+      await expectThrow(
+        arbitrableTokenList.requestStatusChange('omg', 'OmiseGO', 'OMG', 0x0, {
+          from: partyA
+        })
+      )
+    })
+
+    describe('challenge registration', () => {
+      describe('requester fails to fund his side', () => {})
+      describe('partially fund both sides', () => {})
+      describe('fully fund both sides', () => {
+        describe('arbitrator rules in favor of challenger', () => {
+          describe('winner fails to fully fund', () => {})
+          describe('partially fund both sides', () => {})
+          describe('fully fund both sides', () => {})
+        })
+      })
+    })
+  })
+
+  describe('governance', () => {
     beforeEach(async () => {
       await deployArbitrators()
       await deployArbitrableTokenList(appealableArbitrator)
@@ -265,36 +292,6 @@ contract('ArbitrableTokenList', function(accounts) {
           timeToChallengeAfter.toNumber(),
           newTimeToChallenge,
           'timeToChallenge should not have changed'
-        )
-      })
-    })
-  })
-
-  describe('appeal period disabled', () => {
-    beforeEach(async () => {
-      await deployArbitrators()
-    })
-
-    describe('request registration', () => {
-      beforeEach(async () => {
-        await deployArbitrableTokenList(appealableArbitrator)
-        assert.equal(
-          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-          0,
-          'initial contract balance should be zero for this test'
-        )
-
-        const item = await arbitrableTokenList.items(TOKEN_ID)
-        assert.equal(
-          item[2].toNumber(),
-          0,
-          'item.challengeReward should have be 0 initially'
-        )
-
-        assert.equal(
-          item[0].toNumber(),
-          ITEM_STATUS.ABSENT,
-          'item should be in absent state initially'
         )
       })
     })
