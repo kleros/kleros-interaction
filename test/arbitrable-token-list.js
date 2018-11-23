@@ -3,6 +3,9 @@
 const {
   expectThrow
 } = require('openzeppelin-solidity/test/helpers/expectThrow')
+const {
+  increaseTime
+} = require('openzeppelin-solidity/test/helpers/increaseTime')
 
 const ArbitrableTokenList = artifacts.require('./ArbitrableTokenList.sol')
 const AppealableArbitrator = artifacts.require(
@@ -20,7 +23,7 @@ contract('ArbitrableTokenList', function(accounts) {
   const challengeReward = 10 ** 10
   const arbitrationPrice = 101
   const feeStake = 1001
-  const timeToChallenge = 1
+  const timeToChallenge = 5
   const metaEvidence = 'evidence'
   const arbitrationFeesWaitingTime = 1001
   const appealPeriodDuration = 1001
@@ -68,26 +71,99 @@ contract('ArbitrableTokenList', function(accounts) {
     before(async () => {
       await deployArbitrators()
       await deployArbitrableTokenList(appealableArbitrator)
-      arbitrableTokenList.requestStatusChange(
+
+      it('should require deposit', async () => {
+        await expectThrow(
+          arbitrableTokenList.requestStatusChange(
+            'omg',
+            'OmiseGO',
+            'OMG',
+            0x0,
+            {
+              from: partyA
+            }
+          )
+        )
+      })
+
+      await arbitrableTokenList.requestStatusChange(
         TOKEN_ID,
         'Pinakion',
         'PNK',
-        0x0,
+        0x1,
         { from: partyA, value: challengeReward }
       )
     })
 
-    it('should require deposit', async () => {
-      await expectThrow(
-        arbitrableTokenList.requestStatusChange('omg', 'OmiseGO', 'OMG', 0x0, {
-          from: partyA
-        })
+    it('request should have been placed', async () => {
+      assert.equal(
+        (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+        challengeReward
       )
+
+      const token = await arbitrableTokenList.tokens(TOKEN_ID)
+      assert.equal(token[1], 'Pinakion')
+      assert.equal(token[2], 0x1)
+      assert.equal(token[3], 'PNK')
+      assert.isAbove(token[4].toNumber(), 0)
+
+      const request = await arbitrableTokenList.getRequestInfo(TOKEN_ID, 0)
+      assert.equal(request[3].toNumber(), arbitrationFeesWaitingTime)
+      assert.equal(request[4].toNumber(), timeToChallenge)
+      assert.equal(request[5].toNumber(), challengeReward)
+      assert.equal(request[6].toNumber(), challengeReward)
+      assert.equal(request[7][1], partyA)
+    })
+
+    it.skip('should execute request if no one challenges', async () => {
+      await expectThrow(
+        // time to challenge did not pass yet.
+        arbitrableTokenList.executeRequest(TOKEN_ID, { from: partyA })
+      )
+      await increaseTime(timeToChallenge + 100)
+      await arbitrableTokenList.executeRequest(TOKEN_ID, { from: partyA })
     })
 
     describe('challenge registration', () => {
-      describe('requester fails to fund his side', () => {})
-      describe('partially fund both sides', () => {})
+      before(async () => {
+        it('should require deposit', async () => {
+          await expectThrow(
+            arbitrableTokenList.fundChallenger(TOKEN_ID, { from: partyB })
+          )
+        })
+
+        await arbitrableTokenList.fundChallenger(TOKEN_ID, {
+          from: partyB,
+          value: challengeReward
+        })
+        assert.equal(
+          (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
+          challengeReward * 2
+        )
+      })
+
+      describe('requester fails to fund his side', () => {
+        before(async () => {
+          await arbitrableTokenList.fundChallenger(TOKEN_ID, {
+            from: partyB,
+            value: arbitrationPrice + feeStake
+          })
+        })
+      })
+
+      describe('partially fund both sides', () => {
+        before(async () => {
+          await arbitrableTokenList.fundRequester(TOKEN_ID, {
+            from: partyA,
+            value: arbitrationPrice + feeStake - 1
+          })
+          await arbitrableTokenList.fundChallenger(TOKEN_ID, {
+            from: partyB,
+            value: arbitrationPrice + feeStake - 2
+          })
+        })
+      })
+
       describe('fully fund both sides', () => {
         describe('arbitrator rules in favor of challenger', () => {
           describe('winner fails to fully fund', () => {})
