@@ -507,6 +507,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
     function executeRequest(bytes32 _tokenID) external {
+        // TODO: Prevent execution if anyone made some contribution to a dispute. In that case, force using feeTimeoutFirstRound().
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
@@ -527,6 +528,61 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         token.lastAction = now;
 
         emit TokenStatusChange(request.parties[uint(Party.Requester)], address(0), _tokenID, token.status, false);
+    }
+
+
+    /** @dev Rule in favor of party that paid more fees if not enough was raised to create a dispute.
+     *  @param _tokenID The tokenID of the token with the request.
+     */
+    function feeTimeoutFirstRound(bytes32 _tokenID) external {
+        Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
+        Request storage request = token.requests[token.requests.length - 1];
+        Round storage round = request.rounds[request.rounds.length - 1];
+        require(request.rounds.length == 1, "This is not the first round");
+        require(
+            request.firstContributionTime + request.arbitrationFeesWaitingTime < now,
+            "There is still time to place a contribution."
+        );
+
+        // Failed to fund first round.
+        // Rule in favor of whoever paid more.
+        Party winner;
+        if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
+            winner = Party.Requester;
+        else
+            winner = Party.Challenger;
+
+        // Update token state
+        if(winner == Party.Requester) // Execute Request
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Registered;
+            else
+                token.status = TokenStatus.Absent;
+        else // Revert to previous state.
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Absent;
+            else if (token.status == TokenStatus.ClearingRequested)
+                token.status = TokenStatus.Registered;
+
+        // Send token balance.
+        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        if(winner == Party.Challenger)
+            request.parties[uint(Party.Challenger)].send(request.challengeReward * 2);
+        else
+            request.parties[uint(Party.Requester)].send(request.challengeReward * 2);
+
+        token.lastAction = now;
+        request.challengeRewardBalance = 0;
+
+        emit TokenStatusChange(
+            request.parties[uint(Party.Requester)],
+            request.parties[uint(Party.Challenger)],
+            _tokenID,
+            token.status,
+            request.disputed
+        );
+
     }
 
     /** @dev Submit a reference to evidence. EVENT.
