@@ -204,10 +204,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
         request.timeToChallenge = timeToChallenge;
         request.parties[uint(Party.Requester)] = msg.sender;
+        request.challengeReward = challengeReward;
 
         // Place deposit.
-        request.challengeReward = challengeReward;
-        request.challengeRewardBalance += challengeReward;
+        request.challengeRewardBalance = challengeReward;
 
         // Setup first round.
         request.rounds.length++;
