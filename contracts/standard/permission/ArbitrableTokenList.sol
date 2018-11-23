@@ -509,13 +509,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
-        require(token.lastAction + timeToChallenge > now, "The time to challenge has not passed yet.");
+        require(now > token.lastAction + timeToChallenge, "The time to challenge has not passed yet.");
         require(!request.disputed, "The specified token is disputed.");
         require(
             request.challengeRewardBalance == request.challengeReward,
             "Only callable if no one contests the request."
         );
-
 
         if (token.status == TokenStatus.RegistrationRequested)
             token.status = TokenStatus.Registered;
