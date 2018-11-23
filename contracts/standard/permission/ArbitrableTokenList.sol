@@ -434,7 +434,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
 
         // Take the contribution, if any.
-        // TODO: Don't punish the winner if appeal fees raised too much.
         // Necessary to check that msg.value > 0, otherwise caller can set lastAction without making a contribution.
         if (msg.value > 0 && totalRequiredFees > round.paidFees[uint(winner)]) {
             uint remainingETH = msg.value;
