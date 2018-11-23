@@ -646,9 +646,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         token.lastAction = now;
         request.disputed = false;
         request.challengeRewardBalance = 0;
-        round.paidFees[uint(Party.Requester)] = 0;
-        round.paidFees[uint(Party.Challenger)] = 0;
-        request.challengeReward = 0; // Reset challengeReward once a dispute is resolved.
 
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
