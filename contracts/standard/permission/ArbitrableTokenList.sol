@@ -67,6 +67,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint requiredFeeStake; // The required stake.
         uint[3] paidFees; // The amount of fees paid for each side, if any.
         bool loserFullyFunded; // True if there the loosing side of a dispute fully funded his side of an appeal.
+        RulingOption ruling; // The ruling given by an arbitrator, if any.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
 
@@ -104,6 +105,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _challenger The address that placed the deposit.
      */
     event ChallengeDepositPlaced(bytes32 indexed _tokenID, address indexed _challenger);
+
+    /** @dev Emitted when a contribution reward is withdrawn.
+     *  @param _tokenID The ID of the token that the contribution was made to.
+     *  @param _round The round of the agreement that the contribution was made to.
+     *  @param _contributor The address that sent the contribution.
+     *  @param _value The value of the reward.
+     */
+    event RewardWithdrawal(bytes32 indexed _tokenID, uint indexed _round, address indexed _contributor, uint _value);
 
     /* Storage */
 
@@ -156,7 +165,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // *       Requests       * //
     // ************************ //
 
-    /** @dev Submits a request to change the token status.
+    /** @dev Submits a request to change the token status. TODO: Decide what to do with extra ETH sent.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _name The name of the token.
      *  @param _ticker The token ticker.
@@ -443,7 +452,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(winningSide)] >= totalRequiredFees) {
             arbitrator.appeal.value(arbitrator.appealCost(request.disputeID, arbitratorExtraData))(request.disputeID, arbitratorExtraData);
 
-            //Prepare for next round.
+            // Save the ruling. Used for reimbursing unused crowdfunding fees and withdrawing rewards.
+            round.ruling = RulingOption(arbitrator.currentRuling(request.disputeID));
+
+            // Prepare for next round.
             request.rounds.length++;
             request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
 
@@ -451,12 +463,51 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
+
+    /** @dev Reimburses unused fees or withdraws the caller's reward for funding the specified round of a challenge.
+     *  @param _tokenID The ID of the token.
+     *  @param _round The round.
+     */
+    function withdrawFeesAndRewards(bytes32 _tokenID, uint _round) external {
+        Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(request.rounds.length > 0, "No attempt to raise a dispute was made.");
+        require(_round < request.rounds.length, "The specified round does not exist.");
+        Round storage round = request.rounds[_round];
+
+        // Calculate reward.
+        uint reward;
+        uint contributionsToRequester = round.contributions[msg.sender][uint(Party.Requester)];
+        uint contributionsToChallenger = round.contributions[msg.sender][uint(Party.Challenger)];
+        if (_round == 0 || _round == request.rounds.length - 1) {
+            // First or last round.
+            require(
+                _round != 0 || !request.disputed,
+                "There is nothing to withdraw from the first round if the dispute was raised."
+            );
+            reward = contributionsToRequester + contributionsToChallenger;
+        } else {
+            // Appeal.
+            Party winner = round.ruling == RulingOption.Accept ? Party.Requester : Party.Challenger;
+            if (round.paidFees[uint(winner)] > 0) {
+                uint totalContributed = contributionsToRequester + contributionsToChallenger;
+                totalContributed * round.contributions[msg.sender][uint(winner)] / round.paidFees[uint(winner)];
+            }
+        }
+
+        // Clear contributions.
+        round.contributions[msg.sender] = [0, 0, 0];
+        msg.sender.transfer(reward);
+        emit RewardWithdrawal(_tokenID, _round, msg.sender, reward);
+    }
+
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
     function executeRequest(bytes32 _tokenID) external {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction > 0, "The specified token was never submitted");
+        require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
         require(token.lastAction + timeToChallenge > now, "The time to challenge has not passed yet.");
         require(!request.disputed, "The specified token is disputed.");
