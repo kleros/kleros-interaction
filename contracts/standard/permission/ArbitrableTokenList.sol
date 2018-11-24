@@ -362,7 +362,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted");
         Request storage request = token.requests[token.requests.length - 1];
-        require(!request.appealed, "An appeal was already raised.");
         require(
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The ruling for the token is not appealable."
@@ -412,7 +411,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The ruling for the token is not appealable."
         );
-        require(!request.appealed, "An appeal was already raised.");
         Round storage round = request.rounds[request.rounds.length - 1];
         require(
             round.loserFullyFunded,
@@ -789,7 +787,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function getRequestInfo(bytes32 _tokenID, uint _request)
         external
         view
-        returns (bool, uint, uint, uint, uint, uint, uint, address[3])
+        returns (bool, uint, uint, uint, uint, uint, uint, address[3], bool)
     {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
@@ -801,7 +799,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.timeToChallenge,
             request.challengeRewardBalance,
             request.challengeReward,
-            request.parties
+            request.parties,
+            request.appealed
         );
     }
 
