@@ -235,38 +235,58 @@ contract('ArbitrableTokenList', function(accounts) {
           assert.equal(dispute[4].toNumber(), DISPUTE_STATUS.Appealable)
         })
 
-        describe('winner fails to fully fund appeal', () => {
-          it('should rule in favor of looser', async () => {
-            await arbitrableTokenList.fundAppealLosingSide(TOKEN_ID, {
-              from: partyA,
-              value: arbitrationPrice + 2 * feeStake
-            })
-            await increaseTime(appealPeriodDuration + 1)
-
-            request = await arbitrableTokenList.getRequestInfo(TOKEN_ID, 0)
-            await enhancedAppealableArbitrator.giveRuling(
-              request[1],
-              RULING_OPTIONS.Refuse
-            )
-
-            const token = await arbitrableTokenList.tokens(TOKEN_ID)
-            assert.equal(token[0].toNumber(), TOKEN_STATUS.Registered)
+        it(`winner doesn't fund appeal, rule in favor of looser`, async () => {
+          await arbitrableTokenList.fundAppealLosingSide(TOKEN_ID, {
+            from: partyA,
+            value: arbitrationPrice + 2 * feeStake
           })
+          await increaseTime(appealPeriodDuration + 1)
+
+          const request = await arbitrableTokenList.getRequestInfo(TOKEN_ID, 0)
+          await enhancedAppealableArbitrator.giveRuling(
+            request[1],
+            RULING_OPTIONS.Refuse
+          )
+
+          const token = await arbitrableTokenList.tokens(TOKEN_ID)
+          assert.equal(token[0].toNumber(), TOKEN_STATUS.Registered)
         })
 
-        describe('fund both sides', () => {
-          beforeEach(async () => {
-            await arbitrableTokenList.fundAppealLosingSide(TOKEN_ID, {
-              from: partyA,
-              value: arbitrationPrice + 2 * feeStake
-            })
-            await increaseTime(appealPeriodDuration / 2 + 1)
-            await arbitrableTokenList.fundAppealLosingSide(TOKEN_ID, {
-              from: partyB,
-              value: arbitrationPrice + feeStake
-            })
+        it('should raise an appeal if both parties fund appeal', async () => {
+          await arbitrableTokenList.fundAppealLosingSide(TOKEN_ID, {
+            from: partyA,
+            value: arbitrationPrice + 2 * feeStake
           })
-          it.skip('should raise an appeal', async () => {})
+          await increaseTime(appealPeriodDuration / 2 + 1)
+          await arbitrableTokenList.fundAppealWinningSide(TOKEN_ID, {
+            from: partyB,
+            value: arbitrationPrice + feeStake
+          })
+
+          const request = await arbitrableTokenList.getRequestInfo(TOKEN_ID, 0)
+          assert.isTrue(request[8], 'dispute should be appealed')
+
+          const appeal = await enhancedAppealableArbitrator.appealDisputes(
+            request[1].toNumber()
+          )
+          await enhancedAppealableArbitrator.giveRuling(
+            appeal[2],
+            RULING_OPTIONS.Accept
+          )
+
+          await increaseTime(appealPeriodDuration + 1)
+          const dispute = await enhancedAppealableArbitrator.disputes(
+            appeal[2].toNumber()
+          )
+          assert.equal(dispute[3].toNumber(), RULING_OPTIONS.Accept)
+          assert.equal(dispute[4].toNumber(), DISPUTE_STATUS.Appealable)
+
+          await enhancedAppealableArbitrator.giveRuling(
+            appeal[2],
+            RULING_OPTIONS.Accept
+          )
+          const token = await arbitrableTokenList.tokens(TOKEN_ID)
+          assert.equal(token[0].toNumber(), TOKEN_STATUS.Registered)
         })
       })
     })
