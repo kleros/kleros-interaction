@@ -60,6 +60,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint challengeRewardBalance; // The amount of funds placed at stake for this token.
         uint challengeReward; // The challengeReward of the token for the round.
         address[3] parties; // Address of requester and challenger, if any.
+        bool appealed; // True if an appeal was raised.
         Round[] rounds; // Tracks fees for each round of dispute and appeals.
     }
 
@@ -361,6 +362,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted");
         Request storage request = token.requests[token.requests.length - 1];
+        require(!request.appealed, "An appeal was already raised.");
         require(
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The ruling for the token is not appealable."
@@ -410,6 +412,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The ruling for the token is not appealable."
         );
+        require(!request.appealed, "An appeal was already raised.");
         Round storage round = request.rounds[request.rounds.length - 1];
         require(
             round.loserFullyFunded,
@@ -452,6 +455,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Raise appeal if both sides are fully funded.
         if (round.paidFees[uint(winner)] >= totalRequiredFees) {
             arbitrator.appeal.value(arbitrator.appealCost(request.disputeID, arbitratorExtraData))(request.disputeID, arbitratorExtraData);
+            request.appealed = true;
 
             // Save the ruling. Used for reimbursing unused crowdfunding fees and withdrawing rewards.
             round.ruling = RulingOption(arbitrator.currentRuling(request.disputeID));
@@ -595,7 +599,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
-        require(request.disputed, "The request is not disputed");
+        require(request.disputed, "The request is not disputed.");
+        require(!request.appealed, "Request already appealed.");
         emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
     }
 
