@@ -230,7 +230,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The token is already disputed");
-        require(token.lastAction + request.timeToChallenge < now, "The time to challenge has already passed.");
+        require(token.lastAction + request.timeToChallenge > now, "The time to challenge has already passed.");
         require(request.challengeRewardBalance >= request.challengeReward, "There isn't a pending request for this token.");
 
         Round storage round = request.rounds[request.rounds.length - 1];
@@ -249,6 +249,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             emit ChallengeDepositPlaced(_tokenID, msg.sender);
 
             token.lastAction = now;
+            request.firstContributionTime = now;
         }
 
         // Calculate the amount of fees required.
