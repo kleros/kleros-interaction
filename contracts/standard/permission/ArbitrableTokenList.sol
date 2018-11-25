@@ -6,69 +6,114 @@
 
 pragma solidity ^0.4.24;
 
-import "../arbitration/composed-arbitrable/composed/MultiPartyInsurableArbitrableAgreementsBase.sol";
-
+import "../arbitration/Arbitrable.sol";
+import "./PermissionInterface.sol";
 /**
  *  @title ArbitrableTokenList
  *  This is a T2CL for tokens. Tokens can be submitted and cleared with a time out for challenging.
  */
-contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
+contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Enums */
 
-    enum ItemStatus {
-        Absent, // The item has never been submitted.
-        Cleared, // The item has been submitted and the dispute resolution process determined it should not be added or a clearing request has been submitted and the dispute resolution process determined it should be cleared or the clearing was never contested.
-        Resubmitted, // The item has been cleared but someone has resubmitted it.
-        Registered, // The item has been submitted and the dispute resolution process determined it should be added or the submission was never contested.
-        Submitted, // The item has been submitted.
-        ClearingRequested, // The item is registered, but someone has requested to remove it.
-        PreventiveClearingRequested // The item has never been registered, but someone asked to clear it preemptively to avoid it being shown as not registered during the dispute resolution process.
+    enum TokenStatus {
+        Absent, // The token is not on the list.
+        Registered, // The token is on the list.
+        RegistrationRequested, // The token has a request to be added to the list.
+        ClearingRequested // The token has a request to be removed from the list.
     }
 
     enum RulingOption {
-        OTHER, // Arbitrator did not rule of refused to rule.
-        ACCEPT, // Execute request. Rule in favor of requester.
-        REFUSE // Refuse request. Rule in favor of challenger.
+        Other, // Arbitrator did not rule of refused to rule.
+        Accept, // Execute request. Rule in favor of requester.
+        Refuse // Refuse request. Rule in favor of challenger.
     }
 
     enum Party {
-        Requester,
-        Challenger,
-        None
+        None,
+        Requester, // Party that placed a request to change a token status.
+        Challenger // Party challenging a request.
     }
 
     /* Structs */
 
-    struct Item {
-        ItemStatus status; // Status of the item.
+    // Arrays of parties and balances have 3 elements to map with the Party enum for better readability:
+    // - 0 is unused, matches Party.None.
+    // - 1 for Party.Requester.
+    // - 2 for Party.Challenger.
+
+    struct Token {
+        TokenStatus status;
+        string name;
+        address addr;
+        string ticker;
         uint lastAction; // Time of the last action.
-        uint balance; // The amount of funds placed at stake for this item. Does not include arbitrationFees.
-        uint challengeReward; // The challengeReward of the item for the round.
-        bytes32 latestAgreementID; // The ID of the latest agreement for the item.
+        Request[] requests;
+    }
+
+    struct Request {
+        bool disputed; // True if a dispute is taking place.
+        uint disputeID; // ID of the dispute, if any.
+        uint firstContributionTime; // The time the first contribution was made at.
+        uint arbitrationFeesWaitingTime; // The waiting time for fees for each round.
+        uint timeToChallenge; // The time to challenge for each round.
+        uint challengeRewardBalance; // The amount of funds placed at stake for this token.
+        uint challengeReward; // The challengeReward of the token for the round.
+        address[3] parties; // Address of requester and challenger, if any.
+        bool appealed; // True if an appeal was raised.
+        Round[] rounds; // Tracks fees for each round of dispute and appeals.
+    }
+
+    struct Round {
+        uint requiredFeeStake; // The required stake.
+        uint[3] paidFees; // The amount of fees paid for each side, if any.
+        bool loserFullyFunded; // True if there the loosing side of a dispute fully funded his side of an appeal.
+        RulingOption ruling; // The ruling given by an arbitrator, if any.
+        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
 
     /* Modifiers */
 
-    modifier onlyT2CLGovernor {require(msg.sender == t2clGovernor, "The caller is not the t2cl governor."); _;}
+    modifier onlyGovernor {require(msg.sender == governor, "The caller is not the governor."); _;}
 
     /* Events */
 
     /**
-     *  @dev Called when the item's status changes or when it is challenged/resolved.
+     *  @dev Called when the token's status changes or when it is challenged/resolved.
      *  @param requester Address of the requester.
      *  @param challenger Address of the challenger, if any.
-     *  @param tokenID The tokenID of the item.
-     *  @param status The status of the item.
-     *  @param disputed Wether the item is being disputed.
+     *  @param tokenID The tokenID of the token.
+     *  @param status The status of the token.
+     *  @param disputed Wether the token is being disputed.
      */
-    event ItemStatusChange(
+    event TokenStatusChange(
         address indexed requester,
         address indexed challenger,
         bytes32 indexed tokenID,
-        ItemStatus status,
+        TokenStatus status,
         bool disputed
     );
+
+    /** @dev Emitted when a contribution is made.
+     *  @param _tokenID The ID of the token that the contribution was made to.
+     *  @param _contributor The address that sent the contribution.
+     *  @param _value The value of the contribution.
+     */
+    event Contribution(bytes32 indexed _tokenID, address indexed _contributor, uint _value);
+
+    /** @dev Emitted a deposit is made to challenge a request.
+     *  @param _tokenID The ID of the token that the contribution was made to.
+     *  @param _challenger The address that placed the deposit.
+     */
+    event ChallengeDepositPlaced(bytes32 indexed _tokenID, address indexed _challenger);
+
+    /** @dev Emitted when a contribution reward is withdrawn.
+     *  @param _tokenID The ID of the token that the contribution was made to.
+     *  @param _round The round of the agreement that the contribution was made to.
+     *  @param _contributor The address that sent the contribution.
+     *  @param _value The value of the reward.
+     */
+    event RewardWithdrawal(bytes32 indexed _tokenID, uint indexed _round, address indexed _contributor, uint _value);
 
     /* Storage */
 
@@ -76,14 +121,13 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     uint public challengeReward; // The stake deposit required in addition to arbitration fees for challenging a request.
     uint public timeToChallenge; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees if the dispute is raised.
-    address public t2clGovernor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
+    uint public stake; // The stake parameter for arbitration fees crowdfunding.
+    address public governor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
 
-    // Items
-    mapping(bytes32 => Item) public items;
-    bytes32[] public itemsList;
-
-    // Agreement and Item Extension
-    mapping(bytes32 => bytes32) public agreementIDToItemID;
+    // Tokens
+    mapping(bytes32 => Token) public tokens;
+    mapping(uint => bytes32) public disputeIDToTokenID;
+    bytes32[] public tokensList;
 
     /* Constructor */
 
@@ -91,27 +135,29 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
      *  @dev Constructs the arbitrable token list.
      *  @param _arbitrator The chosen arbitrator.
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
-     *  @param _feeGovernor The fee governor of this contract.
-     *  @param _stake The stake parameter for sharing fees.
-     *  @param _t2clGovernor The t2clGovernor address. This address can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
+     *  @param _metaEvidence The URI of the meta evidence object.
+     *  @param _governor The governor of this contract.
      *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition to the arbitration fees.
      *  @param _timeToChallenge The time in seconds, parties have to challenge.
+     *  @param _stake The stake parameter for sharing fees.
      */
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        address _feeGovernor,
-        uint _stake,
-        address _t2clGovernor,
+        string _metaEvidence,
+        address _governor,
         uint _arbitrationFeesWaitingTime,
         uint _challengeReward,
-        uint _timeToChallenge
-    ) public MultiPartyInsurableArbitrableAgreementsBase(_arbitrator, _arbitratorExtraData, _feeGovernor, _stake){
+        uint _timeToChallenge,
+        uint _stake
+    ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
         challengeReward = _challengeReward;
         timeToChallenge = _timeToChallenge;
-        t2clGovernor = _t2clGovernor;
+        governor = _governor;
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
+        stake = _stake;
+        emit MetaEvidence(0, _metaEvidence);
     }
 
     /* Public */
@@ -120,274 +166,440 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     // *       Requests       * //
     // ************************ //
 
-    /** @dev Request for an item to be registered.
+    /** @dev Submits a request to change the token status.
      *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
-     *  @param _metaEvidence The meta evidence for the potential dispute.
+     *  @param _name The name of the token.
+     *  @param _ticker The token ticker.
+     *  @param _addr The token address.
      */
-    function requestRegistration(
+    function requestStatusChange(
         bytes32 _tokenID,
-        string _metaEvidence
+        string _name,
+        string _ticker,
+        address _addr
     ) external payable {
-        Item storage item = items[_tokenID];
-        Agreement storage prevAgreement = agreements[item.latestAgreementID];
-        if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
-            require(prevAgreement.executed, "There is a pending request in place.");
+        require(msg.value == challengeReward, "Not enough ETH.");
+        Token storage token = tokens[_tokenID];
+        if(token.requests.length == 0) {
+            // Initial token registration
+            token.name = _name;
+            token.ticker = _ticker;
+            token.addr = _addr;
+        } else
+            require(
+                !token.requests[token.requests.length - 1].disputed,
+                "Token must not be disputed for submitting status change request"
+            );
+
+        // Update token status.
+        if (token.status == TokenStatus.Absent)
+            token.status = TokenStatus.RegistrationRequested;
+        else if (token.status == TokenStatus.Registered)
+            token.status = TokenStatus.ClearingRequested;
         else
-            itemsList.push(_tokenID);
+            revert("Token in wrong status for request.");
 
-        require(msg.value >= challengeReward, "Not enough ETH.");
+        // Setup request.
+        token.requests.length++;
+        Request storage request = token.requests[token.requests.length - 1];
+        request.arbitrationFeesWaitingTime = arbitrationFeesWaitingTime;
+        request.timeToChallenge = timeToChallenge;
+        request.parties[uint(Party.Requester)] = msg.sender;
+        request.challengeReward = challengeReward;
 
-        if (item.status == ItemStatus.Absent)
-            item.status = ItemStatus.Submitted;
-        else if (item.status == ItemStatus.Cleared)
-            item.status = ItemStatus.Resubmitted;
-        else
-            revert("Item in wrong status for registration."); // If the item is neither Absent nor Cleared, it is not possible to request registering it.
+        // Place deposit.
+        request.challengeRewardBalance = challengeReward;
 
-        item.balance = challengeReward;
-        item.lastAction = now;
-        item.challengeReward = challengeReward; // Update challengeReward.
+        // Setup first round.
+        request.rounds.length++;
+        Round storage round = request.rounds[request.rounds.length - 1];
+        round.requiredFeeStake = stake;
+        token.lastAction = now;
 
-        address[] memory _parties = new address[](2);
-        _parties[0] = msg.sender;
-
-        _createAgreement(
-            _metaEvidence,
-            _parties,
-            2,
-            new bytes(0),
-            arbitrationFeesWaitingTime,
-            arbitrator,
-            _tokenID
-        );
-
-        if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra ETH.
-        Agreement storage agreement = agreements[item.latestAgreementID];
-        emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
+        emit TokenStatusChange(msg.sender, address(0), _tokenID, token.status, false);
     }
 
-    /** @dev Request an item to be cleared.
-     *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
-     *  @param _metaEvidence The meta evidence for the potential dispute.
+    /** @dev Challenge a request for a token.
+     *  @param _tokenID The tokenID of the token with the request to execute.
      */
-    function requestClearing(
-        bytes32 _tokenID,
-        string _metaEvidence
-    ) external payable {
-        Item storage item = items[_tokenID];
-        Agreement storage prevAgreement = agreements[item.latestAgreementID];
-        if(item.latestAgreementID != 0x0) // Not the first request for this tokenID.
-            require(prevAgreement.executed, "There is already a request in place.");
-        else
-            itemsList.push(_tokenID);
-
-        require(msg.value >= challengeReward, "Not enough ETH.");
-
-        if (item.status == ItemStatus.Registered)
-            item.status = ItemStatus.ClearingRequested;
-        else if (item.status == ItemStatus.Absent)
-            item.status = ItemStatus.PreventiveClearingRequested;
-        else
-            revert("Item in wrong status for clearing."); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
-
-        item.balance = challengeReward; // Update challengeReward.
-        item.lastAction = now;
-        item.challengeReward = challengeReward;
-
-        address[] memory _parties = new address[](2);
-        _parties[0] = msg.sender;
-
-        _createAgreement(
-            _metaEvidence,
-            _parties,
-            2,
-            new bytes(0),
-            arbitrationFeesWaitingTime,
-            arbitrator,
-            _tokenID
-        );
-
-        if(msg.value > challengeReward) msg.sender.transfer(msg.value - challengeReward); // Refund any extra eth.
-        Agreement storage agreement = agreements[item.latestAgreementID];
-        emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
-    }
-
-    /** @dev Overrides parent to use information specific to Arbitrable Token List in math:
-     *  - Parent's fundDispute doesn't take into account `challengeReward` when calculating ETH.
-     *  - For calls that initiate a dispute, msg.value must also include `challengeReward`.
-     *  @param _agreementID The ID of the agreement.
-     *  @param _side The side with respect to paidFees. 0 for the side that lost the previous round, if any, and 1 for the one that won.
-     */
-    function fundDispute(bytes32 _agreementID, uint _side) public payable {
-        Agreement storage agreement = agreements[_agreementID];
-        PaidFees storage _paidFees = paidFees[_agreementID];
-        Item storage item = items[agreementIDToItemID[_agreementID]];
-        require(agreement.creator != address(0), "The specified agreement does not exist.");
-        require(!agreement.executed, "You cannot fund disputes for executed agreements.");
+    function fundChallenger(bytes32 _tokenID) external payable {
+        Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
         require(
-            !agreement.disputed || agreement.arbitrator.disputeStatus(agreement.disputeID) == Arbitrator.DisputeStatus.Appealable,
-            "The agreement is already disputed and is not appealable."
+            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
+            "Token does not have any pending requests."
         );
-        require(_side <= 1, "There are only two sides.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(!request.disputed, "The token is already disputed.");
+        require(token.lastAction + request.timeToChallenge > now, "The time to challenge has already passed.");
+        require(request.challengeRewardBalance >= request.challengeReward, "There isn't a pending request for this token.");
 
-        // Prepare storage for first call.
-        if (_paidFees.firstContributionTime == 0) {
-            _paidFees.firstContributionTime = now;
-            _paidFees.ruling.push(0);
-            _paidFees.stake.push(stake);
-            _paidFees.totalValue.push(0);
-            _paidFees.totalContributedPerSide.push([0, 0]);
-            _paidFees.loserFullyFunded.push(false);
-            _paidFees.contributions.length++;
+        Round storage round = request.rounds[request.rounds.length - 1];
+        uint remainingETH = msg.value;
+
+        // Check if caller is starting the challenge.
+        if(request.challengeRewardBalance == request.challengeReward) { // This means the token only has the requester's deposit.
+            // Caller is starting the challenge.
+            require(msg.value >= request.challengeReward, "Not enough ETH. Party starting dispute must place a deposit.");
+
+            // Take the deposit.
+            request.parties[uint(Party.Challenger)] = msg.sender;
+            (, remainingETH) = calculateContribution(remainingETH, request.challengeReward);
+            request.challengeRewardBalance += request.challengeReward;
+
+            emit ChallengeDepositPlaced(_tokenID, msg.sender);
+
+            token.lastAction = now;
+            request.firstContributionTime = now;
         }
 
-        // Reset cache.
-        fundDisputeCache.cost = 0;
-        fundDisputeCache.appealing = false;
-        (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = (0, 0);
-        fundDisputeCache.appealPeriodSupported = false;
-        fundDisputeCache.requiredValueForSide = 0;
-        fundDisputeCache.expectedValue = 0;
-        fundDisputeCache.stillRequiredValueForSide = 0;
-        fundDisputeCache.keptValue = 0;
-        fundDisputeCache.refundedValue = 0;
+        // Calculate the amount of fees required.
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        uint totalAmountRequired = arbitrationCost + round.requiredFeeStake;
 
-        // Check time outs and requirements.
-        if (_paidFees.stake.length == 1) { // First round.
-            fundDisputeCache.cost = agreement.arbitrator.arbitrationCost(agreement.extraData);
+        // Take contributions, if any.
+        // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
+        if(remainingETH > 0 && round.paidFees[uint(Party.Challenger)] < totalAmountRequired) {
 
-            // Arbitration fees time out.
-            if (now - _paidFees.firstContributionTime > agreement.arbitrationFeesWaitingTime) {
-                executeAgreementRuling(_agreementID, 0);
-                return;
-            }
-        } else { // Appeal.
-            fundDisputeCache.cost = agreement.arbitrator.appealCost(agreement.disputeID, agreement.extraData);
+            if(round.paidFees[uint(Party.Challenger)] == 0)
+                request.firstContributionTime = now; // This is the first contribution.
 
-            fundDisputeCache.appealing = true;
-            (fundDisputeCache.appealPeriodStart, fundDisputeCache.appealPeriodEnd) = agreement.arbitrator.appealPeriod(agreement.disputeID);
-            fundDisputeCache.appealPeriodSupported = fundDisputeCache.appealPeriodStart != 0 && fundDisputeCache.appealPeriodEnd != 0;
-            if (fundDisputeCache.appealPeriodSupported) {
-                if (now < fundDisputeCache.appealPeriodStart + ((fundDisputeCache.appealPeriodEnd - fundDisputeCache.appealPeriodStart) / 2)) // In the first half of the appeal period.
-                    require(_side == 0, "It is the losing side's turn to fund the appeal.");
-                else // In the second half of the appeal period.
-                    require(
-                        _side == 1 && _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1],
-                        "It is the winning side's turn to fund the appeal, only if the losing side already fully funded it."
-                    );
-            } else require(msg.value >= fundDisputeCache.cost, "Fees must be paid in full if the arbitrator does not support `appealPeriod`.");
-        }
-        require(msg.value > 0, "The value of the contribution cannot be zero.");
+            uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Challenger)];
+            uint contribution;
+            (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
+            round.paidFees[uint(Party.Challenger)] += contribution;
+            round.contributions[msg.sender][uint(Party.Challenger)] += contribution;
+            emit Contribution(_tokenID, msg.sender, contribution);
 
-        // Compute required value.
-        if (!fundDisputeCache.appealing) { // First round.
-            fundDisputeCache.requiredValueForSide = fundDisputeCache.cost / 2;
-        } else { // Appeal.
-            if (!fundDisputeCache.appealPeriodSupported)
-                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost;
-            else if (_side == 0) // Losing side.
-                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost + (2 * _paidFees.stake[_paidFees.stake.length - 1]);
-            else { // Winning side.
-                fundDisputeCache.expectedValue = _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1];
-                fundDisputeCache.requiredValueForSide = fundDisputeCache.cost > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] + fundDisputeCache.expectedValue ? fundDisputeCache.cost - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] : fundDisputeCache.expectedValue;
-            }
+            // Refund remaining ETH.
+            msg.sender.transfer(remainingETH);
+
+            token.lastAction = now;
         }
 
-        // Calculate value still required.
-        if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide)
-            fundDisputeCache.stillRequiredValueForSide = 0;
-        else
-            fundDisputeCache.stillRequiredValueForSide = fundDisputeCache.requiredValueForSide - _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side];
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired && round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToTokenID[request.disputeID] = _tokenID;
+            request.disputed = true;
+            emit TokenStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _tokenID,
+                token.status,
+                request.disputed
+            );
 
-        if(item.balance == item.challengeReward) {
-            // Party is attempting to start a dispute.
-            require(msg.value >= item.challengeReward, "Party challenging agreement must place value at stake");
-            fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value - item.challengeReward
-                ? msg.value - item.challengeReward
-                : fundDisputeCache.stillRequiredValueForSide;
-            item.balance += item.challengeReward;
-            fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue - item.challengeReward;
-            agreement.parties[1] = msg.sender;
+            //Prepare for next round.
+            request.rounds.length++;
+            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
+
+            token.lastAction = now;
+        }
+    }
+
+    /** @dev Fund the requester side of the dispute.
+     *  @param _tokenID The tokenID of the token with the request to execute.
+     */
+    function fundRequester(bytes32 _tokenID) external payable {
+        Token storage token = tokens[_tokenID];
+        require(
+            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
+            "Token does not have any pending requests"
+        );
+        require(token.lastAction > 0, "The specified token was never submitted.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(!request.disputed, "The token is already disputed.");
+        require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
+        Round storage round = request.rounds[request.rounds.length - 1];
+
+        // Calculate amount required.
+        uint remainingETH = msg.value;
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        uint totalAmountRequired = arbitrationCost + round.requiredFeeStake;
+
+        // Take contribution, if any.
+        // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
+        if(remainingETH > 0 && round.paidFees[uint(Party.Requester)] < totalAmountRequired) {
+            uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Requester)];
+            uint contribution;
+            (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
+            round.paidFees[uint(Party.Requester)] += contribution;
+            round.contributions[msg.sender][uint(Party.Requester)] += contribution;
+            emit Contribution(_tokenID, msg.sender, contribution);
+
+            // Refund remaining ETH.
+            msg.sender.transfer(remainingETH);
+
+            token.lastAction = now;
+        }
+
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired && round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToTokenID[request.disputeID] = _tokenID;
+            request.disputed = true;
+            emit TokenStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _tokenID,
+                token.status,
+                request.disputed
+            );
+
+            //Prepare for next round.
+            request.rounds.length++;
+            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
+
+            token.lastAction = now;
+        }
+    }
+
+    /** @dev Fund the loosing side of the appeal. Callable only on the first half of the appeal period.
+     *  @param _tokenID The tokenID of the token to fund.
+     */
+    function fundAppealLosingSide(bytes32 _tokenID) external payable {
+        Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(
+            arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
+            "The ruling for the token is not appealable."
+        );
+
+        RulingOption currentRuling = RulingOption(arbitrator.currentRuling(request.disputeID));
+        require(currentRuling != RulingOption.Other, "Cannot appeal a dispute on which the arbitrator refused to rule.");
+
+        Party loser = currentRuling == RulingOption.Accept ? Party.Challenger : Party.Requester;
+
+        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
+        uint appealPeriodDuration = appealPeriodEnd - appealPeriodStart;
+        require(now < appealPeriodStart + (appealPeriodDuration / 2), "Appeal period for funding the losing side ended.");
+
+        // Calculate the amount required.
+        uint remainingETH = msg.value;
+        uint appealCost = arbitrator.appealCost(request.disputeID, arbitratorExtraData);
+        Round storage round = request.rounds[request.rounds.length - 1];
+        uint totalRequiredFees = appealCost + (2 * round.requiredFeeStake);
+
+        //The the contribution, if any.
+        // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
+        if (remainingETH > 0 && totalRequiredFees > round.paidFees[uint(loser)]) {
+            uint amountStillRequired = totalRequiredFees - round.paidFees[uint(loser)];
+            uint amountKept;
+            (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
+            round.paidFees[uint(loser)] += amountKept;
+            round.contributions[msg.sender][uint(loser)] += amountKept;
+            emit Contribution(_tokenID, msg.sender, amountKept);
+
+            if (round.paidFees[uint(loser)] >= totalRequiredFees)
+                round.loserFullyFunded = true;
+
+            if (remainingETH > 0) msg.sender.transfer(remainingETH);
+
+            token.lastAction = now;
+        }
+    }
+
+    /** @dev Fund the loosing side of the appeal. Callable only on the first half of the appeal period.
+     *  @param _tokenID The tokenID of the token to fund.
+     */
+    function fundAppealWinningSide(bytes32 _tokenID) external payable {
+        require(tokens[_tokenID].lastAction > 0, "The specified token was never submitted.");
+        Request storage request = tokens[_tokenID].requests[tokens[_tokenID].requests.length - 1]; // Take the last request.
+        require(
+            arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
+            "The ruling for the token is not appealable."
+        );
+        Round storage round = request.rounds[request.rounds.length - 1];
+        require(
+            round.loserFullyFunded,
+            "It is the winning side's turn to fund the appeal, only if the losing side already fully funded it."
+        );
+        require(
+            RulingOption(arbitrator.currentRuling(request.disputeID)) != RulingOption.Other,
+            "Cannot appeal a dispute on which the arbitrator refused to rule."
+        );
+        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
+        uint appealPeriodDuration = appealPeriodEnd - appealPeriodStart;
+        require(
+            now > appealPeriodStart + (appealPeriodDuration / 2),
+            "It's the losing side's turn to fund the appeal."
+        );
+
+        // Calculate the amount required.
+        (Party winner, Party loser) = returnWinnerAndLoser(arbitrator.currentRuling(request.disputeID));
+        uint totalRequiredFees = calculateWinnerRequiredFees(
+            round.paidFees[uint(loser)],
+            round.requiredFeeStake,
+            arbitrator.appealCost(request.disputeID, arbitratorExtraData)
+        );
+
+        // Take the contribution, if any.
+        // Necessary to check that msg.value > 0, otherwise caller can set lastAction without making a contribution.
+        if (msg.value > 0 && totalRequiredFees > round.paidFees[uint(winner)]) {
+            uint remainingETH = msg.value;
+            uint amountStillRequired = totalRequiredFees - round.paidFees[uint(winner)];
+            uint amountKept;
+            (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
+            round.paidFees[uint(winner)] += amountKept;
+            round.contributions[msg.sender][uint(winner)] += amountKept;
+            emit Contribution(_tokenID, msg.sender, amountKept);
+
+            if (remainingETH > 0) msg.sender.transfer(remainingETH);
+            tokens[_tokenID].lastAction = now;
+        }
+
+        // Raise appeal if both sides are fully funded.
+        if (round.paidFees[uint(winner)] >= totalRequiredFees) {
+            arbitrator.appeal.value(arbitrator.appealCost(request.disputeID, arbitratorExtraData))(request.disputeID, arbitratorExtraData);
+            request.appealed = true;
+
+            // Save the ruling. Used for reimbursing unused crowdfunding fees and withdrawing rewards.
+            round.ruling = RulingOption(arbitrator.currentRuling(request.disputeID));
+
+            // Prepare for next round.
+            request.rounds.length++;
+            request.rounds[request.rounds.length - 1].requiredFeeStake = stake;
+
+            tokens[_tokenID].lastAction = now;
+        }
+    }
+
+
+    /** @dev Reimburses unused fees or withdraws the caller's reward for funding the specified round of a challenge.
+     *  @param _tokenID The ID of the token.
+     *  @param _round The round.
+     */
+    function withdrawFeesAndRewards(bytes32 _tokenID, uint _round) external {
+        Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(request.rounds.length > 0, "No attempt to raise a dispute was made.");
+        require(_round < request.rounds.length, "The specified round does not exist.");
+        Round storage round = request.rounds[_round];
+
+        // Calculate reward.
+        uint reward;
+        uint contributionsToRequester = round.contributions[msg.sender][uint(Party.Requester)];
+        uint contributionsToChallenger = round.contributions[msg.sender][uint(Party.Challenger)];
+        if (_round == 0 || _round == request.rounds.length - 1) {
+            // First or last round.
+            require(
+                _round != 0 || !request.disputed,
+                "There is nothing to withdraw from the first round if the dispute was raised."
+            );
+            reward = contributionsToRequester + contributionsToChallenger;
         } else {
-            // Party that started dispute already placed value at stake, in other words: item.balance == item.challengeReward * 2.
-            // This means the caller is contributing to fees crowdfunding.
-            fundDisputeCache.keptValue = fundDisputeCache.stillRequiredValueForSide >= msg.value
-                ? msg.value
-                : fundDisputeCache.stillRequiredValueForSide;
-
-            fundDisputeCache.refundedValue = msg.value - fundDisputeCache.keptValue;
-        }
-
-        // Take the contribution
-        if (fundDisputeCache.keptValue > 0) {
-            _paidFees.totalValue[_paidFees.totalValue.length - 1] += fundDisputeCache.keptValue;
-            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] += fundDisputeCache.keptValue;
-            _paidFees.contributions[_paidFees.contributions.length - 1][msg.sender][_side] += fundDisputeCache.keptValue;
-        }
-        if (fundDisputeCache.refundedValue > 0) msg.sender.transfer(fundDisputeCache.refundedValue);
-        emit Contribution(_agreementID, _paidFees.stake.length - 1, msg.sender, fundDisputeCache.keptValue);
-
-        // Check if enough funds have been gathered and act accordingly.
-        if (
-            _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side] >= fundDisputeCache.requiredValueForSide ||
-            (fundDisputeCache.appealing && !fundDisputeCache.appealPeriodSupported)
-        ) {
-            if (_side == 0 && (fundDisputeCache.appealing ? fundDisputeCache.appealPeriodSupported : _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1] < fundDisputeCache.requiredValueForSide)) { // Losing side and not direct appeal or dispute raise.
-                if (!_paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1])
-                    _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] = true;
-            } else { // Winning side or direct appeal.
-                if (!fundDisputeCache.appealing) { // First round.
-                    if (_paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][_side == 0 ? 1 : 0] < fundDisputeCache.requiredValueForSide) return;
-                    agreement.disputeID = agreement.arbitrator.createDispute.value(fundDisputeCache.cost)(agreement.numberOfChoices, agreement.extraData);
-                    agreement.disputed = true;
-                    arbitratorAndDisputeIDToAgreementID[agreement.arbitrator][agreement.disputeID] = _agreementID;
-                    emit Dispute(agreement.arbitrator, agreement.disputeID, uint(_agreementID));
-                } else { // Appeal.
-                    _paidFees.ruling[_paidFees.ruling.length - 1] = agreement.arbitrator.currentRuling(agreement.disputeID);
-                    agreement.arbitrator.appeal.value(fundDisputeCache.cost)(agreement.disputeID, agreement.extraData);
-                    if (!agreement.appealed) agreement.appealed = true;
-                }
-
-                // Update the total value.
-                _paidFees.totalValue[_paidFees.totalValue.length - 1] -= fundDisputeCache.cost;
-
-                // Prepare for the next round.
-                _paidFees.ruling.push(0);
-                _paidFees.stake.push(stake);
-                _paidFees.totalValue.push(0);
-                _paidFees.totalContributedPerSide.push([0, 0]);
-                _paidFees.loserFullyFunded.push(false);
-                _paidFees.contributions.length++;
+            // Appeal.
+            Party winner = round.ruling == RulingOption.Accept ? Party.Requester : Party.Challenger;
+            if (round.paidFees[uint(winner)] > 0) {
+                uint totalContributed = contributionsToRequester + contributionsToChallenger;
+                reward = totalContributed * round.contributions[msg.sender][uint(winner)] / round.paidFees[uint(winner)];
             }
         }
+
+        // Clear contributions.
+        round.contributions[msg.sender] = [0, 0, 0];
+        msg.sender.transfer(reward);
+        emit RewardWithdrawal(_tokenID, _round, msg.sender, reward);
     }
 
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
-     *  @param _tokenID The tokenID of the item with the request to execute.
+     *  @param _tokenID The tokenID of the token with the request to execute.
      */
     function executeRequest(bytes32 _tokenID) external {
-        Item storage item = items[_tokenID];
-        bytes32 agreementID = item.latestAgreementID;
-        Agreement storage agreement = agreements[agreementID];
-        require(now - item.lastAction > timeToChallenge, "The time to challenge has not passed yet.");
-        require(agreement.creator != address(0), "The specified agreement does not exist.");
-        require(!agreement.executed, "The specified agreement has already been executed.");
-        require(!agreement.disputed, "The specified agreement is disputed.");
+        Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(now > token.lastAction + timeToChallenge, "The time to challenge has not passed yet.");
+        require(!request.disputed, "The specified token is disputed.");
+        require(
+            request.challengeRewardBalance == request.challengeReward,
+            "Only callable if no one contests the request."
+        );
 
-        if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-            item.status = ItemStatus.Registered;
-        else if (item.status == ItemStatus.ClearingRequested || item.status == ItemStatus.PreventiveClearingRequested)
-            item.status = ItemStatus.Cleared;
+        if (token.status == TokenStatus.RegistrationRequested)
+            token.status = TokenStatus.Registered;
+        else if (token.status == TokenStatus.ClearingRequested)
+            token.status = TokenStatus.Absent;
         else
-            revert("Item in wrong status for executing request.");
+            revert("Token in wrong status for executing request.");
 
-        agreement.parties[0].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        agreement.executed = true;
-        item.lastAction = now;
-        item.challengeReward = 0; // Clear challengeReward once a request has been executed.
-        item.balance = 0;
+        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
+        request.challengeRewardBalance = 0;
 
-        emit ItemStatusChange(agreement.parties[0], address(0), _tokenID, item.status, agreement.disputed);
+        token.lastAction = now;
+
+        emit TokenStatusChange(request.parties[uint(Party.Requester)], address(0), _tokenID, token.status, false);
+    }
+
+
+    /** @dev Rule in favor of party that paid more fees if not enough was raised to create a dispute.
+     *  @param _tokenID The tokenID of the token with the request.
+     */
+    function feeTimeoutFirstRound(bytes32 _tokenID) external {
+        Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
+        Request storage request = token.requests[token.requests.length - 1];
+        Round storage round = request.rounds[request.rounds.length - 1];
+        require(request.rounds.length == 1, "This is not the first round.");
+        require(
+            request.firstContributionTime + request.arbitrationFeesWaitingTime < now,
+            "There is still time to place a contribution."
+        );
+
+        // Failed to fund first round.
+        // Rule in favor of whoever paid more.
+        Party winner;
+        if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
+            winner = Party.Requester;
+        else
+            winner = Party.Challenger;
+
+        // Update token state
+        if(winner == Party.Requester) // Execute Request
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Registered;
+            else
+                token.status = TokenStatus.Absent;
+        else // Revert to previous state.
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Absent;
+            else if (token.status == TokenStatus.ClearingRequested)
+                token.status = TokenStatus.Registered;
+
+        // Send token balance.
+        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        if(winner == Party.Challenger)
+            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
+        else
+            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
+
+        token.lastAction = now;
+        request.challengeRewardBalance = 0;
+
+        emit TokenStatusChange(
+            request.parties[uint(Party.Requester)],
+            request.parties[uint(Party.Challenger)],
+            _tokenID,
+            token.status,
+            request.disputed
+        );
+
+    }
+
+    /** @dev Submit a reference to evidence. EVENT.
+     *  @param _evidence A link to an evidence using its URI.
+     */
+    function submitEvidence(bytes32 _tokenID, string _evidence) external {
+        Token storage token = tokens[_tokenID];
+        require(token.lastAction > 0, "The specified token was never submitted.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(request.disputed, "The request is not disputed.");
+        require(!request.appealed, "Request already appealed.");
+        emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
     }
 
     // ************************ //
@@ -397,206 +609,288 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
     /** @dev Changes the `timeToChallenge` storage variable.
      *  @param _timeToChallenge The new `timeToChallenge` storage variable.
      */
-    function changeTimeToChallenge(uint _timeToChallenge) external onlyT2CLGovernor {
+    function changeTimeToChallenge(uint _timeToChallenge) external onlyGovernor {
         timeToChallenge = _timeToChallenge;
     }
 
     /** @dev Changes the `challengeReward` storage variable.
      *  @param _challengeReward The new `challengeReward` storage variable.
      */
-    function changeChallengeReward(uint _challengeReward) external onlyT2CLGovernor {
+    function changeChallengeReward(uint _challengeReward) external onlyGovernor {
         challengeReward = _challengeReward;
     }
 
-    /** @dev Changes the `t2clGovernor` storage variable.
-     *  @param _t2clGovernor The new `t2clGovernor` storage variable.
+    /** @dev Changes the `governor` storage variable.
+     *  @param _governor The new `governor` storage variable.
      */
-    function changeT2CLGovernor(address _t2clGovernor) external onlyT2CLGovernor {
-        t2clGovernor = _t2clGovernor;
+    function changeGovernor(address _governor) external onlyGovernor {
+        governor = _governor;
+    }
+
+    /** @dev Changes the `stake` storage variable.
+     *  @param _stake The new `stake` storage variable.
+     */
+    function changeStake(uint _stake) external onlyGovernor {
+        stake = _stake;
     }
 
     /** @dev Changes the `arbitrationFeesWaitingTime` storage variable.
      *  @param _arbitrationFeesWaitingTime The new `_arbitrationFeesWaitingTime` storage variable.
      */
-    function changeArbitrationFeesWaitingTime(uint _arbitrationFeesWaitingTime) external onlyT2CLGovernor {
+    function changeArbitrationFeesWaitingTime(uint _arbitrationFeesWaitingTime) external onlyGovernor {
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
     }
 
     /* Public Views */
 
-    /** @dev Return true if the item is allowed. We consider the item to be in the list if its status is contested and it has not won a dispute previously.
-     *  @param _tokenID The tokenID of the item to check.
-     *  @return allowed True if the item is allowed, false otherwise.
+    /** @dev Return true if the token is on the list.
+     *  @param _tokenID The tokenID of the token to check.
+     *  @return allowed True if the token is allowed, false otherwise.
      */
-    function isPermitted(bytes32 _tokenID) public view returns (bool allowed) {
-        Item storage item = items[_tokenID];
-        return item.status == ItemStatus.Registered || item.status == ItemStatus.ClearingRequested;
+    function isPermitted(bytes32 _tokenID) external view returns (bool allowed) {
+        Token storage token = tokens[_tokenID];
+        return token.status == TokenStatus.Registered || token.status == TokenStatus.ClearingRequested;
     }
 
     /* Internal */
 
-    /** @dev Extends parent to use counter identify agreements.
-     *  @param _metaEvidence The meta evidence of the agreement.
-     *  @param _parties The `parties` value of the agreement.
-     *  @param _numberOfChoices The `numberOfChoices` value of the agreement.
-     *  @param _extraData The `extraData` value of the agreement.
-     *  @param _arbitrationFeesWaitingTime The `arbitrationFeesWaitingTime` value of the agreement.
-     *  @param _arbitrator The `arbitrator` value of the agreement.
-     *  @param _tokenID The item id.
+    /**
+     *  @dev Execute the ruling of a dispute.
+     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
-    function _createAgreement(
-        string _metaEvidence,
-        address[] _parties,
-        uint _numberOfChoices,
-        bytes _extraData,
-        uint _arbitrationFeesWaitingTime,
-        Arbitrator _arbitrator,
-        bytes32 _tokenID
-    ) internal {
-        Item storage item = items[_tokenID];
-        bytes32 agreementID;
-        if(item.latestAgreementID == 0x0)
-            agreementID = keccak256(abi.encodePacked(_tokenID));
+    function executeRuling(uint _disputeID, uint _ruling) internal {
+        bytes32 tokenID = disputeIDToTokenID[_disputeID];
+        Token storage token = tokens[tokenID];
+        Request storage request = token.requests[token.requests.length - 1];
+        Round storage round = request.rounds[request.rounds.length - 1];
+
+        // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected.
+        (Party winner, Party loser) = returnWinnerAndLoser(_ruling);
+        if (
+            round.loserFullyFunded &&
+            round.paidFees[uint(winner)] < round.paidFees[uint(loser)] - round.requiredFeeStake
+        )
+            // Rule in favor of the losing party.
+            if (_ruling == uint(RulingOption.Accept))
+                winner = Party.Challenger;
+            else
+                winner = Party.Requester;
         else
-            agreementID = keccak256(abi.encodePacked(item.latestAgreementID));
+            // Respect the ruling.
+            if (_ruling == uint(RulingOption.Accept))
+                winner = Party.Requester;
+            else if (_ruling == uint(RulingOption.Refuse))
+                winner = Party.Challenger;
 
-        item.latestAgreementID = agreementID;
-        agreementIDToItemID[agreementID] = _tokenID;
+        // Update token state
+        if(winner == Party.Requester) // Execute Request
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Registered;
+            else
+                token.status = TokenStatus.Absent;
+        else // Revert to previous state.
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Absent;
+            else if (token.status == TokenStatus.ClearingRequested)
+                token.status = TokenStatus.Registered;
 
-        super._createAgreement(
-            agreementID,
-            _metaEvidence,
-            _parties,
-            _numberOfChoices,
-            _extraData,
-            _arbitrationFeesWaitingTime,
-            _arbitrator
+        // Send token balance.
+        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        if(winner == Party.Challenger)
+            request.parties[uint(Party.Challenger)].send(request.challengeReward * 2);
+        else if(winner == Party.Requester)
+            request.parties[uint(Party.Requester)].send(request.challengeReward * 2);
+        else {
+            // Reimburse parties.
+            request.parties[uint(Party.Requester)].send(request.challengeReward);
+            request.parties[uint(Party.Challenger)].send(request.challengeReward);
+        }
+
+        token.lastAction = now;
+        request.disputed = false;
+        request.challengeRewardBalance = 0;
+
+        emit TokenStatusChange(
+            request.parties[uint(Party.Requester)],
+            request.parties[uint(Party.Challenger)],
+            tokenID,
+            token.status,
+            request.disputed
         );
     }
 
-    /** @dev Extends parent to set item state and transfer rewards.
-     *  @param _agreementID The ID of the agreement.
-     *  @param _ruling The ruling.
+     /** @dev Returns the contribution value and remainder from available ETH and required amount.
+     *  @param _available The amount of ETH available for the contribution.
+     *  @param _requiredAmount The amount of ETH required for the contribution.
+     *  @return The amount of ETH taken.
+     *  @return The amount of ETH left from the contribution.
      */
-    function executeAgreementRuling(bytes32 _agreementID, uint _ruling) internal {
-        super.executeAgreementRuling(_agreementID, _ruling);
-        Agreement storage agreement = agreements[_agreementID];
-        PaidFees storage _paidFees = paidFees[_agreementID];
-        Item storage item = items[agreementIDToItemID[_agreementID]];
+    function calculateContribution(uint _available, uint _requiredAmount)
+        internal
+        pure
+        returns(uint, uint remainder)
+    {
+        if(_requiredAmount > _available)
+            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
 
-        Party winner = Party.None;
-        if (_paidFees.stake.length == 1)  // Failed to fund first round.
-            // Rule in favor of whoever paid more.
-            if (_paidFees.totalContributedPerSide[0][0] >= _paidFees.totalContributedPerSide[0][1])
-                winner = Party.Requester;
-            else
-                winner = Party.Challenger;
-        else
-            // Respect the ruling unless the losing side funded the appeal and the winning side paid less than expected.
-            if (
-                _paidFees.loserFullyFunded[_paidFees.loserFullyFunded.length - 1] &&
-                _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][0] - _paidFees.stake[_paidFees.stake.length - 1] > _paidFees.totalContributedPerSide[_paidFees.totalContributedPerSide.length - 1][1]
-            )
-                // Rule in favor of the losing party.
-                // If an arbitrator ruled to execute a request, the losing party is the challenger. If
-                // The arbitrator ruled to refuse a request, the losing party is the requester.
-                // Ruling in favor of the losing party means inverting the decision of the arbitrator.
+        remainder = _available - _requiredAmount;
+        return (_requiredAmount, remainder);
+    }
 
-                if (_ruling == uint(RulingOption.ACCEPT))
-                    winner = Party.Challenger;
-                else
-                    winner = Party.Requester;
-            else
-                // Respect the ruling.
-                if (_ruling == uint(RulingOption.ACCEPT))
-                    winner = Party.Requester;
-                else if (_ruling == uint(RulingOption.REFUSE))
-                    winner = Party.Challenger;
+    /** @dev Returns the amount of fees a the winner of a dispute must pay to fully fund his side of an appeal.
+     *  @param _amountPaidByLoser The amount of fees the loser paid to fund the appeal.
+     *  @param _requiredFeeStake The required fee stake for the round.
+     *  @param _appealCost The current appeal cost.
+     *  @return The amount of fees a the winner of a dispute must pay to fully fund his side of an appeal.
+     */
+    function calculateWinnerRequiredFees(
+        uint _amountPaidByLoser,
+        uint _requiredFeeStake,
+        uint _appealCost
+    )
+        internal
+        pure
+        returns (uint)
+    {
+        uint expectedValue = _amountPaidByLoser - _requiredFeeStake;
+        return _appealCost > _amountPaidByLoser + expectedValue
+            ? _appealCost - _amountPaidByLoser
+            : expectedValue;
+    }
 
-        // Update item state
-        if(winner == Party.Requester)
-            // Execute Request
-            if (item.status == ItemStatus.Resubmitted || item.status == ItemStatus.Submitted)
-                item.status = ItemStatus.Registered;
-            else
-                item.status = ItemStatus.Cleared;
-        else
-            // Revert to previous state.
-            if (item.status == ItemStatus.Resubmitted)
-                item.status = ItemStatus.Cleared;
-            else if (item.status == ItemStatus.ClearingRequested)
-                item.status = ItemStatus.Registered;
-            else
-                item.status = ItemStatus.Absent;
+    /** @dev Returns the winner and loser based on the ruling.
+     *  @param _ruling The ruling given by an arbitrator.
+     *  @return The party that won the dispute.
+     *  @return The party that lost the dispute.
+     */
+    function returnWinnerAndLoser(uint _ruling) internal pure returns (Party winner, Party loser) {
+        RulingOption ruling = RulingOption(_ruling);
+        require(ruling != RulingOption.Other, "There isn't a winner or loser if the arbitrator refused to rule.");
 
-        // Send item balance
-        if(winner == Party.None) {
-            // Split the balance 50-50 and give the item the initial status.
-            agreement.parties[uint(Party.Requester)].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-            agreement.parties[uint(Party.Challenger)].send(item.balance / 2); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        } else
-            agreement.parties[uint(winner)].send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-
-        item.lastAction = now;
-        item.balance = 0;
-        item.challengeReward = 0; // Clear challengeReward once a dispute is resolved.
-
-        emit ItemStatusChange(agreement.parties[0], address(0), agreementIDToItemID[_agreementID], item.status, agreement.disputed);
+        if (ruling == RulingOption.Accept) {
+            winner = Party.Requester;
+            loser = Party.Challenger;
+        } else {
+            winner = Party.Challenger;
+            loser = Party.Requester;
+        }
     }
 
     /* Interface Views */
 
-    /** @dev Return the numbers of items in the list per status.
-     *  @return The numbers of items in the list per status.
+    /** @dev Gets the info on a request of a token.
+     *  @param _tokenID The ID of the token.
+     *  @param _request The position of the request we want.
+     *  @return The information.
      */
-    function itemsCounts()
+    function getRequestInfo(bytes32 _tokenID, uint _request)
+        external
+        view
+        returns (bool, uint, uint, uint, uint, uint, uint, address[3], bool)
+    {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        return (
+            request.disputed,
+            request.disputeID,
+            request.firstContributionTime,
+            request.arbitrationFeesWaitingTime,
+            request.timeToChallenge,
+            request.challengeRewardBalance,
+            request.challengeReward,
+            request.parties,
+            request.appealed
+        );
+    }
+
+    /** @dev Gets the info on a round of a request.
+     *  @param _tokenID The ID of the token.
+     *  @param _request The position of the request we want.
+     *  @param _round The position of the round we want.
+     *  @return The information.
+     */
+    function getRoundInfo(bytes32 _tokenID, uint _request, uint _round)
+        external
+        view
+        returns (uint, uint[3], bool, RulingOption)
+    {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        Round storage round = request.rounds[_round];
+        return (
+            round.requiredFeeStake,
+            round.paidFees,
+            round.loserFullyFunded,
+            round.ruling
+        );
+    }
+
+    /** @dev Gets the contributions of a request.
+     *  @param _tokenID The ID of the token.
+     *  @param _request The position of the request.
+     *  @param _round The podition of the round.
+     *  @param _contributor The address of the contributor.
+     *  @return The contributions.
+     */
+    function getContributions(
+        bytes32 _tokenID,
+        uint _request,
+        uint _round,
+        address _contributor
+    ) external view returns(uint[3] contributions) {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        Round storage round = request.rounds[_round];
+        contributions = round.contributions[_contributor];
+    }
+
+    /** @dev Return the numbers of tokens in the list per status. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+     *  @return The numbers of tokens in the list per status.
+     */
+    function tokensCounts()
         external
         view
         returns (
             uint disputed,
             uint absent,
-            uint cleared,
-            uint resubmitted,
+            uint registered,
             uint submitted,
-            uint clearingRequested,
-            uint preventiveClearingRequested
+            uint clearingRequested
         )
     {
-        for (uint i = 0; i < itemsList.length; i++) {
-            Item storage item = items[itemsList[i]];
-            Agreement storage latestAgreement = agreements[item.latestAgreementID];
+        for (uint i = 0; i < tokensList.length; i++) {
+            Token storage token = tokens[tokensList[i]];
+            Request storage request = token.requests[token.requests.length - 1];
 
-            if (latestAgreement.disputed) disputed++;
-            if (item.status == ItemStatus.Absent) absent++;
-            else if (item.status == ItemStatus.Cleared) cleared++;
-            else if (item.status == ItemStatus.Submitted) submitted++;
-            else if (item.status == ItemStatus.Resubmitted) resubmitted++;
-            else if (item.status == ItemStatus.ClearingRequested) clearingRequested++;
-            else if (item.status == ItemStatus.PreventiveClearingRequested) preventiveClearingRequested++;
+            if (request.disputed) disputed++;
+            if (token.status == TokenStatus.Absent) absent++;
+            else if (token.status == TokenStatus.Registered) registered++;
+            else if (token.status == TokenStatus.RegistrationRequested) submitted++;
+            else if (token.status == TokenStatus.ClearingRequested) clearingRequested++;
         }
     }
 
-    /** @dev Return the values of the items the query finds. This function is O(n) at worst, where n is the number of items. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+    /** @dev Return the values of the tokens the query finds. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @param _cursor The pagination cursor.
-     *  @param _count The number of items to return.
+     *  @param _count The number of tokens to return.
      *  @param _filter The filter to use. Each element of the array in sequence means:
-     *  - Include absent items in result.
-     *  - Include registered items in result.
-     *  - Include cleared items in result.
-     *  - Include submitted items that are not disputed in result.
-     *  - Include resubmitted items that are not disputed in result.
-     *  - Include items with clearing requests that are not disputed in result.
-     *  - Include items with preventive clearing requests that are not disputed in result.
-     *  - Include submitted and disputed items in result.
-     *  - Include resubmitted and disputed items in result.
-     *  - Include disputed items with clearing requests in result.
-     *  - Include disputed items with preventive clearing requests in result.
-     *  - Include items submitted by the caller.
-     *  - Include items challenged by the caller.
-     *  @param _sort The sort order to use.
-     *  @return The values of the items found and wether there are more items for the current filter and sort.
+     *  - Include absent tokens in result.
+     *  - Include registered tokens in result.
+     *  - Include tokens with registration requests that are not disputed in result.
+     *  - Include tokens with clearing requests that are not disputed in result.
+     *  - Include disputed tokens with registration requests in result.
+     *  - Include disputed tokens with clearing requests in result.
+     *  - Include tokens submitted by the caller.
+     *  - Include tokens challenged by the caller.
+     *  @param _oldestFirst The sort order to use.
+     *  @return The values of the tokens found and wether there are more tokens for the current filter and sort.
      */
-    function queryItems(bytes32 _cursor, uint _count, bool[13] _filter, bool _sort) external view returns (bytes32[] values, bool hasMore) {
+    function queryTokens(bytes32 _cursor, uint _count, bool[8] _filter, bool _oldestFirst)
+        external
+        view
+        returns (bytes32[] values, bool hasMore)
+    {
         uint _cursorIndex;
         values = new bytes32[](_count);
         uint _index = 0;
@@ -604,8 +898,8 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         if (_cursor == 0)
             _cursorIndex = 0;
         else {
-            for (uint j = 0; j < itemsList.length; j++) {
-                if (itemsList[j] == _cursor) {
+            for (uint j = 0; j < tokensList.length; j++) {
+                if (tokensList[j] == _cursor) {
                     _cursorIndex = j;
                     break;
                 }
@@ -614,32 +908,27 @@ contract ArbitrableTokenList is MultiPartyInsurableArbitrableAgreementsBase {
         }
 
         for (
-                uint i = _cursorIndex == 0 ? (_sort ? 0 : 1) : (_sort ? _cursorIndex + 1 : itemsList.length - _cursorIndex + 1);
-                _sort ? i < itemsList.length : i <= itemsList.length;
+                uint i = _cursorIndex == 0 ? (_oldestFirst ? 0 : 1) : (_oldestFirst ? _cursorIndex + 1 : tokensList.length - _cursorIndex + 1);
+                _oldestFirst ? i < tokensList.length : i <= tokensList.length;
                 i++
             ) { // Oldest or newest first.
-            bytes32 itemID = itemsList[_sort ? i : itemsList.length - i];
-            Item storage item = items[itemID];
-            Agreement storage agreement = agreements[item.latestAgreementID];
+            bytes32 tokenID = tokensList[_oldestFirst ? i : tokensList.length - i];
+            Token storage token = tokens[tokenID];
+            Request storage request = token.requests[token.requests.length - 1];
             if (
                     /* solium-disable operator-whitespace */
-                    (_filter[0] && item.status == ItemStatus.Absent) ||
-                    (_filter[1] && item.status == ItemStatus.Registered) ||
-                    (_filter[2] && item.status == ItemStatus.Cleared) ||
-                    (_filter[3] && item.status == ItemStatus.Submitted && !agreement.disputed) ||
-                    (_filter[4] && item.status == ItemStatus.Resubmitted && !agreement.disputed) ||
-                    (_filter[5] && item.status == ItemStatus.ClearingRequested && !agreement.disputed) ||
-                    (_filter[6] && item.status == ItemStatus.PreventiveClearingRequested && !agreement.disputed) ||
-                    (_filter[7] && item.status == ItemStatus.Submitted && agreement.disputed) ||
-                    (_filter[8] && item.status == ItemStatus.Resubmitted && agreement.disputed) ||
-                    (_filter[9] && item.status == ItemStatus.ClearingRequested && agreement.disputed) ||
-                    (_filter[10] && item.status == ItemStatus.PreventiveClearingRequested && agreement.disputed) ||
-                    (_filter[11] && agreement.parties[0] == msg.sender) || // My Submissions.
-                    (_filter[12] && agreement.parties[1] == msg.sender) // My Challenges.
+                    (_filter[0] && token.status == TokenStatus.Absent) ||
+                    (_filter[1] && token.status == TokenStatus.Registered) ||
+                    (_filter[2] && token.status == TokenStatus.RegistrationRequested && !request.disputed) ||
+                    (_filter[3] && token.status == TokenStatus.ClearingRequested && !request.disputed) ||
+                    (_filter[4] && token.status == TokenStatus.RegistrationRequested && request.disputed) ||
+                    (_filter[5] && token.status == TokenStatus.ClearingRequested && request.disputed) ||
+                    (_filter[6] && request.parties[uint(Party.Requester)]== msg.sender) || // My Submissions.
+                    (_filter[7] && request.parties[uint(Party.Challenger)]== msg.sender) // My Challenges.
                     /* solium-enable operator-whitespace */
             ) {
                 if (_index < _count) {
-                    values[_index] = itemsList[_sort ? i : itemsList.length - i];
+                    values[_index] = tokensList[_oldestFirst ? i : tokensList.length - i];
                     _index++;
                 } else {
                     hasMore = true;
