@@ -39,8 +39,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     // Arrays of parties and balances have 3 elements to map with the Party enum for better readability:
     // - 0 is unused, matches Party.None.
-    // - 1 for Party.Requester
-    // - 2 for Party.Challenger
+    // - 1 for Party.Requester.
+    // - 2 for Party.Challenger.
 
     struct Token {
         TokenStatus status;
@@ -224,13 +224,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function fundChallenger(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction > 0, "The specified token was never submitted");
+        require(token.lastAction > 0, "The specified token was never submitted.");
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "Token does not have any pending requests"
+            "Token does not have any pending requests."
         );
         Request storage request = token.requests[token.requests.length - 1];
-        require(!request.disputed, "The token is already disputed");
+        require(!request.disputed, "The token is already disputed.");
         require(token.lastAction + request.timeToChallenge > now, "The time to challenge has already passed.");
         require(request.challengeRewardBalance >= request.challengeReward, "There isn't a pending request for this token.");
 
@@ -307,9 +307,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
-        require(token.lastAction > 0, "The specified token was never submitted");
+        require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
-        require(!request.disputed, "The token is already disputed");
+        require(!request.disputed, "The token is already disputed.");
         require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
         Round storage round = request.rounds[request.rounds.length - 1];
 
@@ -360,7 +360,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function fundAppealLosingSide(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction > 0, "The specified token was never submitted");
+        require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
         require(
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
@@ -544,7 +544,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
-        require(request.rounds.length == 1, "This is not the first round");
+        require(request.rounds.length == 1, "This is not the first round.");
         require(
             request.firstContributionTime + request.arbitrationFeesWaitingTime < now,
             "There is still time to place a contribution."
