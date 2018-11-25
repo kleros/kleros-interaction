@@ -495,7 +495,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             Party winner = round.ruling == RulingOption.Accept ? Party.Requester : Party.Challenger;
             if (round.paidFees[uint(winner)] > 0) {
                 uint totalContributed = contributionsToRequester + contributionsToChallenger;
-                totalContributed * round.contributions[msg.sender][uint(winner)] / round.paidFees[uint(winner)];
+                reward = totalContributed * round.contributions[msg.sender][uint(winner)] / round.paidFees[uint(winner)];
             }
         }
 
