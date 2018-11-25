@@ -180,7 +180,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     ) external payable {
         require(msg.value == challengeReward, "Not enough ETH.");
         Token storage token = tokens[_tokenID];
-        if(token.requests.length == 0) {
+        if (token.requests.length == 0) {
             // Initial token registration
             token.name = _name;
             token.ticker = _ticker;
@@ -238,7 +238,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint remainingETH = msg.value;
 
         // Check if caller is starting the challenge.
-        if(request.challengeRewardBalance == request.challengeReward) { // This means the token only has the requester's deposit.
+        if (request.challengeRewardBalance == request.challengeReward) { // This means the token only has the requester's deposit.
             // Caller is starting the challenge.
             require(msg.value >= request.challengeReward, "Not enough ETH. Party starting dispute must place a deposit.");
 
@@ -259,9 +259,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Take contributions, if any.
         // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
-        if(remainingETH > 0 && round.paidFees[uint(Party.Challenger)] < totalAmountRequired) {
+        if (remainingETH > 0 && round.paidFees[uint(Party.Challenger)] < totalAmountRequired) {
 
-            if(round.paidFees[uint(Party.Challenger)] == 0)
+            if (round.paidFees[uint(Party.Challenger)] == 0)
                 request.firstContributionTime = now; // This is the first contribution.
 
             uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Challenger)];
@@ -320,7 +320,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Take contribution, if any.
         // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
-        if(remainingETH > 0 && round.paidFees[uint(Party.Requester)] < totalAmountRequired) {
+        if (remainingETH > 0 && round.paidFees[uint(Party.Requester)] < totalAmountRequired) {
             uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Requester)];
             uint contribution;
             (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
@@ -559,7 +559,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             winner = Party.Challenger;
 
         // Update token state
-        if(winner == Party.Requester) // Execute Request
+        if (winner == Party.Requester) // Execute Request
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Registered;
             else
@@ -572,7 +572,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Send token balance.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        if(winner == Party.Challenger)
+        if (winner == Party.Challenger)
             request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
         else
             request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
@@ -684,7 +684,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 winner = Party.Challenger;
 
         // Update token state
-        if(winner == Party.Requester) // Execute Request
+        if (winner == Party.Requester) // Execute Request
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Registered;
             else
@@ -697,9 +697,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Send token balance.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        if(winner == Party.Challenger)
+        if (winner == Party.Challenger)
             request.parties[uint(Party.Challenger)].send(request.challengeReward * 2);
-        else if(winner == Party.Requester)
+        else if (winner == Party.Requester)
             request.parties[uint(Party.Requester)].send(request.challengeReward * 2);
         else {
             // Reimburse parties.
@@ -731,7 +731,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         pure
         returns(uint, uint remainder)
     {
-        if(_requiredAmount > _available)
+        if (_requiredAmount > _available)
             return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
 
         remainder = _available - _requiredAmount;
