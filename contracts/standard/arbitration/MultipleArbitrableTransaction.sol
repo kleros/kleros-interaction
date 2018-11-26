@@ -10,11 +10,6 @@ pragma solidity ^0.4.23;
 
 import "./Arbitrator.sol";
 
-/** @title Multiple Arbitrable Transaction
- *  @dev This is a contract for multiple arbitrable transactions which can be reversed by an arbitrator.
- *  This can be used for buying goods, services and for paying freelancers.
- *  Parties are identified as "seller" and "buyer".
- */
 contract MultipleArbitrableTransaction {
 
     // **************************** //
@@ -33,10 +28,8 @@ contract MultipleArbitrableTransaction {
         address seller;
         address buyer;
         uint256 amount;
-        uint256 timeout; // Time in seconds a party can take before being considered unresponding and lose the dispute.
+        uint256 timeoutPayment; // Time in seconds a party can take before being considered unresponding and lose the dispute.
         uint disputeId;
-        Arbitrator arbitrator;
-        bytes arbitratorExtraData;
         uint sellerFee; // Total fees paid by the seller.
         uint buyerFee; // Total fees paid by the buyer.
         uint lastInteraction; // Last interaction for the dispute procedure.
@@ -44,6 +37,12 @@ contract MultipleArbitrableTransaction {
     }
 
     Transaction[] public transactions;
+
+    bytes arbitratorExtraData;
+
+    Arbitrator arbitrator;
+
+    uint timeoutFee;
 
     mapping (bytes32 => uint) public disputeTxMap;
 
@@ -91,28 +90,36 @@ contract MultipleArbitrableTransaction {
     // *    Modifying the state   * //
     // **************************** //
 
-    /** @dev Create a transaction.
+    /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _timeout Time after which a party automatically loose a dispute.
-     *  @param _seller The recipient of the transaction.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     */
+    constructor (
+        Arbitrator _arbitrator,
+        bytes _arbitratorExtraData,
+        uint _timeoutFee
+    ) public {
+        arbitrator = _arbitrator;
+        arbitratorExtraData = _arbitratorExtraData;
+        timeoutFee = _timeoutFee;
+    }
+
+    /** @dev Create a transaction.
+     *  @param _timeoutPayment Time after which a party automatically loose a dispute.
+     *  @param _seller The recipient of the transaction.
      *  @param _metaEvidence Link to the meta-evidence.
      *  @return The index of the transaction.
      */
     function createTransaction(
-        Arbitrator _arbitrator,
-        uint _timeout,
+        uint _timeoutPayment,
         address _seller,
-        bytes _arbitratorExtraData,
         string _metaEvidence
     ) public payable returns (uint transactionIndex) {
         transactions.push(Transaction({
             seller: _seller,
             buyer: msg.sender,
             amount: msg.value,
-            timeout: _timeout,
-            arbitrator: _arbitrator,
-            arbitratorExtraData: _arbitratorExtraData,
+            timeoutPayment: _timeoutPayment,
             disputeId: 0,
             sellerFee: 0,
             buyerFee: 0,
@@ -156,7 +163,7 @@ contract MultipleArbitrableTransaction {
      */
     function executeTransaction(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
-        require(now >= transaction.lastInteraction + transaction.timeout, "The timeout has not passed yet.");
+        require(now >= transaction.lastInteraction + transaction.timeoutPayment, "The timeout has not passed yet.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
 
         transaction.seller.transfer(transaction.amount);
@@ -172,7 +179,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionId];
 
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
-        require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
+        require(now >= transaction.lastInteraction + timeoutFee, "Timeout time has not passed yet.");
 
         executeRuling(_transactionId, BUYER_WINS);
     }
@@ -184,7 +191,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionId];
 
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
-        require(now >= transaction.lastInteraction + transaction.timeout, "Timeout time has not passed yet.");
+        require(now >= transaction.lastInteraction + timeoutFee, "Timeout time has not passed yet.");
 
         executeRuling(_transactionId, SELLER_WINS);
     }
@@ -197,7 +204,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.buyer, "The caller must be the buyer.");
 
-        uint arbitrationCost = transaction.arbitrator.arbitrationCost(transaction.arbitratorExtraData);
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         transaction.buyerFee += msg.value;
         // Require that the total paid to be at least the arbitration cost.
         require(transaction.buyerFee >= arbitrationCost, "The buyer fee must cover arbitration costs.");
@@ -223,7 +230,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionId];
         require(msg.sender == transaction.seller, "The caller must be the seller.");
 
-        uint arbitrationCost = transaction.arbitrator.arbitrationCost(transaction.arbitratorExtraData);
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         transaction.sellerFee += msg.value;
         // Require that the total pay at least the arbitration cost.
         require(transaction.sellerFee >= arbitrationCost, "The seller fee must cover arbitration costs.");
@@ -247,9 +254,9 @@ contract MultipleArbitrableTransaction {
     function raiseDispute(uint _transactionId, uint _arbitrationCost) internal {
         Transaction storage transaction = transactions[_transactionId];
         transaction.status = Status.DisputeCreated;
-        transaction.disputeId = transaction.arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,transaction.arbitratorExtraData);
-        disputeTxMap[keccak256(transaction.arbitrator, transaction.disputeId)] = _transactionId;
-        emit Dispute(transaction.arbitrator, transaction.disputeId, _transactionId);
+        transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
+        disputeTxMap[keccak256(arbitrator, transaction.disputeId)] = _transactionId;
+        emit Dispute(arbitrator, transaction.disputeId, _transactionId);
     }
 
     /** @dev Submit a reference to evidence. EVENT.
@@ -261,19 +268,18 @@ contract MultipleArbitrableTransaction {
         require(msg.sender == transaction.buyer || msg.sender == transaction.seller, "The caller must be the buyer or the seller.");
 
         require(transaction.status >= Status.DisputeCreated, "The dispute has not been created yet.");
-        emit Evidence(transaction.arbitrator, transaction.disputeId, msg.sender, _evidence);
+        emit Evidence(arbitrator, transaction.disputeId, msg.sender, _evidence);
     }
 
     /** @dev Appeal an appealable ruling.
      *  Transfer the funds to the arbitrator.
      *  Note that no checks are required as the checks are done by the arbitrator.
      *  @param _transactionId The index of the transaction.
-     *  @param _extraData Extra data for the arbitrator appeal procedure.
      */
-    function appeal(uint _transactionId, bytes _extraData) public payable {
+    function appeal(uint _transactionId) public payable {
         Transaction storage transaction = transactions[_transactionId];
 
-        transaction.arbitrator.appeal.value(msg.value)(transaction.disputeId, _extraData);
+        arbitrator.appeal.value(msg.value)(transaction.disputeId, arbitratorExtraData);
     }
 
     /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
@@ -284,7 +290,7 @@ contract MultipleArbitrableTransaction {
     function rule(uint _disputeID, uint _ruling) public {
         uint transactionId = disputeTxMap[keccak256(msg.sender, _disputeID)];
         Transaction storage transaction = transactions[transactionId];
-        require(msg.sender == address(transaction.arbitrator), "The caller must be the arbitrator.");
+        require(msg.sender == address(arbitrator), "The caller must be the arbitrator.");
 
         emit Ruling(transactionId, Arbitrator(msg.sender), _disputeID, _ruling);
 

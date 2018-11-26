@@ -17,7 +17,9 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   const arbitrator = accounts[2]
   const other = accounts[3]
   const amount = 1000
-  const timeout = 100
+  const timeoutFee = 100
+  const timeoutPayment = 100
+  const timeout = 100; // TODO must remove it
   const arbitrationFee = 20
   const gasPrice = 5000000000
   const metaEvidenceUri = 'https://kleros.io'
@@ -42,17 +44,18 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   }
 
   it('Should handle 1 transaction', async () => {
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          0x0,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -80,18 +83,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   })
 
   it('Should handle 3 transaction', async () => {
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
     for (var cnt = 0; cnt < 3; cnt += 1) {
       const lastTransaction = await getLastTransaction(
         multipleContract,
         async () => {
           await multipleContract.createTransaction(
-            0x0,
-            timeout,
+            timeoutPayment,
             payee,
-            0x0,
             metaEvidenceUri,
             { from: payer, value: amount }
           )
@@ -125,17 +129,18 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   })
 
   it('Should put 1000 wei in the contract', async () => {
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          0x0,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -163,29 +168,39 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   // Pay
   it('The payee should withdraw', async () => {
     const initialPayeeBalance = web3.eth.getBalance(payee)
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
+
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          0x0,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
       }
     )
 
+    console.log('balance', initialPayeeBalance.toString())
+
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await increaseTime(timeout + 1)
+    console.log('1')
+
+    await increaseTime(timeoutPayment + 1)
+
+    console.log('2')
     const tx = await multipleContract.withdraw(arbitrableTransactionId, {
       from: payee
     })
+
+    console.log('3')
     const consumed = tx.receipt.gasUsed * 100000000000
     const newPayeeBalance = web3.eth.getBalance(payee)
     assert.equal(
@@ -193,20 +208,23 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       initialPayeeBalance.plus(1000 - consumed).toString(),
       "The payee hasn't been paid properly"
     )
+
+    console.log('new balance', initialPayeeBalance.plus(1000 - consumed).toString())
   })
 
   it('The payer should not withdraw', async () => {
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          0x0,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -220,17 +238,18 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
   // Reimburse
   it('Should reimburse 507 to the payer', async () => {
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      0,
+      { from: payer }
+    )
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          0x0,
-          0 /* timeout */,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -262,18 +281,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   })
 
   it('Should reimburse 1000 (all) to the payer', async () => {
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      0,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          0x0,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -301,18 +321,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   })
 
   it('Should fail if we try to reimburse more', async () => {
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      0,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          0x0,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -326,18 +347,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   })
 
   it('Should fail if the payer to tries to reimburse it', async () => {
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      0,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          0x0,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -357,18 +379,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      0,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -399,18 +422,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       arbitrationFee,
       { from: arbitrator }
     )
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      0,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -441,18 +465,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       arbitrationFee,
       { from: arbitrator }
     )
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      0,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -493,18 +518,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      0,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -540,18 +566,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      0,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -584,18 +611,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -607,7 +635,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    await increaseTime(timeout + 1)
+    await increaseTime(timeoutFee + 1)
     const payeeBalanceBeforeReimbursment = web3.eth.getBalance(payee)
     const tx = await multipleContract.timeOutBySeller(arbitrableTransactionId, {
       from: payee,
@@ -631,18 +659,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -676,18 +705,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -720,18 +750,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -764,18 +795,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
 
     const lastTransaction = await getLastTransaction(
       multipleContract,
       async () => {
         await multipleContract.createTransaction(
-          centralizedArbitrator.address,
-          timeout,
+          timeoutPayment,
           payee,
-          0x0,
           metaEvidenceUri,
           { from: payer, value: amount }
         )
@@ -804,9 +836,12 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: arbitrator }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
 
     const metaEvidenceEvent = multipleContract.MetaEvidence()
 
@@ -824,10 +859,8 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       currentResolve = resolve
 
       multipleContract.createTransaction(
-        centralizedArbitrator.address,
-        timeout,
+        timeoutPayment,
         payee,
-        0x0,
         metaEvidenceUri,
         { from: payer, value: amount }
       )
@@ -841,10 +874,8 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       currentResolve = resolve
 
       multipleContract.createTransaction(
-        centralizedArbitrator.address,
-        timeout,
+        timeoutPayment,
         payee,
-        0x0,
         metaEvidenceUri,
         { from: payer, value: amount }
       )
@@ -906,9 +937,12 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: other }
     )
 
-    const multipleContract = await MultipleArbitrableTransaction.new({
-      from: payer
-    })
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      timeoutFee,
+      { from: payer }
+    )
 
     const metaEvidenceEvent = multipleContract.MetaEvidence()
 
@@ -926,10 +960,8 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       currentResolve = resolve
 
       multipleContract.createTransaction(
-        centralizedArbitrator1.address,
-        timeout,
+        timeoutPayment,
         payee,
-        0x0,
         metaEvidenceUri,
         { from: payer, value: amount }
       )
@@ -943,10 +975,8 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       currentResolve = resolve
 
       multipleContract.createTransaction(
-        centralizedArbitrator2.address,
-        timeout,
+        timeoutPayment,
         payee,
-        0x0,
         metaEvidenceUri,
         { from: payer, value: amount }
       )
