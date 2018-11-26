@@ -28,7 +28,7 @@ contract MultipleArbitrableTransaction {
         address seller;
         address buyer;
         uint256 amount;
-        uint256 timeoutPayment; // Time in seconds a party can take before being considered unresponding and lose the dispute.
+        uint256 timeoutPayment; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
         uint disputeId;
         uint sellerFee; // Total fees paid by the seller.
         uint buyerFee; // Total fees paid by the buyer.
@@ -37,12 +37,9 @@ contract MultipleArbitrableTransaction {
     }
 
     Transaction[] public transactions;
-
     bytes arbitratorExtraData;
-
     Arbitrator arbitrator;
-
-    uint timeoutFee;
+    uint timeoutFee; // Time in seconds after which the transaction is automatically executed if not disputed.
 
     mapping (bytes32 => uint) public disputeTxMap;
 
