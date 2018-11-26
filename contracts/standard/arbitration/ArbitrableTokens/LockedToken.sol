@@ -6,14 +6,14 @@
 
 
 pragma solidity ^0.4.15;
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol";
 
 
 /** @title Locked Token
  *  @dev A token when created coins are locked and unlock accross time.
  *  Note that we use steps for one month. In the future, when float are available, we could use law of exponential decay to avoid steps and have a smoothed unlocking.
  */
-contract LockedToken is ERC20Mintable {
+contract LockedToken is MintableToken {
     uint public lockMultiplierPerMillionPerMonth; // The amount we must multiply the locked balance each month.
     uint constant LOCK_DIVISOR = 1E6;
     mapping (address => uint) public lastUnlock; // Last time tokens were unlocked.
