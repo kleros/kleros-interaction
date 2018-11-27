@@ -185,6 +185,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.name = _name;
             token.ticker = _ticker;
             token.addr = _addr;
+            tokensList.push(_tokenID);
         } else
             require(
                 !token.requests[token.requests.length - 1].disputed,
@@ -779,6 +780,33 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Interface Views */
 
+    /** @dev Returns token information. Includes length of requests array.
+     *  @param _tokenID The ID of the token.
+     *  @return The token information.
+     */
+    function getTokenInfo(bytes32 _tokenID)
+        external
+        view
+        returns (
+            TokenStatus status,
+            string name,
+            address addr,
+            string ticker,
+            uint lastAction,
+            uint numberOfRequests
+        )
+    {
+        Token storage token = tokens[_tokenID];
+        return (
+            token.status,
+            token.name,
+            token.addr,
+            token.ticker,
+            token.lastAction,
+            token.requests.length
+        );
+    }
+
     /** @dev Gets the info on a request of a token.
      *  @param _tokenID The ID of the token.
      *  @param _request The position of the request we want.
@@ -787,7 +815,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function getRequestInfo(bytes32 _tokenID, uint _request)
         external
         view
-        returns (bool, uint, uint, uint, uint, uint, uint, address[3], bool)
+        returns (
+            bool disputed,
+            uint disputeID,
+            uint firstContributionTime,
+            uint arbitrationFeesWaitingTime,
+            uint timeToChallenge,
+            uint challengeRewardBalance,
+            uint challengeReward,
+            address[3] parties,
+            bool appealed,
+            uint numberOfRounds
+        )
     {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
@@ -800,7 +839,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.challengeRewardBalance,
             request.challengeReward,
             request.parties,
-            request.appealed
+            request.appealed,
+            request.rounds.length
         );
     }
 
@@ -813,7 +853,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function getRoundInfo(bytes32 _tokenID, uint _request, uint _round)
         external
         view
-        returns (uint, uint[3], bool, RulingOption)
+        returns (
+            uint requiredFeeStake,
+            uint[3] paidFees,
+            bool loserFullyFunded,
+            RulingOption ruling
+        )
     {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
@@ -937,5 +982,4 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             }
         }
     }
-
 }
