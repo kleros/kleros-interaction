@@ -19,7 +19,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   const amount = 1000
   const timeoutFee = 100
   const timeoutPayment = 100
-  const timeout = 100; // TODO must remove it
+  const timeout = 100 // TODO must remove it
   const arbitrationFee = 20
   const gasPrice = 5000000000
   const metaEvidenceUri = 'https://kleros.io'
@@ -191,9 +191,12 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     await increaseTime(timeoutPayment + 1)
 
-    const tx = await multipleContract.executeTransaction(arbitrableTransactionId, {
-      from: payee
-    })
+    const tx = await multipleContract.executeTransaction(
+      arbitrableTransactionId,
+      {
+        from: payee
+      }
+    )
 
     const consumed = tx.receipt.gasUsed * 100000000000
     const newPayeeBalance = web3.eth.getBalance(payee)
@@ -224,7 +227,9 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
     await expectThrow(
-      multipleContract.executeTransaction(arbitrableTransactionId, { from: payer })
+      multipleContract.executeTransaction(arbitrableTransactionId, {
+        from: payer
+      })
     )
   })
 
@@ -489,18 +494,64 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const payeeBalanceBeforeRuling = web3.eth.getBalance(payee)
 
     await centralizedArbitrator.giveRuling(0, 0, { from: arbitrator })
+
     const payerBalanceAfterRuling = web3.eth.getBalance(payer)
     const payeeBalanceAfterRuling = web3.eth.getBalance(payee)
 
     assert.equal(
-      payerBalanceAfterRuling.toString(),
-      payerBalanceBeforeRuling.plus(510).toString(),
-      'The payee has not been paid properly'
-    )
-    assert.equal(
       payeeBalanceAfterRuling.toString(),
       payeeBalanceBeforeRuling.plus(510).toString(),
-      'The payer has not been reimbursed correctly'
+      'The payee has not been reimbursed correctly'
+    )
+
+    assert.equal(
+      payerBalanceAfterRuling.toString(),
+      payerBalanceBeforeRuling.plus(510).toString(),
+      'The payer has not been paid properly'
+    )
+  })
+
+  it('Should refund overpaid arbitration fee for payer', async () => {
+    const centralizedArbitrator = await CentralizedArbitrator.new(
+      arbitrationFee,
+      { from: arbitrator }
+    )
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      0,
+      { from: payer }
+    )
+
+    const lastTransaction = await getLastTransaction(
+      multipleContract,
+      async () => {
+        await multipleContract.createTransaction(
+          timeoutPayment,
+          payee,
+          metaEvidenceUri,
+          { from: payer, value: amount }
+        )
+      }
+    )
+    const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
+
+    const extraAmount = 100
+    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee + extraAmount
+    })
+    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+    const payerBalanceBeforePay = web3.eth.getBalance(payer)
+    await centralizedArbitrator.giveRuling(0, 2, { from: arbitrator })
+    const newPayerBalance = web3.eth.getBalance(payer)
+    assert.equal(
+      newPayerBalance.toString(),
+      payerBalanceBeforePay.plus(extraAmount).toString(),
+      'The payer was not refunded properly'
     )
   })
 

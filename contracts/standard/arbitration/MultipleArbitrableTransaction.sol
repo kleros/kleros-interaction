@@ -34,6 +34,7 @@ contract MultipleArbitrableTransaction {
         uint buyerFee; // Total fees paid by the buyer.
         uint lastInteraction; // Last interaction for the dispute procedure.
         Status status;
+        uint arbitrationCost;
     }
 
     Transaction[] public transactions;
@@ -102,7 +103,7 @@ contract MultipleArbitrableTransaction {
     }
 
     /** @dev Create a transaction.
-     *  @param _timeoutPayment Time after which a party automatically loose a dispute.
+     *  @param _timeoutPayment Time after which a party automatically loses the dispute.
      *  @param _seller The recipient of the transaction.
      *  @param _metaEvidence Link to the meta-evidence.
      *  @return The index of the transaction.
@@ -121,7 +122,8 @@ contract MultipleArbitrableTransaction {
             sellerFee: 0,
             buyerFee: 0,
             lastInteraction: now,
-            status: Status.NoDispute
+            status: Status.NoDispute,
+            arbitrationCost: 0
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
         return transactions.length - 1;
@@ -160,7 +162,7 @@ contract MultipleArbitrableTransaction {
      */
     function executeTransaction(uint _transactionId) public {
         Transaction storage transaction = transactions[_transactionId];
-        require(now >= transaction.lastInteraction + transaction.timeoutPayment, "The timeout has not passed yet.");
+        require(now - transaction.lastInteraction >= transaction.timeoutPayment, "The timeout has not passed yet.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
 
         transaction.seller.transfer(transaction.amount);
@@ -176,7 +178,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionId];
 
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
-        require(now >= transaction.lastInteraction + timeoutFee, "Timeout time has not passed yet.");
+        require(now - transaction.lastInteraction >= + timeoutFee, "Timeout time has not passed yet.");
 
         executeRuling(_transactionId, BUYER_WINS);
     }
@@ -188,7 +190,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionId];
 
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
-        require(now >= transaction.lastInteraction + timeoutFee, "Timeout time has not passed yet.");
+        require(now - transaction.lastInteraction >= timeoutFee, "Timeout time has not passed yet.");
 
         executeRuling(_transactionId, SELLER_WINS);
     }
@@ -199,6 +201,7 @@ contract MultipleArbitrableTransaction {
      */
     function payArbitrationFeeByBuyer(uint _transactionId) public payable {
         Transaction storage transaction = transactions[_transactionId];
+        require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
         require(msg.sender == transaction.buyer, "The caller must be the buyer.");
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -212,8 +215,6 @@ contract MultipleArbitrableTransaction {
             transaction.status = Status.WaitingSeller;
             emit HasToPayFee(_transactionId, Party.Seller);
         } else { // The buyer has also paid the fee. We create the dispute
-            // Make sure a dispute has not been created yet.
-            require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
             raiseDispute(_transactionId, arbitrationCost);
         }
     }
@@ -225,6 +226,7 @@ contract MultipleArbitrableTransaction {
      */
     function payArbitrationFeeBySeller(uint _transactionId) public payable {
         Transaction storage transaction = transactions[_transactionId];
+        require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
         require(msg.sender == transaction.seller, "The caller must be the seller.");
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -238,8 +240,6 @@ contract MultipleArbitrableTransaction {
             transaction.status = Status.WaitingBuyer;
             emit HasToPayFee(_transactionId, Party.Buyer);
         } else { // The seller has also paid the fee. We create the dispute
-            // Make sure a dispute has not been created yet.
-            require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
             raiseDispute(_transactionId, arbitrationCost);
         }
     }
@@ -252,6 +252,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionId];
         transaction.status = Status.DisputeCreated;
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
+        transaction.arbitrationCost = _arbitrationCost;
         disputeTxMap[keccak256(arbitrator, transaction.disputeId)] = _transactionId;
         emit Dispute(arbitrator, transaction.disputeId, _transactionId);
     }
@@ -288,6 +289,7 @@ contract MultipleArbitrableTransaction {
         uint transactionId = disputeTxMap[keccak256(msg.sender, _disputeID)];
         Transaction storage transaction = transactions[transactionId];
         require(msg.sender == address(arbitrator), "The caller must be the arbitrator.");
+        require(transaction.status < Status.Resolved, "The dispute has already been resolved.");
 
         emit Ruling(transactionId, Arbitrator(msg.sender), _disputeID, _ruling);
 
@@ -302,24 +304,27 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionId];
         require(_ruling <= AMOUNT_OF_CHOICES, "Invalid ruling.");
 
-        uint maxFee = transaction.sellerFee > transaction.buyerFee ? transaction.sellerFee : transaction.buyerFee;
-
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
         if (_ruling == SELLER_WINS) {
-            // In both cases sends the highest amount paid to avoid ETH to be stuck in the contract if the arbitrator lowers its fee.
-            transaction.seller.send(maxFee);
-            transaction.seller.send(transaction.amount);
+            transaction.seller.send(transaction.sellerFee + transaction.amount);
+            // Refund buyer if they overpaid
+            if (transaction.buyerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
+                transaction.buyer.send(transaction.buyerFee - transaction.arbitrationCost);
         } else if (_ruling == BUYER_WINS) {
-            transaction.buyer.send(maxFee);
-            transaction.buyer.send(transaction.amount);
+            transaction.buyer.send(transaction.buyerFee + transaction.amount);
+            // Refund seller if they overpaid
+            if (transaction.sellerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
+                transaction.seller.send(transaction.sellerFee - transaction.arbitrationCost);
         } else {
-            uint split_anount = (maxFee + transaction.amount) / 2;
-            transaction.buyer.send(split_anount);
-            transaction.seller.send(split_anount);
+            uint split_amount = (transaction.sellerFee + transaction.buyerFee - transaction.arbitrationCost + transaction.amount) / 2;
+            transaction.buyer.send(split_amount);
+            transaction.seller.send(split_amount);
         }
 
         transaction.amount = 0;
+        transaction.sellerFee = 0;
+        transaction.buyerFee = 0;
         transaction.status = Status.Resolved;
     }
 
