@@ -19,7 +19,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   const amount = 1000
   const timeoutFee = 100
   const timeoutPayment = 100
-  const timeout = 100; // TODO must remove it
+  const timeout = 100 // TODO must remove it
   const arbitrationFee = 20
   const gasPrice = 5000000000
   const metaEvidenceUri = 'https://kleros.io'
@@ -191,9 +191,12 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     await increaseTime(timeoutPayment + 1)
 
-    const tx = await multipleContract.executeTransaction(arbitrableTransactionId, {
-      from: payee
-    })
+    const tx = await multipleContract.executeTransaction(
+      arbitrableTransactionId,
+      {
+        from: payee
+      }
+    )
 
     const consumed = tx.receipt.gasUsed * 100000000000
     const newPayeeBalance = web3.eth.getBalance(payee)
@@ -224,7 +227,9 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
     await expectThrow(
-      multipleContract.executeTransaction(arbitrableTransactionId, { from: payer })
+      multipleContract.executeTransaction(arbitrableTransactionId, {
+        from: payer
+      })
     )
   })
 
