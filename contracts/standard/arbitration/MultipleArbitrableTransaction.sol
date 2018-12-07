@@ -290,7 +290,7 @@ contract MultipleArbitrableTransaction {
         uint transactionID = disputeID[_disputeID];
         Transaction storage transaction = transactions[transactionID];
         require(msg.sender == address(arbitrator), "The caller must be the arbitrator.");
-        require(transaction.status < Status.Resolved, "The dispute has already been resolved.");
+        require(transaction.status == Status.Resolved, "The dispute has already been resolved.");
 
         emit Ruling(transactionID, Arbitrator(msg.sender), _disputeID, _ruling);
 
@@ -341,18 +341,25 @@ contract MultipleArbitrableTransaction {
     }
 
     /** @dev Get IDs for transactions where the specified address is the buyer and/or the seller.
+     *  This function must be used by the UI and not by other smart contracts.
+     *  Note that the complexity is O(t), where t is amount of arbitrable transactions.
      *  @param _address The specified address.
      *  @return transactionIDs The transaction IDs.
      */
     function getTransactionIDsByAddress(address _address) public view returns (uint[] transactionIDs) {
-        uint[] memory transactionIDsBigArr = new uint[](transactions.length);
         uint count = 0;
         for (uint i = 0; i < transactions.length; i++) {
             if (transactions[i].seller == _address || transactions[i].buyer == _address)
-                transactionIDsBigArr[count++] = i;
+                count++;
         }
 
         transactionIDs = new uint[](count);
-        for (uint j = 0; j < count; j++) transactionIDs[j] = transactionIDsBigArr[j];
+
+        count = 0;
+
+        for (uint j = 0; j < transactions.length; j++) {
+            if (transactions[j].seller == _address || transactions[j].buyer == _address)
+                transactionIDs[count++] = j;
+        }
     }
 }
