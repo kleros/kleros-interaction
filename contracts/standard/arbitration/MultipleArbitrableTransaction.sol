@@ -253,8 +253,8 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionID];
         transaction.status = Status.DisputeCreated;
         transaction.arbitrationCost = _arbitrationCost;
-        disputeID[transaction.disputeId] = _transactionID;
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
+        disputeID[transaction.disputeId] = _transactionID;
         emit Dispute(arbitrator, transaction.disputeId, _transactionID);
     }
 
