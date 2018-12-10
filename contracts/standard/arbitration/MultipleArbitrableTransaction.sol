@@ -290,7 +290,7 @@ contract MultipleArbitrableTransaction {
         uint transactionID = disputeID[_disputeID];
         Transaction storage transaction = transactions[transactionID];
         require(msg.sender == address(arbitrator), "The caller must be the arbitrator.");
-        require(transaction.status == Status.Resolved, "The dispute has already been resolved.");
+        require(transaction.status == Status.DisputeCreated, "The dispute has already been resolved.");
 
         emit Ruling(transactionID, Arbitrator(msg.sender), _disputeID, _ruling);
 
