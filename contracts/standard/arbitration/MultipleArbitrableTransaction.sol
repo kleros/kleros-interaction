@@ -38,9 +38,9 @@ contract MultipleArbitrableTransaction {
     }
 
     Transaction[] public transactions;
-    bytes arbitratorExtraData;
-    Arbitrator arbitrator;
-    uint timeoutFee; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
+    bytes public arbitratorExtraData;
+    Arbitrator public arbitrator;
+    uint public timeoutFee; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
 
     mapping (uint => uint) public disputeID;
 
