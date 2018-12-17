@@ -35,4 +35,4 @@ Smart contracts able to interact with Kleros and standard proposals.
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/kleros/CONTRIBUTING.md).
+See [CONTRIBUTING.md](https://contributing.kleros.io).
