@@ -17,7 +17,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   const arbitrator = accounts[2]
   const other = accounts[3]
   const amount = 1000
-  const timeoutFee = 100
+  const feeTimeout = 100
   const timeoutPayment = 100
   const timeout = 100 // TODO must remove it
   const arbitrationFee = 20
@@ -47,7 +47,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       0x0,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
     const lastTransaction = await getLastTransaction(
@@ -86,7 +86,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       0x0,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
     for (var cnt = 0; cnt < 3; cnt += 1) {
@@ -132,7 +132,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       0x0,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
     const lastTransaction = await getLastTransaction(
@@ -171,7 +171,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       0x0,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
 
@@ -211,7 +211,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       0x0,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
     const lastTransaction = await getLastTransaction(
@@ -612,7 +612,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       centralizedArbitrator.address,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
 
@@ -657,7 +657,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       centralizedArbitrator.address,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
 
@@ -678,7 +678,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       from: payee,
       value: arbitrationFee
     })
-    await increaseTime(timeoutFee + 1)
+    await increaseTime(feeTimeout + 1)
     const payeeBalanceBeforeReimbursment = web3.eth.getBalance(payee)
     const tx = await multipleContract.timeOutBySeller(arbitrableTransactionId, {
       from: payee,
@@ -705,7 +705,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       centralizedArbitrator.address,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
 
@@ -751,7 +751,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       centralizedArbitrator.address,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
 
@@ -796,7 +796,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       centralizedArbitrator.address,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
 
@@ -841,7 +841,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       centralizedArbitrator.address,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
 
@@ -882,7 +882,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const multipleContract = await MultipleArbitrableTransaction.new(
       centralizedArbitrator.address,
       0x0,
-      timeoutFee,
+      feeTimeout,
       { from: payer }
     )
 
@@ -984,7 +984,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   //   const multipleContract1 = await MultipleArbitrableTransaction.new(
   //     centralizedArbitrator1.address,
   //     0x0,
-  //     timeoutFee,
+  //     feeTimeout,
   //     { from: payer }
   //   )
 
@@ -1018,7 +1018,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   //   const multipleContract2 = await MultipleArbitrableTransaction.new(
   //     centralizedArbitrator2.address,
   //     0x0,
-  //     timeoutFee,
+  //     feeTimeout,
   //     { from: payer }
   //   )
 

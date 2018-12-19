@@ -22,7 +22,6 @@ contract MultipleArbitrableTransaction {
 
     enum Party {Seller, Buyer}
     enum Status {NoDispute, WaitingSeller, WaitingBuyer, DisputeCreated, Resolved}
-    enum RulingOptions {NoRuling, Buyer_Wins, Seller_Wins}
 
     struct Transaction {
         address seller;
@@ -40,7 +39,7 @@ contract MultipleArbitrableTransaction {
     Transaction[] public transactions;
     bytes public arbitratorExtraData;
     Arbitrator public arbitrator;
-    uint public timeoutFee; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
+    uint public feeTimeout; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
 
     mapping (uint => uint) public disputeID;
 
@@ -91,16 +90,16 @@ contract MultipleArbitrableTransaction {
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
-     *  @param _timeoutFee Arbitration fee timeout for the parties.
+     *  @param _feeTimeout Arbitration fee timeout for the parties.
      */
     constructor (
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        uint _timeoutFee
+        uint _feeTimeout
     ) public {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
-        timeoutFee = _timeoutFee;
+        feeTimeout = _feeTimeout;
     }
 
     /** @dev Create a transaction.
@@ -179,7 +178,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionID];
 
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
-        require(now - transaction.lastInteraction >= + timeoutFee, "Timeout time has not passed yet.");
+        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
         executeRuling(_transactionID, BUYER_WINS);
     }
@@ -191,7 +190,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionID];
 
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
-        require(now - transaction.lastInteraction >= timeoutFee, "Timeout time has not passed yet.");
+        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
         executeRuling(_transactionID, SELLER_WINS);
     }
