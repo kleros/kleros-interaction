@@ -70,7 +70,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     struct Round {
         uint requiredFeeStake; // The required stake.
         uint[3] paidFees; // The amount of fees paid for each side, if any.
-        bool loserFullyFunded; // True if there the loosing side of a dispute fully funded his side of an appeal.
+        bool loserFullyFunded; // True if there the losing side of a dispute fully funded his side of an appeal.
         RulingOption ruling; // The ruling given by an arbitrator, if any.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
@@ -87,7 +87,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param challenger Address of the challenger, if any.
      *  @param tokenID The tokenID of the token.
      *  @param status The status of the token.
-     *  @param disputed Wether the token is being disputed.
+     *  @param disputed Whether the token is being disputed.
      */
     event TokenStatusChange(
         address indexed requester,
@@ -104,7 +104,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     event Contribution(bytes32 indexed _tokenID, address indexed _contributor, uint _value);
 
-    /** @dev Emitted a deposit is made to challenge a request.
+    /** @dev Emitted shen a deposit is made to challenge a request.
      *  @param _tokenID The ID of the token that the contribution was made to.
      *  @param _challenger The address that placed the deposit.
      */
@@ -181,7 +181,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         string _ticker,
         address _addr
     ) external payable {
-        require(msg.value == challengeReward, "Not enough ETH.");
+        require(msg.value == challengeReward, "Wrong ETH value.");
         Token storage token = tokens[_tokenID];
         if (token.requests.length == 0) {
             // Initial token registration
@@ -228,15 +228,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function fundChallenger(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(token.lastAction > 0, "The specified token was never submitted.");
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests."
         );
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The token is already disputed.");
-        require(token.lastAction + request.timeToChallenge > now, "The time to challenge has already passed.");
-        require(request.challengeRewardBalance >= request.challengeReward, "There isn't a pending request for this token.");
+        require(now - token.lastAction < request.timeToChallenge, "The time to challenge has already passed.");
 
         Round storage round = request.rounds[request.rounds.length - 1];
         uint remainingETH = msg.value;
@@ -311,10 +309,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
             "Token does not have any pending requests"
         );
-        require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The token is already disputed.");
-        require(request.firstContributionTime + request.arbitrationFeesWaitingTime > now, "Arbitration fees timed out.");
+        require(now - request.firstContributionTime < request.arbitrationFeesWaitingTime, "Arbitration fees timed out.");
         Round storage round = request.rounds[request.rounds.length - 1];
 
         // Calculate amount required.
@@ -359,7 +356,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Fund the loosing side of the appeal. Callable only on the first half of the appeal period.
+    /** @dev Fund the losing side of the appeal. Callable only on the first half of the appeal period.
      *  @param _tokenID The tokenID of the token to fund.
      */
     function fundAppealLosingSide(bytes32 _tokenID) external payable {
@@ -386,7 +383,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Round storage round = request.rounds[request.rounds.length - 1];
         uint totalRequiredFees = appealCost + (2 * round.requiredFeeStake);
 
-        //The the contribution, if any.
+        // Take the contribution, if any.
         // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
         if (remainingETH > 0 && totalRequiredFees > round.paidFees[uint(loser)]) {
             uint amountStillRequired = totalRequiredFees - round.paidFees[uint(loser)];
@@ -405,11 +402,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Fund the loosing side of the appeal. Callable only on the first half of the appeal period.
+    /** @dev Fund the winning side of the appeal. Callable only on the first half of the appeal period.
      *  @param _tokenID The tokenID of the token to fund.
      */
     function fundAppealWinningSide(bytes32 _tokenID) external payable {
-        require(tokens[_tokenID].lastAction > 0, "The specified token was never submitted.");
+        require(tokens[_tokenID].lastAction > 0, "The specified token was never submitted."); // We access the token from the array instead of using a variable like elsewhere to avoid reaching the stack limit.
         Request storage request = tokens[_tokenID].requests[tokens[_tokenID].requests.length - 1]; // Take the last request.
         require(
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
@@ -479,7 +476,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
-        require(request.rounds.length > 0, "No attempt to raise a dispute was made.");
         require(_round < request.rounds.length, "The specified round does not exist.");
         Round storage round = request.rounds[_round];
 
@@ -516,7 +512,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted.");
         Request storage request = token.requests[token.requests.length - 1];
-        require(now > token.lastAction + timeToChallenge, "The time to challenge has not passed yet.");
+        require(now - token.lastAction > request.timeToChallenge, "The time to challenge has not passed yet.");
         require(!request.disputed, "The specified token is disputed.");
         require(
             request.challengeRewardBalance == request.challengeReward,
@@ -555,7 +551,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
 
         // Failed to fund first round.
-        // Rule in favor of whoever paid more.
+        // Rule in favor of requester if he paid more or equal to the challenger. Rule in favor of challenger otherwise.
         Party winner;
         if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
             winner = Party.Requester;
@@ -939,7 +935,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  - Include tokens submitted by the caller.
      *  - Include tokens challenged by the caller.
      *  @param _oldestFirst The sort order to use.
-     *  @return The values of the tokens found and wether there are more tokens for the current filter and sort.
+     *  @return The values of the tokens found and whether there are more tokens for the current filter and sort.
      */
     function queryTokens(bytes32 _cursor, uint _count, bool[8] _filter, bool _oldestFirst)
         external
