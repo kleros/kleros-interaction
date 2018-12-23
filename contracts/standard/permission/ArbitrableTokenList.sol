@@ -10,6 +10,7 @@ pragma solidity ^0.4.24;
 
 import "../arbitration/Arbitrable.sol";
 import "./PermissionInterface.sol";
+
 /**
  *  @title ArbitrableTokenList
  *  This is a T2CL for tokens. Tokens can be submitted and cleared with a time out for challenging.
@@ -892,17 +893,24 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         contributions = round.contributions[_contributor];
     }
 
-    /** @dev Return the numbers of tokens in the list per status. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+    /** @dev Return the numbers of tokens in the list.
+     *  @return The numbers of tokens in the list.
+     */
+    function tokenCount() external view returns (uint count) {
+        return tokensList.length;
+    }
+
+    /** @dev Return the numbers of tokens with each status. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @return The numbers of tokens in the list per status.
      */
-    function tokensCounts()
+    function countByStatus()
         external
         view
         returns (
             uint disputed,
             uint absent,
             uint registered,
-            uint submitted,
+            uint registrationRequested,
             uint clearingRequested
         )
     {
@@ -913,7 +921,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             if (request.disputed) disputed++;
             if (token.status == TokenStatus.Absent) absent++;
             else if (token.status == TokenStatus.Registered) registered++;
-            else if (token.status == TokenStatus.RegistrationRequested) submitted++;
+            else if (token.status == TokenStatus.RegistrationRequested) registrationRequested++;
             else if (token.status == TokenStatus.ClearingRequested) clearingRequested++;
         }
     }
