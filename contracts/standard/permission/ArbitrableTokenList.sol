@@ -13,7 +13,7 @@ import "./PermissionInterface.sol";
 
 /**
  * @title CappedMath
- * @dev Gas-optimized math operations with caps for under and overflow.
+ * @dev Math operations with caps for under and overflow.
  */
 library CappedMath {
     uint constant private MAX = 2**256 - 1;
@@ -149,7 +149,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     uint public challengeReward; // The stake deposit required in addition to arbitration fees for challenging a request.
     uint public timeToChallenge; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees if the dispute is raised.
-    uint public stake; // The stake parameter for arbitration fees crowdfunding.
+    uint public stake; // The stake parameter of the first round of a dispute.
+    uint public loserStakeMultiplier; // An arbitration cost multiplier for fee stake calculation of each dispute round.
+    uint public winnerStakeMultiplier; // An arbitration cost multiplier for fee stake calculation of each dispute round.
     address public governor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
 
     // Tokens
@@ -169,6 +171,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _challengeReward The amount in Weis of deposit required for a submission or a challenge in addition to the arbitration fees.
      *  @param _timeToChallenge The time in seconds, parties have to challenge.
      *  @param _stake The stake parameter for sharing fees.
+     *  @param _winnerStakeMultiplier An arbitration cost multiplier used to calculate the fee stake the winner must pay to fund his side of a dispute round.
+     *  @param _loserStakeMultiplier An arbitration cost multiplier used to calculate the fee stake the loser must pay to fund his side of a dispute round.
      */
     constructor(
         Arbitrator _arbitrator,
@@ -178,13 +182,17 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint _arbitrationFeesWaitingTime,
         uint _challengeReward,
         uint _timeToChallenge,
-        uint _stake
+        uint _stake,
+        uint _winnerStakeMultiplier,
+        uint _loserStakeMultiplier
     ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
         challengeReward = _challengeReward;
         timeToChallenge = _timeToChallenge;
         governor = _governor;
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
         stake = _stake;
+        winnerStakeMultiplier = _winnerStakeMultiplier;
+        loserStakeMultiplier = _loserStakeMultiplier;
         emit MetaEvidence(0, _metaEvidence);
     }
 
@@ -701,6 +709,20 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function changeArbitrationFeesWaitingTime(uint _arbitrationFeesWaitingTime) external onlyGovernor {
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
+    }
+
+    /** @dev Changes the `winnerStakeMultiplier` storage variable.
+     *  @param _winnerStakeMultiplier The new `_winnerStakeMultiplier` storage variable.
+     */
+    function changeWinnerStakeMultiplier(uint _winnerStakeMultiplier) external onlyGovernor {
+        winnerStakeMultiplier = _winnerStakeMultiplier;
+    }
+
+    /** @dev Changes the `loserStakeMultiplier` storage variable.
+     *  @param _loserStakeMultiplier The new `_loserStakeMultiplier` storage variable.
+     */
+    function changeLoserStakeMultiplier(uint _loserStakeMultiplier) external onlyGovernor {
+        loserStakeMultiplier = _loserStakeMultiplier;
     }
 
     /* Public Views */

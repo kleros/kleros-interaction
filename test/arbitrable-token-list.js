@@ -78,7 +78,9 @@ contract('ArbitrableTokenList', function(accounts) {
       arbitrationFeesWaitingTime,
       challengeReward,
       timeToChallenge,
-      feeStake
+      feeStake,
+      1,
+      2
     )
   }
 
