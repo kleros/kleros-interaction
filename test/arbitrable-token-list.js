@@ -82,7 +82,7 @@ contract('ArbitrableTokenList', function(accounts) {
     )
   }
 
-  describe('registration request', () => {
+  describe.skip('registration request', () => {
     beforeEach(async () => {
       await deployArbitrators()
       await deployArbitrableTokenList(enhancedAppealableArbitrator)

@@ -75,6 +75,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         string ticker;
         uint lastAction; // Time of the last action.
         Request[] requests;
+        string URI;
+        string networkID;
     }
 
     struct Request {
@@ -197,12 +199,16 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _name The name of the token.
      *  @param _ticker The token ticker.
      *  @param _addr The token address.
+     *  @param _URI The to the token image
+     *  @param _networkID The id of the token's network if it's the same as the TCR's.
      */
     function requestStatusChange(
         bytes32 _tokenID,
         string _name,
         string _ticker,
-        address _addr
+        address _addr,
+        string _URI,
+        string _networkID
     ) external payable {
         require(msg.value == challengeReward, "Wrong ETH value.");
         Token storage token = tokens[_tokenID];
@@ -211,6 +217,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.name = _name;
             token.ticker = _ticker;
             token.addr = _addr;
+            token.URI = _URI;
+            token.networkID = _networkID;
             tokensList.push(_tokenID);
         } else
             require(
@@ -838,7 +846,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             address addr,
             string ticker,
             uint lastAction,
-            uint numberOfRequests
+            uint numberOfRequests,
+            string URI,
+            string networkID
         )
     {
         Token storage token = tokens[_tokenID];
@@ -848,7 +858,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.addr,
             token.ticker,
             token.lastAction,
-            token.requests.length
+            token.requests.length,
+            token.URI,
+            token.networkID
         );
     }
 
