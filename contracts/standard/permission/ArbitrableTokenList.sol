@@ -108,18 +108,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Called when the token's status changes or when it is challenged/resolved.
-     *  @param requester Address of the requester.
-     *  @param challenger Address of the challenger, if any.
-     *  @param tokenID The tokenID of the token.
-     *  @param status The status of the token.
-     *  @param disputed Whether the token is being disputed.
+     *  @param _requester Address of the requester.
+     *  @param _challenger Address of the challenger, if any.
+     *  @param _tokenID The tokenID of the token.
+     *  @param _status The status of the token.
+     *  @param _disputed Whether the token is being disputed.
      */
     event TokenStatusChange(
-        address indexed requester,
-        address indexed challenger,
-        bytes32 indexed tokenID,
-        TokenStatus status,
-        bool disputed
+        address indexed _requester,
+        address indexed _challenger,
+        bytes32 indexed _tokenID,
+        TokenStatus _status,
+        bool _disputed
     );
 
     /** @dev Emitted when a contribution is made.
@@ -195,7 +195,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // ************************ //
 
     /** @dev Submits a request to change the token status.
-     *  @param _tokenID The keccak hash of a JSON object with all of the token's properties and no insignificant whitespaces.
      *  @param _name The name of the token.
      *  @param _ticker The token ticker.
      *  @param _addr The token address.
@@ -203,7 +202,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _networkID The id of the token's network if it's the same as the TCR's.
      */
     function requestStatusChange(
-        bytes32 _tokenID,
         string _name,
         string _ticker,
         address _addr,
@@ -211,7 +209,17 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         string _networkID
     ) external payable {
         require(msg.value == challengeReward, "Wrong ETH value.");
-        Token storage token = tokens[_tokenID];
+        bytes32 tokenID = keccak256(
+            abi.encodePacked(
+                _name,
+                _ticker,
+                _addr,
+                _URI,
+                _networkID
+            )
+        );
+
+        Token storage token = tokens[tokenID];
         if (token.requests.length == 0) {
             // Initial token registration
             token.name = _name;
@@ -219,7 +227,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.addr = _addr;
             token.URI = _URI;
             token.networkID = _networkID;
-            tokensList.push(_tokenID);
+            tokensList.push(tokenID);
         } else
             require(
                 !token.requests[token.requests.length - 1].disputed,
@@ -251,7 +259,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.requiredFeeStake = stake;
         token.lastAction = now;
 
-        emit TokenStatusChange(msg.sender, address(0), _tokenID, token.status, false);
+        emit TokenStatusChange(msg.sender, address(0), tokenID, token.status, false);
     }
 
     /** @dev Challenge a request for a token.
