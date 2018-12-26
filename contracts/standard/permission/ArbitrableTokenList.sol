@@ -16,20 +16,35 @@ import "./PermissionInterface.sol";
  * @dev Math operations with caps for under and overflow.
  */
 library CappedMath {
-    uint constant private MAX = 2**256 - 1;
+    uint constant private UINT_MAX = 2**256 - 1;
 
     /**
     * @dev Adds two unsigned integers, returns 2^256 - 1 on overflow.
     */
-    function addCap(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a + b >= a ? a + b : 2^256 - 1;
+    function addCap(uint256 _a, uint256 _b) internal pure returns (uint256) {
+        uint c = _a + _b;
+        return c >= _a ? c : UINT_MAX;
     }
 
     /**
     * @dev Subtracts two unsigned integers, returns 0 on underflow.
     */
-    function subCap(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a > b ? a - b : 0;
+    function subCap(uint256 _a, uint256 _b) internal pure returns (uint256) {
+        return _a > _b ? _a - _b : 0;
+    }
+
+    /**
+    * @dev Multiplies two unsigned integers, returns 2^256 - 1 on overflow.
+    */
+    function mulCap(uint256 _a, uint256 _b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring '_a' not being zero, but the
+        // benefit is lost if '_b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-solidity/pull/522
+        if (_a == 0)
+            return 0;
+
+        uint256 c = _a * _b;
+        return c / _a == _b ? c : UINT_MAX;
     }
 }
 
@@ -316,11 +331,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             uint amountStillRequired = totalAmountRequired.subCap(round.paidFees[uint(Party.Challenger)]);
             uint contribution;
             (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
-            round.paidFees[uint(Party.Challenger)] =
-                round.paidFees[uint(Party.Challenger)].addCap(contribution);
+            round.paidFees[uint(Party.Challenger)] = round.paidFees[uint(Party.Challenger)].addCap(contribution);
 
-            round.contributions[msg.sender][uint(Party.Challenger)] =
-                round.contributions[msg.sender][uint(Party.Challenger)].addCap(contribution);
+            round.contributions[msg.sender][uint(Party.Challenger)] = round.contributions[msg.sender][uint(Party.Challenger)].addCap(contribution);
             emit Contribution(_tokenID, msg.sender, contribution);
 
             // Refund remaining ETH.
@@ -375,10 +388,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             uint amountStillRequired = totalAmountRequired.subCap(round.paidFees[uint(Party.Requester)]);
             uint contribution;
             (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
-            round.paidFees[uint(Party.Requester)] =
-                round.paidFees[uint(Party.Requester)].addCap(contribution);
-            round.contributions[msg.sender][uint(Party.Requester)] =
-                round.contributions[msg.sender][uint(Party.Requester)].addCap(contribution);
+            round.paidFees[uint(Party.Requester)] = round.paidFees[uint(Party.Requester)].addCap(contribution);
+            round.contributions[msg.sender][uint(Party.Requester)] = round.contributions[msg.sender][uint(Party.Requester)].addCap(contribution);
             emit Contribution(_tokenID, msg.sender, contribution);
 
             // Refund remaining ETH.
@@ -448,8 +459,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             uint amountKept;
             (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
             round.paidFees[uint(loser)] = round.paidFees[uint(loser)].addCap(amountKept);
-            round.contributions[msg.sender][uint(loser)] =
-                round.contributions[msg.sender][uint(loser)].addCap(amountKept);
+            round.contributions[msg.sender][uint(loser)] = round.contributions[msg.sender][uint(loser)].addCap(amountKept);
 
             emit Contribution(_tokenID, msg.sender, amountKept);
 
@@ -466,7 +476,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _tokenID The tokenID of the token to fund.
      */
     function fundAppealWinningSide(bytes32 _tokenID) external payable {
-        require(tokens[_tokenID].lastAction > 0, "The specified token was never submitted."); // We access the token from the array instead of using a variable like elsewhere to avoid reaching the stack limit.
+        // We access the token from the array instead of using a variable like elsewhere to avoid reaching the stack limit.
+        require(tokens[_tokenID].lastAction > 0, "The specified token was never submitted.");
         Request storage request = tokens[_tokenID].requests[tokens[_tokenID].requests.length - 1]; // Take the last request.
         require(
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
@@ -505,8 +516,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
             (amountKept, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
             round.paidFees[uint(winner)] = round.paidFees[uint(winner)].addCap(amountKept);
-            round.contributions[msg.sender][uint(winner)] =
-                round.contributions[msg.sender][uint(winner)].addCap(amountKept);
+            round.contributions[msg.sender][uint(winner)] = round.contributions[msg.sender][uint(winner)].addCap(amountKept);
 
             emit Contribution(_tokenID, msg.sender, amountKept);
 
@@ -564,8 +574,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             Party winner = round.ruling == RulingOption.Accept ? Party.Requester : Party.Challenger;
             if (round.paidFees[uint(winner)] > 0) {
                 uint totalContributed = contributionsToRequester.addCap(contributionsToChallenger);
-                reward =
-                    totalContributed * round.contributions[msg.sender][uint(winner)] / round.paidFees[uint(winner)];
+                reward = totalContributed * round.contributions[msg.sender][uint(winner)] / round.paidFees[uint(winner)];
             }
         }
 
