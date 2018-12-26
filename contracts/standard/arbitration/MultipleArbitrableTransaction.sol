@@ -137,7 +137,7 @@ contract MultipleArbitrableTransaction {
     function pay(uint _transactionID, uint _amount) public {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.buyer == msg.sender, "The caller must be the buyer.");
-        require(transaction.status == Status.NoDispute, "There is no dispute on this transaction that's arbitration fee to be paid.");
+        require(transaction.status == Status.NoDispute, "The transaction can't be disputed");
         require(_amount <= transaction.amount, "The amount paid has to be less than or equal to the transaction.");
 
         transaction.seller.transfer(_amount);
