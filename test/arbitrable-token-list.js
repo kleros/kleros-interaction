@@ -21,14 +21,15 @@ contract('ArbitrableTokenList', function(accounts) {
   const partyB = accounts[8]
   const arbitratorExtraData = 0x08575
   const challengeReward = 10 ** 10
-  const arbitrationPrice = 101
-  const sharedStakeMultiplier = 1
-  const winnerStakeMultiplier = 1
-  const loserStakeMultiplier = 1
+  const arbitrationPrice = 100
+  const sharedStakeMultiplier = 500
+  const winnerStakeMultiplier = 500
+  const loserStakeMultiplier = 2 * winnerStakeMultiplier
   const timeToChallenge = 5
   const metaEvidence = 'evidence'
   const arbitrationFeesWaitingTime = 1001
   const appealPeriodDuration = 1001
+  const MULTIPLIER_PRECISION = 1000
 
   let appealableArbitrator
   let enhancedAppealableArbitrator
@@ -147,7 +148,7 @@ contract('ArbitrableTokenList', function(accounts) {
       )
     })
 
-    describe.skip('challenge registration', () => {
+    describe('challenge registration', () => {
       beforeEach(async () => {
         await expectThrow(
           arbitrableTokenList.fundChallenger(tokenID, { from: partyB })
@@ -166,9 +167,14 @@ contract('ArbitrableTokenList', function(accounts) {
 
       describe('requester fails to fund his side', () => {
         it('should rule in favor of challenger', async () => {
+          const sharedRequiredStake =
+            ((await arbitrableTokenList.sharedStakeMultiplier()).toNumber() *
+              arbitrationPrice) /
+            MULTIPLIER_PRECISION
+
           await arbitrableTokenList.fundChallenger(tokenID, {
             from: partyB,
-            value: arbitrationPrice + feeStake
+            value: arbitrationPrice + sharedRequiredStake
           })
           await increaseTime(arbitrationFeesWaitingTime + 1)
           await expectThrow(
@@ -186,13 +192,19 @@ contract('ArbitrableTokenList', function(accounts) {
 
       describe('partially fund both sides', () => {
         it('should rule in favor of challenger if he pays more', async () => {
+          const sharedRequiredStake =
+            ((await arbitrableTokenList.sharedStakeMultiplier()).toNumber() *
+              arbitrationPrice) /
+            MULTIPLIER_PRECISION
+          console.info('required stake', sharedRequiredStake)
+
           await arbitrableTokenList.fundRequester(tokenID, {
             from: partyA,
-            value: arbitrationPrice + feeStake - 2
+            value: arbitrationPrice + sharedRequiredStake - 2
           })
           await arbitrableTokenList.fundChallenger(tokenID, {
             from: partyB,
-            value: arbitrationPrice + feeStake - 1
+            value: arbitrationPrice + sharedRequiredStake - 1
           })
           await increaseTime(arbitrationFeesWaitingTime + 1)
           await expectThrow(
@@ -203,8 +215,8 @@ contract('ArbitrableTokenList', function(accounts) {
           )
           await arbitrableTokenList.feeTimeoutFirstRound(tokenID)
 
-          const token = await arbitrableTokenList.tokens(tokenID)
-          assert.equal(token[0].toNumber(), TOKEN_STATUS.Absent)
+          // const token = await arbitrableTokenList.tokens(tokenID)
+          // assert.equal(token[0].toNumber(), TOKEN_STATUS.Absent)
         })
       })
 
@@ -217,13 +229,18 @@ contract('ArbitrableTokenList', function(accounts) {
           let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           assert.isFalse(request[0])
 
+          const sharedRequiredStake =
+            ((await arbitrableTokenList.sharedStakeMultiplier()).toNumber() *
+              arbitrationPrice) /
+            MULTIPLIER_PRECISION
+
           await arbitrableTokenList.fundRequester(tokenID, {
             from: partyA,
-            value: arbitrationPrice + feeStake
+            value: arbitrationPrice + sharedRequiredStake
           })
           await arbitrableTokenList.fundChallenger(tokenID, {
             from: partyB,
-            value: arbitrationPrice + feeStake
+            value: arbitrationPrice + sharedRequiredStake
           })
 
           request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
@@ -242,13 +259,21 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it(`winner doesn't fund appeal, rule in favor of looser`, async () => {
+          const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
+          const appealCost = (await enhancedAppealableArbitrator.appealCost(
+            request[1].toNumber(),
+            arbitratorExtraData
+          )).toNumber()
+          const loserRequiredStake =
+            ((await arbitrableTokenList.loserStakeMultiplier()).toNumber() *
+              appealCost) /
+            MULTIPLIER_PRECISION
+
           await arbitrableTokenList.fundAppealLosingSide(tokenID, {
             from: partyA,
-            value: arbitrationPrice + 2 * feeStake
+            value: arbitrationPrice + loserRequiredStake
           })
           await increaseTime(appealPeriodDuration + 1)
-
-          const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           await enhancedAppealableArbitrator.giveRuling(
             request[1],
             RULING_OPTIONS.Refuse
@@ -259,17 +284,32 @@ contract('ArbitrableTokenList', function(accounts) {
         })
 
         it('should raise an appeal if both parties fund appeal', async () => {
+          let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
+
+          const appealCost = (await enhancedAppealableArbitrator.appealCost(
+            request[1].toNumber(),
+            arbitratorExtraData
+          )).toNumber()
+          const winnerRequiredStake =
+            ((await arbitrableTokenList.winnerStakeMultiplier()).toNumber() *
+              appealCost) /
+            MULTIPLIER_PRECISION
+          const loserRequiredStake =
+            ((await arbitrableTokenList.loserStakeMultiplier()).toNumber() *
+              appealCost) /
+            MULTIPLIER_PRECISION
+
           await arbitrableTokenList.fundAppealLosingSide(tokenID, {
             from: partyA,
-            value: arbitrationPrice + 2 * feeStake
+            value: appealCost + loserRequiredStake
           })
           await increaseTime(appealPeriodDuration / 2 + 1)
           await arbitrableTokenList.fundAppealWinningSide(tokenID, {
             from: partyB,
-            value: arbitrationPrice + feeStake
+            value: appealCost + winnerRequiredStake
           })
 
-          const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
+          request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           assert.isTrue(request[8], 'dispute should be appealed')
 
           const appeal = await enhancedAppealableArbitrator.appealDisputes(

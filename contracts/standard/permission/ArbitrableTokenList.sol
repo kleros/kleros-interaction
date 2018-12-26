@@ -285,8 +285,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
 
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredStakeForSide[uint(Party.Requester)] = arbitrationCost.mulCap(sharedStakeMultiplier) / MULTIPLIER_PRECISION;
-        round.requiredStakeForSide[uint(Party.Challenger)] = arbitrationCost.mulCap(sharedStakeMultiplier) / MULTIPLIER_PRECISION;
+        round.requiredStakeForSide[uint(Party.None)] = arbitrationCost.mulCap(sharedStakeMultiplier) / MULTIPLIER_PRECISION;
         round.requiredFeeStakeSet = true;
         token.lastAction = now;
 
@@ -327,7 +326,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Calculate the amount of fees required.
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint totalAmountRequired = arbitrationCost.addCap(round.requiredStakeForSide[uint(Party.Challenger)]);
+        uint totalAmountRequired = arbitrationCost.addCap(round.requiredStakeForSide[uint(Party.None)]);
 
         // Take contributions, if any.
         // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
@@ -387,7 +386,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Calculate amount required.
         uint remainingETH = msg.value;
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint totalAmountRequired = arbitrationCost.addCap(round.requiredStakeForSide[uint(Party.Requester)]);
+        uint totalAmountRequired = arbitrationCost.addCap(round.requiredStakeForSide[uint(Party.None)]);
 
         // Take contribution, if any.
         // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
@@ -504,7 +503,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
         (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
         require(
-            now > appealPeriodStart.addCap(appealPeriodEnd - appealPeriodStart / 2),
+            now > appealPeriodStart.addCap((appealPeriodEnd - appealPeriodStart) / 2),
             "It's the losing side's turn to fund the appeal."
         );
 
