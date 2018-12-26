@@ -76,12 +76,11 @@ contract MultipleArbitrableTransaction {
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
 
     /** @dev To be raised when a ruling is given.
-     *  @param _transactionID The index of the transaction in dispute.
      *  @param _arbitrator The arbitrator giving the ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling The ruling which was given.
      */
-    event Ruling(uint indexed _transactionID, Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
+    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
     // **************************** //
     // *    Arbitrable functions  * //
@@ -292,7 +291,7 @@ contract MultipleArbitrableTransaction {
         require(msg.sender == address(arbitrator), "The caller must be the arbitrator.");
         require(transaction.status == Status.DisputeCreated, "The dispute has already been resolved.");
 
-        emit Ruling(transactionID, Arbitrator(msg.sender), _disputeID, _ruling);
+        emit Ruling(Arbitrator(msg.sender), _disputeID, _ruling);
 
         executeRuling(transactionID, _ruling);
     }
