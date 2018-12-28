@@ -1,392 +1,802 @@
-/**
- *  @authors: [@n1c01a5]
- *  @reviewers: []
- *  @auditors: []
- *  @bounties: []
- *  @deployments: []
- */
+/* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
+const shouldFail = require('./helpers/should-fail')
+const time = require('./helpers/time')
 
-/** @title Multiple Arbitrable ERC20 Token Transaction
- *  This is a a contract for multiple arbitrated token transactions which can be reversed by an arbitrator.
- *  This can be used for buying goods, services and for paying freelancers.
- *  Parties are identified as "seller" and "buyer".
- */
+const MultipleArbitrableTokenTransaction = artifacts.require(
+  './MultipleArbitrableTokenTransaction.sol'
+)
+const ERC20Mock = artifacts.require('./ERC20Mock.sol')
+const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
 
-pragma solidity ^0.4.18;
+contract('MultipleArbitrableTokenTransaction', function(accounts) {
+  const payer = accounts[0]
+  const payee = accounts[1]
+  const arbitrator = accounts[2]
+  const other = accounts[3]
+  const arbitrationFee = 20
+  const timeoutFee = 100
+  const timeoutPayment = 100
+  const gasPrice = 5000000000
+  const metaEvidenceUri = 'https://kleros.io'
 
-import "./Arbitrator.sol";
+  beforeEach(async () => {
+    this.token = await ERC20Mock.new(payer, 100)
+  })
 
-import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-
-contract MultipleArbitrableTokenTransaction {
-
-    // **************************** //
-    // *    Contract variables    * //
-    // **************************** //
-
-    uint8 constant AMOUNT_OF_CHOICES = 2;
-    uint8 constant BUYER_WINS = 1;
-    uint8 constant SELLER_WINS = 2;
-
-    enum Party {Seller, Buyer}
-    enum Status {NoDispute, WaitingSeller, WaitingBuyer, DisputeCreated, Resolved}
-    enum RulingOptions {NoRuling, Buyer_Wins, Seller_Wins}
-
-    struct Transaction {
-        ERC20 token;
-        address seller;
-        address buyer;
-        uint256 amount;
-        uint256 timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
-        uint disputeId; // If dispute exists, the ID of the dispute.
-        uint sellerFee; // Total fees paid by the seller.
-        uint buyerFee; // Total fees paid by the buyer.
-        uint lastInteraction; // Last interaction for the dispute procedure.
-        Status status;
-        uint arbitrationCost;
+  /**
+   * Setup the contract for the test case
+   * @returns {object} maContract and centralizedArbitrator
+   */
+  async function setupContracts() {
+    const centralizedArbitrator = await CentralizedArbitrator.new(
+      arbitrationFee,
+      { from: arbitrator }
+    )
+    const maContract = await MultipleArbitrableTokenTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      timeoutFee,
+      {
+        from: payer
+      }
+    )
+    return {
+      centralizedArbitrator,
+      maContract
     }
+  }
 
-    Transaction[] public transactions;
-    Arbitrator arbitrator; // Address of the arbitrator contract.
-    bytes arbitratorExtraData; // Extra data to set up the arbitration.
-    uint feeTimeout; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
+  /**
+   * Getter for the last transaction
+   * @param {MultipleArbitrableTransaction} maContract Multiple arbitrable transaction instance.
+   * @param {function} callback The callback.
+   * @returns {function} The last transaction.
+   */
+  async function getLastTransaction(maContract, callback) {
+    const metaEvidenceEvent = maContract.MetaEvidence()
+    const awaitable = new Promise((resolve, reject) => {
+      const _handler = metaEvidenceEvent.watch((error, result) => {
+        metaEvidenceEvent.stopWatching()
+        if (!error) resolve(result)
+        else reject(error)
+      })
+    })
+    await callback()
+    return awaitable
+  }
 
-    mapping (uint => uint) public disputeIDtoTransactionID;
+  /**
+   * Create a test transaction
+   *
+   * Token amount is 42.
+   * @param {MultipleArbitrableTransaction} maContract Multiple arbitrable transaction instance.
+   * @param {Arbitrator} arbitrator (optional) arbitrator
+   * @returns {object} lastTransaction, arbitrableTransactionId
+   */
+  async function createTestTransaction(maContract) {
+    await this.token.approve(maContract.address, 42, {
+      from: payer
+    })
+    const lastTransaction = await getLastTransaction(maContract, async () => {
+      await maContract.createTransaction(
+        this.token.address,
+        42,
+        timeoutPayment,
+        payee,
+        metaEvidenceUri,
+        { from: payer }
+      )
+    })
+    const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
+    return { lastTransaction, arbitrableTransactionId }
+  }
 
-    // **************************** //
-    // *          Events          * //
-    // **************************** //
+  /**
+   * Execute an action and compare balances between before and after
+   *
+   * @param {function} action Action function, returns promise
+   * @param {object} data Data for comparisons
+   */
+  async function execteActionAndCompareBalances(action, data) {
+    // sanitizing the data parameters
+    if (typeof data.payer === 'undefined')
+      data.payer = {
+        etherDelta: 0,
+        tokenDelta: 0
+      }
+    if (typeof data.payee === 'undefined')
+      data.payee = {
+        etherDelta: 0,
+        tokenDelta: 0
+      }
+    if (!data.payer.etherDelta) data.payer.etherDelta = 0
+    if (!data.payer.tokenDelta) data.payer.tokenDelta = 0
+    if (!data.payee.etherDelta) data.payee.etherDelta = 0
+    if (!data.payee.tokenDelta) data.payee.tokenDelta = 0
+    if (!data.contractTokenDelta) data.contractTokenDelta = 0
 
-    /** @dev To be emmited when meta-evidence is submitted.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
-     *  @param _evidence A link to the meta-evidence JSON.
-     */
-    event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
+    const contractTokenBalanceBefore = await this.token.balanceOf(
+      data.maContract.address
+    )
+    const payerTokenBalanceBefore = await this.token.balanceOf(payer)
+    const payerEtherBalanceBefore = web3.eth.getBalance(payer)
+    const payeeTokenBalanceBefore = await this.token.balanceOf(payee)
+    const payeeEtherBalanceBefore = await web3.eth.getBalance(payee)
 
-    /** @dev Indicate that a party has to pay a fee or would otherwise be considered as losing.
-     *  @param _transactionID The index of the transaction.
-     *  @param _party The party who has to pay.
-     */
-    event HasToPayFee(uint indexed _transactionID, Party _party);
+    actionData = await action()
+    if (typeof actionData === 'undefined') actionData = {}
 
-    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
-     *  @param _arbitrator The arbitrator of the contract.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
-     *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.
-     */
-    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address indexed _party, string _evidence);
+    const contractTokenBalanceAfter = await this.token.balanceOf(
+      data.maContract.address
+    )
+    const payerTokenBalanceAfter = await this.token.balanceOf(payer)
+    const payerEtherBalanceAfter = await web3.eth.getBalance(payer)
+    const payeeTokenBalanceAfter = await this.token.balanceOf(payee)
+    const payeeEtherBalanceAfter = await web3.eth.getBalance(payee)
 
-    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID.
-     *  @param _arbitrator The arbitrator of the contract.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
-     */
-    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
+    assert.equal(
+      payerEtherBalanceAfter.toString(),
+      payerEtherBalanceBefore
+        .minus(actionData.payerTotalTxCost || 0)
+        .plus(data.payer.etherDelta)
+        .toString(),
+      'The payer has not been reimbursed correctly in ether'
+    )
+    assert.equal(
+      payeeEtherBalanceAfter.toString(),
+      payeeEtherBalanceBefore
+        .minus(actionData.payeeTotalTxCost || 0)
+        .plus(data.payee.etherDelta)
+        .toString(),
+      'The payee has not been paid correctly in ether'
+    )
+    assert.equal(
+      payerTokenBalanceAfter.toString(),
+      payerTokenBalanceBefore.plus(data.payer.tokenDelta).toString(),
+      'The payer has not been reimbursed correctly in token'
+    )
+    assert.equal(
+      payeeTokenBalanceAfter.toString(),
+      payeeTokenBalanceBefore.plus(data.payee.tokenDelta).toString(),
+      'The payee has not been paid correctly in token'
+    )
+    assert.equal(
+      contractTokenBalanceAfter.toString(),
+      contractTokenBalanceBefore.plus(data.contractTokenDelta).toString(),
+      'Contract token amount is not correct'
+    )
+  }
 
-    /** @dev To be raised when a ruling is given.
-     *  @param _arbitrator The arbitrator giving the ruling.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling The ruling which was given.
-     */
-    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
+  /**
+   * Get transaction amount
+   * @param {MultipleArbitrableTransaction} maContract Multiple arbitrable transaction instance.
+   * @param {number} arbitrableTransactionId transaction Id
+   * @returns {function} Amount involved in the transaction
+   */
+  async function getTransactionAmount(maContract, arbitrableTransactionId) {
+    return (await maContract.transactions(arbitrableTransactionId))[3]
+  }
 
-    // **************************** //
-    // *    Arbitrable functions  * //
-    // *    Modifying the state   * //
-    // **************************** //
+  it('Should handle 1 transaction for payout', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    /** @dev Constructor.
-     *  @param _arbitrator The arbitrator of the contract.
-     *  @param _arbitratorExtraData Extra data for the arbitrator.
-     *  @param _timeoutFee Arbitration fee timeout for the parties.
-     */
-    constructor (
-        Arbitrator _arbitrator,
-        bytes _arbitratorExtraData,
-        uint _timeoutFee
-    ) public {
-        arbitrator = _arbitrator;
-        arbitratorExtraData = _arbitratorExtraData;
-        feeTimeout = _timeoutFee;
-    }
+    const oldAmount = await getTransactionAmount(
+      maContract,
+      arbitrableTransactionId
+    )
+    assert.equal(
+      oldAmount.toNumber(),
+      42,
+      "The contract hasn't updated its amount correctly."
+    )
 
-    /** @dev Create a transaction.
-     *  @param _token The address of the transacted token.
-     *  @param _amount The amount of tokens in this transaction.
-     *  @param _timeoutPayment Time after which a party automatically lose a dispute.
-     *  @param _seller The recipient of the transaction.
-     *  @param _metaEvidence Link to the meta-evidence.
-     *  @return The index of the transaction.
-     */
-    function createTransaction(
-        address _token,
-        uint _amount,
-        uint _timeoutPayment,
-        address _seller,
-        string _metaEvidence
-    ) public returns (uint transactionIndex) {
-        ERC20 token = ERC20(_token);
-        // Verifies if contract is authorized to move funds across wallets.
-        require(token.allowance(msg.sender, address(this)) >= _amount, "Contract not authorized to move funds.");
-        // Transfers token from sender wallet to contract.
-        require(token.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough funds.");
-
-        transactions.push(Transaction({
-            token: token,
-            seller: _seller,
-            buyer: msg.sender,
-            amount: _amount,
-            timeoutPayment: _timeoutPayment,
-            disputeId: 0,
-            sellerFee: 0,
-            buyerFee: 0,
-            lastInteraction: now,
-            status: Status.NoDispute,
-            arbitrationCost: 0
-        }));
-        emit MetaEvidence(transactions.length - 1, _metaEvidence);
-        return transactions.length - 1;
-    }
-
-    /** @dev Pay seller. To be called if the good or service is provided.
-     *  @param _transactionID The index of the transaction.
-     *  @param _amount Amount to pay in wei.
-     */
-    function pay(uint _transactionID, uint _amount) public {
-        Transaction storage transaction = transactions[_transactionID];
-        require(transaction.buyer == msg.sender, "The caller must be the buyer.");
-        require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
-        require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
-
-        transaction.token.transfer(transaction.seller, _amount);
-        transaction.amount -= _amount;
-    }
-
-    /** @dev Reimburse buyer. To be called if the good or service can't be fully provided.
-     *  @param _transactionID The index of the transaction.
-     *  @param _amountReimbursed Amount to reimburse in wei.
-     */
-    function reimburse(uint _transactionID, uint _amountReimbursed) public {
-        Transaction storage transaction = transactions[_transactionID];
-        require(transaction.seller == msg.sender, "The caller must be the seller.");
-        require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
-        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
-
-        transaction.token.transfer(transaction.buyer, _amountReimbursed);
-        transaction.amount -= _amountReimbursed;
-    }
-
-    /** @dev Transfer the transaction's amount to the seller if the timeout has passed.
-     *  @param _transactionID The index of the transaction.
-     */
-    function executeTransaction(uint _transactionID) public {
-        Transaction storage transaction = transactions[_transactionID];
-        require(now - transaction.lastInteraction >= transaction.timeoutPayment, "The timeout has not passed yet.");
-        require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
-
-        transaction.token.transfer(transaction.seller, transaction.amount);
-        transaction.amount = 0;
-
-        transaction.status = Status.Resolved;
-    }
-
-    /** @dev Reimburse buyer if seller fails to pay the fee.
-     *  @param _transactionID The index of the transaction.
-     */
-    function timeOutByBuyer(uint _transactionID) public {
-        Transaction storage transaction = transactions[_transactionID];
-
-        require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
-        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
-
-        executeRuling(_transactionID, BUYER_WINS);
-    }
-
-    /** @dev Pay seller if buyer fails to pay the fee.
-     *  @param _transactionID The index of the transaction.
-     */
-    function timeOutBySeller(uint _transactionID) public {
-        Transaction storage transaction = transactions[_transactionID];
-
-        require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
-        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
-
-        executeRuling(_transactionID, SELLER_WINS);
-    }
-
-    /** @dev Pay the arbitration fee to raise a dispute. To be called by the buyer. UNTRUSTED.
-     *  Note that this function mirror payArbitrationFeeBySeller.
-     *  @param _transactionID The index of the transaction.
-     */
-    function payArbitrationFeeByBuyer(uint _transactionID) public payable {
-        Transaction storage transaction = transactions[_transactionID];
-        require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
-        require(msg.sender == transaction.buyer, "The caller must be the buyer.");
-
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        transaction.buyerFee += msg.value;
-        // Require that the total paid to be at least the arbitration cost.
-        require(transaction.buyerFee >= arbitrationCost, "The buyer fee must cover arbitration costs.");
-
-        transaction.lastInteraction = now;
-        // The seller still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
-        if (transaction.sellerFee < arbitrationCost) {
-            transaction.status = Status.WaitingSeller;
-            emit HasToPayFee(_transactionID, Party.Seller);
-        } else { // The buyer has also paid the fee. We create the dispute
-            raiseDispute(_transactionID, arbitrationCost);
+    await execteActionAndCompareBalances(
+      async () => {
+        let payerTotalTxCost = 0
+        const tx = await maContract.pay(arbitrableTransactionId, 42, {
+          from: payer,
+          gasPrice
+        })
+        payerTotalTxCost += tx.receipt.gasUsed * gasPrice
+        return {
+          payerTotalTxCost
         }
-    }
+      },
+      {
+        maContract,
+        payee: {
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
 
-    /** @dev Pay the arbitration fee to raise a dispute. To be called by the seller. UNTRUSTED.
-     *  Note that the arbitrator can have createDispute throw, which will make this function throw and therefore lead to a party being timed-out.
-     *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
-     *  @param _transactionID The index of the transaction.
-     */
-    function payArbitrationFeeBySeller(uint _transactionID) public payable {
-        Transaction storage transaction = transactions[_transactionID];
-        require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
-        require(msg.sender == transaction.seller, "The caller must be the seller.");
+    const newAmount = await getTransactionAmount(
+      maContract,
+      arbitrableTransactionId
+    )
+    assert.equal(newAmount.toNumber(), 0, 'Amount not updated correctly')
+  })
 
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        transaction.sellerFee += msg.value;
-        // Require that the total paid to be at least the arbitration cost.
-        require(transaction.sellerFee >= arbitrationCost, "The seller fee must cover arbitration costs.");
+  it('Should handle 1 transaction for reimburse', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-        transaction.lastInteraction = now;
-        // The buyer still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
-        if (transaction.buyerFee < arbitrationCost) {
-            transaction.status = Status.WaitingBuyer;
-            emit HasToPayFee(_transactionID, Party.Buyer);
-        } else { // The seller has also paid the fee. We create the dispute
-            raiseDispute(_transactionID, arbitrationCost);
+    const oldAmount = await getTransactionAmount(
+      maContract,
+      arbitrableTransactionId
+    )
+    assert.equal(
+      oldAmount.toNumber(),
+      42,
+      "The contract hasn't updated its amount correctly."
+    )
+
+    await execteActionAndCompareBalances(
+      async () => {
+        let payeeTotalTxCost = 0
+        const tx = await maContract.reimburse(arbitrableTransactionId, 42, {
+          from: payee,
+          gasPrice
+        })
+        payeeTotalTxCost += tx.receipt.gasUsed * gasPrice
+        return {
+          payeeTotalTxCost
         }
-    }
+      },
+      {
+        maContract,
+        payer: {
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
 
-    /** @dev Create a dispute. UNTRUSTED.
-     *  @param _transactionID The index of the transaction.
-     *  @param _arbitrationCost Amount to pay the arbitrator.
-     */
-    function raiseDispute(uint _transactionID, uint _arbitrationCost) internal {
-        Transaction storage transaction = transactions[_transactionID];
-        transaction.status = Status.DisputeCreated;
-        transaction.arbitrationCost = _arbitrationCost;
-        transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
-        disputeIDtoTransactionID[transaction.disputeId] = _transactionID;
-        emit Dispute(arbitrator, transaction.disputeId, _transactionID);
-    }
+    const newAmount = await getTransactionAmount(
+      maContract,
+      arbitrableTransactionId
+    )
+    assert.equal(newAmount.toNumber(), 0, 'Amount not updated correctly')
+  })
 
-    /** @dev Submit a reference to evidence. EVENT.
-     *  @param _transactionID The index of the transaction.
-     *  @param _evidence A link to an evidence using its URI.
-     */
-    function submitEvidence(uint _transactionID, string _evidence) public {
-        Transaction storage transaction = transactions[_transactionID];
-        require(msg.sender == transaction.buyer || msg.sender == transaction.seller, "The caller must be the buyer or the seller.");
+  it('Should handle 3 transaction', async () => {
+    const { maContract } = await setupContracts()
+    for (var cnt = 0; cnt < 3; cnt += 1) {
+      const { arbitrableTransactionId } = await createTestTransaction(
+        maContract
+      )
 
-        require(transaction.status >= Status.DisputeCreated, "The dispute has not been created yet.");
-        emit Evidence(arbitrator, transaction.disputeId, msg.sender, _evidence);
-    }
-
-    /** @dev Appeal an appealable ruling.
-     *  Transfer the funds to the arbitrator.
-     *  Note that no checks are required as the checks are done by the arbitrator.
-     *  @param _transactionID The index of the transaction.
-     */
-    function appeal(uint _transactionID) public payable {
-        Transaction storage transaction = transactions[_transactionID];
-
-        arbitrator.appeal.value(msg.value)(transaction.disputeId, arbitratorExtraData);
-    }
-
-    /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
-     *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
-     */
-    function rule(uint _disputeID, uint _ruling) public {
-        uint transactionID = disputeIDtoTransactionID[_disputeID];
-        Transaction storage transaction = transactions[transactionID];
-        require(msg.sender == address(arbitrator), "The caller must be the arbitrator.");
-        require(transaction.status == Status.DisputeCreated, "The dispute has already been resolved.");
-
-        emit Ruling(Arbitrator(msg.sender), _disputeID, _ruling);
-
-        executeRuling(transactionID, _ruling);
-    }
-
-    /** @dev Execute a ruling of a dispute. It reimburses the fee to the winning party.
-     *  @param _transactionID The index of the transaction.
-     *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the buyer. 2 : Pay the seller.
-     */
-    function executeRuling(uint _transactionID, uint _ruling) internal {
-        Transaction storage transaction = transactions[_transactionID];
-        require(_ruling <= AMOUNT_OF_CHOICES, "Invalid ruling.");
-
-        // Give the arbitration fee back.
-        // Note that we use send to prevent a party from blocking the execution.
-        if (_ruling == SELLER_WINS) {
-            transaction.token.transfer(transaction.seller, transaction.amount);
-            // Refund seller arbitration fee
-            transaction.seller.transfer(transaction.sellerFee);
-            // Refund buyer if they overpaid
-            if (transaction.buyerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
-                transaction.buyer.send(transaction.buyerFee - transaction.arbitrationCost);
-        } else if (_ruling == BUYER_WINS) {
-            transaction.token.transfer(transaction.buyer, transaction.amount);
-            // Refund buyer arbitration fee
-            transaction.buyer.transfer(transaction.buyerFee);
-            // Refund seller if they overpaid
-            if (transaction.sellerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
-                transaction.seller.send(transaction.sellerFee - transaction.arbitrationCost);
-        } else {
-            // FIXME uneven token amount?
-            transaction.token.transfer(transaction.buyer, transaction.amount / 2);
-            transaction.token.transfer(transaction.seller, transaction.amount / 2);
-            // refund arbitration fees
-            uint split_fee_amount = (transaction.sellerFee + transaction.buyerFee - transaction.arbitrationCost) / 2;
-            transaction.buyer.transfer(split_fee_amount);
-            transaction.seller.transfer(split_fee_amount);
+      await execteActionAndCompareBalances(
+        async () => {
+          let payeeTotalTxCost = 0
+          const tx = await maContract.reimburse(arbitrableTransactionId, 42, {
+            from: payee,
+            gasPrice
+          })
+          payeeTotalTxCost += tx.receipt.gasUsed * gasPrice
+          return {
+            payeeTotalTxCost
+          }
+        },
+        {
+          maContract,
+          payer: {
+            tokenDelta: 42
+          },
+          contractTokenDelta: -42
         }
+      )
 
-        transaction.amount = 0;
-        transaction.sellerFee = 0;
-        transaction.buyerFee = 0;
-        transaction.status = Status.Resolved;
+      const amount = await getTransactionAmount(
+        maContract,
+        arbitrableTransactionId
+      )
+      assert.equal(amount.toNumber(), 0, 'Amount not updated correctly')
     }
+  })
 
-    // **************************** //
-    // *     Constant getters     * //
-    // **************************** //
+  it('Should fail creating transaction when token amount is not approved', async () => {
+    const { maContract } = await setupContracts()
 
-    /** @dev Getter to know the count of transactions.
-     *  @return countTransactions The count of transactions.
-     */
-    function getCountTransactions() public view returns (uint countTransactions) {
-        return transactions.length;
-    }
+    await shouldFail.reverting(
+      getLastTransaction(maContract, async () => {
+        await maContract.createTransaction(
+          this.token.address,
+          42,
+          timeoutPayment,
+          payee,
+          metaEvidenceUri,
+          { from: payer }
+        )
+      })
+    )
+  })
 
-    /** @dev Get IDs for transactions where the specified address is the buyer and/or the seller.
-     *  This function must be used by the UI and not by other smart contracts.
-     *  Note that the complexity is O(t), where t is amount of arbitrable transactions.
-     *  @param _address The specified address.
-     *  @return transactionIDs The transaction IDs.
-     */
-    function getTransactionIDsByAddress(address _address) public view returns (uint[] transactionIDs) {
-        uint count = 0;
-        for (uint i = 0; i < transactions.length; i++) {
-            if (transactions[i].seller == _address || transactions[i].buyer == _address)
-                count++;
+  it('Should reimburse partially to the seller', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await execteActionAndCompareBalances(
+      async () => {
+        let payeeTotalTxCost = 0
+        const tx = await maContract.reimburse(arbitrableTransactionId, 10, {
+          from: payee,
+          gasPrice
+        })
+        payeeTotalTxCost += tx.receipt.gasUsed * gasPrice
+        return {
+          payeeTotalTxCost
         }
+      },
+      {
+        maContract,
+        payer: {
+          tokenDelta: 10
+        },
+        contractTokenDelta: -10
+      }
+    )
 
-        transactionIDs = new uint[](count);
+    const newAmount = await getTransactionAmount(
+      maContract,
+      arbitrableTransactionId
+    )
+    assert.equal(newAmount.toNumber(), 32, 'Amount not updated correctly')
+  })
 
-        count = 0;
+  it('Should fail to reimburse the seller tries more than approved', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+    shouldFail.reverting(
+      maContract.reimburse(arbitrableTransactionId, 43, { from: payee })
+    )
+  })
 
-        for (uint j = 0; j < transactions.length; j++) {
-            if (transactions[j].seller == _address || transactions[j].buyer == _address)
-                transactionIDs[count++] = j;
+  it('Should fail if the payer to tries to reimburse it', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+    shouldFail.reverting(
+      maContract.reimburse(arbitrableTransactionId, 43, { from: payer })
+    )
+  })
+
+  it('The payee should execute transaction', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await execteActionAndCompareBalances(
+      async () => {
+        let payeeTotalTxCost = 0
+        await time.increase(timeoutPayment + 1)
+        const tx = await maContract.executeTransaction(
+          arbitrableTransactionId,
+          {
+            from: payee,
+            gasPrice
+          }
+        )
+        payeeTotalTxCost += tx.receipt.gasUsed * gasPrice
+        return {
+          payeeTotalTxCost
         }
-    }
-}
+      },
+      {
+        maContract,
+        payee: {
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
+  })
+
+  it('The payee should not execute transaction until timeout', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await shouldFail.reverting(
+      maContract.executeTransaction(arbitrableTransactionId, {
+        from: payee
+      })
+    )
+  })
+
+  it('Should not pay or reimburse when there is a dispute', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+
+    await shouldFail.reverting(
+      maContract.pay(arbitrableTransactionId, 42, {
+        from: payer,
+        gasPrice
+      })
+    )
+
+    await shouldFail.reverting(
+      maContract.reimburse(arbitrableTransactionId, 42, {
+        from: payee,
+        gasPrice
+      })
+    )
+  })
+
+  it('Should reimburse the payer (including arbitration fee) when the arbitrator decides so', async () => {
+    const { centralizedArbitrator, maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+
+    await execteActionAndCompareBalances(
+      async () => {
+        await centralizedArbitrator.giveRuling(0, 1, { from: arbitrator })
+      },
+      {
+        maContract,
+        payer: {
+          etherDelta: 20,
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
+  })
+
+  it('Should pay the payee and reimburse him the arbitration fee when the arbitrator decides so', async () => {
+    const { centralizedArbitrator, maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+
+    await execteActionAndCompareBalances(
+      async () => {
+        await centralizedArbitrator.giveRuling(0, 2, { from: arbitrator })
+      },
+      {
+        maContract,
+        payee: {
+          etherDelta: 20,
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
+  })
+
+  it('Should split the amount if there is no ruling', async () => {
+    const { centralizedArbitrator, maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+
+    await execteActionAndCompareBalances(
+      async () => {
+        await centralizedArbitrator.giveRuling(0, 0, { from: arbitrator })
+      },
+      {
+        maContract,
+        payer: {
+          etherDelta: 10,
+          tokenDelta: 21
+        },
+        payee: {
+          etherDelta: 10,
+          tokenDelta: 21
+        },
+        contractTokenDelta: -42
+      }
+    )
+  })
+
+  it('Should reimburse the payer in case of timeout of the payee', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+
+    await execteActionAndCompareBalances(
+      async () => {
+        await time.increase(timeoutFee + 1)
+        const tx = await maContract.timeOutByBuyer(arbitrableTransactionId, {
+          from: payer,
+          gasPrice
+        })
+        const txFee = tx.receipt.gasUsed * gasPrice
+        return {
+          payerTotalTxCost: txFee
+        }
+      },
+      {
+        maContract,
+        payer: {
+          etherDelta: 20,
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
+  })
+
+  it("Shouldn't work before timeout for the payer", async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await shouldFail.reverting(
+      maContract.timeOutByBuyer(arbitrableTransactionId, {
+        from: payer,
+        gasPrice: gasPrice
+      })
+    )
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+    await time.increase(1)
+    await shouldFail.reverting(
+      maContract.timeOutByBuyer(arbitrableTransactionId, {
+        from: payer,
+        gasPrice: gasPrice
+      })
+    )
+  })
+
+  it('Should reimburse the payee in case of timeout of the payer', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+
+    await execteActionAndCompareBalances(
+      async () => {
+        await time.increase(timeoutFee + 1)
+        const tx = await maContract.timeOutBySeller(arbitrableTransactionId, {
+          from: payee,
+          gasPrice
+        })
+        const txFee = tx.receipt.gasUsed * gasPrice
+        return {
+          payeeTotalTxCost: txFee
+        }
+      },
+      {
+        maContract,
+        payee: {
+          etherDelta: 20,
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
+  })
+
+  it("Shouldn't work before timeout for the payee", async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await shouldFail.reverting(
+      maContract.timeOutBySeller(arbitrableTransactionId, {
+        from: payee,
+        gasPrice: gasPrice
+      })
+    )
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+    await time.increase(1)
+    await shouldFail.reverting(
+      maContract.timeOutBySeller(arbitrableTransactionId, {
+        from: payee,
+        gasPrice: gasPrice
+      })
+    )
+  })
+
+  it('Should create events when evidence is submitted by the payer', async () => {
+    const { centralizedArbitrator, maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+
+    const tx = await maContract.submitEvidence(
+      arbitrableTransactionId,
+      'ipfs:/X',
+      { from: payer }
+    )
+    assert.equal(tx.logs[0].event, 'Evidence')
+    assert.equal(tx.logs[0].args._arbitrator, centralizedArbitrator.address)
+    assert.equal(tx.logs[0].args._party, payer)
+    assert.equal(tx.logs[0].args._evidence, 'ipfs:/X')
+  })
+
+  it('Should create events when evidence is submitted by the payee', async () => {
+    const { centralizedArbitrator, maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+
+    const tx = await maContract.submitEvidence(
+      arbitrableTransactionId,
+      'ipfs:/X',
+      { from: payee }
+    )
+    assert.equal(tx.logs[0].event, 'Evidence')
+    assert.equal(tx.logs[0].args._arbitrator, centralizedArbitrator.address)
+    assert.equal(tx.logs[0].args._party, payee)
+    assert.equal(tx.logs[0].args._evidence, 'ipfs:/X')
+  })
+
+  it('Should fail if someone else try to submit', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+
+    await shouldFail.reverting(
+      maContract.submitEvidence(arbitrableTransactionId, 'ipfs:/X', {
+        from: other
+      })
+    )
+  })
+
+  it('Should handle multiple transactions concurrently', async () => {
+    const { centralizedArbitrator, maContract } = await setupContracts()
+
+    await this.token.approve(maContract.address, 42 * 2, {
+      from: payer
+    })
+
+    const arbitrableTransactionId1 = (await createTestTransaction(maContract))
+      .arbitrableTransactionId
+
+    const arbitrableTransactionId2 = (await createTestTransaction(maContract))
+      .arbitrableTransactionId
+
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId2, {
+      from: payer,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId1, {
+      from: payee,
+      value: arbitrationFee
+    })
+    // This generates transaction 1 dispute 0
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId1, {
+      from: payer,
+      value: arbitrationFee
+    })
+    // This generates transaction 2 dispute 1
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId2, {
+      from: payee,
+      value: arbitrationFee
+    })
+
+    await execteActionAndCompareBalances(
+      async () => {
+        await centralizedArbitrator.giveRuling(0, 1, { from: arbitrator })
+      },
+      {
+        maContract,
+        payer: {
+          etherDelta: 20,
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
+
+    await execteActionAndCompareBalances(
+      async () => {
+        await centralizedArbitrator.giveRuling(1, 2, { from: arbitrator })
+      },
+      {
+        maContract,
+        payee: {
+          etherDelta: 20,
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
+  })
+
+  /*
+  Vulnerability low: It is possible to come back to ‘WaitingForX’ status if the
+  arbitration fee increases after the dispute is created. This can be used to
+  create a new dispute or even timeout other party no watching as they think
+  the dispute as already be created. This vulnerability is low because it’s
+  circunstancial (need fee increases) and can be countered by calling
+  payArbitrationFeeByX paying the difference (it would still create a new
+  dispute but not make the victim lose).
+  */
+  it('vulnerability: payArbitrationFeeByX again after dispute raised', async () => {
+    const { centralizedArbitrator, maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
+
+    // raise arbitration fee
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 1, {
+      from: arbitrator
+    })
+
+    await shouldFail.reverting(
+      maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+        from: payee,
+        value: arbitrationFee + 1
+      })
+    )
+
+    await shouldFail.reverting(
+      maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+        from: payer,
+        value: arbitrationFee + 1
+      })
+    )
+  })
+})
