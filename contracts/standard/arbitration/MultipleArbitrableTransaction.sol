@@ -151,7 +151,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.seller == msg.sender, "The caller must be the seller.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
-        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less than the transaction.");
+        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
         transaction.buyer.transfer(_amountReimbursed);
         transaction.amount -= _amountReimbursed;
