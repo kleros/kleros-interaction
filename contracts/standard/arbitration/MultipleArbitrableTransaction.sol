@@ -1,6 +1,6 @@
 /**
  *  @authors: [@eburgos, @n1c01a5]
- *  @reviewers: []
+ *  @reviewers: [@unknownunknown1*, @clesaege*, @ferittuncer*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -22,14 +22,13 @@ contract MultipleArbitrableTransaction {
 
     enum Party {Seller, Buyer}
     enum Status {NoDispute, WaitingSeller, WaitingBuyer, DisputeCreated, Resolved}
-    enum RulingOptions {NoRuling, Buyer_Wins, Seller_Wins}
 
     struct Transaction {
         address seller;
         address buyer;
         uint256 amount;
         uint256 timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
-        uint disputeId;
+        uint disputeId; // If dispute exists, the ID of the dispute.
         uint sellerFee; // Total fees paid by the seller.
         uint buyerFee; // Total fees paid by the buyer.
         uint lastInteraction; // Last interaction for the dispute procedure.
@@ -38,11 +37,12 @@ contract MultipleArbitrableTransaction {
     }
 
     Transaction[] public transactions;
-    bytes arbitratorExtraData;
-    Arbitrator arbitrator;
-    uint timeoutFee; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
+    bytes public arbitratorExtraData; // Extra data to set up the arbitration.
+    Arbitrator public arbitrator; // Address of the arbitrator contract.
+    uint public feeTimeout; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
 
-    mapping (uint => uint) public disputeID;
+
+    mapping (uint => uint) public disputeIDtoTransactionID; // One-to-one relationship between the dispute and the transaction.
 
     // **************************** //
     // *          Events          * //
@@ -66,7 +66,7 @@ contract MultipleArbitrableTransaction {
      *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
      *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.
      */
-    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
+    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address indexed _party, string _evidence);
 
     /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID.
      *  @param _arbitrator The arbitrator of the contract.
@@ -76,12 +76,11 @@ contract MultipleArbitrableTransaction {
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
 
     /** @dev To be raised when a ruling is given.
-     *  @param _transactionID The index of the transaction in dispute.
      *  @param _arbitrator The arbitrator giving the ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling The ruling which was given.
      */
-    event Ruling(uint indexed _transactionID, Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
+    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
     // **************************** //
     // *    Arbitrable functions  * //
@@ -91,16 +90,16 @@ contract MultipleArbitrableTransaction {
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
-     *  @param _timeoutFee Arbitration fee timeout for the parties.
+     *  @param _feeTimeout Arbitration fee timeout for the parties.
      */
     constructor (
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        uint _timeoutFee
+        uint _feeTimeout
     ) public {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
-        timeoutFee = _timeoutFee;
+        feeTimeout = _feeTimeout;
     }
 
     /** @dev Create a transaction.
@@ -138,7 +137,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.buyer == msg.sender, "The caller must be the buyer.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
-        require(_amount <= transaction.amount, "The amount paid has to be less than the transaction.");
+        require(_amount <= transaction.amount, "The amount paid has to be less than or equal to the transaction.");
 
         transaction.seller.transfer(_amount);
         transaction.amount -= _amount;
@@ -179,7 +178,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionID];
 
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
-        require(now - transaction.lastInteraction >= + timeoutFee, "Timeout time has not passed yet.");
+        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
         executeRuling(_transactionID, BUYER_WINS);
     }
@@ -191,7 +190,7 @@ contract MultipleArbitrableTransaction {
         Transaction storage transaction = transactions[_transactionID];
 
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
-        require(now - transaction.lastInteraction >= timeoutFee, "Timeout time has not passed yet.");
+        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
         executeRuling(_transactionID, SELLER_WINS);
     }
@@ -202,7 +201,7 @@ contract MultipleArbitrableTransaction {
      */
     function payArbitrationFeeByBuyer(uint _transactionID) public payable {
         Transaction storage transaction = transactions[_transactionID];
-        require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
+        require(transaction.status < Status.DisputeCreated, "Dispute has already been created or because the transaction has been executed.");
         require(msg.sender == transaction.buyer, "The caller must be the buyer.");
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -227,7 +226,7 @@ contract MultipleArbitrableTransaction {
      */
     function payArbitrationFeeBySeller(uint _transactionID) public payable {
         Transaction storage transaction = transactions[_transactionID];
-        require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
+        require(transaction.status < Status.DisputeCreated, "Dispute has already been created or because the transaction has been executed.");
         require(msg.sender == transaction.seller, "The caller must be the seller.");
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -254,7 +253,7 @@ contract MultipleArbitrableTransaction {
         transaction.status = Status.DisputeCreated;
         transaction.arbitrationCost = _arbitrationCost;
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
-        disputeID[transaction.disputeId] = _transactionID;
+        disputeIDtoTransactionID[transaction.disputeId] = _transactionID;
         emit Dispute(arbitrator, transaction.disputeId, _transactionID);
     }
 
@@ -287,12 +286,12 @@ contract MultipleArbitrableTransaction {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) public {
-        uint transactionID = disputeID[_disputeID];
+        uint transactionID = disputeIDtoTransactionID[_disputeID];
         Transaction storage transaction = transactions[transactionID];
         require(msg.sender == address(arbitrator), "The caller must be the arbitrator.");
         require(transaction.status == Status.DisputeCreated, "The dispute has already been resolved.");
 
-        emit Ruling(transactionID, Arbitrator(msg.sender), _disputeID, _ruling);
+        emit Ruling(Arbitrator(msg.sender), _disputeID, _ruling);
 
         executeRuling(transactionID, _ruling);
     }
@@ -310,12 +309,12 @@ contract MultipleArbitrableTransaction {
         if (_ruling == SELLER_WINS) {
             transaction.seller.send(transaction.sellerFee + transaction.amount);
             // Refund buyer if they overpaid
-            if (transaction.buyerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
+            if (transaction.buyerFee > transaction.arbitrationCost) // It should be impossible for arbitrationCost to be greater than fee but extra check here to prevent underflow.
                 transaction.buyer.send(transaction.buyerFee - transaction.arbitrationCost);
         } else if (_ruling == BUYER_WINS) {
             transaction.buyer.send(transaction.buyerFee + transaction.amount);
             // Refund seller if they overpaid
-            if (transaction.sellerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
+            if (transaction.sellerFee > transaction.arbitrationCost) // It should be impossible for arbitrationCost to be greater than fee but extra check here to prevent underflow.
                 transaction.seller.send(transaction.sellerFee - transaction.arbitrationCost);
         } else {
             uint split_amount = (transaction.sellerFee + transaction.buyerFee - transaction.arbitrationCost + transaction.amount) / 2;
