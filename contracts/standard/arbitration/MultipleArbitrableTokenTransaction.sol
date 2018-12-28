@@ -1,5 +1,5 @@
 /**
- *  @authors: [@n1c01a5]
+ *  @authors: [@n1c01a5,@hellwolf]
  *  @reviewers: []
  *  @auditors: []
  *  @bounties: []
