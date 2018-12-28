@@ -27,7 +27,7 @@
     "test:truffle": "truffle test",
     "test": "run-p test:*",
     "cz": "kathari cz",
-    "build": "truffle compile"
+    "build": "truffle compile --all"
   },
   "commitlint": {
     "extends": [
@@ -42,6 +42,8 @@
   },
   "devDependencies": {
     "@kleros/kathari": "^0.13.3",
+    "chai": "^4.2.0",
+    "pify": "^4.0.1",
     "coveralls": "^3.0.2",
     "eth-gas-reporter": "0.1.1",
     "ganache-cli": "^6.1.6",
