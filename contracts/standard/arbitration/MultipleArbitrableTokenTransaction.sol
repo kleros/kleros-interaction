@@ -1,3 +1,11 @@
+/**
+ *  @authors: [@n1c01a5]
+ *  @reviewers: []
+ *  @auditors: []
+ *  @bounties: []
+ *  @deployments: []
+ */
+
 /** @title Multiple Arbitrable ERC20 Token Transaction
  *  This is a a contract for multiple arbitrated token transactions which can be reversed by an arbitrator.
  *  This can be used for buying goods, services and for paying freelancers.
@@ -5,6 +13,7 @@
  */
 
 pragma solidity ^0.4.18;
+
 import "./Arbitrator.sol";
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
@@ -29,7 +38,7 @@ contract MultipleArbitrableTokenTransaction {
         address buyer;
         uint256 amount;
         uint256 timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
-        uint disputeId;
+        uint disputeId; // If dispute exists, the ID of the dispute.
         uint sellerFee; // Total fees paid by the seller.
         uint buyerFee; // Total fees paid by the buyer.
         uint lastInteraction; // Last interaction for the dispute procedure.
@@ -38,18 +47,18 @@ contract MultipleArbitrableTokenTransaction {
     }
 
     Transaction[] public transactions;
-    Arbitrator arbitrator;
-    bytes arbitratorExtraData;
-    uint timeoutFee; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
+    Arbitrator arbitrator; // Address of the arbitrator contract.
+    bytes arbitratorExtraData; // Extra data to set up the arbitration.
+    uint feeTimeout; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
 
-    mapping (uint => uint) public disputeID;
+    mapping (uint => uint) public disputeIDtoTransactionID;
 
     // **************************** //
     // *          Events          * //
     // **************************** //
 
     /** @dev To be emmited when meta-evidence is submitted.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionId.
+     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
      *  @param _evidence A link to the meta-evidence JSON.
      */
     event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
@@ -66,22 +75,26 @@ contract MultipleArbitrableTokenTransaction {
      *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
      *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.
      */
-    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address _party, string _evidence);
+    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address indexed _party, string _evidence);
 
     /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionId.
+     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
      */
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
 
     /** @dev To be raised when a ruling is given.
-     *  @param _transactionID The index of the transaction in dispute.
      *  @param _arbitrator The arbitrator giving the ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling The ruling which was given.
      */
-    event Ruling(uint indexed _transactionID, Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
+    event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
+
+    // **************************** //
+    // *    Arbitrable functions  * //
+    // *    Modifying the state   * //
+    // **************************** //
 
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
@@ -95,7 +108,7 @@ contract MultipleArbitrableTokenTransaction {
     ) public {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
-        timeoutFee = _timeoutFee;
+        feeTimeout = _timeoutFee;
     }
 
     /** @dev Create a transaction.
@@ -136,35 +149,35 @@ contract MultipleArbitrableTokenTransaction {
         return transactions.length - 1;
     }
 
-    /** @dev Pay party B. To be called if the good or service is provided.
+    /** @dev Pay seller. To be called if the good or service is provided.
      *  @param _transactionID The index of the transaction.
-     *  @param _amount Amount to pay in ERC20 tokens.
+     *  @param _amount Amount to pay in wei.
      */
     function pay(uint _transactionID, uint _amount) public {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.buyer == msg.sender, "The caller must be the buyer.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
-        require(_amount <= transaction.amount, "The amount paid has to be less than the transaction.");
+        require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
 
         transaction.token.transfer(transaction.seller, _amount);
         transaction.amount -= _amount;
     }
 
-    /** @dev Reimburse party A. To be called if the good or service can't be fully provided.
+    /** @dev Reimburse buyer. To be called if the good or service can't be fully provided.
      *  @param _transactionID The index of the transaction.
-     *  @param _amountReimbursed Amount to reimburse in ERC20 tokens.
+     *  @param _amountReimbursed Amount to reimburse in wei.
      */
     function reimburse(uint _transactionID, uint _amountReimbursed) public {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.seller == msg.sender, "The caller must be the seller.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
-        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less than the transaction.");
+        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
         transaction.token.transfer(transaction.buyer, _amountReimbursed);
         transaction.amount -= _amountReimbursed;
     }
 
-    /** @dev Transfer the transaction's amount to the seller if the timeout has passed
+    /** @dev Transfer the transaction's amount to the seller if the timeout has passed.
      *  @param _transactionID The index of the transaction.
      */
     function executeTransaction(uint _transactionID) public {
@@ -178,26 +191,26 @@ contract MultipleArbitrableTokenTransaction {
         transaction.status = Status.Resolved;
     }
 
-    /** @dev Pay seller if buyer fails to pay the fee.
+    /** @dev Reimburse buyer if seller fails to pay the fee.
      *  @param _transactionID The index of the transaction.
      */
     function timeOutByBuyer(uint _transactionID) public {
         Transaction storage transaction = transactions[_transactionID];
 
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
-        require(now - transaction.lastInteraction >= timeoutFee, "Timeout time has not passed yet.");
+        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
         executeRuling(_transactionID, BUYER_WINS);
     }
 
-    /** @dev Reimburse buyer if seller fails to pay the fee.
+    /** @dev Pay seller if buyer fails to pay the fee.
      *  @param _transactionID The index of the transaction.
      */
     function timeOutBySeller(uint _transactionID) public {
         Transaction storage transaction = transactions[_transactionID];
 
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
-        require(now - transaction.lastInteraction >= timeoutFee, "Timeout time has not passed yet.");
+        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
         executeRuling(_transactionID, SELLER_WINS);
     }
@@ -260,7 +273,7 @@ contract MultipleArbitrableTokenTransaction {
         transaction.status = Status.DisputeCreated;
         transaction.arbitrationCost = _arbitrationCost;
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
-        disputeID[transaction.disputeId] = _transactionID;
+        disputeIDtoTransactionID[transaction.disputeId] = _transactionID;
         emit Dispute(arbitrator, transaction.disputeId, _transactionID);
     }
 
@@ -280,18 +293,12 @@ contract MultipleArbitrableTokenTransaction {
      *  Transfer the funds to the arbitrator.
      *  Note that no checks are required as the checks are done by the arbitrator.
      *  @param _transactionID The index of the transaction.
-     *  @param _extraData Extra data for the arbitrator appeal procedure.
      */
-    function appeal(uint _transactionID, bytes _extraData) public payable {
+    function appeal(uint _transactionID) public payable {
         Transaction storage transaction = transactions[_transactionID];
 
-        arbitrator.appeal.value(msg.value)(transaction.disputeId, _extraData);
+        arbitrator.appeal.value(msg.value)(transaction.disputeId, arbitratorExtraData);
     }
-
-    // **************************** //
-    // *    Arbitrable functions  * //
-    // *    Modifying the state   * //
-    // **************************** //
 
     /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
      *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
@@ -299,7 +306,7 @@ contract MultipleArbitrableTokenTransaction {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) public {
-        uint transactionID = disputeID[_disputeID];
+        uint transactionID = disputeIDtoTransactionID[_disputeID];
         Transaction storage transaction = transactions[transactionID];
         require(msg.sender == address(arbitrator), "The caller must be the arbitrator.");
         require(transaction.status == Status.DisputeCreated, "The dispute has already been resolved.");
@@ -354,7 +361,7 @@ contract MultipleArbitrableTokenTransaction {
     // **************************** //
 
     /** @dev Getter to know the count of transactions.
-     *  @return countTransactions the count of transactions.
+     *  @return countTransactions The count of transactions.
      */
     function getCountTransactions() public view returns (uint countTransactions) {
         return transactions.length;
