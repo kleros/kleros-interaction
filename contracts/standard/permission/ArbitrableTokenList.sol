@@ -285,7 +285,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
 
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredStakeForSide[uint(Party.None)] = arbitrationCost.mulCap(sharedStakeMultiplier) / MULTIPLIER_PRECISION;
+        round.requiredStakeForSide[uint(Party.None)] = arbitrationCost.mulCap(sharedStakeMultiplier) / MULTIPLIER_PRECISION; // Position Party.None is used for shared stakes.
         round.requiredFeeStakeSet = true;
         token.lastAction = now;
 
@@ -326,7 +326,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Calculate the amount of fees required.
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint totalAmountRequired = arbitrationCost.addCap(round.requiredStakeForSide[uint(Party.None)]);
+        uint totalAmountRequired = arbitrationCost.addCap(round.requiredStakeForSide[uint(Party.None)]); // Position Party.None is used for shared stakes.
 
         // Take contributions, if any.
         // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
@@ -350,7 +350,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
 
         // Raise dispute if both sides are fully funded.
-        if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired && round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
+        if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired &&
+            round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
             request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
@@ -386,7 +387,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Calculate amount required.
         uint remainingETH = msg.value;
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint totalAmountRequired = arbitrationCost.addCap(round.requiredStakeForSide[uint(Party.None)]);
+        uint totalAmountRequired = arbitrationCost.addCap(round.requiredStakeForSide[uint(Party.None)]); // Position Party.None is used for shared stakes.
 
         // Take contribution, if any.
         // Necessary to check that remainingETH > 0, otherwise caller can set lastAction without making a contribution.
