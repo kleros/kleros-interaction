@@ -190,7 +190,7 @@ contract('ArbitrableTokenList', function(accounts) {
         })
       })
 
-      describe('partially fund both sides', () => {
+      describe.skip('partially fund both sides', () => {
         it('should rule in favor of challenger if he pays more', async () => {
           const sharedRequiredStake =
             ((await arbitrableTokenList.sharedStakeMultiplier()).toNumber() *
@@ -258,7 +258,7 @@ contract('ArbitrableTokenList', function(accounts) {
           assert.equal(dispute[4].toNumber(), DISPUTE_STATUS.Appealable)
         })
 
-        it(`winner doesn't fund appeal, rule in favor of looser`, async () => {
+        it.skip(`winner doesn't fund appeal, rule in favor of looser`, async () => {
           const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           const appealCost = (await enhancedAppealableArbitrator.appealCost(
             request[1].toNumber(),
@@ -283,7 +283,7 @@ contract('ArbitrableTokenList', function(accounts) {
           assert.equal(token[0].toNumber(), TOKEN_STATUS.Registered)
         })
 
-        it('should raise an appeal if both parties fund appeal', async () => {
+        it.skip('should raise an appeal if both parties fund appeal', async () => {
           let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
 
           const appealCost = (await enhancedAppealableArbitrator.appealCost(
