@@ -308,12 +308,12 @@ contract MultipleArbitrableTransaction {
         // Note that we use send to prevent a party from blocking the execution.
         if (_ruling == SELLER_WINS) {
             transaction.seller.send(transaction.sellerFee + transaction.amount);
-            // Refund buyer if they overpaid
+            // Refund buyer if it overpaid.
             if (transaction.buyerFee > transaction.arbitrationCost) // It should be impossible for arbitrationCost to be greater than fee but extra check here to prevent underflow.
                 transaction.buyer.send(transaction.buyerFee - transaction.arbitrationCost);
         } else if (_ruling == BUYER_WINS) {
             transaction.buyer.send(transaction.buyerFee + transaction.amount);
-            // Refund seller if they overpaid
+            // Refund seller if it overpaid.
             if (transaction.sellerFee > transaction.arbitrationCost) // It should be impossible for arbitrationCost to be greater than fee but extra check here to prevent underflow.
                 transaction.seller.send(transaction.sellerFee - transaction.arbitrationCost);
         } else {
