@@ -10,6 +10,7 @@
  *  This is a a contract for multiple arbitrated token transactions which can be reversed by an arbitrator.
  *  This can be used for buying goods, services and for paying freelancers.
  *  Parties are identified as "seller" and "buyer".
+ *  NOTE: All functions that interact with the ERC20 token contract as UNTRUSTED.
  */
 
 pragma solidity ^0.4.18;
@@ -25,12 +26,10 @@ contract MultipleArbitrableTokenTransaction {
     // **************************** //
 
     uint8 constant AMOUNT_OF_CHOICES = 2;
-    uint8 constant BUYER_WINS = 1;
-    uint8 constant SELLER_WINS = 2;
 
     enum Party {Seller, Buyer}
     enum Status {NoDispute, WaitingSeller, WaitingBuyer, DisputeCreated, Resolved}
-    enum RulingOptions {NoRuling, Buyer_Wins, Seller_Wins}
+    enum RulingOptions {NoRuling, BuyerWins, SellerWins}
 
     struct Transaction {
         ERC20 token;
@@ -151,7 +150,7 @@ contract MultipleArbitrableTokenTransaction {
 
     /** @dev Pay seller. To be called if the good or service is provided.
      *  @param _transactionID The index of the transaction.
-     *  @param _amount Amount to pay in wei.
+     *  @param _amount Amount to pay in tokens.
      */
     function pay(uint _transactionID, uint _amount) public {
         Transaction storage transaction = transactions[_transactionID];
@@ -165,7 +164,7 @@ contract MultipleArbitrableTokenTransaction {
 
     /** @dev Reimburse buyer. To be called if the good or service can't be fully provided.
      *  @param _transactionID The index of the transaction.
-     *  @param _amountReimbursed Amount to reimburse in wei.
+     *  @param _amountReimbursed Amount to reimburse in tokens.
      */
     function reimburse(uint _transactionID, uint _amountReimbursed) public {
         Transaction storage transaction = transactions[_transactionID];
@@ -200,7 +199,7 @@ contract MultipleArbitrableTokenTransaction {
         require(transaction.status == Status.WaitingSeller, "The transaction is not waiting on the seller.");
         require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
-        executeRuling(_transactionID, BUYER_WINS);
+        executeRuling(_transactionID, uint(RulingOptions.BuyerWins));
     }
 
     /** @dev Pay seller if buyer fails to pay the fee.
@@ -212,7 +211,7 @@ contract MultipleArbitrableTokenTransaction {
         require(transaction.status == Status.WaitingBuyer, "The transaction is not waiting on the buyer.");
         require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
-        executeRuling(_transactionID, SELLER_WINS);
+        executeRuling(_transactionID, uint(RulingOptions.SellerWins));
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the buyer. UNTRUSTED.
@@ -326,14 +325,14 @@ contract MultipleArbitrableTokenTransaction {
 
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
-        if (_ruling == SELLER_WINS) {
+        if (_ruling == uint(RulingOptions.SellerWins)) {
             transaction.token.transfer(transaction.seller, transaction.amount);
             // Refund seller arbitration fee
             transaction.seller.transfer(transaction.sellerFee);
             // Refund buyer if they overpaid
             if (transaction.buyerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
                 transaction.buyer.send(transaction.buyerFee - transaction.arbitrationCost);
-        } else if (_ruling == BUYER_WINS) {
+        } else if (_ruling == uint(RulingOptions.BuyerWins)) {
             transaction.token.transfer(transaction.buyer, transaction.amount);
             // Refund buyer arbitration fee
             transaction.buyer.transfer(transaction.buyerFee);
