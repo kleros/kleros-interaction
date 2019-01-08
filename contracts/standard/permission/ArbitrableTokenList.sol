@@ -66,7 +66,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint challengeRewardBalance; // The amount of funds placed at stake for this token.
         uint challengeReward; // The challengeReward of the token for the round.
         address[3] parties; // Address of requester and challenger, if any.
-        bool appealed; // True if an appeal was raised.
         Round[] rounds; // Tracks fees for each round of dispute and appeals.
         uint currentRound; // Tracks the current round of a dispute, if any.
     }
@@ -76,9 +75,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bool requiredFeeStakeSet; // Whether the required fee stake has been calculated.
         bool loserFullyFunded; // True if there the losing side of a dispute fully funded his side of an appeal.
         RulingOption ruling; // The ruling given by an arbitrator, if any.
+        bool appealed; // True if an appeal was raised.
         uint[3] paidFees; // Tracks the total balance paid by each side on this round. Used to calculate rewards.
-        uint[3] usedFees; // Tracks the amount of fees consumed by the arbitrator. Used to allow withdrawing unused ETH from prefunds. This can happen in the case the party is the winner of the previous round and was fully prefunded as the loser.
+        uint[3] amountToArbitrator; // Tracks the amount of fees reserved to be consumed by the arbitrator. Used to allow withdrawing unused ETH from prefunds. This can happen in the case the party is the winner of the previous round and was fully prefunded as the loser.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
+        uint oldAppealCost; // It is necessary to store the full cost to the winner when the loser is fully funded to calculate the amount the winner will have to pay when there is a change to the fees and/or stake during the winners turn. The winner's required amount is max(oldAppealCost+oldWinnerStake, newAppealCost).
     }
 
     /* Modifiers */
@@ -340,8 +341,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.currentRound++;
 
             // We keep the consumed fees to calculate refunds unused fees contributed via prefunds.
-            round.usedFees[uint(Party.Requester)] = totalAmountRequired;
-            round.usedFees[uint(Party.Challenger)] = totalAmountRequired;
+            round.amountToArbitrator[uint(Party.Requester)] = totalAmountRequired;
+            round.amountToArbitrator[uint(Party.Challenger)] = totalAmountRequired;
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -442,8 +443,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.currentRound++;
 
             // Save the consumed fees to calculate refunds of unused fees contributed via prefunds.
-            round.usedFees[uint(Party.Requester)] = totalAmountRequired;
-            round.usedFees[uint(Party.Challenger)] = totalAmountRequired;
+            round.amountToArbitrator[uint(Party.Requester)] = totalAmountRequired;
+            round.amountToArbitrator[uint(Party.Challenger)] = totalAmountRequired;
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -549,6 +550,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         if (round.paidFees[uint(loser)] >= totalRequiredFees) {
             round.loserFullyFunded = true;
+            round.amountToArbitrator[uint(loser)] = totalRequiredFees; // Used to calculate prefund reimbursements.
+            round.oldAppealCost = appealCost;
             token.lastAction = now;
         }
     }
@@ -581,10 +584,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             "It's the losing side's turn to fund the appeal."
         );
 
-        // Calculate the total amount required.
-        uint appealCost = arbitrator.appealCost(request.disputeID, arbitratorExtraData);
         (Party winner, Party loser) = returnWinnerAndLoser(arbitrator.currentRuling(request.disputeID));
-        uint totalRequiredFees = appealCost + round.requiredStakeForSide[uint(winner)];
+
+        // Calculate the total amount required. The total required fees is max(oldAppealCost + oldWinnerStake, newAppealCost).
+        uint oldTotalCost = round.oldAppealCost + round.requiredStakeForSide[uint(winner)];
+        uint totalRequiredFees = oldTotalCost > arbitrator.appealCost(request.disputeID, arbitratorExtraData)
+            ? oldTotalCost
+            : arbitrator.appealCost(request.disputeID, arbitratorExtraData);
 
         // Calculate the amount still required.
         uint remainingETH = msg.value;
@@ -607,21 +613,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Raise appeal if both sides are fully funded.
         if (round.paidFees[uint(winner)] >= totalRequiredFees) {
             arbitrator.appeal.value(
-                arbitrator.appealCost(
-                    request.disputeID,
-                    arbitratorExtraData
-                )
+                arbitrator.appealCost(request.disputeID, arbitratorExtraData)
             )(request.disputeID, arbitratorExtraData);
-
-            request.appealed = true;
-            round.usedFees[uint(winner)] += totalRequiredFees;
-            round.usedFees[uint(winner)] += totalRequiredFees;
 
             // Save the ruling. Used for reimbursing unused crowdfunding fees and withdrawing rewards.
             round.ruling = RulingOption(arbitrator.currentRuling(request.disputeID));
+            round.amountToArbitrator[uint(winner)] = totalRequiredFees; // Used to calculate prefund reimbursements.
+            round.appealed = true;
 
-            // Prepare for next round.
-            request.rounds.length++;
             tokens[_tokenID].lastAction = now;
         }
     }
@@ -755,9 +754,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function submitEvidence(bytes32 _tokenID, string _evidence) external {
         Token storage token = tokens[_tokenID];
         require(token.lastAction > 0, "The specified token was never submitted.");
+
         Request storage request = token.requests[token.requests.length - 1];
         require(request.disputed, "The request is not disputed.");
-        require(!request.appealed, "Request already appealed.");
+
+        Round storage round = request.rounds[request.rounds.length - 1];
+        require(!round.appealed, "Request already appealed.");
+
         emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
     }
 
@@ -1000,7 +1003,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             uint challengeRewardBalance,
             uint challengeReward,
             address[3] parties,
-            bool appealed,
             uint numberOfRounds
         )
     {
@@ -1015,7 +1017,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.challengeRewardBalance,
             request.challengeReward,
             request.parties,
-            request.appealed,
             request.rounds.length
         );
     }
