@@ -419,11 +419,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Prefunds the challenger side of a future round. Keeps all ETH since we can't know beforehand
+    /** @dev Prefunds the a future round. Refunds extra ETH in case caller sent more than is necessary considering the side lost the previous round.
      *  @param _tokenID The tokenID of the token with the request to execute.
      *  @param _round The round for which we want to fund a dispute.
+     *  @param _side The side for which we want contribute to.
      */
-    function prefundChallenger(bytes32 _tokenID, uint _round) external payable {
+    function prefund(bytes32 _tokenID, uint _round, uint _side) external payable {
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
@@ -444,51 +445,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint totalAmountRequired = arbitrationCost + (arbitrationCost * loserStakeMultiplier) / MULTIPLIER_PRECISION; // Since we don't know the if the party is the winner or loser of the previous round, we calculate the amount necessary if the challenger is the losing party.
 
         // Take contributions, if any.
-        uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Challenger)];
+        uint amountStillRequired = totalAmountRequired - round.paidFees[_side];
         uint contribution;
         (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
-        round.paidFees[uint(Party.Challenger)] += contribution;
-        round.contributions[msg.sender][uint(Party.Challenger)] += contribution;
-
-        if(contribution > 0) {
-            emit Contribution(_tokenID, msg.sender, _round, contribution);
-            token.lastAction = now;
-        }
-
-        // Refund remaining ETH to the caller.
-        msg.sender.send(remainingETH); // Deliberate use of send to avoid blocking in case the caller refuses refunds.
-    }
-
-    /** @dev Prefunds the requester side of a future round. Keeps all ETH since we can't know beforehand
-     *  @param _tokenID The tokenID of the token with the request to execute.
-     *  @param _round The round for which we want to fund a dispute.
-     */
-    function prefundRequester(bytes32 _tokenID, uint _round) external payable {
-        Token storage token = tokens[_tokenID];
-        require(
-            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "Token does not have any pending requests."
-        );
-        Request storage request = token.requests[token.requests.length - 1];
-        require(!request.disputed, "The token is already disputed.");
-        require(_round > request.latestRound, "This function should only be used to fund future rounds");
-
-        if(_round > request.rounds.length - 1)
-            request.rounds.length = _round + 1; // Prefunding a future round. Increase array size.
-
-        Round storage round = request.rounds[_round];
-        uint remainingETH = msg.value;
-
-        // Calculate the amount of fees required.
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint totalAmountRequired = arbitrationCost + (arbitrationCost * loserStakeMultiplier) / MULTIPLIER_PRECISION; // Since we don't know the if the party is the winner or loser of the previous round, we calculate the amount necessary if the requester is the losing party.
-
-        // Take contributions, if any.
-        uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Requester)];
-        uint contribution;
-        (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
-        round.paidFees[uint(Party.Requester)] += contribution;
-        round.contributions[msg.sender][uint(Party.Requester)] += contribution;
+        round.paidFees[_side] += contribution;
+        round.contributions[msg.sender][_side] += contribution;
 
         if(contribution > 0) {
             emit Contribution(_tokenID, msg.sender, _round, contribution);
