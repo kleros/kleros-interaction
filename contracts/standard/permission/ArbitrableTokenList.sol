@@ -69,6 +69,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Round[] rounds; // Tracks fees for each round of dispute and appeals.
         uint latestRound; // Tracks the current round of a dispute, if any.
         bool executed; // True if the request has been executed or if a non appealable ruling was given.
+        uint totalWinnerContribution; // Used calculate last round rewards.
     }
 
     struct Round {
@@ -571,6 +572,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (contribution > 0) {
             emit Contribution(_tokenID, msg.sender, request.latestRound, contribution);
             tokens[_tokenID].lastAction = now;
+            request.totalWinnerContribution += contribution;
         }
 
         // Raise appeal if both sides are fully funded.
@@ -608,6 +610,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         uint latestRound = request.latestRound;
         uint total;
+        uint share;
+        Party winner = round.ruling == RulingOption.Accept ? Party.Requester : Party.Challenger;
+        Party loser = round.ruling == RulingOption.Refuse ? Party.Requester : Party.Challenger;
         if(_round == 0) {
             require(
                 request.executed,
@@ -617,19 +622,26 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 total =
                 round.contributions[msg.sender][uint(Party.Requester)] + round.contributions[msg.sender][uint(Party.Challenger)];
             } else {
-                Party winner = request.rounds[_round].ruling == RulingOption.Accept ? Party.Requester : Party.Challenger;
-
                 // Reimburse fees contributed to the winner.
                 total = round.contributions[msg.sender][uint(winner)];
             }
-        } else {
+        } else if (_round >= 2) {
             if(_round < latestRound) {
                 // Withdrawl from appealed round.
-                // TODO: total = feesContributedToWinner + (reward * 0.9%)
+                share = round.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / round.paidFees[uint(winner)];
+
+                // Refund fees.
+                total = round.paidFees[uint(winner)] * share / MULTIPLIER_PRECISION;
+                // Take rewards from loser.
+                total += round.paidFees[uint(loser)] * share * (MULTIPLIER_PRECISION - lastRoundRewardMultiplier) / MULTIPLIER_PRECISION;
             } else {
                 // Withdraw from the last round.
-                // If there was a dispute
-                // TODO: total = feesContributed to winner + (total reward * 0.1%)
+                // Set the winner of the previous round.
+                winner = request.rounds[_round - 1].ruling == RulingOption.Accept ? Party.Requester : Party.Challenger;
+                share = round.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / round.paidFees[uint(winner)];
+
+                total = round.paidFees[uint(winner)] * share / MULTIPLIER_PRECISION;
+                total += request.totalWinnerContribution * share / MULTIPLIER_PRECISION;
             }
         }
 
