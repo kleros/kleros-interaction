@@ -550,7 +550,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const newPayerBalance = web3.eth.getBalance(payer)
     assert.equal(
       newPayerBalance.toString(),
-      payerBalanceBeforePay.plus(extraAmount).toString(),
+      payerBalanceBeforePay.plus(0).toString(),
       'The payer was not refunded properly'
     )
   })

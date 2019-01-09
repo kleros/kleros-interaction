@@ -217,6 +217,13 @@ contract MultipleArbitrableTransaction {
         } else { // The buyer has also paid the fee. We create the dispute
             raiseDispute(_transactionID, arbitrationCost);
         }
+
+        // Refund buyer if it overpaid.
+        if (transaction.buyerFee > arbitrationCost) {
+            uint extraFee = transaction.buyerFee - arbitrationCost;
+            transaction.buyerFee = arbitrationCost;
+            transaction.buyer.transfer(extraFee);
+        }
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the seller. UNTRUSTED.
@@ -241,6 +248,13 @@ contract MultipleArbitrableTransaction {
             emit HasToPayFee(_transactionID, Party.Buyer);
         } else { // The seller has also paid the fee. We create the dispute
             raiseDispute(_transactionID, arbitrationCost);
+        }
+
+        // Refund seller if it overpaid.
+        if (transaction.sellerFee > arbitrationCost) {
+            uint extraFee = transaction.sellerFee - arbitrationCost;
+            transaction.sellerFee = arbitrationCost;
+            transaction.seller.transfer(extraFee);
         }
     }
 
@@ -308,14 +322,8 @@ contract MultipleArbitrableTransaction {
         // Note that we use send to prevent a party from blocking the execution.
         if (_ruling == SELLER_WINS) {
             transaction.seller.send(transaction.sellerFee + transaction.amount);
-            // Refund buyer if it overpaid.
-            if (transaction.buyerFee > transaction.arbitrationCost) // It should be impossible for arbitrationCost to be greater than fee but extra check here to prevent underflow.
-                transaction.buyer.send(transaction.buyerFee - transaction.arbitrationCost);
         } else if (_ruling == BUYER_WINS) {
             transaction.buyer.send(transaction.buyerFee + transaction.amount);
-            // Refund seller if it overpaid.
-            if (transaction.sellerFee > transaction.arbitrationCost) // It should be impossible for arbitrationCost to be greater than fee but extra check here to prevent underflow.
-                transaction.seller.send(transaction.sellerFee - transaction.arbitrationCost);
         } else {
             uint split_amount = (transaction.sellerFee + transaction.buyerFee - transaction.arbitrationCost + transaction.amount) / 2;
             transaction.buyer.send(split_amount);
