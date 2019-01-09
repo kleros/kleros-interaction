@@ -635,12 +635,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 // Take rewards from loser.
                 total += round.paidFees[uint(loser)] * share * (MULTIPLIER_PRECISION - lastRoundRewardMultiplier) / MULTIPLIER_PRECISION;
             } else {
-                // Withdraw from the last round.
-                // Set the winner of the previous round.
+                // Withdraw from the last round. Winner was the one who paid the most fees.
+                require(
+                    request.executed && !round.appealed,
+                    "There must be no pending disputes to withdrawl fees and rewards from the last round."
+                );
+                // Use the winner and loser of the previous round.
                 winner = request.rounds[_round - 1].ruling == RulingOption.Accept ? Party.Requester : Party.Challenger;
-                share = round.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / round.paidFees[uint(winner)];
+                loser = request.rounds[_round - 1].ruling == RulingOption.Refuse ? Party.Requester : Party.Challenger;
 
-                total = round.paidFees[uint(winner)] * share / MULTIPLIER_PRECISION;
+                share = round.contributions[msg.sender][uint(loser)] * MULTIPLIER_PRECISION / round.paidFees[uint(loser)];
+
+                total = round.contributions[msg.sender][uint(loser)]; //Reimburse fees contributed to the loser.
                 total += request.totalWinnerContribution * share / MULTIPLIER_PRECISION;
             }
         }
