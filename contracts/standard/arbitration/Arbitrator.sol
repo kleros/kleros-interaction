@@ -13,9 +13,9 @@ import "./Arbitrable.sol";
  *  When developing arbitrator contracts we need to:
  *  -Define the functions for dispute creation (createDispute) and appeal (appeal). Don't forget to store the arbitrated contract and the disputeID (which should be unique, use nbDisputes).
  *  -Define the functions for cost display (arbitrationCost and appealCost).
- *  -Allow giving rulings. For this a function must call arbitrable.rule(disputeID,ruling).
+ *  -Allow giving rulings. For this a function must call arbitrable.rule(disputeID, ruling).
  */
-contract Arbitrator{
+contract Arbitrator {
 
     enum DisputeStatus {Waiting, Appealable, Solved}
 
