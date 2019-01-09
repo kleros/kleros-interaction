@@ -1,6 +1,6 @@
 {
   "name": "@kleros/kleros-interaction",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Smart contracts interacting with Kleros.",
   "keywords": [
     "kleros",

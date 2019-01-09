@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.5.0"></a>
+
+# [0.5.0](https://github.com/kleros/kleros-interaction/compare/v0.4.0...v0.5.0) (2019-01-09)
+
+### Bug Fixes
+
+- **escrow-token:** fix Ruling event ([4130f76](https://github.com/kleros/kleros-interaction/commit/4130f76))
+- **escrow-token:** follow the ERC arbitration standard ([fc0d0c6](https://github.com/kleros/kleros-interaction/commit/fc0d0c6))
+- **escrow-token:** revert ([49eccdb](https://github.com/kleros/kleros-interaction/commit/49eccdb))
+- **exrow:** fix docs typo ([8b05ab5](https://github.com/kleros/kleros-interaction/commit/8b05ab5))
+- **multiple-arbitrable-transaction:** fix [#195](https://github.com/kleros/kleros-interaction/issues/195) ([144ffab](https://github.com/kleros/kleros-interaction/commit/144ffab))
+- **multiple-arbitrable-transaction:** fix [#196](https://github.com/kleros/kleros-interaction/issues/196) ([277d6a1](https://github.com/kleros/kleros-interaction/commit/277d6a1))
+- **MultipleArbitrableTokenTransaction:** add author hellwolf ([b1bd96c](https://github.com/kleros/kleros-interaction/commit/b1bd96c))
+- **travis:** set nodejs preference to lts dubnium ([161dcd6](https://github.com/kleros/kleros-interaction/commit/161dcd6))
+
+### Features
+
+- delete composed arbitrable ([55f47eb](https://github.com/kleros/kleros-interaction/commit/55f47eb))
+
 <a name="0.4.0"></a>
 
 # 0.4.0 (2018-12-19)
