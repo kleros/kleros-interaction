@@ -217,13 +217,6 @@ contract MultipleArbitrableTransaction {
         } else { // The buyer has also paid the fee. We create the dispute
             raiseDispute(_transactionID, arbitrationCost);
         }
-
-        // Refund buyer if it overpaid.
-        if (transaction.buyerFee > arbitrationCost) {
-            uint extraFee = transaction.buyerFee - arbitrationCost;
-            transaction.buyerFee = arbitrationCost;
-            transaction.buyer.transfer(extraFee);
-        }
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the seller. UNTRUSTED.
@@ -249,13 +242,6 @@ contract MultipleArbitrableTransaction {
         } else { // The seller has also paid the fee. We create the dispute
             raiseDispute(_transactionID, arbitrationCost);
         }
-
-        // Refund seller if it overpaid.
-        if (transaction.sellerFee > arbitrationCost) {
-            uint extraFee = transaction.sellerFee - arbitrationCost;
-            transaction.sellerFee = arbitrationCost;
-            transaction.seller.transfer(extraFee);
-        }
     }
 
     /** @dev Create a dispute. UNTRUSTED.
@@ -269,6 +255,20 @@ contract MultipleArbitrableTransaction {
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
         disputeIDtoTransactionID[transaction.disputeId] = _transactionID;
         emit Dispute(arbitrator, transaction.disputeId, _transactionID);
+
+        // Refund seller if it overpaid.
+        if (transaction.sellerFee > _arbitrationCost) {
+            uint extraFeeSeller = transaction.sellerFee - _arbitrationCost;
+            transaction.sellerFee = _arbitrationCost;
+            transaction.seller.transfer(extraFeeSeller);
+        }
+
+        // Refund buyer if it overpaid.
+        if (transaction.buyerFee > _arbitrationCost) {
+            uint extraFeeBuyer = transaction.buyerFee - _arbitrationCost;
+            transaction.buyerFee = _arbitrationCost;
+            transaction.buyer.transfer(extraFeeBuyer);
+        }
     }
 
     /** @dev Submit a reference to evidence. EVENT.
