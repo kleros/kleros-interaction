@@ -79,7 +79,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Modifiers */
 
-    modifier onlyGovernor { require(msg.sender == governor, "The caller is not the governor."); _; }
+    modifier onlyGovernor {require(msg.sender == governor, "The caller is not the governor."); _;}
     modifier supportsAppealPeriod(uint _disputeID) {
         (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(_disputeID);
         require(appealPeriodEnd > appealPeriodStart, "Arbitrator must support appeal period.");
@@ -343,11 +343,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired &&
             round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
 
-            request.disputeID = arbitrator.createDispute.value(totalAmountRequired)(2, arbitratorExtraData);
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
             request.rounds.length++;
-            request.balance -= totalAmountRequired;
+            request.balance -= arbitrationCost;
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -357,13 +357,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 request.disputed
             );
         }
-
     }
 
     /** @dev Add funds to a party's pot. Keeps unused ETH as prefund. Raises a dispute if both sides are fully funded. Only callable if there are no disputes.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
     function fundPotDispute(bytes32 _tokenID, Party _side) external payable {
+        require(uint(_side) > 0, "Side must be either the requester or challenger.");
         Token storage token = tokens[_tokenID];
         require(uint(token.status) > 1, "Token does not have any pending requests.");
         Request storage request = token.requests[token.requests.length - 1];
@@ -390,7 +390,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint totalAmountRequired = arbitrationCost + arbitrationCost * sharedStakeMultiplier / MULTIPLIER_PRECISION;
         Round storage round = request.rounds[0];
 
-        // Use funds the pot.
+        // Use funds from the pot.
         uint amountStillRequired = totalAmountRequired - round.paidFees[uint(_side)];
         uint contribution;
         (contribution, request.pot[uint(_side)]) = calculateContribution(
@@ -403,11 +403,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired &&
             round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
 
-            request.disputeID = arbitrator.createDispute.value(totalAmountRequired)(2, arbitratorExtraData);
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
             request.rounds.length++;
-            request.balance -= totalAmountRequired;
+            request.balance -= arbitrationCost;
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -433,6 +433,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         withinAppealPeriod(request.disputeID)
     {
         Request storage request = tokens[_tokenID].requests[tokens[_tokenID].requests.length - 1];
+        require(uint(_side) > 0, "Side must be either the requester or challenger.");
         require(
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The ruling for the token is not appealable."
@@ -497,6 +498,87 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 request.disputed
             );
         }
+    }
+
+    /** @dev Add only enough funds to fund the latest round of a dispute. Refunds the rest to the caller.
+     *  @param _tokenID The tokenID of the token with the request to execute.
+     *  @param _side The recipient of the contribution.
+     */
+    function fundLatestRound(bytes32 _tokenID, Party _side) external payable {
+        require(uint(_side) > 0, "Side must be either the requester or challenger.");
+        Token storage token = tokens[_tokenID];
+        require(uint(token.status) > 1, "Token does not have any pending requests.");
+        Request storage request = token.requests[token.requests.length - 1];
+        require(request.challengerDepositTime > 0, "The request should have both parties deposits.");
+
+        Party loser;
+        if(RulingOption(arbitrator.currentRuling(request.disputeID)) == RulingOption.Refuse)
+            loser = Party.Requester;
+        else
+            loser = Party.Challenger;
+
+        // Check if contribution is within the allowed period.
+        if(!request.disputed) // First round.
+            require(
+                now - request.challengerDepositTime < arbitrationFeesWaitingTime,
+                "The arbitration fees funding period of the first round has already passed."
+            );
+        else { // Later round.
+            // The losing side must fully fund in the first half of the appeal period.
+            if(_side == loser){
+                (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
+                require(
+                    now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2,
+                    "Appeal period for funding the losing side ended."
+                );
+            }
+        }
+
+        // Calculate the amount of fees still required.
+        Round storage round = request.rounds[request.rounds.length - 1];
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        if(!request.disputed) { // First round.
+            round.requiredForSide[uint(Party.Requester)] = arbitrationCost + arbitrationCost * sharedStakeMultiplier / MULTIPLIER_PRECISION;
+            round.requiredForSide[uint(Party.Challenger)] = arbitrationCost + arbitrationCost * sharedStakeMultiplier / MULTIPLIER_PRECISION;
+        } else
+            round.requiredForSide = calculateRequiredForSide(request.disputeID, round.oldWinnerTotalCost);
+
+        uint amountStillRequired = round.requiredForSide[uint(_side)] - round.paidFees[uint(_side)];
+
+        // Take contribution.
+        uint contribution;
+        uint remainingETH = msg.value;
+        (contribution, remainingETH) = calculateContribution(
+            remainingETH,
+            amountStillRequired
+        );
+        request.balance += contribution;
+        round.paidFees[uint(_side)] += contribution;
+        request.contributions[msg.sender][uint(_side)] += contribution;
+        if (contribution > 0)
+            emit Contribution(_tokenID, msg.sender, _side, contribution);
+
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Requester)] &&
+            round.paidFees[uint(Party.Challenger)] >= round.paidFees[uint(Party.Challenger)]) {
+
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToTokenID[request.disputeID] = _tokenID;
+            request.disputed = true;
+            request.rounds.length++;
+            request.balance -= arbitrationCost;
+
+            emit TokenStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _tokenID,
+                token.status,
+                request.disputed
+            );
+        }
+
+        // Refund remainig ETH.
+        msg.sender.send(remainingETH);
     }
 
     /** @dev Reimburses fees withdraws the caller's rewards for funding the winner.
