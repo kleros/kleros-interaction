@@ -626,7 +626,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function rule(uint _disputeID, uint _ruling) public onlyArbitrator {
         emit Ruling(Arbitrator(msg.sender),_disputeID,_ruling);
-        if(_ruling == uint(RulingOption.Other)) { // Respect ruling if there isn't a winner or loser.
+        if(_ruling == uint(RulingOption.Other) || round.paidFees[uint(loser)] < round.requiredForSide[uint(loser)]) {
+            // Respect ruling if there isn't a winner or loser or if the loser did not fully fund his side of an appeal.
             executeRuling(_disputeID,_ruling);
             return;
         }
@@ -654,8 +655,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 executeRuling(_disputeID,uint(RulingOption.Refuse));
             else
                 executeRuling(_disputeID,uint(RulingOption.Accept));
-        } else
-            executeRuling(_disputeID,_ruling); // Respect the ruling.
+        }
     }
 
     /** @dev Submit a reference to evidence. EVENT.
