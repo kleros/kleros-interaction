@@ -294,10 +294,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function challengeRequest(bytes32 _tokenID) external payable {
         Token storage token = tokens[_tokenID];
-        require(
-            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "Token does not have any pending requests."
-        );
+        require(uint(token.status) > 1, "Token does not have any pending requests.");
         Request storage request = token.requests[token.requests.length - 1];
         require(request.challengeRewardBalance == challengeReward, "Request should have only the requester's deposit.");
         require(msg.value >= challengeReward, "Not enough ETH. Party starting dispute must place a deposit in full.");
@@ -363,88 +360,27 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     }
 
-    /** @dev Add funds to the challenger's pot. Keeps unused ETH as prefund. Raises a dispute if both sides are fully funded. Only callable if there are no disputes.
+    /** @dev Add funds to a party's pot. Keeps unused ETH as prefund. Raises a dispute if both sides are fully funded. Only callable if there are no disputes.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
-    function fundChallengerPotDispute(bytes32 _tokenID) external payable {
+    function fundPotDispute(bytes32 _tokenID, Party _side) external payable {
         Token storage token = tokens[_tokenID];
-        require(
-            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "Token does not have any pending requests."
-        );
+        require(uint(token.status) > 1, "Token does not have any pending requests.");
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The request is already disputed.");
-        require(request.challengerDepositTime > 0, "Request should have both parties deposits.");
-        require(
-            now - request.challengerDepositTime < arbitrationFeesWaitingTime,
-            "The arbitration fees funding period of the first round has already passed."
-        );
 
-        // Add contributions to challenger's pot.
-        request.pot[uint(Party.Challenger)] += msg.value;
-        request.contributions[msg.sender][uint(Party.Challenger)] += msg.value;
-        if (msg.value > 0)
-            emit Contribution(_tokenID, msg.sender, Party.Challenger, msg.value);
-
-        // Add contribution to request balance.
-        request.balance += msg.value;
-
-        // Calculate the total amount of fees required.
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint totalAmountRequired = arbitrationCost + arbitrationCost * sharedStakeMultiplier / MULTIPLIER_PRECISION;
-        Round storage round = request.rounds[0];
-
-        // Fund challenger side from his pot.
-        uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Challenger)];
-        uint contribution;
-        (contribution, request.pot[uint(Party.Challenger)]) = calculateContribution(
-            request.pot[uint(Party.Challenger)],
-            amountStillRequired
-        );
-        round.paidFees[uint(Party.Challenger)] += contribution;
-
-        // Raise dispute if both sides are fully funded.
-        if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired &&
-            round.paidFees[uint(Party.Challenger)] >= totalAmountRequired) {
-
-            request.disputeID = arbitrator.createDispute.value(totalAmountRequired)(2, arbitratorExtraData);
-            disputeIDToTokenID[request.disputeID] = _tokenID;
-            request.disputed = true;
-            request.rounds.length++;
-            request.balance -= totalAmountRequired;
-
-            emit TokenStatusChange(
-                request.parties[uint(Party.Requester)],
-                request.parties[uint(Party.Challenger)],
-                _tokenID,
-                token.status,
-                request.disputed
+        // If a challenger placed a deposit, contributions must be done before the end of the arbitration fees waiting time.
+        if(request.challengerDepositTime > 0)
+            require(
+                now - request.challengerDepositTime < arbitrationFeesWaitingTime,
+                "The arbitration fees funding period of the first round has already passed."
             );
-        }
-    }
 
-    /** @dev Add funds to the requester's pot. Keeps unused ETH as prefund. Raises a dispute if both sides are fully funded. Only callable if there are no disputes.
-     *  @param _tokenID The tokenID of the token with the request to execute.
-     */
-    function fundRequesterPotDispute(bytes32 _tokenID) external payable {
-        Token storage token = tokens[_tokenID];
-        require(
-            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "Token does not have any pending requests."
-        );
-        Request storage request = token.requests[token.requests.length - 1];
-        require(!request.disputed, "The request is already disputed.");
-        require(request.challengerDepositTime > 0, "Request should have both parties deposits.");
-        require(
-            now - request.challengerDepositTime < arbitrationFeesWaitingTime,
-            "The arbitration fees funding period of the first round has already passed."
-        );
-
-        // Add contributions to requester's pot.
-        request.pot[uint(Party.Requester)] += msg.value;
-        request.contributions[msg.sender][uint(Party.Requester)] += msg.value;
+        // Add contributions to the pot.
+        request.pot[uint(_side)] += msg.value;
+        request.contributions[msg.sender][uint(_side)] += msg.value;
         if (msg.value > 0)
-            emit Contribution(_tokenID, msg.sender, Party.Requester, msg.value);
+            emit Contribution(_tokenID, msg.sender, _side, msg.value);
 
         // Add contribution to request balance.
         request.balance += msg.value;
@@ -454,14 +390,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint totalAmountRequired = arbitrationCost + arbitrationCost * sharedStakeMultiplier / MULTIPLIER_PRECISION;
         Round storage round = request.rounds[0];
 
-        // Fund requester side from his pot.
-        uint amountStillRequired = totalAmountRequired - round.paidFees[uint(Party.Requester)];
+        // Use funds the pot.
+        uint amountStillRequired = totalAmountRequired - round.paidFees[uint(_side)];
         uint contribution;
-        (contribution, request.pot[uint(Party.Requester)]) = calculateContribution(
-            request.pot[uint(Party.Requester)],
+        (contribution, request.pot[uint(_side)]) = calculateContribution(
+            request.pot[uint(_side)],
             amountStillRequired
         );
-        round.paidFees[uint(Party.Requester)] += contribution;
+        round.paidFees[uint(_side)] += contribution;
 
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= totalAmountRequired &&
@@ -529,7 +465,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if ((arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Accept) && _side == Party.Challenger) ||
             (arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Refuse) && _side == Party.Requester)) {
             // Beneficiary is the losing side.
-            require(inFirstHalfOfAppealPeriod(request.disputeID), "Appeal period for funding the losing side ended.");
+            require(
+                inFirstHalfOfAppealPeriod(request.disputeID),
+                "Appeal period for funding the losing side ended."
+            );
         } else if ((arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Accept) && _side == Party.Requester) ||
             (arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Refuse) && _side == Party.Challenger)) {
             // Beneficiary is the winning side.
@@ -643,7 +582,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
 
         // Failed to fund first round.
-        // Rule in favor of requester if he paid more or equal to the challenger. Rule in favor of challenger otherwise.
+        // Rule in favor of requester if he paid more or the same amount of the challenger. Rule in favor of challenger otherwise.
         Party winner;
         if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
             winner = Party.Requester;
@@ -681,7 +620,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Give a ruling for a dispute. Must be called by the arbitrator.
-     *  Overrides parent function to account for the situation where a party loses a case due to paying less appeal fees than expected.
+     *  Overrides parent function to account for the situation where the winner loses a case due to paying less appeal fees than expected.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
