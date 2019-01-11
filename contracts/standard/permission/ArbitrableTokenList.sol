@@ -63,6 +63,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint challengeRewardBalance; // The amount of funds placed at stake for this request.
         uint challengerDepositTime; // The when the challenger placed his deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
         uint balance; // Summation of reimbursable fees and stake rewards available.
+        bool resolved; // True if the request was executed and/or any disputes raised were resolved.
         address[3] parties; // Address of requester and challenger, if any.
         uint[3] pot; // Tracks the prefund balance available for each side.
         Round[] rounds; // Tracks fees for each round of dispute and appeals.
@@ -127,11 +128,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /** @dev Emitted when a contribution reward is withdrawn.
      *  @param _tokenID The ID of the token that the contribution was made to.
-     *  @param _round The round of the agreement that the contribution was made to.
+     *  @param _request The request from which the withdrawal was made.
      *  @param _contributor The address that sent the contribution.
      *  @param _value The value of the reward.
      */
-    event RewardWithdrawal(bytes32 indexed _tokenID, uint indexed _round, address indexed _contributor, uint _value);
+    event RewardWithdrawal(bytes32 indexed _tokenID, uint indexed _request, address indexed _contributor, uint _value);
 
     /* Storage */
 
@@ -565,13 +566,32 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function withdrawFeesAndRewards(bytes32 _tokenID, uint _request) external {
         Token storage token = tokens[_tokenID];
-        require(
-            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "Token does not have any pending requests."
-        );
         Request storage request = token.requests[_request];
-        // TODO
-        
+        require(
+            request.resolved,
+            "The request was not executed and/or there are disputes pending resolution."
+        );
+
+        uint reward;
+        if (!request.disputed || RulingOption(arbitrator.currentRuling(request.disputeID)) == RulingOption.Other) {
+            // No disputes were raised, or there isn't a winner and and loser. Reimburse contributions.
+            reward = request.contributions[msg.sender][uint(Party.Requester)] + request.contributions[msg.sender][uint(Party.Challenger)];
+            request.contributions[msg.sender][uint(Party.Requester)] = 0;
+            request.contributions[msg.sender][uint(Party.Challenger)] = 0;
+        } else {
+            Party winner;
+            if(RulingOption(arbitrator.currentRuling(request.disputeID)) == RulingOption.Accept)
+                winner = Party.Requester;
+            else
+                winner = Party.Challenger;
+
+            uint share = request.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / request.pot[uint(winner)];
+            reward = (share * request.balance) / MULTIPLIER_PRECISION;
+            request.contributions[msg.sender][uint(winner)] = 0;
+        }
+
+        msg.sender.transfer(reward);
+        emit RewardWithdrawal(_tokenID, _request, msg.sender, reward);
     }
 
     /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
@@ -597,6 +617,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
         request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
         request.challengeRewardBalance = 0;
+        request.resolved = true;
 
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
@@ -829,6 +850,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
 
         request.challengeRewardBalance = 0;
+        request.resolved = true;
 
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
