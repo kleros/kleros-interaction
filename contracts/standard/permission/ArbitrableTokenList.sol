@@ -80,19 +80,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Modifiers */
 
     modifier onlyGovernor {require(msg.sender == governor, "The caller is not the governor."); _;}
-    modifier supportsAppealPeriod(uint _disputeID) {
-        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(_disputeID);
-        require(appealPeriodEnd > appealPeriodStart, "Arbitrator must support appeal period.");
-        _;
-    }
-    modifier withinAppealPeriod(uint _disputeID) {
-        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(_disputeID);
-        require(
-            now - appealPeriodEnd < appealPeriodEnd - appealPeriodStart,
-            "Contributions must be done before the end of the appeal period."
-        );
-        _;
-    }
 
     /* Events */
 
@@ -295,6 +282,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Take the deposit and save the challenger's address.
         request.challengeRewardBalance += challengeReward;
         request.parties[uint(Party.Challenger)] = msg.sender;
+        request.challengerDepositTime = now; // Save the start of the arbitration fees funding period.
         emit ChallengeDepositPlaced(_tokenID, msg.sender);
 
         // Add contributions to challenger's pot.
@@ -303,9 +291,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.contributions[msg.sender][uint(Party.Challenger)] = contribution;
         if (contribution > 0)
             emit Contribution(_tokenID, msg.sender, Party.Challenger, contribution);
-
-        // Save the start of the arbitration fees funding period.
-        request.challengerDepositTime = now;
 
         // Add contribution to request balance.
         request.balance += contribution;
@@ -421,8 +406,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function fundPotAppeal(bytes32 _tokenID, Party _side)
         external
         payable
-        supportsAppealPeriod(request.disputeID)
-        withinAppealPeriod(request.disputeID)
     {
         Request storage request = tokens[_tokenID].requests[tokens[_tokenID].requests.length - 1];
         require(uint(_side) > 0, "Side must be either the requester or challenger.");
@@ -430,6 +413,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             arbitrator.disputeStatus(request.disputeID) == Arbitrator.DisputeStatus.Appealable,
             "The ruling for the token is not appealable."
         );
+        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
+        if(appealPeriodEnd > appealPeriodStart) // Appeal period is known.
+            require(now < appealPeriodEnd, "Appeal period ended.");
 
         // Add contributions to side's pot.
         request.pot[uint(_side)] += msg.value;
@@ -440,7 +426,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Add contribution to request balance.
         request.balance += msg.value;
 
-        // Calculate the total amount required to fully fund the each side.
+        // Calculate and update the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
         round.requiredForSide = calculateRequiredForSide(request.disputeID, round.oldWinnerTotalCost);
 
@@ -455,21 +441,25 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.paidFees[uint(_side)] += round.requiredForSide[uint(_side)] - round.paidFees[uint(_side)];
         }
 
-        if ((arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Accept) && _side == Party.Challenger) ||
-            (arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Refuse) && _side == Party.Requester)) {
-            // Beneficiary is the losing side.
-            require(
-                inFirstHalfOfAppealPeriod(request.disputeID),
-                "Appeal period for funding the losing side ended."
-            );
-        } else if ((arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Accept) && _side == Party.Requester) ||
-            (arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Refuse) && _side == Party.Challenger)) {
-            // Beneficiary is the winning side.
-            // If in the first half of the appeal period, update the old total cost to the winner.
-            // This is required to calculate the winner's cost when governacne changes are made in the second half of the appeal period.
-            // The winner total cost is max(old appeal cost + old winner stake, new appeal cost).
-            if (inFirstHalfOfAppealPeriod(request.disputeID))
-                round.oldWinnerTotalCost = round.requiredForSide[uint(_side)];
+        // If the arbitrator supports appeal period, the loser is restricted to receive funding in the first half of it.
+        // Additionally, governance changes that happen on the second half of the appeal period can affect the total appeal cost to the winner. Check if the appeal period is known and if so, deal with those cases.
+        if(appealPeriodEnd > appealPeriodStart) { // Appeal period is known.
+            if ((arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Accept) && _side == Party.Challenger) ||
+                (arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Refuse) && _side == Party.Requester)) {
+                // Beneficiary is the losing side.
+                require(
+                    now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2, // First half of appeal period.
+                    "Appeal period for funding the losing side ended."
+                );
+            } else if ((arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Accept) && _side == Party.Requester) ||
+                (arbitrator.currentRuling(request.disputeID) == uint(RulingOption.Refuse) && _side == Party.Challenger)) {
+                // Beneficiary is the winning side.
+                // If in the first half of the appeal period, update the old total cost to the winner.
+                // This is required to calculate the winner's cost when governance changes are made in the second half of the appeal period.
+                // The winner total cost is max(old appeal cost + old winner stake, new appeal cost).
+                if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) // First half of appeal period.
+                    round.oldWinnerTotalCost = round.requiredForSide[uint(_side)];
+            }
         }
 
         // Raise appeal if both sides are fully funded.
@@ -502,6 +492,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         require(uint(token.status) > 1, "Token does not have any pending requests.");
         Request storage request = token.requests[token.requests.length - 1];
         require(request.challengerDepositTime > 0, "The request should have both parties deposits.");
+        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
+        if(appealPeriodEnd > appealPeriodStart) // Appeal period is known.
+            require(now < appealPeriodEnd, "Appeal period ended.");
 
         Party loser;
         if(RulingOption(arbitrator.currentRuling(request.disputeID)) == RulingOption.Refuse)
@@ -516,14 +509,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 "The arbitration fees funding period of the first round has already passed."
             );
         else { // Later round.
-            // The losing side must fully fund in the first half of the appeal period.
-            if(_side == loser){
-                (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
+            // The losing side must fully fund in the first half of the appeal period if it is known.
+            if(_side == loser && appealPeriodEnd > appealPeriodStart)
                 require(
                     now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2,
                     "Appeal period for funding the losing side ended."
                 );
-            }
         }
 
         // Calculate the amount of fees still required.
@@ -876,28 +867,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** @dev Returns true if disputeID is in the first half of the appeal period. Used to get around stack limits.
-     *  @param _disputeID The ID of the dispute to be queried.
-     */
-    function inFirstHalfOfAppealPeriod(uint _disputeID)
-        internal
-        view
-        supportsAppealPeriod(_disputeID)
-        returns (bool)
-    {
-        (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(_disputeID);
-        return now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2;
-    }
-
     /** @dev Returns the amount that must be paid by each side to fully fund an appeal.
      *  @param _disputeID The dispute ID to be queried.
-     *  @param _oldWinnerTotalCost The total amount of fees the winner had to pay before a governance change in the second half of an appeal period.
+     *  @param _oldWinnerTotalCost The total amount of fees the winner had to pay before a governance change in the second half of an appeal period. If the appeal period is not known or the arbitrator does not support appeal period, this parameter is unused.
      *  @return The amount of ETH required for each side.
      */
     function calculateRequiredForSide(uint _disputeID, uint _oldWinnerTotalCost)
         internal
         view
-        supportsAppealPeriod(_disputeID)
         returns(uint[3] requiredForSide)
     {
         Party winner;
@@ -914,18 +891,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint appealCost = arbitrator.appealCost(_disputeID, arbitratorExtraData);
         if(uint(winner) > 0) {
             // Arbitrator gave a decisive ruling.
-
             // Set the required amount for the winner.
             requiredForSide[uint(winner)] = appealCost + (appealCost * winnerStakeMultiplier) / MULTIPLIER_PRECISION;
-            // Fee changes in the second half of the appeal period may create a difference between the amount paid by the winner and the amount paid by the loser.
-            // To deal with this case, the amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
+
             (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(_disputeID);
-            if (now - appealPeriodStart > (appealPeriodEnd - appealPeriodStart) / 2) // In first half of appeal period.
+            if(appealPeriodEnd > appealPeriodStart){ // The appeal period is known.
+                // Fee changes in the second half of the appeal period may create a difference between the amount paid by the winner and the amount paid by the loser.
+                // To deal with this case, the amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
+                if (now - appealPeriodStart > (appealPeriodEnd - appealPeriodStart) / 2) // In first half of appeal period.
                 requiredForSide[uint(winner)] = _oldWinnerTotalCost > appealCost ? _oldWinnerTotalCost : appealCost;
 
-            // Set the required amount for the loser.
-            // The required amount for the loser must only be affected by governance/fee changes made in the first half of the appeal period. Otherwise, increases would cause the loser to lose the case due to being underfunded.
-            if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) // In first half of appeal period.
+                // Set the required amount for the loser.
+                // The required amount for the loser must only be affected by governance/fee changes made in the first half of the appeal period. Otherwise, increases would cause the loser to lose the case due to being underfunded.
+                if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) // In first half of appeal period.
+                    requiredForSide[uint(loser)] = appealCost + (appealCost * loserStakeMultiplier) / MULTIPLIER_PRECISION;
+            } else // Arbitration period is not known or the arbitrator does not support appeal period.
                 requiredForSide[uint(loser)] = appealCost + (appealCost * loserStakeMultiplier) / MULTIPLIER_PRECISION;
         } else {
             // Arbitrator did not rule or refused to rule.
