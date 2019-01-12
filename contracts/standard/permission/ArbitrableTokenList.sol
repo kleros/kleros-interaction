@@ -208,7 +208,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // ************************ //
 
     /** @dev Funds a request to change a token status.
-     *  Extra eth will be kept as reserved arbitration fees for future disputes.
+     *  Extra ETH will be kept as reserved arbitration fees for future disputes.
      *  @param _name The name of the token.
      *  @param _ticker The token ticker.
      *  @param _addr The token address.
@@ -1002,9 +1002,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         returns (
             bool disputed,
             uint disputeID,
-            uint challengerDepositTime,
+            uint submissionTime,
             uint challengeRewardBalance,
+            uint challengerDepositTime,
+            uint balance,
+            bool resolved,
             address[3] parties,
+            uint[3] pot,
             uint numberOfRounds
         )
     {
@@ -1013,9 +1017,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         return (
             request.disputed,
             request.disputeID,
-            request.challengerDepositTime,
+            request.submissionTime,
             request.challengeRewardBalance,
+            request.challengerDepositTime,
+            request.balance,
+            request.resolved,
             request.parties,
+            request.pot,
             request.rounds.length
         );
     }
@@ -1030,14 +1038,20 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         external
         view
         returns (
-            uint[3] paidFees
+            bool appealed,
+            uint oldWinnerTotalCost,
+            uint[3] paidFees,
+            uint[3] requiredForSide
         )
     {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
         return (
-            round.paidFees
+            round.appealed,
+            round.oldWinnerTotalCost,
+            round.paidFees,
+            round.requiredForSide
         );
     }
 
