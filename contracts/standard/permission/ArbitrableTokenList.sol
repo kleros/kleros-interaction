@@ -39,42 +39,53 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Challenger // Party challenging a request.
     }
 
-    /* Structs */
+    // ************************ //
+    // *  Request Life Cycle  * //
+    // ************************ //
+    // Changes to the token status are made via requests for either listing or removing a token from the Token² Curated List.
+    // The costs for placing a request vary depending on whether a party challenges that request and on the number of appeals.
+    // To place or challenge a request, a party must place value at stake. This value will rewarded to the party that wins a challenge. If no one challenges the request, it will be reimbursed to the requester.
+    // Additionally to the challenge rewards, in the case a party challenges a request, both sides must fully pay the amount of arbitration fees required to raise a dispute. The party that wins the case will be reimbursed.
+    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional and final value must placed at stake. Contributors that fund the side that ultimatly win a dispute will be reimbursed and rewarded with the other sides fee stake.
+    // In summary, costs for placing or challenging a request are the following:
+    // - A challenge reward given to the party that wins a challenge.
+    // - Arbitration fees used to pay jurors.
+    // - Fee stake that can be rewarded to anyone that contributes to paying a party's arbitration fees.
 
-    // Arrays of parties and balances have 3 elements to map with the Party enum for better readability:
+    /* Structs */
+    struct Token {
+        string name; // The token name (e.g. Pinakion).
+        address addr; // The Ethereum address of the token, if running on an EVM based network.
+        string ticker; // The token ticker (e.g. PNK).
+        string URI; // A URI pointing to the token logo.
+        string networkID; // The ID of the network. Can be used for listing tokens from other blockchains. 'ETH' if the token is deployed on the Ethereum mainnet.
+        TokenStatus status;
+        Request[] requests; // List of status change requests made for the token.
+    }
+
+    // Arrays of that have 3 elements to map with the Party enum for better readability:
     // - 0 is unused, matches Party.None.
     // - 1 for Party.Requester.
     // - 2 for Party.Challenger.
-
-    struct Token {
-        string name;
-        address addr;
-        string ticker;
-        string URI;
-        string networkID;
-        TokenStatus status;
-        Request[] requests;
-    }
-
     struct Request {
-        bool disputed; // True if a dispute is taking place.
+        bool disputed; // True if a dispute was raised.
         uint disputeID; // ID of the dispute, if any.
-        uint submissionTime; // Time when the request was made.
-        uint challengeRewardBalance; // The amount of funds placed at stake for this request.
-        uint challengerDepositTime; // The when the challenger placed his deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
-        uint balance; // Summation of reimbursable fees and stake rewards available.
+        uint submissionTime; // Time when the request was made. Used to track when the challenge period ends.
+        uint challengeRewardBalance; // The amount of funds placed at stake for this request. This value will be given to the party that ultimatly wins a potential dispute, or be reimbursed to the requester if no one challenges.
+        uint challengerDepositTime; // The time when a challenger placed his deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
+        uint balance; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimatly wins.
         bool resolved; // True if the request was executed and/or any disputes raised were resolved.
         address[3] parties; // Address of requester and challenger, if any.
-        uint[3] pot; // Tracks the prefund balance available for each side.
-        Round[] rounds; // Tracks fees for each round of dispute and appeals.
+        uint[3] pot; // Tracks the amount of funds available to fund a round. Can be non zero if a party paid more than is necessary to fund the current round of a dispute.
+        Round[] rounds; // Tracks each round of a dispute.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
 
     struct Round {
-        bool appealed; // True if an appeal was raised.
+        bool appealed; // True if this round was appealed.
         uint oldWinnerTotalCost; // Governance changes on the second half of the appeal funding period create a difference between the amount that must be contributed by the winner and the loser. This variable tracks the amount that was required of the winner in the first round, before a change that happened on the second round (e.g previous appeal cost + previous required winner stake).
-        uint[3] paidFees; // Tracks the fees paid for this round.
-        uint[3] requiredForSide; // The total amount required to fully fund each side.
+        uint[3] paidFees; // Tracks the fees paid by each side on this round.
+        uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake.
     }
 
     /* Modifiers */
@@ -84,7 +95,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Events */
 
     /**
-     *  @dev Called when the token's status changes or when it is challenged/resolved.
+     *  @dev Emitted when the token's status changes or when it is challenged/resolved.
      *  @param _requester Address of the requester.
      *  @param _challenger Address of the challenger, if any.
      *  @param _tokenID The tokenID of the token.
@@ -99,7 +110,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bool _disputed
     );
 
-    /** @dev Emitted when a contribution is made.
+    /** @dev Emitted when a party makes contribution a side's pot.
      *  @param _tokenID The ID of the token that the contribution was made to.
      *  @param _contributor The address that sent the contribution.
      *  @param _side The side the contribution was made to.
@@ -107,7 +118,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     event Contribution(bytes32 indexed _tokenID, address indexed _contributor, Party indexed _side, uint _value);
 
-    /** @dev Emitted shen a deposit is made to challenge a request.
+    /** @dev Emitted when a deposit is made to challenge a request.
      *  @param _tokenID The ID of the token that the contribution was made to.
      *  @param _challenger The address that placed the deposit.
      */
@@ -124,10 +135,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Storage */
 
     // Settings
-    uint public challengeReward; // The stake deposit required in addition to arbitration fees for challenging a request.
+    uint public challengeReward; // The stake deposit required in addition to arbitration fees for placing and/or challenging a request.
     uint public challengePeriodDuration; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The maximum time to wait for arbitration fees if the dispute is raised.
-    address public governor; // The address that can update t2clGovernor, arbitrationFeesWaitingTime and challengeReward.
+    address public governor; // The address that can make governance changes to the parameters of the Token² Curated List.
 
     uint public constant MULTIPLIER_PRECISION = 10000; // Precision parameter for multipliers.
 
@@ -221,11 +232,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.URI = _URI;
             token.networkID = _networkID;
             tokensList.push(tokenID);
-        } else
-            require(
-                !token.requests[token.requests.length - 1].disputed,
-                "Token must not be disputed for submitting status change request"
-            );
+        }
 
         // Update token status.
         if (token.status == TokenStatus.Absent)
@@ -396,10 +403,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Fund a side's pot during the appeal period. Keeps unused ETH as prefund. Callable only if:
-     *  - Arbitrator supports appeal period;
-     *  - Current time is before the end of the appeal period;
-     *  - If the side is the loser, the current time is on the fisrt half of the appeal period.
+    /** @dev Fund a side's pot while a ruling is appealable. Keeps unused ETH as prefund.
      *  @param _tokenID The tokenID of the token to fund.
      *  @param _side The recipient of the contribution.
      */
@@ -616,10 +620,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         require(now - request.submissionTime > challengePeriodDuration, "The time to challenge has not passed yet.");
         require(!request.disputed, "The specified token is disputed.");
-        require(
-            request.challengerDepositTime > 0,
-            "Only callable if no one contests the request."
-        );
+        require(request.challengerDepositTime > 0, "Only callable if no one contests the request.");
 
         if (token.status == TokenStatus.RegistrationRequested)
             token.status = TokenStatus.Registered;
@@ -1098,24 +1099,24 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         view
         returns (bytes32[] values, bool hasMore)
     {
-        uint _cursorIndex;
+        uint cursorIndex;
         values = new bytes32[](_count);
-        uint _index = 0;
+        uint index = 0;
 
         if (_cursor == 0)
-            _cursorIndex = 0;
+            cursorIndex = 0;
         else {
             for (uint j = 0; j < tokensList.length; j++) {
                 if (tokensList[j] == _cursor) {
-                    _cursorIndex = j;
+                    cursorIndex = j;
                     break;
                 }
             }
-            require(_cursorIndex != 0, "The cursor is invalid.");
+            require(cursorIndex != 0, "The cursor is invalid.");
         }
 
         for (
-                uint i = _cursorIndex == 0 ? (_oldestFirst ? 0 : 1) : (_oldestFirst ? _cursorIndex + 1 : tokensList.length - _cursorIndex + 1);
+                uint i = cursorIndex == 0 ? (_oldestFirst ? 0 : 1) : (_oldestFirst ? cursorIndex + 1 : tokensList.length - cursorIndex + 1);
                 _oldestFirst ? i < tokensList.length : i <= tokensList.length;
                 i++
             ) { // Oldest or newest first.
@@ -1134,9 +1135,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                     (_filter[7] && request.parties[uint(Party.Challenger)]== msg.sender) // My Challenges.
                     /* solium-enable operator-whitespace */
             ) {
-                if (_index < _count) {
-                    values[_index] = tokensList[_oldestFirst ? i : tokensList.length - i];
-                    _index++;
+                if (index < _count) {
+                    values[index] = tokensList[_oldestFirst ? i : tokensList.length - i];
+                    index++;
                 } else {
                     hasMore = true;
                     break;
