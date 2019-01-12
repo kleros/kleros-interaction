@@ -528,7 +528,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Calculate the amount of fees still required.
         Round storage round = request.rounds[request.rounds.length - 1];
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost = !request.disputed
+            ? arbitrator.arbitrationCost(arbitratorExtraData)
+            : arbitrator.appealCost(request.disputeID, arbitratorExtraData);
         if(!request.disputed) { // First round.
             round.requiredForSide[uint(Party.Requester)] = arbitrationCost + arbitrationCost * sharedStakeMultiplier / MULTIPLIER_PRECISION;
             round.requiredForSide[uint(Party.Challenger)] = arbitrationCost + arbitrationCost * sharedStakeMultiplier / MULTIPLIER_PRECISION;
@@ -550,13 +552,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (contribution > 0)
             emit Contribution(_tokenID, msg.sender, _side, contribution);
 
-        // Raise dispute if both sides are fully funded.
+        // Raise dispute or appeal if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.paidFees[uint(Party.Challenger)]) {
 
-            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
-            disputeIDToTokenID[request.disputeID] = _tokenID;
-            request.disputed = true;
+            if(request.rounds.length == 1) {
+                // First round, raise dispute.
+                request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+                disputeIDToTokenID[request.disputeID] = _tokenID;
+                request.disputed = true;
+            } else {
+                // Later round, raise an appeal.
+                arbitrator.appeal.value(arbitrationCost)(request.disputeID, arbitratorExtraData);
+                round.appealed = true;
+            }
+
             request.rounds.length++;
             request.balance -= arbitrationCost;
 
@@ -650,6 +660,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
         require(request.rounds.length == 1, "This is not the first round.");
+        require(request.challengerDepositTime > 0, "The request should have both parties deposits.");
         require(
             now - request.challengerDepositTime > arbitrationFeesWaitingTime,
             "There is still time to place a contribution."
