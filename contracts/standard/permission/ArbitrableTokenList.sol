@@ -150,9 +150,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     uint public loserStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that lost the previous round.
     uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that both parties must pay for the first round of a dispute.
 
-    // There is a chance that the winner of the last round refuses to fund his side of an appeal. In this case there would be no reward do fund the loser. To account for this a percentage of all previous rounds is awarded to parties funding the last round.
-    uint public lastRoundRewardMultiplier; // Multiplier for bonus reward of the last round of a dispute. Value in 4 digits precision.
-
     // Tokens
     mapping(bytes32 => Token) public tokens;
     mapping(uint => bytes32) public disputeIDToTokenID;
@@ -172,7 +169,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _sharedStakeMultiplier Multiplier for calculating the fee stake that both parties must pay for the first round of a dispute. 4 Digits precision (e.g. a multiplier of 20000 results in 200% of the original value).
      *  @param _winnerStakeMultiplier Multiplier for calculating the fee stake paid by the party that won the previous round. 4 Digits precision (e.g. a multiplier of 20000 results in 200% of the original value).
      *  @param _loserStakeMultiplier Multiplier for calculating the fee stake paid by the party that lost the previous round. 4 Digits precision (e.g. a multiplier of 20000 results in 200% of the original value).
-     *  @param _lastRoundRewardMultiplier Fraction of the loser stake given to the last round contributors. 4 Digits precision (e.g. a multiplier of 5000 results in 50% of the original value). Value must be less than 100%.
      */
     constructor(
         Arbitrator _arbitrator,
@@ -184,11 +180,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint _challengePeriodDuration,
         uint _sharedStakeMultiplier,
         uint _winnerStakeMultiplier,
-        uint _loserStakeMultiplier,
-        uint _lastRoundRewardMultiplier
+        uint _loserStakeMultiplier
     ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
-        require(_lastRoundRewardMultiplier < MULTIPLIER_PRECISION, "Value must be less then 100%.");
-
         governor = _governor;
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
         challengeReward = _challengeReward;
@@ -196,7 +189,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         sharedStakeMultiplier = _sharedStakeMultiplier;
         winnerStakeMultiplier = _winnerStakeMultiplier;
         loserStakeMultiplier = _loserStakeMultiplier;
-        lastRoundRewardMultiplier = _lastRoundRewardMultiplier;
 
         emit MetaEvidence(0, _metaEvidence);
     }
@@ -807,14 +799,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         loserStakeMultiplier = _loserStakeMultiplier;
     }
 
-    /** @dev Changes the `lastRoundRewardMultiplier` storage variable.
-     *  @param _lastRoundRewardMultiplier The new `_lastRoundRewardMultiplier` storage variable.
-     */
-    function changeLastRoundRewardMultiplier(uint _lastRoundRewardMultiplier) external onlyGovernor {
-        require(_lastRoundRewardMultiplier < MULTIPLIER_PRECISION, "Value must be less then 100%.");
-        lastRoundRewardMultiplier = _lastRoundRewardMultiplier;
-    }
-
     /* Public Views */
 
     /** @dev Return true if the token is on the list.
@@ -837,7 +821,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bytes32 tokenID = disputeIDToTokenID[_disputeID];
         Token storage token = tokens[tokenID];
         Request storage request = token.requests[token.requests.length - 1];
-        Round storage round = request.rounds[request.rounds.length - 1];
 
         Party winner;
         RulingOption currentRuling = RulingOption(arbitrator.currentRuling(request.disputeID));
