@@ -13,11 +13,51 @@ import "./PermissionInterface.sol";
 
 
 /**
+ * @title CappedMath
+ * @dev Math operations with caps for under and overflow.
+ */
+library CappedMath {
+    uint constant private UINT_MAX = 2**256 - 1;
+
+    /**
+    * @dev Adds two unsigned integers, returns 2^256 - 1 on overflow.
+    */
+    function addCap(uint256 _a, uint256 _b) internal pure returns (uint256) {
+        uint c = _a + _b;
+        return c >= _a ? c : UINT_MAX;
+    }
+
+    /**
+    * @dev Subtracts two unsigned integers, returns 0 on underflow.
+    */
+    function subCap(uint256 _a, uint256 _b) internal pure returns (uint256) {
+        return _a > _b ? _a - _b : 0;
+    }
+
+    /**
+    * @dev Multiplies two unsigned integers, returns 2^256 - 1 on overflow.
+    */
+    function mulCap(uint256 _a, uint256 _b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring '_a' not being zero, but the
+        // benefit is lost if '_b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-solidity/pull/522
+        if (_a == 0)
+            return 0;
+
+        uint256 c = _a * _b;
+        return c / _a == _b ? c : UINT_MAX;
+    }
+}
+
+/**
  *  @title ArbitrableTokenList
  *  This contract is arbitrable token curated list for tokens, sometimes referred to as a Token² Curated List. Users can send requests to register or remove tokens from the list which can, in turn, be challenged by parties that disagree with the request.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimatly wins a dispute.
  */
 contract ArbitrableTokenList is PermissionInterface, Arbitrable {
+    using CappedMath for uint;
+    /* solium-disable max-len*/
+    /* solium-disable operator-whitespace*/
 
     /* Enums */
 
@@ -260,9 +300,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.pot[uint(Party.Requester)] = contribution;
         request.contributions[msg.sender][uint(Party.Requester)] = contribution;
 
-        // Save request balance.
-        request.feeRewards = contribution;
-
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             request.parties[uint(Party.Challenger)],
@@ -302,13 +339,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (contribution > 0)
             emit Contribution(_tokenID, msg.sender, Party.Challenger, contribution);
 
-        // Add contribution to request balance.
-        request.feeRewards += contribution;
-
-        // Calculate the total amount of fees required.
+        // Calculate and update the total amount of fees required from each side.
         Round storage round = request.rounds[0];
         round.requiredForSide = calculateRequiredForSide(request.disputeID, round.oldWinnerTotalCost);
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
 
         // Fund challenger side from his pot.
         uint amountStillRequired = round.requiredForSide[uint(Party.Challenger)] - round.paidFees[uint(Party.Challenger)];
@@ -332,6 +365,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
+            uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
@@ -349,7 +383,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Add funds to a party's pot. Keeps unused ETH as prefund. Raises a dispute if a challenger placed a deposit and both sides are fully funded.
-     *  @param _tokenID The tokenID of the token with the request to execute.
+     *  @param _tokenID The ID of the token to fund.
+     *  @param _side The beneficiary of the contribution.
      */
     function fundPotDispute(bytes32 _tokenID, Party _side) external payable {
         require(
@@ -377,16 +412,16 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (msg.value > 0)
             emit Contribution(_tokenID, msg.sender, _side, msg.value);
 
-        if(request.challengerDepositTime == 0) // If no party placed a challenge deposit, stop here.
+        if(request.challengerDepositTime == 0) // If no party placed a challenge deposit caller is just prefunding. Stop here.
             return;
 
-        // Calculate the total amount of fees required to fully fund each side.
+        // Calculate and update the total amount of fees required from each side.
         Round storage round = request.rounds[0];
         round.requiredForSide = calculateRequiredForSide(request.disputeID, round.oldWinnerTotalCost);
 
         // Fund challenger side from his pot.
-        uint amountStillRequired = round.requiredForSide[uint(Party.Challenger)] - round.paidFees[uint(Party.Challenger)];
         uint contribution;
+        uint amountStillRequired = round.requiredForSide[uint(Party.Challenger)] - round.paidFees[uint(Party.Challenger)];
         (contribution, request.pot[uint(Party.Challenger)]) = calculateContribution(
             request.pot[uint(Party.Challenger)],
             amountStillRequired
@@ -425,8 +460,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Fund a side's pot while a ruling is appealable. Keeps unused ETH as prefund.
-     *  @param _tokenID The tokenID of the token to fund.
-     *  @param _side The recipient of the contribution.
+     *  @param _tokenID The ID of the token to fund.
+     *  @param _side The beneficiary of the contribution.
      */
     function fundPotAppeal(bytes32 _tokenID, Party _side) external payable {
         require(
@@ -511,7 +546,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Add only enough funds to fund the latest round of a dispute. Refunds the rest to the caller.
+    /** @dev Add only enough funds to fund the latest round. Refunds the rest to the caller.
      *  @param _tokenID The tokenID of the token with the request to execute.
      *  @param _side The recipient of the contribution.
      */
@@ -536,25 +571,27 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         } else { // Later round.
             (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(request.disputeID);
             if(appealPeriodEnd > appealPeriodStart) {
-                // Appeal period is known. Contributions are time restricted depending on whether the beneficiary is the loser.
-                Party loser;
-                if(RulingOption(arbitrator.currentRuling(request.disputeID)) == RulingOption.Refuse)
-                    loser = Party.Requester;
-                else
-                    loser = Party.Challenger;
+                // Appeal period is known. Contributions are time restricted depending on whether the beneficiary is the loser or if there is one at all.
+                if(RulingOption(arbitrator.currentRuling(request.disputeID)) != RulingOption.Other) {
+                    Party loser;
+                    if(RulingOption(arbitrator.currentRuling(request.disputeID)) == RulingOption.Refuse)
+                        loser = Party.Requester;
+                    else
+                        loser = Party.Challenger;
 
-                // The losing side must fully fund in the first half of the appeal period if it is known.
-                if(_side == loser)
-                    require(
-                        now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2,
-                        "Appeal period for funding the losing side ended."
-                    );
-                else
-                    require(now < appealPeriodEnd, "Appeal period ended."); // Winner can only receive contributions in the appeal period.
+                    // The losing side must fully fund in the first half of the appeal period.
+                    if(_side == loser)
+                        require(
+                            now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2,
+                            "Appeal period for funding the losing side ended."
+                        );
+                    else
+                        require(now < appealPeriodEnd, "Appeal period ended."); // Winner can only receive contributions in the appeal period.
+                }
             }
         }
 
-        // Calculate the amount of fees still required.
+        // Calculate and update the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
         round.requiredForSide = calculateRequiredForSide(request.disputeID, round.oldWinnerTotalCost);
 
@@ -617,7 +654,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Reimburses caller's contributions if no disputes were raised or reimburses contributions and withdraws the rewards proportional to the contribtutions made to the winner of a dispute.
+    /** @dev Reimburses caller's contributions if no disputes were raised.
+     *  If a dispute was raised, reimburses contributions and withdraws the rewards proportional to the contribtutions made to the winner of a dispute.
      *  @param _tokenID The ID of the token.
      *  @param _request The request from which to withdraw.
      */
@@ -651,7 +689,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             reward = (share * request.feeRewards) / MULTIPLIER_PRECISION;
             request.contributions[msg.sender][uint(winner)] = 0;
 
-            // Also take unused prefunds to the loser.
+            // Take unused prefunds to the loser.
             share = request.contributions[msg.sender][uint(loser)] * MULTIPLIER_PRECISION / request.pot[uint(loser)];
             reward += (share * request.pot[uint(loser)]) / MULTIPLIER_PRECISION;
             request.contributions[msg.sender][uint(loser)] = 0;
@@ -728,7 +766,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 token.status = TokenStatus.Registered;
 
         // Send token balance.
-        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        // Deliberate use of send in order to not block the contract in case the recipient refusing payments.
         if (winner == Party.Challenger)
             request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
         else
@@ -918,6 +956,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Returns the amount that must be paid by each side to fully fund a dispute or appeal.
+     *  Capped math is used to deal with overflows since the arbitrator can return high values for appeal and arbitration cost to denote unpayable amounts.
      *  @param _disputeID The dispute ID to be queried.
      *  @param _oldWinnerTotalCost The total amount of fees the winner had to pay before a governance change in the second half of an appeal period. If the appeal period is not known or the arbitrator does not support appeal period, this parameter is unused.
      *  @return The amount of ETH required for each side.
@@ -934,9 +973,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if(!request.disputed) { // First round of a dispute.
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             requiredForSide[uint(Party.Requester)] =
-                arbitrationCost + (arbitrationCost * sharedStakeMultiplier) / MULTIPLIER_PRECISION;
+                arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
             requiredForSide[uint(Party.Challenger)] =
-                arbitrationCost + (arbitrationCost * sharedStakeMultiplier) / MULTIPLIER_PRECISION;
+                arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
             return;
         }
 
@@ -955,7 +994,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if(uint(winner) > 0) {
             // Arbitrator gave a decisive ruling.
             // Set the required amount for the winner.
-            requiredForSide[uint(winner)] = appealCost + (appealCost * winnerStakeMultiplier) / MULTIPLIER_PRECISION;
+            requiredForSide[uint(winner)] = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_PRECISION);
 
             (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(_disputeID);
             if(appealPeriodEnd > appealPeriodStart){ // The appeal period is known.
@@ -967,13 +1006,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 // Set the required amount for the loser.
                 // The required amount for the loser must only be affected by governance/fee changes made in the first half of the appeal period. Otherwise, increases would cause the loser to lose the case due to being underfunded.
                 if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) // In first half of appeal period.
-                    requiredForSide[uint(loser)] = appealCost + (appealCost * loserStakeMultiplier) / MULTIPLIER_PRECISION;
+                    requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
             } else // Arbitration period is not known or the arbitrator does not support appeal period.
-                requiredForSide[uint(loser)] = appealCost + (appealCost * loserStakeMultiplier) / MULTIPLIER_PRECISION;
+                requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
         } else {
             // Arbitrator did not rule or refused to rule.
-            requiredForSide[uint(Party.Requester)] = appealCost + (appealCost * sharedStakeMultiplier) / MULTIPLIER_PRECISION;
-            requiredForSide[uint(Party.Challenger)] = appealCost + (appealCost * sharedStakeMultiplier) / MULTIPLIER_PRECISION;
+            requiredForSide[uint(Party.Requester)] =
+                appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+            requiredForSide[uint(Party.Challenger)] =
+                appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
         }
 
         return requiredForSide;
@@ -1142,7 +1183,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Return the values of the tokens the query finds. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
-     *  @param _cursor The pagination cursor.
+     *  @param _cursor The ID of the token from which to start iterating. To start from either the oldest or newest item.
      *  @param _count The number of tokens to return.
      *  @param _filter The filter to use. Each element of the array in sequence means:
      *  - Include absent tokens in result.
@@ -1153,7 +1194,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  - Include disputed tokens with clearing requests in result.
      *  - Include tokens submitted by the caller.
      *  - Include tokens challenged by the caller.
-     *  @param _oldestFirst The sort order to use.
+     *  @param _oldestFirst Whether to sort from oldest to the newest item.
      *  @return The values of the tokens found and whether there are more tokens for the current filter and sort.
      */
     function queryTokens(bytes32 _cursor, uint _count, bool[8] _filter, bool _oldestFirst)
