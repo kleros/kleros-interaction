@@ -28,13 +28,6 @@ library CappedMath {
     }
 
     /**
-    * @dev Subtracts two unsigned integers, returns 0 on underflow.
-    */
-    function subCap(uint256 _a, uint256 _b) internal pure returns (uint256) {
-        return _a > _b ? _a - _b : 0;
-    }
-
-    /**
     * @dev Multiplies two unsigned integers, returns 2^256 - 1 on overflow.
     */
     function mulCap(uint256 _a, uint256 _b) internal pure returns (uint256) {
@@ -699,25 +692,60 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit RewardWithdrawal(_tokenID, _request, msg.sender, reward);
     }
 
-    /** @dev Execute a request after the time for challenging it has passed. Can be called by anyone.
-     *  @param _tokenID The id of the token with the request to execute.
+    /** @dev Execute a request if no disputes were raised within the allowed period.
+     *  @param _tokenID The ID of the token with the request to execute.
      */
-    function executeRequest(bytes32 _tokenID) external {
+    function timeout(bytes32 _tokenID) external {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
-        require(now - request.submissionTime > challengePeriodDuration, "The time to challenge has not passed yet.");
-        require(!request.disputed, "The specified token is disputed.");
-        require(request.challengerDepositTime == 0, "Only callable if no one contests the request.");
+        if(request.challengerDepositTime == 0) {
+            // No one challenged the request.
+            require(now - request.submissionTime > challengePeriodDuration, "The time to challenge has not passed yet.");
 
-        if (token.status == TokenStatus.RegistrationRequested)
-            token.status = TokenStatus.Registered;
-        else if (token.status == TokenStatus.ClearingRequested)
-            token.status = TokenStatus.Absent;
-        else
-            revert("Token in wrong status for executing request.");
+            if (token.status == TokenStatus.RegistrationRequested)
+                token.status = TokenStatus.Registered;
+            else if (token.status == TokenStatus.ClearingRequested)
+                token.status = TokenStatus.Absent;
+            else
+                revert("Token in wrong status for executing request.");
 
-        // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
+            // Deliberate use of send in order to not block the contract in case of reverting fallback.
+            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
+        } else {
+            require(!request.disputed, "A dispute must have not been raised.");
+            require(
+                now - request.challengerDepositTime > arbitrationFeesWaitingTime,
+                "There is still time to place a contribution."
+            );
+
+            // Rule in favor of requester if he paid more or the same amount of the challenger. Rule in favor of challenger otherwise.
+            Round storage round = request.rounds[request.rounds.length - 1];
+            Party winner;
+            if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
+                winner = Party.Requester;
+            else
+                winner = Party.Challenger;
+
+            // Update token state
+            if (winner == Party.Requester) // Execute Request
+                if (token.status == TokenStatus.RegistrationRequested)
+                    token.status = TokenStatus.Registered;
+                else
+                    token.status = TokenStatus.Absent;
+            else // Revert to previous state.
+                if (token.status == TokenStatus.RegistrationRequested)
+                    token.status = TokenStatus.Absent;
+                else if (token.status == TokenStatus.ClearingRequested)
+                    token.status = TokenStatus.Registered;
+
+            // Send token balance.
+            // Deliberate use of send in order to not block the contract in case the recipient refusing payments.
+            if (winner == Party.Challenger)
+                request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
+            else
+                request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
+        }
+
         request.challengeRewardBalance = 0;
         request.resolved = true;
 
@@ -727,59 +755,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             _tokenID,
             token.status,
             false
-        );
-    }
-
-
-    /** @dev Rule in favor of party that paid more fees if not enough was raised to create a dispute.
-     *  @param _tokenID The ID of the token with the request to timeout.
-     */
-    function feeTimeoutFirstRound(bytes32 _tokenID) external {
-        Token storage token = tokens[_tokenID];
-        Request storage request = token.requests[token.requests.length - 1];
-        Round storage round = request.rounds[request.rounds.length - 1];
-        require(!request.disputed, "The request cannot be disputed.");
-        require(request.challengerDepositTime > 0, "The request should have both parties deposits.");
-        require(
-            now - request.challengerDepositTime > arbitrationFeesWaitingTime,
-            "There is still time to place a contribution."
-        );
-
-        // Failed to fund first round.
-        // Rule in favor of requester if he paid more or the same amount of the challenger. Rule in favor of challenger otherwise.
-        Party winner;
-        if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
-            winner = Party.Requester;
-        else
-            winner = Party.Challenger;
-
-        // Update token state
-        if (winner == Party.Requester) // Execute Request
-            if (token.status == TokenStatus.RegistrationRequested)
-                token.status = TokenStatus.Registered;
-            else
-                token.status = TokenStatus.Absent;
-        else // Revert to previous state.
-            if (token.status == TokenStatus.RegistrationRequested)
-                token.status = TokenStatus.Absent;
-            else if (token.status == TokenStatus.ClearingRequested)
-                token.status = TokenStatus.Registered;
-
-        // Send token balance.
-        // Deliberate use of send in order to not block the contract in case the recipient refusing payments.
-        if (winner == Party.Challenger)
-            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
-        else
-            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
-
-        request.challengeRewardBalance = 0;
-
-        emit TokenStatusChange(
-            request.parties[uint(Party.Requester)],
-            request.parties[uint(Party.Challenger)],
-            _tokenID,
-            token.status,
-            request.disputed
         );
     }
 
