@@ -62,7 +62,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     enum RulingOption {
-        Other, // Arbitrator did not rule of refused to rule.
+        Other, // Arbitrator did not rule or refused to rule.
         Accept, // Execute request. Rule in favor of requester.
         Refuse // Refuse request. Rule in favor of challenger.
     }
@@ -331,8 +331,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             emit Contribution(_tokenID, msg.sender, Party.Challenger, contribution);
     }
 
-    /** @dev Add only enough funds to fund the latest round. Refunds the rest to the caller.
-     *  @param _tokenID The tokenID of the token with the request to execute.
+    /** @dev Fund a side. Refunds the rest to the caller.
+     *  @param _tokenID The ID of the token with the request to execute.
      *  @param _side The recipient of the contribution.
      */
     function fundLatestRound(bytes32 _tokenID, Party _side) external payable {
@@ -542,32 +542,31 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function rule(uint _disputeID, uint _ruling) public onlyArbitrator {
         Party winner;
         Party loser;
-        RulingOption currentRuling = RulingOption(arbitrator.currentRuling(_disputeID));
-        if(currentRuling == RulingOption.Accept) {
+        RulingOption resultRuling = RulingOption(_ruling);
+        if(resultRuling == RulingOption.Accept) {
             winner = Party.Requester;
             loser = Party.Challenger;
-        } else {
+        } else if (resultRuling == RulingOption.Refuse) {
             winner = Party.Challenger;
             loser = Party.Requester;
-        }
+        } else
+            resultRuling = RulingOption.Other; // Respect ruling if there isn't a winner or loser or if the loser did not fully fund his side of an appeal.
 
+        // Invert ruling if there are a winner and loser and the loser fully funded but the winner did not.
         bytes32 tokenID = disputeIDToTokenID[_disputeID];
         Token storage token = tokens[tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
-        // Respect ruling if there isn't a winner or loser or if the loser did not fully fund his side of an appeal.
-        // Invert ruling if there are a winner and loser and the loser fully funded but the winner did not, or if no one made any contributions since the arbitrator gave the ruling.
-        uint resultRuling = _ruling;
-        if(_ruling != uint(RulingOption.Other) && round.requiredForSide[3] == 1) {
+        if(resultRuling != RulingOption.Other && round.requiredForSide[3] == 1 && round.paidFees[uint(loser)] >= round.requiredForSide[uint(loser)]) {
             // Loser is fully funded but the winner is not. Rule in favor of the loser.
-            if (_ruling == uint(RulingOption.Accept))
-                resultRuling = uint(RulingOption.Refuse);
+            if (resultRuling == RulingOption.Accept)
+                resultRuling = RulingOption.Refuse;
              else
-                resultRuling = uint(RulingOption.Accept);
+                resultRuling = RulingOption.Accept;
         }
 
-        emit Ruling(Arbitrator(msg.sender), _disputeID, resultRuling);
-        executeRuling(_disputeID, resultRuling);
+        emit Ruling(Arbitrator(msg.sender), _disputeID, uint(resultRuling));
+        executeRuling(_disputeID, uint(resultRuling));
     }
 
     /** @dev Submit a reference to evidence. EVENT.
@@ -577,9 +576,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         require(request.disputed, "The request is not disputed.");
-
-        Round storage round = request.rounds[request.rounds.length - 1];
-        require(!round.appealed, "Request already appealed.");
 
         emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
     }
