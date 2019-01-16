@@ -194,6 +194,7 @@ contract('ArbitrableTokenList', function(accounts) {
               arbitrationCost) /
             MULTIPLIER_PRECISION
 
+          let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Challenger, {
             from: partyB,
             value: arbitrationCost + sharedRequiredStake
@@ -208,7 +209,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
           await arbitrableTokenList.timeout(tokenID)
           const token = await arbitrableTokenList.getTokenInfo(tokenID)
-          const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
+          request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
 
           assert.equal(token[5].toNumber(), TOKEN_STATUS.Absent)
           assert.isTrue(request[6]) // i.e. request.resolved == true

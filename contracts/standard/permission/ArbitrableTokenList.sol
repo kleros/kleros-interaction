@@ -91,7 +91,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         string name; // The token name (e.g. Pinakion).
         string ticker; // The token ticker (e.g. PNK).
         address addr; // The Ethereum address of the token, if it is running on an EVM based network.
-        string symbolURI; // A URI pointing to the token symbol.
+        string symbolMultihash; // A URI pointing to the token symbol.
         string networkID; // The ID of the network. Can be used for listing tokens from other blockchains. 'ETH' if the token is deployed on the Ethereum mainnet.
         TokenStatus status;
         Request[] requests; // List of status change requests made for the token.
@@ -144,7 +144,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bool _disputed
     );
 
-    /** @dev Emitted when a party makes contribution a side's pot.
+    /** @dev Emitted when a party makes contribution a side.
      *  @param _tokenID The ID of the token that the contribution was made to.
      *  @param _contributor The address that sent the contribution.
      *  @param _side The side the contribution was made to.
@@ -228,30 +228,30 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // *       Requests       * //
     // ************************ //
 
-    /** @dev Submit a request to change a token status. Extra ETH will be kept as reserve for future disputes.
+    /** @dev Submit a request to change a token status.
      *  @param _name The token name (e.g. Pinakion).
      *  @param _ticker The token ticker (e.g. PNK).
      *  @param _addr The Ethereum address of the token, if it is running on an EVM based network.
-     *  @param _symbolURI A URI pointing to the token symbol.
+     *  @param _symbolMultihash A URI pointing to the token symbol.
      *  @param _networkID The ID of the network. Can be used for listing tokens from other blockchains. 'ETH' if the token is
      */
     function requestStatusChange(
         string _name,
         string _ticker,
         address _addr,
-        string _symbolURI,
+        string _symbolMultihash,
         string _networkID
     )
         external
         payable
     {
-        require(msg.value == challengeReward, "Wrong ETH value.");
+        require(msg.value >= challengeReward, "Not enough ETH.");
         bytes32 tokenID = keccak256(
             abi.encodePacked(
                 _name,
                 _ticker,
                 _addr,
-                _symbolURI,
+                _symbolMultihash,
                 _networkID
             )
         );
@@ -262,7 +262,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.name = _name;
             token.ticker = _ticker;
             token.addr = _addr;
-            token.symbolURI = _symbolURI;
+            token.symbolMultihash = _symbolMultihash;
             token.networkID = _networkID;
             tokensList.push(tokenID);
         }
@@ -280,24 +280,22 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         request.parties[uint(Party.Requester)] = msg.sender;
         request.submissionTime = now;
-
-        // Place deposit.
+        request.rounds.length++;
         request.challengeRewardBalance = challengeReward;
 
-        // Setup first round.
-        request.rounds.length++;
-        Round storage round = request.rounds[request.rounds.length - 1];
+        // Reimburse leftover ETH.
+        msg.sender.send(msg.value - challengeReward); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
-            request.parties[uint(Party.Challenger)],
+            address(0x0),
             tokenID,
             token.status,
             false
         );
     }
 
-    /** @dev Challenges the latest request of a token. Keeps extra ETH as prefund. Raises a dispute if both sides are fully funded.
+    /** @dev Challenges the latest request of a token. Accepts enough ETH to fund the first round at its current price.
      *  @param _tokenID The tokenID of the token with the request to execute.
      */
     function challengeRequest(bytes32 _tokenID) external payable {
@@ -308,27 +306,41 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
         Request storage request = token.requests[token.requests.length - 1];
         require(request.challengerDepositTime == 0, "Request should have only the requester's deposit.");
-        require(msg.value == challengeReward, "Not enough ETH. Party starting dispute must place a deposit in full.");
+        require(msg.value >= request.challengeRewardBalance, "Not enough ETH. Party starting dispute must place a deposit in full.");
         require(now - request.submissionTime < challengePeriodDuration, "The challenge period has already passed.");
 
         // Take the deposit and save the challenger's address.
-        request.challengeRewardBalance += challengeReward;
+        uint remainingETH = msg.value - request.challengeRewardBalance;
+        request.challengeRewardBalance += request.challengeRewardBalance;
         request.parties[uint(Party.Challenger)] = msg.sender;
         request.challengerDepositTime = now; // Save the start of the first round arbitration fees funding period.
         emit ChallengeDepositPlaced(_tokenID, msg.sender);
 
-        // Calculate and update the total amount of fees required from each side.
-        Round storage round = request.rounds[0];
+        // Calculate and update the total amount required to fully fund the each side.
+        Round storage round = request.rounds[request.rounds.length - 1];
         round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost);
 
-        // Add contributions.
-        uint contribution = msg.value - challengeReward;
-        round.requiredForSide[uint(Party.Challenger)] = contribution;
+        // Take only the necessary ETH to fund the current round.
+        uint contribution;
+        uint amountStillRequired = round.requiredForSide[uint(Party.Challenger)] - round.paidFees[uint(Party.Challenger)];
+        (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
         request.contributions[msg.sender][uint(Party.Challenger)] = contribution;
-        request.totalContributed[uint(Party.Challenger)] += contribution;
+        request.totalContributed[uint(Party.Challenger)] = contribution;
+        round.paidFees[uint(Party.Challenger)] = contribution;
         request.feeRewards += contribution;
         if (contribution > 0)
             emit Contribution(_tokenID, msg.sender, Party.Challenger, contribution);
+
+        // Reimburse leftover ETH.
+        msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+
+        emit TokenStatusChange(
+            request.parties[uint(Party.Requester)],
+            request.parties[uint(Party.Challenger)],
+            _tokenID,
+            token.status,
+            false
+        );
     }
 
     /** @dev Fund a side. Refunds the rest to the caller.
@@ -347,6 +359,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
         Request storage request = token.requests[token.requests.length - 1];
         require(request.challengerDepositTime > 0, "A party must have placed a deposit.");
+
+        // Calculate and update the total amount required to fully fund the each side.
+        Round storage round = request.rounds[request.rounds.length - 1];
+        round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost);
 
         // Check if the contribution is within time restrictions, if there are any.
         Party loser;
@@ -371,19 +387,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                         now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2,
                         "Appeal period for funding the losing side ended."
                     );
-                else
+                else {
                     require(now < appealPeriodEnd, "Appeal period ended."); // Winner can only receive contributions in the appeal period.
+                    // Beneficiary is the winning side.
+                    // If in the first half of the appeal period, update the old total cost to the winner.
+                    // This is required to calculate the amount the winner has to pay when governance changes are made in the second half of the appeal period.
+                    if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) // First half of appeal period.
+                        round.oldWinnerTotalCost = round.requiredForSide[uint(_side)];
+                }
 
             }
         }
 
-        // Calculate and update the total amount required to fully fund the each side.
-        Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost);
-
-        // Take only the necessary ETH to fund the latest round and add it to the pot.
-        uint remainingETH = msg.value;
+        // Take only the necessary ETH.
         uint contribution;
+        uint remainingETH = msg.value;
         uint amountStillRequired = round.requiredForSide[uint(_side)] - round.paidFees[uint(_side)];
         (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
         request.contributions[msg.sender][uint(_side)] += contribution;
@@ -464,8 +482,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.contributions[msg.sender][uint(winner)] = 0;
         }
 
-        msg.sender.transfer(reward);
         emit RewardWithdrawal(_tokenID, _request, msg.sender, reward);
+        msg.sender.transfer(reward);
     }
 
     /** @dev Execute a request if no disputes were raised within the allowed period.
@@ -792,7 +810,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             string name,
             string ticker,
             address addr,
-            string symbolURI,
+            string symbolMultihash,
             string networkID,
             TokenStatus status,
             uint numberOfRequests
@@ -803,7 +821,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.name,
             token.ticker,
             token.addr,
-            token.symbolURI,
+            token.symbolMultihash,
             token.networkID,
             token.status,
             token.requests.length
