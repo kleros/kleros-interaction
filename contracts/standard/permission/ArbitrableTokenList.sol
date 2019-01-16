@@ -1034,7 +1034,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             string name,
             string ticker,
             address addr,
-            string URI,
+            string symbolURI,
             string networkID,
             TokenStatus status,
             uint numberOfRequests
