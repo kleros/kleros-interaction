@@ -89,7 +89,6 @@ contract('ArbitrableTokenList', function(accounts) {
   }
 
   describe('registration request', () => {
-    const requesterPrefund = 1000
     beforeEach(async () => {
       await deployArbitrators()
       await deployArbitrableTokenList(enhancedAppealableArbitrator)
@@ -112,7 +111,7 @@ contract('ArbitrableTokenList', function(accounts) {
         0x1,
         '/ipfs/Qmb6C5JximTDgvzYGzkbgitcBLDC3X28X8wTSnfEXNuxza',
         'ETH',
-        { from: partyA, value: challengeReward + requesterPrefund }
+        { from: partyA, value: challengeReward }
       )
       tokenID = tx.logs[0].args._tokenID
     })
@@ -120,7 +119,7 @@ contract('ArbitrableTokenList', function(accounts) {
     it('request should have been placed', async () => {
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward + requesterPrefund
+        challengeReward
       )
 
       const token = await arbitrableTokenList.getTokenInfo(tokenID)
@@ -137,12 +136,11 @@ contract('ArbitrableTokenList', function(accounts) {
       const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
       assert.isFalse(request[0])
       assert.equal(request[5].toNumber(), 0)
-      assert.equal(request[8][PARTY.Requester].toNumber(), requesterPrefund)
+      assert.equal(request[8][PARTY.Requester].toNumber(), 0)
       assert.equal(
         await web3.eth.getBalance(arbitrableTokenList.address),
-        challengeReward + requesterPrefund
+        challengeReward
       )
-      assert.equal(request[8][PARTY.Requester].toNumber(), requesterPrefund)
     })
 
     it('should execute request and allow submitter to withdraw if no one challenges', async () => {
@@ -154,7 +152,7 @@ contract('ArbitrableTokenList', function(accounts) {
       await arbitrableTokenList.timeout(tokenID, { from: partyA })
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        requesterPrefund
+        0
       )
       await arbitrableTokenList.withdrawFeesAndRewards(tokenID, 0, {
         from: partyA
@@ -166,7 +164,6 @@ contract('ArbitrableTokenList', function(accounts) {
     })
 
     describe('challenge registration', () => {
-      const challengerPrefund = 1001
       beforeEach(async () => {
         await expectThrow(
           arbitrableTokenList.challengeRequest(tokenID, { from: partyB })
@@ -174,12 +171,12 @@ contract('ArbitrableTokenList', function(accounts) {
 
         await arbitrableTokenList.challengeRequest(tokenID, {
           from: partyB,
-          value: challengeReward + challengerPrefund
+          value: challengeReward
         })
 
         assert.equal(
           (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-          challengeReward * 2 + requesterPrefund + challengerPrefund
+          challengeReward * 2
         )
         const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
         assert.isFalse(request[0]) // Should not be disputed.
@@ -197,21 +194,22 @@ contract('ArbitrableTokenList', function(accounts) {
               arbitrationCost) /
             MULTIPLIER_PRECISION
 
-          await arbitrableTokenList.fundPotDispute(tokenID, PARTY.Challenger, {
+          let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
+          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Challenger, {
             from: partyB,
-            value: arbitrationCost + sharedRequiredStake - challengerPrefund
+            value: arbitrationCost + sharedRequiredStake
           })
 
           await increaseTime(arbitrationFeesWaitingTime + 1)
           await expectThrow(
-            arbitrableTokenList.fundPotDispute(tokenID, PARTY.Requester, {
+            arbitrableTokenList.fundLatestRound(tokenID, PARTY.Requester, {
               from: partyA,
-              value: arbitrationCost + sharedRequiredStake - requesterPrefund
+              value: arbitrationCost + sharedRequiredStake
             })
           )
           await arbitrableTokenList.timeout(tokenID)
           const token = await arbitrableTokenList.getTokenInfo(tokenID)
-          const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
+          request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
 
           assert.equal(token[5].toNumber(), TOKEN_STATUS.Absent)
           assert.isTrue(request[6]) // i.e. request.resolved == true
@@ -261,11 +259,6 @@ contract('ArbitrableTokenList', function(accounts) {
           const sharedRequiredStake =
             (sharedStakeMultiplier * arbitrationCost) / MULTIPLIER_PRECISION
 
-          await arbitrableTokenList.fundPotDispute(tokenID, PARTY.Requester, {
-            from: partyA,
-            value: arbitrationCost + sharedRequiredStake
-          })
-
           request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           let round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
 
@@ -273,11 +266,23 @@ contract('ArbitrableTokenList', function(accounts) {
             from: partyB,
             value: arbitrationCost + sharedRequiredStake
           })
+
+          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Requester, {
+            from: partyA,
+            value: arbitrationCost + sharedRequiredStake
+          })
+
           request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
 
-          assert.equal(request[8][PARTY.Requester].toNumber(), requesterPrefund)
-          assert.equal(request[8][PARTY.Challenger].toNumber(), 0)
+          assert.equal(
+            request[8][PARTY.Requester].toNumber(),
+            arbitrationCost + sharedRequiredStake
+          )
+          assert.equal(
+            request[8][PARTY.Challenger].toNumber(),
+            arbitrationCost + sharedRequiredStake
+          )
           assert.equal(
             round[2][PARTY.Requester].toNumber(),
             round[3][PARTY.Requester].toNumber()
@@ -349,12 +354,12 @@ contract('ArbitrableTokenList', function(accounts) {
               appealCost) /
             MULTIPLIER_PRECISION
 
-          await arbitrableTokenList.fundPotAppeal(tokenID, PARTY.Requester, {
+          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Requester, {
             from: partyA,
             value: appealCost + loserRequiredStake
           })
 
-          await arbitrableTokenList.fundPotAppeal(tokenID, PARTY.Challenger, {
+          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Challenger, {
             from: partyB,
             value: appealCost + winnerRequiredStake
           })
