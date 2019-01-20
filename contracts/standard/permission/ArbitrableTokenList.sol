@@ -182,9 +182,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that be must paid in the case where the previous round does not have a winner (e.g. when it's the first round or the arbitrator ruled refused to rule/could not rule).
     uint public constant MULTIPLIER_PRECISION = 10000; // Precision parameter for multipliers.
 
+    // Registry data.
     mapping(bytes32 => Token) public tokens; // Maps the token ID to the token data.
     mapping(uint => bytes32) public disputeIDToTokenID; // Maps a dispute ID to the affected token's ID.
     bytes32[] public tokensList; // List of IDs of submitted tokens.
+
+    // Token list
+    mapping(address => bytes32[]) public addressToSubmissions; // Maps addresses to submitted token IDs.
 
     /* Constructor */
 
@@ -266,6 +270,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.symbolMultihash = _symbolMultihash;
             token.networkID = _networkID;
             tokensList.push(tokenID);
+            addressToSubmissions[_addr].push(tokenID);
         }
 
         // Update token status.
@@ -351,12 +356,25 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
+            round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
+
+            uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToTokenID[request.disputeID] = _tokenID;
+            request.disputed = true;
+
+            request.rounds.length++;
+            request.feeRewards -= arbitrationCost;
+        }
+
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             request.parties[uint(Party.Challenger)],
             _tokenID,
             token.status,
-            false
+            request.disputed
         );
     }
 
@@ -970,9 +988,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  - Include tokens submitted by the caller.
      *  - Include tokens challenged by the caller.
      *  @param _oldestFirst Whether to sort from oldest to the newest item.
+     *  @param _tokenAddr A token addess. If set, will query all submissions for that address.
      *  @return The values of the tokens found and whether there are more tokens for the current filter and sort.
      */
-    function queryTokens(bytes32 _cursor, uint _count, bool[8] _filter, bool _oldestFirst)
+    function queryTokens(bytes32 _cursor, uint _count, bool[8] _filter, bool _oldestFirst, address _tokenAddr)
         external
         view
         returns (bytes32[] values, bool hasMore)
@@ -981,11 +1000,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         values = new bytes32[](_count);
         uint index = 0;
 
+        bytes32[] storage list = _tokenAddr == address(0x0)
+            ? tokensList
+            : addressToSubmissions[_tokenAddr];
+
         if (_cursor == 0)
             cursorIndex = 0;
         else {
-            for (uint j = 0; j < tokensList.length; j++) {
-                if (tokensList[j] == _cursor) {
+            for (uint j = 0; j < list.length; j++) {
+                if (list[j] == _cursor) {
                     cursorIndex = j;
                     break;
                 }
@@ -994,11 +1017,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
 
         for (
-                uint i = cursorIndex == 0 ? (_oldestFirst ? 0 : 1) : (_oldestFirst ? cursorIndex + 1 : tokensList.length - cursorIndex + 1);
-                _oldestFirst ? i < tokensList.length : i <= tokensList.length;
+                uint i = cursorIndex == 0 ? (_oldestFirst ? 0 : 1) : (_oldestFirst ? cursorIndex + 1 : list.length - cursorIndex + 1);
+                _oldestFirst ? i < list.length : i <= list.length;
                 i++
             ) { // Oldest or newest first.
-            bytes32 tokenID = tokensList[_oldestFirst ? i : tokensList.length - i];
+            bytes32 tokenID = list[_oldestFirst ? i : list.length - i];
             Token storage token = tokens[tokenID];
             Request storage request = token.requests[token.requests.length - 1];
             if (
@@ -1014,7 +1037,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 /* solium-enable operator-whitespace */
             ) {
                 if (index < _count) {
-                    values[index] = tokensList[_oldestFirst ? i : tokensList.length - i];
+                    values[index] = list[_oldestFirst ? i : list.length - i];
                     index++;
                 } else {
                     hasMore = true;

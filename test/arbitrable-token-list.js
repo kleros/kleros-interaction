@@ -109,7 +109,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'Pinakion',
         'PNK',
         0x1,
-        '/ipfs/Qmb6C5JximTDgvzYGzkbgitcBLDC3X28X8wTSnfEXNuxza',
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
         'ETH',
         { from: partyA, value: challengeReward }
       )
@@ -128,7 +128,7 @@ contract('ArbitrableTokenList', function(accounts) {
       assert.equal(token[2], 0x1)
       assert.equal(
         token[3],
-        '/ipfs/Qmb6C5JximTDgvzYGzkbgitcBLDC3X28X8wTSnfEXNuxza'
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu'
       )
       assert.equal(token[4], 'ETH')
       assert.equal(token[5].toNumber(), TOKEN_STATUS.RegistrationRequested)
@@ -591,6 +591,105 @@ contract('ArbitrableTokenList', function(accounts) {
           'challengePeriodDuration should not have changed'
         )
       })
+    })
+  })
+
+  describe('query items', () => {
+    let mkrSubmissions
+    let tokenIDs
+    beforeEach(async () => {
+      await deployArbitrators()
+      await deployArbitrableTokenList(enhancedAppealableArbitrator)
+      mkrSubmissions = []
+      tokenIDs = []
+
+      let tx = await arbitrableTokenList.requestStatusChange(
+        'MakerDAO',
+        'MKR',
+        0x2,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauThawDkME1nFNQbCu',
+        'ETH',
+        { from: partyA, value: challengeReward }
+      )
+      mkrSubmissions.push(tx.logs[0].args._tokenID)
+      tokenIDs.push(tx.logs[0].args._tokenID)
+
+      tx = await arbitrableTokenList.requestStatusChange(
+        'MakerDAO',
+        'MKR',
+        0x2,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauZhawDkME1nFNQbCu',
+        'ETH',
+        { from: partyA, value: challengeReward }
+      )
+      mkrSubmissions.push(tx.logs[0].args._tokenID)
+      tokenIDs.push(tx.logs[0].args._tokenID)
+
+      tx = await arbitrableTokenList.requestStatusChange(
+        'MakerDAO',
+        'MKR',
+        0x2,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
+        'ETH',
+        { from: partyA, value: challengeReward }
+      )
+      mkrSubmissions.push(tx.logs[0].args._tokenID)
+      tokenIDs.push(tx.logs[0].args._tokenID)
+      await increaseTime(challengePeriodDuration + 1)
+      for (const ID of mkrSubmissions)
+        await arbitrableTokenList.timeout(ID, { from: partyA })
+
+      tx = await arbitrableTokenList.requestStatusChange(
+        'OmiseGO',
+        'OMG',
+        0x3,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
+        'ETH',
+        { from: partyA, value: challengeReward }
+      )
+      tokenIDs.push(tx.logs[0].args._tokenID)
+      await increaseTime(challengePeriodDuration + 1)
+      await arbitrableTokenList.timeout(tx.logs[0].args._tokenID, {
+        from: partyA
+      })
+
+      tx = await arbitrableTokenList.requestStatusChange(
+        'Binance',
+        'BNB',
+        0x4,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
+        'ETH',
+        { from: partyA, value: challengeReward }
+      )
+      tokenIDs.push(tx.logs[0].args._tokenID)
+      await increaseTime(challengePeriodDuration + 1)
+      await arbitrableTokenList.timeout(tx.logs[0].args._tokenID, {
+        from: partyA
+      })
+    })
+
+    it('should return token submissions for address', async () => {
+      const data = await arbitrableTokenList.queryTokens(
+        0x0,
+        3,
+        [true, true, true, true, true, true, true, true, false],
+        true,
+        0x2
+      )
+      for (let i = 0; i < mkrSubmissions.length; i++)
+        assert.equal(mkrSubmissions[i], data[0][i])
+    })
+
+    it('should return all tokens', async () => {
+      const data = await arbitrableTokenList.queryTokens(
+        0x0,
+        5,
+        [true, true, true, true, true, true, true, true, false],
+        true,
+        0x0
+      )
+      for (let i = 0; i < tokenIDs.length; i++)
+        assert.equal(tokenIDs[i], data[0][i])
     })
   })
 })
