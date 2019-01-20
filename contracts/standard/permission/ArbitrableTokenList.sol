@@ -364,12 +364,25 @@ contract ArbitrableTokenList is Arbitrable {
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
+            round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
+
+            uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+            request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            disputeIDToTokenAddr[request.disputeID] = _tokenAddr;
+            request.disputed = true;
+
+            request.rounds.length++;
+            request.feeRewards -= arbitrationCost;
+        }
+
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             request.parties[uint(Party.Challenger)],
             _tokenAddr,
             token.status,
-            false
+            request.disputed
         );
     }
 
