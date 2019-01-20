@@ -9,6 +9,7 @@
 pragma solidity ^0.4.24;
 
 import "../arbitration/Arbitrable.sol";
+import "./PermissionInterface.sol";
 
 
 /**
@@ -46,7 +47,7 @@ library CappedMath {
  *  This contract is arbitrable token curated list of addresses. Users can send requests to register or remove addresses from the list which can, in turn, be challenged by parties that disagree with the request.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimatly wins a dispute.
  */
-contract ArbitrableAddressList is Arbitrable {
+contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     using CappedMath for uint;
     /* solium-disable max-len*/
     /* solium-disable operator-whitespace*/
@@ -638,11 +639,11 @@ contract ArbitrableAddressList is Arbitrable {
     /* Public Views */
 
     /** @dev Return true if the address is on the list.
-     *  @param _address The address to be queried.
+     *  @param _value The address to be queried.
      *  @return allowed True if the address is allowed, false otherwise.
      */
-    function isPermitted(address _address) external view returns (bool allowed) {
-        Address storage addr = addresses[_address];
+    function isPermitted(bytes32 _value) external view returns (bool allowed) {
+        Address storage addr = addresses[address(_value)];
         return addr.status == AddressStatus.Registered || addr.status == AddressStatus.ClearingRequested;
     }
 
