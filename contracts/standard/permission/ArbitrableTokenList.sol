@@ -9,7 +9,6 @@
 pragma solidity ^0.4.24;
 
 import "../arbitration/Arbitrable.sol";
-import "./PermissionInterface.sol";
 
 
 /**
@@ -47,7 +46,7 @@ library CappedMath {
  *  This contract is arbitrable token curated list for tokens, sometimes referred to as a Token² Curated List. Users can send requests to register or remove tokens from the list which can, in turn, be challenged by parties that disagree with the request.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimatly wins a dispute.
  */
-contract ArbitrableTokenList is PermissionInterface, Arbitrable {
+contract ArbitrableTokenList is Arbitrable {
     using CappedMath for uint;
     /* solium-disable max-len*/
     /* solium-disable operator-whitespace*/
@@ -58,7 +57,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Absent, // The token is not on the list.
         Registered, // The token is on the list.
         RegistrationRequested, // The token has a request to be added to the list.
-        ClearingRequested // The token has a request to be removed from the list.
+        ClearingRequested, // The token has a request to be removed from the list.
+        UpdateRequested // The token received a request to update it's data.
     }
 
     enum RulingOption {
@@ -87,14 +87,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // - Fee stake that is distributed among contributors of the side that ultimatly wins a dispute.
 
     /* Structs */
-    struct Token {
+    struct TokenData {
         string name; // The token name (e.g. Pinakion).
         string ticker; // The token ticker (e.g. PNK).
-        address addr; // The Ethereum address of the token, if it is running on an EVM based network.
         string symbolMultihash; // The multihash of the token symbol.
         string networkID; // The ID of the network. Can be used for listing tokens from other blockchains. 'ETH' if the token is deployed on the Ethereum mainnet.
+    }
+
+    struct Token {
+        TokenData data;
         TokenStatus status;
         Request[] requests; // List of status change requests made for the token.
+        TokenStatus prevStatus; // The state before an update request was made.
     }
 
     // Arrays of that have 3 elements to map with the Party enum for better readability:
@@ -113,6 +117,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Round[] rounds; // Tracks each round of a dispute.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
         uint[3] totalContributed; // The total amount contributed for each side. Used for calculating rewards.
+        TokenData newData; // If request is to update token data, holds new data.
     }
 
     struct Round {
@@ -133,39 +138,39 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @dev Emitted when a party places a request, dispute or appeals are raised or when a request is resolved.
      *  @param _requester Address of the party that submitted the request.
      *  @param _challenger Address of the party that challenged the request, if any.
-     *  @param _tokenID The token ID. It is the keccak256 hash of it's data.
+     *  @param _tokenAddr The token address.
      *  @param _status The status of the token.
      *  @param _disputed Whether the token is disputed.
      */
     event TokenStatusChange(
         address indexed _requester,
         address indexed _challenger,
-        bytes32 indexed _tokenID,
+        address indexed _tokenAddr,
         TokenStatus _status,
         bool _disputed
     );
 
     /** @dev Emitted when a party makes contribution.
-     *  @param _tokenID The ID of the token that the contribution was made to.
+     *  @param _tokenAddr The address of the token that the contribution was made to.
      *  @param _contributor The address that sent the contribution.
      *  @param _side The side the contribution was made to.
      *  @param _value The value of the contribution.
      */
-    event Contribution(bytes32 indexed _tokenID, address indexed _contributor, Party indexed _side, uint _value);
+    event Contribution(address indexed _tokenAddr, address indexed _contributor, Party indexed _side, uint _value);
 
     /** @dev Emitted when a deposit is made to challenge a request.
-     *  @param _tokenID The ID of the token that with the challenged request.
+     *  @param _tokenAddr The address of the token that with the challenged request.
      *  @param _challenger The address that placed the deposit.
      */
-    event ChallengeDepositPlaced(bytes32 indexed _tokenID, address indexed _challenger);
+    event ChallengeDepositPlaced(address indexed _tokenAddr, address indexed _challenger);
 
     /** @dev Emitted when a reimbursements and/or contribution rewards are withdrawn.
-     *  @param _tokenID The ID of the token from which the withdrawal was made.
+     *  @param _tokenAddr The address of the token from which the withdrawal was made.
      *  @param _request The request from which the withdrawal was made.
      *  @param _contributor The address that sent the contribution.
      *  @param _value The value of the reward.
      */
-    event RewardWithdrawal(bytes32 indexed _tokenID, uint indexed _request, address indexed _contributor, uint _value);
+    event RewardWithdrawal(address indexed _tokenAddr, uint indexed _request, address indexed _contributor, uint _value);
 
     /* Storage */
 
@@ -182,9 +187,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that be must paid in the case where the previous round does not have a winner (e.g. when it's the first round or the arbitrator ruled refused to rule/could not rule).
     uint public constant MULTIPLIER_PRECISION = 10000; // Precision parameter for multipliers.
 
-    mapping(bytes32 => Token) public tokens; // Maps the token ID to the token data.
-    mapping(uint => bytes32) public disputeIDToTokenID; // Maps a dispute ID to the affected token's ID.
-    bytes32[] public tokensList; // List of IDs of submitted tokens.
+    mapping(address => Token) public tokens; // Maps the token's address to the token data.
+    mapping(uint => address) public disputeIDToTokenAddr; // Maps a dispute ID to the affected token's address.
+    address[] public tokensList; // List of addresses of submitted tokens.
 
     /* Constructor */
 
@@ -247,34 +252,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         payable
     {
         require(msg.value >= challengeReward, "Not enough ETH.");
-        bytes32 tokenID = keccak256(
-            abi.encodePacked(
-                _name,
-                _ticker,
-                _addr,
-                _symbolMultihash,
-                _networkID
-            )
+        Token storage token = tokens[_addr];
+        require(
+            token.status == TokenStatus.Absent || token.status == TokenStatus.Registered,
+            "Token in wrong status for request."
         );
-
-        Token storage token = tokens[tokenID];
-        if (token.requests.length == 0) {
-            // Initial token registration
-            token.name = _name;
-            token.ticker = _ticker;
-            token.addr = _addr;
-            token.symbolMultihash = _symbolMultihash;
-            token.networkID = _networkID;
-            tokensList.push(tokenID);
-        }
-
-        // Update token status.
-        if (token.status == TokenStatus.Absent)
-            token.status = TokenStatus.RegistrationRequested;
-        else if (token.status == TokenStatus.Registered)
-            token.status = TokenStatus.ClearingRequested;
-        else
-            revert("Token in wrong status for request.");
 
         // Setup request.
         token.requests.length++;
@@ -283,10 +265,41 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.submissionTime = now;
         request.rounds.length++;
         request.challengeRewardBalance = challengeReward;
+        if (token.requests.length == 1)
+            tokensList.push(_addr); // Initial token registration.
+
+        if (token.status == TokenStatus.Absent) {
+            token.data.name = _name;
+            token.data.ticker = _ticker;
+            token.data.symbolMultihash = _symbolMultihash;
+            token.data.networkID = _networkID;
+            token.status = TokenStatus.RegistrationRequested;
+        } else {
+            if(keccak256( // Compare hashes since the == operator does not compare the literals of two strings.
+                abi.encodePacked(
+                    token.data.name,
+                    token.data.ticker,
+                    token.data.symbolMultihash,
+                    token.data.networkID)) !=
+               keccak256(
+                abi.encodePacked(
+                    _name,
+                    _ticker,
+                    _symbolMultihash,
+                    _networkID)
+                ) || token.status == TokenStatus.Absent
+            ) {
+                token.prevStatus = token.status;
+                token.status = TokenStatus.UpdateRequested;
+                request.newData = TokenData(_name, _ticker, _symbolMultihash, _networkID);
+
+            } else
+                token.status = TokenStatus.ClearingRequested;
+        }
 
         // Calculate and save the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(tokenID, round.oldWinnerTotalCost);
+        round.requiredForSide = calculateRequiredForSide(_addr, round.oldWinnerTotalCost);
         round.requiredForSideSet = true;
 
         // Take up to the amount necessary to fund the current round at the current costs.
@@ -298,7 +311,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.paidFees[uint(Party.Requester)] = contribution;
         request.feeRewards += contribution;
         if (contribution > 0)
-            emit Contribution(tokenID, msg.sender, Party.Requester, contribution);
+            emit Contribution(_addr, msg.sender, Party.Requester, contribution);
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -306,19 +319,19 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             address(0x0),
-            tokenID,
+            _addr,
             token.status,
             false
         );
     }
 
     /** @dev Challenges the latest request of a token. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest.
-     *  @param _tokenID The tokenID of the token with the request to execute.
+     *  @param _tokenAddr The address of the token with the request to execute.
      */
-    function challengeRequest(bytes32 _tokenID) external payable {
-        Token storage token = tokens[_tokenID];
+    function challengeRequest(address _tokenAddr) external payable {
+        Token storage token = tokens[_tokenAddr];
         require(
-            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
+            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested || token.status == TokenStatus.UpdateRequested,
             "Token does not have any pending requests."
         );
         Request storage request = token.requests[token.requests.length - 1];
@@ -331,11 +344,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.challengeRewardBalance += request.challengeRewardBalance;
         request.parties[uint(Party.Challenger)] = msg.sender;
         request.challengerDepositTime = now; // Save the start of the first round arbitration fees funding period.
-        emit ChallengeDepositPlaced(_tokenID, msg.sender);
+        emit ChallengeDepositPlaced(_tokenAddr, msg.sender);
 
         // Calculate and save the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost);
+        round.requiredForSide = calculateRequiredForSide(_tokenAddr, round.oldWinnerTotalCost);
         round.requiredForSideSet = true;
 
         // Take up to the amount necessary to fund the current round at the current costs.
@@ -346,7 +359,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.paidFees[uint(Party.Challenger)] = contribution;
         request.feeRewards += contribution;
         if (contribution > 0)
-            emit Contribution(_tokenID, msg.sender, Party.Challenger, contribution);
+            emit Contribution(_tokenAddr, msg.sender, Party.Challenger, contribution);
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -354,24 +367,24 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             request.parties[uint(Party.Challenger)],
-            _tokenID,
+            _tokenAddr,
             token.status,
             false
         );
     }
 
     /** @dev Takes up to the total required to fund a side of the latest round, reimburses the rest.
-     *  @param _tokenID The IDtIDokenID of the token with the request to execute.
+     *  @param _tokenAddr The address of the token with the request to execute.
      *  @param _side The recipient of the contribution.
      */
-    function fundLatestRound(bytes32 _tokenID, Party _side) external payable {
+    function fundLatestRound(address _tokenAddr, Party _side) external payable {
         require(
             _side == Party.Requester || _side == Party.Challenger,
             "Side must be either the requester or challenger."
         );
-        Token storage token = tokens[_tokenID];
+        Token storage token = tokens[_tokenAddr];
         require(
-            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
+            token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested || token.status == TokenStatus.UpdateRequested,
             "Token does not have any pending requests."
         );
         Request storage request = token.requests[token.requests.length - 1];
@@ -379,7 +392,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Calculate and save the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost);
+        round.requiredForSide = calculateRequiredForSide(_tokenAddr, round.oldWinnerTotalCost);
         round.requiredForSideSet = true;
 
         // Check if the contribution is within time restrictions, if there are any.
@@ -426,7 +439,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.paidFees[uint(_side)] += contribution;
         request.feeRewards += contribution;
         if (contribution > 0)
-            emit Contribution(_tokenID, msg.sender, _side, contribution);
+            emit Contribution(_tokenAddr, msg.sender, _side, contribution);
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -442,7 +455,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             if(!request.disputed) {
                 // First round, raise dispute.
                 request.disputeID = arbitrator.createDispute.value(cost)(2, arbitratorExtraData);
-                disputeIDToTokenID[request.disputeID] = _tokenID;
+                disputeIDToTokenAddr[request.disputeID] = _tokenAddr;
                 request.disputed = true;
             } else {
                 // Later round, raise an appeal.
@@ -456,7 +469,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
                 request.parties[uint(Party.Challenger)],
-                _tokenID,
+                _tokenAddr,
                 token.status,
                 request.disputed
             );
@@ -464,11 +477,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Reimburses caller's contributions if no disputes were raised. If a dispute was raised,  withdraws the rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
-     *  @param _tokenID The ID of the token from which to withdraw.
+     *  @param _tokenAddr The address of the token from which to withdraw.
      *  @param _request The request from which to withdraw.
      */
-    function withdrawFeesAndRewards(bytes32 _tokenID, uint _request) external {
-        Token storage token = tokens[_tokenID];
+    function withdrawFeesAndRewards(address _tokenAddr, uint _request) external {
+        Token storage token = tokens[_tokenAddr];
         Request storage request = token.requests[_request];
         require(
             request.resolved,
@@ -494,15 +507,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.contributions[msg.sender][uint(winner)] = 0;
         }
 
-        emit RewardWithdrawal(_tokenID, _request, msg.sender, reward);
+        emit RewardWithdrawal(_tokenAddr, _request, msg.sender, reward);
         msg.sender.transfer(reward);
     }
 
     /** @dev Execute a request if no disputes were raised within the allowed period.
-     *  @param _tokenID The ID of the token with the request to execute.
+     *  @param _tokenAddr The address of the token with the request to execute.
      */
-    function timeout(bytes32 _tokenID) external {
-        Token storage token = tokens[_tokenID];
+    function timeout(address _tokenAddr) external {
+        Token storage token = tokens[_tokenAddr];
         Request storage request = token.requests[token.requests.length - 1];
         if(request.challengerDepositTime == 0) {
             // No one placed a challenge deposit.
@@ -515,7 +528,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 token.status = TokenStatus.Registered;
             else if (token.status == TokenStatus.ClearingRequested)
                 token.status = TokenStatus.Absent;
-            else
+            else if (token.status == TokenStatus.UpdateRequested) {
+                token.status = token.prevStatus;
+                token.data = request.newData;
+            } else
                 revert("Token in wrong status for executing request.");
 
             // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -536,16 +552,23 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 winner = Party.Challenger;
 
             // Update token state
-            if (winner == Party.Requester) // Execute Request
+            if (winner == Party.Requester) { // Execute Request
                 if (token.status == TokenStatus.RegistrationRequested)
                     token.status = TokenStatus.Registered;
-                else
+                else if (token.status == TokenStatus.ClearingRequested)
                     token.status = TokenStatus.Absent;
+                else { // Updating token data
+                    token.status = token.prevStatus;
+                    token.data = request.newData;
+                }
+            }
             else // Revert to previous state.
                 if (token.status == TokenStatus.RegistrationRequested)
                     token.status = TokenStatus.Absent;
                 else if (token.status == TokenStatus.ClearingRequested)
                     token.status = TokenStatus.Registered;
+                else
+                    token.status = token.prevStatus;
 
             // Send token balance.
             // Deliberate use of send in order to not block the contract in case the recipient refuses payments.
@@ -561,7 +584,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             request.parties[uint(Party.Challenger)],
-            _tokenID,
+            _tokenAddr,
             token.status,
             false
         );
@@ -585,8 +608,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         } // Respect ruling if there aren't a winner and loser.
 
         // Invert ruling if there are a winner and loser and the loser fully funded but the winner did not. Respect the ruling otherwise.
-        bytes32 tokenID = disputeIDToTokenID[_disputeID];
-        Token storage token = tokens[tokenID];
+        address tokenAddr = disputeIDToTokenAddr[_disputeID];
+        Token storage token = tokens[tokenAddr];
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
         if(resultRuling != RulingOption.Other &&
@@ -607,8 +630,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /** @dev Submit a reference to evidence. EVENT.
      *  @param _evidence A link to an evidence using its URI.
      */
-    function submitEvidence(bytes32 _tokenID, string _evidence) external {
-        Token storage token = tokens[_tokenID];
+    function submitEvidence(address _tokenAddr, string _evidence) external {
+        Token storage token = tokens[_tokenAddr];
         Request storage request = token.requests[token.requests.length - 1];
         require(request.disputed, "The request is not disputed.");
 
@@ -671,12 +694,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Public Views */
 
     /** @dev Return true if the token is on the list.
-     *  @param _tokenID The ID of the token to be queried.
+     *  @param _tokenAddr The address of the token to be queried.
      *  @return allowed True if the token is allowed, false otherwise.
      */
-    function isPermitted(bytes32 _tokenID) external view returns (bool allowed) {
-        Token storage token = tokens[_tokenID];
-        return token.status == TokenStatus.Registered || token.status == TokenStatus.ClearingRequested;
+    function isPermitted(address _tokenAddr) external view returns (bool allowed) {
+        Token storage token = tokens[_tokenAddr];
+        return token.status == TokenStatus.Registered || token.status == TokenStatus.ClearingRequested || token.status == TokenStatus.UpdateRequested;
     }
 
     /* Internal */
@@ -687,8 +710,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        bytes32 tokenID = disputeIDToTokenID[_disputeID];
-        Token storage token = tokens[tokenID];
+        address tokenAddr = disputeIDToTokenAddr[_disputeID];
+        Token storage token = tokens[tokenAddr];
         Request storage request = token.requests[token.requests.length - 1];
 
         Party winner;
@@ -701,13 +724,19 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (winner == Party.Requester) // Execute Request
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Registered;
-            else
+            else if (token.status == TokenStatus.ClearingRequested)
                 token.status = TokenStatus.Absent;
+            else { // Updating token data
+                token.status = token.prevStatus;
+                token.data = request.newData;
+            }
         else // Revert to previous state.
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Absent;
             else if (token.status == TokenStatus.ClearingRequested)
                 token.status = TokenStatus.Registered;
+            else
+                token.status = token.prevStatus;
 
         // Send challenge reward.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -727,7 +756,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             request.parties[uint(Party.Challenger)],
-            tokenID,
+            tokenAddr,
             token.status,
             false
         );
@@ -735,16 +764,16 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /** @dev Returns the amount that must be paid by each side to fully fund a dispute or appeal.
      *  Capped math is used to deal with overflows since the arbitrator can return high values for appeal and arbitration cost to denote unpayable amounts.
-     *  @param _tokenID The dispute ID to be queried.
+     *  @param _tokenAddr The dispute ID to be queried.
      *  @param _oldWinnerTotalCost The total amount of fees the winner had to pay before a governance change in the second half of an appeal period. If the appeal period is not known or the arbitrator does not support appeal period, this parameter is unused.
      *  @return The amount of ETH required for each side.
      */
-    function calculateRequiredForSide(bytes32 _tokenID, uint _oldWinnerTotalCost)
+    function calculateRequiredForSide(address _tokenAddr, uint _oldWinnerTotalCost)
         internal
         view
         returns(uint[3] requiredForSide)
     {
-        Token storage token = tokens[_tokenID];
+        Token storage token = tokens[_tokenAddr];
         Request storage request = token.requests[token.requests.length - 1];
 
         if(!request.disputed) { // First round of a dispute.
@@ -816,40 +845,40 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Interface Views */
 
     /** @dev Returns token information. Includes length of requests array.
-     *  @param _tokenID The ID of the queried token.
+     *  @param _tokenAddr The address of the queried token.
      *  @return The token information.
      */
-    function getTokenInfo(bytes32 _tokenID)
+    function getTokenInfo(address _tokenAddr)
         external
         view
         returns (
             string name,
             string ticker,
-            address addr,
             string symbolMultihash,
             string networkID,
             TokenStatus status,
-            uint numberOfRequests
+            uint numberOfRequests,
+            TokenStatus prevStatus
         )
     {
-        Token storage token = tokens[_tokenID];
+        Token storage token = tokens[_tokenAddr];
         return (
-            token.name,
-            token.ticker,
-            token.addr,
-            token.symbolMultihash,
-            token.networkID,
+            token.data.name,
+            token.data.ticker,
+            token.data.symbolMultihash,
+            token.data.networkID,
             token.status,
-            token.requests.length
+            token.requests.length,
+            token.prevStatus
         );
     }
 
     /** @dev Gets information on a request made for a token.
-     *  @param _tokenID The ID of the queried token.
+     *  @param _tokenAddr The address of the queried token.
      *  @param _request The request to be queried.
      *  @return The information.
      */
-    function getRequestInfo(bytes32 _tokenID, uint _request)
+    function getRequestInfo(address _tokenAddr, uint _request)
         external
         view
         returns (
@@ -865,7 +894,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             uint numberOfRounds
         )
     {
-        Token storage token = tokens[_tokenID];
+        Token storage token = tokens[_tokenAddr];
         Request storage request = token.requests[_request];
         return (
             request.disputed,
@@ -881,13 +910,38 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
     }
 
+    /** @dev Gets data for an update request.
+     *  @param _tokenAddr The address of the queried token.
+     *  @param _request The request to be queried.
+     *  @return The information.
+     */
+    function getRequestNewData(address _tokenAddr, uint _request)
+        external
+        view
+        returns (
+            string name,
+            string ticker,
+            string symbolMultihash,
+            string networkID
+        )
+    {
+        Token storage token = tokens[_tokenAddr];
+        Request storage request = token.requests[_request];
+        return (
+            request.newData.name,
+            request.newData.ticker,
+            request.newData.symbolMultihash,
+            request.newData.networkID
+        );
+    }
+
     /** @dev Gets the information on a round of a request.
-     *  @param _tokenID The ID of the queried token.
+     *  @param _tokenAddr The address of the queried token.
      *  @param _request The request to be queried.
      *  @param _round The round to be queried.
      *  @return The information.
      */
-    function getRoundInfo(bytes32 _tokenID, uint _request, uint _round)
+    function getRoundInfo(address _tokenAddr, uint _request, uint _round)
         external
         view
         returns (
@@ -897,7 +951,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             uint[3] requiredForSide
         )
     {
-        Token storage token = tokens[_tokenID];
+        Token storage token = tokens[_tokenAddr];
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
         return (
@@ -909,17 +963,17 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Gets the contributions made by a party for a given request.
-     *  @param _tokenID The ID of the token.
+     *  @param _tokenAddr The address of the token.
      *  @param _request The position of the request.
      *  @param _contributor The address of the contributor.
      *  @return The contributions.
      */
     function getContributions(
-        bytes32 _tokenID,
+        address _tokenAddr,
         uint _request,
         address _contributor
     ) external view returns(uint[3] contributions) {
-        Token storage token = tokens[_tokenID];
+        Token storage token = tokens[_tokenAddr];
         Request storage request = token.requests[_request];
         contributions = request.contributions[_contributor];
     }
@@ -958,7 +1012,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Return the values of the tokens the query finds. This function is O(n) at worst, where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
-     *  @param _cursor The ID of the token from which to start iterating. To start from either the oldest or newest item.
+     *  @param _cursor The address of the token from which to start iterating. To start from either the oldest or newest item.
      *  @param _count The number of tokens to return.
      *  @param _filter The filter to use. Each element of the array in sequence means:
      *  - Include absent tokens in result.
@@ -972,13 +1026,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _oldestFirst Whether to sort from oldest to the newest item.
      *  @return The values of the tokens found and whether there are more tokens for the current filter and sort.
      */
-    function queryTokens(bytes32 _cursor, uint _count, bool[8] _filter, bool _oldestFirst)
+    function queryTokens(address _cursor, uint _count, bool[8] _filter, bool _oldestFirst)
         external
         view
-        returns (bytes32[] values, bool hasMore)
+        returns (address[] values, bool hasMore)
     {
         uint cursorIndex;
-        values = new bytes32[](_count);
+        values = new address[](_count);
         uint index = 0;
 
         if (_cursor == 0)
@@ -998,8 +1052,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 _oldestFirst ? i < tokensList.length : i <= tokensList.length;
                 i++
             ) { // Oldest or newest first.
-            bytes32 tokenID = tokensList[_oldestFirst ? i : tokensList.length - i];
-            Token storage token = tokens[tokenID];
+            address tokenAddr = tokensList[_oldestFirst ? i : tokensList.length - i];
+            Token storage token = tokens[tokenAddr];
             Request storage request = token.requests[token.requests.length - 1];
             if (
                 /* solium-disable operator-whitespace */
