@@ -88,7 +88,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /* Structs */
     struct Address {
-        address addr;
         AddressStatus status;
         Request[] requests; // List of status change requests made for the address.
     }
