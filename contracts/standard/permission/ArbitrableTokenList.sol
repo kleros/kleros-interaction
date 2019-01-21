@@ -291,7 +291,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Calculate and save the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(tokenID, round.oldWinnerTotalCost);
+        round.requiredForSide = calculateRequiredForSide(tokenID, round.oldWinnerTotalCost, round.requiredForSideSet);
         round.requiredForSideSet = true;
 
         // Take up to the amount necessary to fund the current round at the current costs.
@@ -340,7 +340,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Calculate and save the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost);
+        round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost, round.requiredForSideSet);
         round.requiredForSideSet = true;
 
         // Take up to the amount necessary to fund the current round at the current costs.
@@ -397,7 +397,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Calculate and save the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost);
+        round.requiredForSide = calculateRequiredForSide(_tokenID, round.oldWinnerTotalCost, round.requiredForSideSet);
         round.requiredForSideSet = true;
 
         // Check if the contribution is within time restrictions, if there are any.
@@ -755,9 +755,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  Capped math is used to deal with overflows since the arbitrator can return high values for appeal and arbitration cost to denote unpayable amounts.
      *  @param _tokenID The dispute ID to be queried.
      *  @param _oldWinnerTotalCost The total amount of fees the winner had to pay before a governance change in the second half of an appeal period. If the appeal period is not known or the arbitrator does not support appeal period, this parameter is unused.
+     *  @param _requiredForSideSet Whether the required amount for each side has been set previously.
      *  @return The amount of ETH required for each side.
      */
-    function calculateRequiredForSide(bytes32 _tokenID, uint _oldWinnerTotalCost)
+    function calculateRequiredForSide(bytes32 _tokenID, uint _oldWinnerTotalCost, bool _requiredForSideSet)
         internal
         view
         returns(uint[3] requiredForSide)
@@ -799,7 +800,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                     requiredForSide[uint(winner)] = _oldWinnerTotalCost > appealCost ? _oldWinnerTotalCost : appealCost;
 
                 // Set the required amount for the loser.
-                // The required amount for the loser must only be affected by governance/fee changes made in the first half of the appeal period. Otherwise, increases would cause the loser to lose the case due to being underfunded.
+                if(!_requiredForSideSet)
+                    requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
+
+                // The required amount for the loser may only be updated by governance/fee changes made in the first half of the appeal period. Otherwise, increases would cause the loser to lose the case due to being underfunded.
                 if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) // In first half of appeal period.
                     requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
             } else // Arbitration period is not known or the arbitrator does not support appeal period. Update loser's required value as well.
