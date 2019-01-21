@@ -1,6 +1,6 @@
 /**
  *  @authors: [@eburgos, @n1c01a5]
- *  @reviewers: [@unknownunknown1, @clesaege*, @ferittuncer]
+ *  @reviewers: [@unknownunknown1*, @clesaege*, @ferittuncer]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -260,14 +260,14 @@ contract MultipleArbitrableTransaction {
         if (transaction.sellerFee > _arbitrationCost) {
             uint extraFeeSeller = transaction.sellerFee - _arbitrationCost;
             transaction.sellerFee = _arbitrationCost;
-            transaction.seller.transfer(extraFeeSeller);
+            transaction.seller.send(extraFeeSeller);
         }
 
         // Refund buyer if it overpaid.
         if (transaction.buyerFee > _arbitrationCost) {
             uint extraFeeBuyer = transaction.buyerFee - _arbitrationCost;
             transaction.buyerFee = _arbitrationCost;
-            transaction.buyer.transfer(extraFeeBuyer);
+            transaction.buyer.send(extraFeeBuyer);
         }
     }
 
