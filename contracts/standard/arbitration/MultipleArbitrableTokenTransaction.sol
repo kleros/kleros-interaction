@@ -56,7 +56,7 @@ contract MultipleArbitrableTokenTransaction {
     // *          Events          * //
     // **************************** //
 
-    /** @dev To be emmited when meta-evidence is submitted.
+    /** @dev To be emitted when meta-evidence is submitted.
      *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
      *  @param _evidence A link to the meta-evidence JSON.
      */
@@ -68,7 +68,7 @@ contract MultipleArbitrableTokenTransaction {
      */
     event HasToPayFee(uint indexed _transactionID, Party _party);
 
-    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
+    /** @dev To be raised when evidence are submitted. Should point to the resource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
@@ -98,16 +98,16 @@ contract MultipleArbitrableTokenTransaction {
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
-     *  @param _timeoutFee Arbitration fee timeout for the parties.
+     *  @param _feeTimeout Arbitration fee timeout for the parties.
      */
     constructor (
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        uint _timeoutFee
+        uint _feeTimeout
     ) public {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
-        feeTimeout = _timeoutFee;
+        feeTimeout = _feeTimeout;
     }
 
     /** @dev Create a transaction.
@@ -126,8 +126,6 @@ contract MultipleArbitrableTokenTransaction {
         string _metaEvidence
     ) public returns (uint transactionIndex) {
         ERC20 token = ERC20(_token);
-        // Verifies if contract is authorized to move funds across wallets.
-        require(token.allowance(msg.sender, address(this)) >= _amount, "Contract not authorized to move funds.");
         // Transfers token from sender wallet to contract.
         require(token.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough funds.");
 
