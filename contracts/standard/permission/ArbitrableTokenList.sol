@@ -379,7 +379,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Takes up to the total required to fund a side of the latest round, reimburses the rest.
-     *  @param _tokenID The IDtIDokenID of the token with the request to execute.
+     *  @param _tokenID The ID of the token with the request to fund.
      *  @param _side The recipient of the contribution.
      */
     function fundLatestRound(bytes32 _tokenID, Party _side) external payable {
