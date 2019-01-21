@@ -138,7 +138,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       payerEtherBalanceAfter.toString(),
       payerEtherBalanceBefore
         .minus(actionData.payerTotalTxCost || 0)
-        .plus(data.payer.etherDelta)
+        .plus(0)
         .toString(),
       'The payer has not been reimbursed correctly in ether'
     )
@@ -146,7 +146,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       payeeEtherBalanceAfter.toString(),
       payeeEtherBalanceBefore
         .minus(actionData.payeeTotalTxCost || 0)
-        .plus(data.payee.etherDelta)
+        .plus(0)
         .toString(),
       'The payee has not been paid correctly in ether'
     )

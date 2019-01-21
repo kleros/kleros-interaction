@@ -272,6 +272,20 @@ contract MultipleArbitrableTokenTransaction {
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
         disputeIDtoTransactionID[transaction.disputeId] = _transactionID;
         emit Dispute(arbitrator, transaction.disputeId, _transactionID);
+
+        // Refund seller if it overpaid.
+        if (transaction.sellerFee > _arbitrationCost) {
+            uint extraFeeSeller = transaction.sellerFee - _arbitrationCost;
+            transaction.sellerFee = _arbitrationCost;
+            transaction.seller.send(extraFeeSeller);
+        }
+
+        // Refund buyer if it overpaid.
+        if (transaction.buyerFee > _arbitrationCost) {
+            uint extraFeeBuyer = transaction.buyerFee - _arbitrationCost;
+            transaction.buyerFee = _arbitrationCost;
+            transaction.buyer.send(extraFeeBuyer);
+        }
     }
 
     /** @dev Submit a reference to evidence. EVENT.
@@ -325,26 +339,12 @@ contract MultipleArbitrableTokenTransaction {
         // Note that we use send to prevent a party from blocking the execution.
         if (_ruling == uint(RulingOptions.SellerWins)) {
             transaction.token.transfer(transaction.seller, transaction.amount);
-            // Refund seller arbitration fee
-            transaction.seller.transfer(transaction.sellerFee);
-            // Refund buyer if they overpaid
-            if (transaction.buyerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
-                transaction.buyer.send(transaction.buyerFee - transaction.arbitrationCost);
         } else if (_ruling == uint(RulingOptions.BuyerWins)) {
             transaction.token.transfer(transaction.buyer, transaction.amount);
-            // Refund buyer arbitration fee
-            transaction.buyer.transfer(transaction.buyerFee);
-            // Refund seller if they overpaid
-            if (transaction.sellerFee > transaction.arbitrationCost) // It should be impossible for aritrationCost to be greater than fee but extra check here to prevent underflow.
-                transaction.seller.send(transaction.sellerFee - transaction.arbitrationCost);
         } else {
             // FIXME uneven token amount?
             transaction.token.transfer(transaction.buyer, transaction.amount / 2);
             transaction.token.transfer(transaction.seller, transaction.amount / 2);
-            // refund arbitration fees
-            uint split_fee_amount = (transaction.sellerFee + transaction.buyerFee - transaction.arbitrationCost) / 2;
-            transaction.buyer.transfer(split_fee_amount);
-            transaction.seller.transfer(split_fee_amount);
         }
 
         transaction.amount = 0;
