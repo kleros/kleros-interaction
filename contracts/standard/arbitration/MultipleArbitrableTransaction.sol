@@ -201,7 +201,7 @@ contract MultipleArbitrableTransaction {
      */
     function payArbitrationFeeByBuyer(uint _transactionID) public payable {
         Transaction storage transaction = transactions[_transactionID];
-        require(transaction.status < Status.DisputeCreated, "Dispute has already been created or because the transaction has been executed.");
+        require(transaction.status == Status.NoDispute || transaction.status == Status.WaitingBuyer, "Dispute has already been created or buyer already paid arbitration fees.");
         require(msg.sender == transaction.buyer, "The caller must be the buyer.");
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -226,7 +226,7 @@ contract MultipleArbitrableTransaction {
      */
     function payArbitrationFeeBySeller(uint _transactionID) public payable {
         Transaction storage transaction = transactions[_transactionID];
-        require(transaction.status < Status.DisputeCreated, "Dispute has already been created or because the transaction has been executed.");
+        require(transaction.status == Status.NoDispute || transaction.status == Status.WaitingSeller, "Dispute has already been created or seller already paid arbitration fees.");
         require(msg.sender == transaction.seller, "The caller must be the seller.");
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
