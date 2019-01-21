@@ -13,7 +13,7 @@
  *  NOTE: All functions that interact with the ERC20 token contract as UNTRUSTED.
  */
 
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.24;
 
 import "./Arbitrator.sol";
 
@@ -218,10 +218,10 @@ contract MultipleArbitrableTokenTransaction {
      */
     function payArbitrationFeeByBuyer(uint _transactionID) public payable {
         Transaction storage transaction = transactions[_transactionID];
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
         require(msg.sender == transaction.buyer, "The caller must be the buyer.");
 
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         transaction.buyerFee += msg.value;
         // Require that the total paid to be at least the arbitration cost.
         require(transaction.buyerFee >= arbitrationCost, "The buyer fee must cover arbitration costs.");
@@ -243,10 +243,10 @@ contract MultipleArbitrableTokenTransaction {
      */
     function payArbitrationFeeBySeller(uint _transactionID) public payable {
         Transaction storage transaction = transactions[_transactionID];
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
         require(msg.sender == transaction.seller, "The caller must be the seller.");
 
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         transaction.sellerFee += msg.value;
         // Require that the total paid to be at least the arbitration cost.
         require(transaction.sellerFee >= arbitrationCost, "The seller fee must cover arbitration costs.");
