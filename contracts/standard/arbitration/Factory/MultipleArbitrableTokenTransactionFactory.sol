@@ -7,7 +7,7 @@
  */
 
 /** @title Multiple Arbitrable ERC20 Token Transaction Factory
- *  This is a a contract to generate ArbitrableTokenPayment from a token contract.
+ *  This is a contract to generate ArbitrableTokenPayment contract from a token contract.
  */
 
 pragma solidity ^0.4.24;
@@ -68,7 +68,7 @@ contract MultipleArbitrableTokenTransactionFactory {
 
     /** @dev Create an arbitrable token contract.
      *  @param _token The address of the transacted token.
-     *  @return The address of the arbitrable token contract.
+     *  @return newArbitrableToken The address of the arbitrable token contract.
      */
     function createArbitrableToken(address _token) public returns (address newArbitrableToken) {
         require(token_to_arbitrable_token_payment[_token] == 0x0, "The token contract must not be already registered.");
