@@ -32,7 +32,6 @@ contract MultipleArbitrableTokenTransaction {
     enum RulingOptions {NoRuling, BuyerWins, SellerWins}
 
     struct Transaction {
-        ERC20 token;
         address seller;
         address buyer;
         uint256 amount;
@@ -47,6 +46,7 @@ contract MultipleArbitrableTokenTransaction {
 
     Transaction[] public transactions;
     Arbitrator arbitrator; // Address of the arbitrator contract.
+    ERC20 token; // Address of the token contract.
     bytes arbitratorExtraData; // Extra data to set up the arbitration.
     uint feeTimeout; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
 
@@ -101,17 +101,18 @@ contract MultipleArbitrableTokenTransaction {
      *  @param _feeTimeout Arbitration fee timeout for the parties.
      */
     constructor (
+        ERC20 _token,
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
         uint _feeTimeout
     ) public {
+        token = _token;
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
         feeTimeout = _feeTimeout;
     }
 
     /** @dev Create a transaction.
-     *  @param _token The address of the transacted token.
      *  @param _amount The amount of tokens in this transaction.
      *  @param _timeoutPayment Time after which a party automatically lose a dispute.
      *  @param _seller The recipient of the transaction.
@@ -119,18 +120,16 @@ contract MultipleArbitrableTokenTransaction {
      *  @return The index of the transaction.
      */
     function createTransaction(
-        address _token,
         uint _amount,
         uint _timeoutPayment,
         address _seller,
         string _metaEvidence
     ) public returns (uint transactionIndex) {
-        ERC20 token = ERC20(_token);
+
         // Transfers token from sender wallet to contract.
         require(token.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough funds.");
 
         transactions.push(Transaction({
-            token: token,
             seller: _seller,
             buyer: msg.sender,
             amount: _amount,
@@ -156,7 +155,7 @@ contract MultipleArbitrableTokenTransaction {
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
         require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
 
-        transaction.token.transfer(transaction.seller, _amount);
+        token.transfer(transaction.seller, _amount);
         transaction.amount -= _amount;
     }
 
@@ -170,7 +169,7 @@ contract MultipleArbitrableTokenTransaction {
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
         require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
-        transaction.token.transfer(transaction.buyer, _amountReimbursed);
+        token.transfer(transaction.buyer, _amountReimbursed);
         transaction.amount -= _amountReimbursed;
     }
 
@@ -182,7 +181,7 @@ contract MultipleArbitrableTokenTransaction {
         require(now - transaction.lastInteraction >= transaction.timeoutPayment, "The timeout has not passed yet.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
 
-        transaction.token.transfer(transaction.seller, transaction.amount);
+        token.transfer(transaction.seller, transaction.amount);
         transaction.amount = 0;
 
         transaction.status = Status.Resolved;
@@ -338,13 +337,13 @@ contract MultipleArbitrableTokenTransaction {
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
         if (_ruling == uint(RulingOptions.SellerWins)) {
-            transaction.token.transfer(transaction.seller, transaction.amount);
+            token.transfer(transaction.seller, transaction.amount);
         } else if (_ruling == uint(RulingOptions.BuyerWins)) {
-            transaction.token.transfer(transaction.buyer, transaction.amount);
+            token.transfer(transaction.buyer, transaction.amount);
         } else {
             // FIXME uneven token amount?
-            transaction.token.transfer(transaction.buyer, transaction.amount / 2);
-            transaction.token.transfer(transaction.seller, transaction.amount / 2);
+            token.transfer(transaction.buyer, transaction.amount / 2);
+            token.transfer(transaction.seller, transaction.amount / 2);
         }
 
         transaction.amount = 0;

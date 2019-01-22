@@ -2,9 +2,14 @@
 const shouldFail = require('./helpers/should-fail')
 const time = require('./helpers/time')
 
+const MultipleArbitrableTokenTransactionFactory = artifacts.require(
+  './MultipleArbitrableTokenTransactionFactory.sol'
+)
+
 const MultipleArbitrableTokenTransaction = artifacts.require(
   './MultipleArbitrableTokenTransaction.sol'
 )
+
 const ERC20Mock = artifacts.require('./ERC20Mock.sol')
 const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
 
@@ -32,14 +37,25 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       arbitrationFee,
       { from: arbitrator }
     )
-    const maContract = await MultipleArbitrableTokenTransaction.new(
+    const maFactoryContract = await MultipleArbitrableTokenTransactionFactory.new(
       centralizedArbitrator.address,
       0x0,
       timeoutFee,
-      {
-        from: payer
-      }
+      { from: payer }
     )
+    const creationMaContractTx = await maFactoryContract.createArbitrableToken(
+      this.token.address,
+      { from: payer }
+    )
+
+    // Get the address of the arbitrable token comtract deployed
+    const maContractAddress =
+      creationMaContractTx.logs[0].args._arbitrableTokenPayment
+
+    const maContract = await MultipleArbitrableTokenTransaction.at(
+      maContractAddress
+    )
+
     return {
       centralizedArbitrator,
       maContract
@@ -79,7 +95,6 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     })
     const lastTransaction = await getLastTransaction(maContract, async () => {
       await maContract.createTransaction(
-        this.token.address,
         42,
         timeoutPayment,
         payee,
@@ -174,7 +189,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
    * @returns {function} Amount involved in the transaction
    */
   async function getTransactionAmount(maContract, arbitrableTransactionId) {
-    return (await maContract.transactions(arbitrableTransactionId))[3]
+    return (await maContract.transactions(arbitrableTransactionId))[2]
   }
 
   it('Should handle 1 transaction for payout', async () => {
@@ -303,7 +318,6 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     await shouldFail.reverting(
       getLastTransaction(maContract, async () => {
         await maContract.createTransaction(
-          this.token.address,
           42,
           timeoutPayment,
           payee,
