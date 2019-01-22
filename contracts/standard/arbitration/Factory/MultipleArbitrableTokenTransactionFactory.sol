@@ -71,7 +71,6 @@ contract MultipleArbitrableTokenTransactionFactory {
      *  @return The address of the arbitrable token contract.
      */
     function createArbitrableToken(address _token) public returns (address newArbitrableToken) {
-        require(_token != 0x0, "Must be a valid token contract address.");
         require(token_to_arbitrable_token_payment[_token] == 0x0, "The token contract must not be already registered.");
         
         newArbitrableToken = new MultipleArbitrableTokenTransaction(
