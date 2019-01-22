@@ -102,12 +102,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint submissionTime; // Time when the request was made. Used to track when the challenge period ends.
         uint challengeRewardBalance; // The summation of requester's and challenger's deposit. This value will be given to the party that ultimatly wins a potential dispute, or be reimbursed to the requester if no one challenges.
         uint challengerDepositTime; // The time when a challenger placed his deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
-        uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimatly wins a dispute.
         bool resolved; // True if the request was executed and/or any disputes raised were resolved.
         address[3] parties; // Address of requester and challenger, if any.
         Round[] rounds; // Tracks each round of a dispute.
-        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
-        uint[3] totalContributed; // The total amount contributed for each side. Used for calculating rewards.
     }
 
     struct Round {
@@ -116,6 +113,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint[3] paidFees; // Tracks the fees paid by each side on this round.
         uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake. The fourth element is used to track whether the required value for each side has been set, with 1 for true and 0 for false.
         bool requiredForSideSet; // Tracks if the required amount has been set. False if no one made any contributions after the arbitrator gave a ruling.
+        uint[3] totalContributed; // The total amount contributed for each side. Used for calculating rewards.
+        uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimatly wins a dispute.
+        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
 
     /* Modifiers */
@@ -156,11 +156,12 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /** @dev Emitted when a reimbursements and/or contribution rewards are withdrawn.
      *  @param _address The address from which the withdrawal was made.
+     *  @param _contributor The address that sent the contribution.
      *  @param _request The request from which the withdrawal was made.
-     *  @param _contributor The contributor's address.
+     *  @param _round The reward from which the reward was taken.
      *  @param _value The value of the reward.
      */
-    event RewardWithdrawal(address indexed _address, uint indexed _request, address indexed _contributor, uint _value);
+    event RewardWithdrawal(address indexed _address, address indexed _contributor, uint indexed _request, uint _round, uint _value);
 
     /* Storage */
 
@@ -261,10 +262,10 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint contribution;
         uint remainingETH = msg.value - challengeReward;
         (contribution, remainingETH) = calculateContribution(remainingETH, round.requiredForSide[uint(Party.Requester)]);
-        request.contributions[msg.sender][uint(Party.Requester)] = contribution;
-        request.totalContributed[uint(Party.Requester)] = contribution;
+        round.contributions[msg.sender][uint(Party.Requester)] = contribution;
+        round.totalContributed[uint(Party.Requester)] = contribution;
         round.paidFees[uint(Party.Requester)] = contribution;
-        request.feeRewards += contribution;
+        round.feeRewards += contribution;
         if (contribution > 0)
             emit Contribution(_address, msg.sender, Party.Requester, contribution);
 
@@ -309,10 +310,10 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         // Take up to the amount necessary to fund the current round at the current costs.
         uint contribution;
         (contribution, remainingETH) = calculateContribution(remainingETH, round.requiredForSide[uint(Party.Challenger)]);
-        request.contributions[msg.sender][uint(Party.Challenger)] = contribution;
-        request.totalContributed[uint(Party.Challenger)] = contribution;
+        round.contributions[msg.sender][uint(Party.Challenger)] = contribution;
+        round.totalContributed[uint(Party.Challenger)] = contribution;
         round.paidFees[uint(Party.Challenger)] = contribution;
-        request.feeRewards += contribution;
+        round.feeRewards += contribution;
         if (contribution > 0)
             emit Contribution(_address, msg.sender, Party.Challenger, contribution);
 
@@ -329,7 +330,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.disputed = true;
 
             request.rounds.length++;
-            request.feeRewards -= arbitrationCost;
+            round.feeRewards -= arbitrationCost;
         }
 
         emit AddressStatusChange(
@@ -402,10 +403,10 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint remainingETH = msg.value;
         uint amountStillRequired = round.requiredForSide[uint(_side)] - round.paidFees[uint(_side)];
         (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
-        request.contributions[msg.sender][uint(_side)] += contribution;
-        request.totalContributed[uint(_side)] += contribution;
+        round.contributions[msg.sender][uint(_side)] += contribution;
+        round.totalContributed[uint(_side)] += contribution;
         round.paidFees[uint(_side)] += contribution;
-        request.feeRewards += contribution;
+        round.feeRewards += contribution;
         if (contribution > 0)
             emit Contribution(_address, msg.sender, _side, contribution);
 
@@ -432,7 +433,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             }
 
             request.rounds.length++;
-            request.feeRewards -= cost;
+            round.feeRewards -= cost;
 
             emit AddressStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -447,10 +448,12 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     /** @dev Reimburses caller's contributions if no disputes were raised. If a dispute was raised,  withdraws the rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
      *  @param _address The address from which to withdraw.
      *  @param _request The request from which to withdraw.
+     *  @param _round The request from which to withdraw.
      */
-    function withdrawFeesAndRewards(address _address, uint _request) external {
+    function withdrawFeesAndRewards(address _address, uint _request, uint _round) external {
         Address storage addr = addresses[_address];
         Request storage request = addr.requests[_request];
+        Round storage round = request.rounds[_round];
         require(
             request.resolved,
             "The request was not executed and/or there are disputes pending resolution."
@@ -459,9 +462,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint reward;
         if (!request.disputed || RulingOption(arbitrator.currentRuling(request.disputeID)) == RulingOption.Other) {
             // No disputes were raised, or there isn't a winner and and loser. Reimburse contributions.
-            reward = request.contributions[msg.sender][uint(Party.Requester)] + request.contributions[msg.sender][uint(Party.Challenger)];
-            request.contributions[msg.sender][uint(Party.Requester)] = 0;
-            request.contributions[msg.sender][uint(Party.Challenger)] = 0;
+            reward = round.contributions[msg.sender][uint(Party.Requester)] + round.contributions[msg.sender][uint(Party.Challenger)];
+            round.contributions[msg.sender][uint(Party.Requester)] = 0;
+            round.contributions[msg.sender][uint(Party.Challenger)] = 0;
         } else {
             Party winner;
             if(RulingOption(arbitrator.currentRuling(request.disputeID)) == RulingOption.Accept)
@@ -470,12 +473,12 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                 winner = Party.Challenger;
 
             // Take rewards for funding the winner.
-            uint share = request.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / request.totalContributed[uint(winner)];
-            reward = (share * request.feeRewards) / MULTIPLIER_PRECISION;
-            request.contributions[msg.sender][uint(winner)] = 0;
+            uint share = round.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / round.totalContributed[uint(winner)];
+            reward = (share * round.feeRewards) / MULTIPLIER_PRECISION;
+            round.contributions[msg.sender][uint(winner)] = 0;
         }
 
-        emit RewardWithdrawal(_address, _request, msg.sender, reward);
+        emit RewardWithdrawal(_address, msg.sender, _request, _round,  reward);
         msg.sender.transfer(reward);
     }
 
@@ -799,7 +802,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     /* Interface Views */
 
     /** @dev Gets information on a request made for an address.
-     *  @param _address The ID of the queried address.
+     *  @param _address The queried address.
      *  @param _request The request to be queried.
      *  @return The information.
      */
@@ -812,10 +815,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             uint submissionTime,
             uint challengeRewardBalance,
             uint challengerDepositTime,
-            uint balance,
             bool resolved,
             address[3] parties,
-            uint[3] totalContributed,
             uint numberOfRounds
         )
     {
@@ -827,10 +828,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.submissionTime,
             request.challengeRewardBalance,
             request.challengerDepositTime,
-            request.feeRewards,
             request.resolved,
             request.parties,
-            request.totalContributed,
             request.rounds.length
         );
     }
@@ -848,7 +847,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             bool appealed,
             uint oldWinnerTotalCost,
             uint[3] paidFees,
-            uint[3] requiredForSide
+            uint[3] requiredForSide,
+            uint[3] totalContributed,
+            uint feeRewards
         )
     {
         Address storage addr = addresses[_address];
@@ -858,24 +859,29 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             round.appealed,
             round.oldWinnerTotalCost,
             round.paidFees,
-            round.requiredForSide
+            round.requiredForSide,
+            round.totalContributed,
+            round.feeRewards
         );
     }
 
     /** @dev Gets the contributions made by a party for a given request.
      *  @param _address The address to be queried.
      *  @param _request The position of the request.
+     *  @param _round The position of the round.
      *  @param _contributor The address of the contributor.
      *  @return The contributions.
      */
     function getContributions(
         address _address,
         uint _request,
+        uint _round,
         address _contributor
     ) external view returns(uint[3] contributions) {
         Address storage addr = addresses[_address];
         Request storage request = addr.requests[_request];
-        contributions = request.contributions[_contributor];
+        Round storage round = request.rounds[_round];
+        contributions = round.contributions[_contributor];
     }
 
     /** @dev Return the numbers of addresses that were submitted. Includes addresses that never made it to the list or were later removed.
