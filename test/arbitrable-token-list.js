@@ -134,9 +134,10 @@ contract('ArbitrableTokenList', function(accounts) {
       assert.equal(token[5].toNumber(), TOKEN_STATUS.RegistrationRequested)
 
       const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
+      const round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
       assert.isFalse(request[0])
-      assert.equal(request[5].toNumber(), 0)
-      assert.equal(request[8][PARTY.Requester].toNumber(), 0)
+      assert.equal(round[5].toNumber(), 0)
+      assert.equal(round[4][PARTY.Requester].toNumber(), 0)
       assert.equal(
         await web3.eth.getBalance(arbitrableTokenList.address),
         challengeReward
@@ -154,9 +155,15 @@ contract('ArbitrableTokenList', function(accounts) {
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         0
       )
-      await arbitrableTokenList.withdrawFeesAndRewards(tokenID, 0, {
-        from: partyA
-      })
+      const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
+      await arbitrableTokenList.withdrawFeesAndRewards(
+        tokenID,
+        0,
+        request[7].toNumber() - 1,
+        {
+          from: partyA
+        }
+      )
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         0
@@ -212,35 +219,49 @@ contract('ArbitrableTokenList', function(accounts) {
           request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
 
           assert.equal(token[5].toNumber(), TOKEN_STATUS.Absent)
-          assert.isTrue(request[6]) // i.e. request.resolved == true
+          assert.isTrue(request[5]) // i.e. request.resolved == true
 
           const partyAContributionsBefore = (await arbitrableTokenList.getContributions(
             tokenID,
             0,
+            request[7].toNumber() - 1,
             partyA
           ))[PARTY.Requester].toNumber()
           const partyBContributionsBefore = (await arbitrableTokenList.getContributions(
             tokenID,
             0,
+            request[7].toNumber() - 1,
             partyB
           ))[PARTY.Challenger].toNumber()
           assert.isAbove(partyBContributionsBefore, partyAContributionsBefore)
 
-          await arbitrableTokenList.withdrawFeesAndRewards(tokenID, 0, {
-            from: partyA
-          })
-          await arbitrableTokenList.withdrawFeesAndRewards(tokenID, 0, {
-            from: partyB
-          })
+          await arbitrableTokenList.withdrawFeesAndRewards(
+            tokenID,
+            0,
+            request[7].toNumber() - 1,
+            {
+              from: partyA
+            }
+          )
+          await arbitrableTokenList.withdrawFeesAndRewards(
+            tokenID,
+            0,
+            request[7].toNumber() - 1,
+            {
+              from: partyB
+            }
+          )
 
           const partyAContributionsAfter = (await arbitrableTokenList.getContributions(
             tokenID,
             0,
+            request[7].toNumber() - 1,
             partyA
           ))[PARTY.Requester].toNumber()
           const partyBContributionsAfter = (await arbitrableTokenList.getContributions(
             tokenID,
             0,
+            request[7].toNumber() - 1,
             partyB
           ))[PARTY.Challenger].toNumber()
           assert.equal(partyAContributionsAfter, 0)
@@ -276,11 +297,11 @@ contract('ArbitrableTokenList', function(accounts) {
           round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
 
           assert.equal(
-            request[8][PARTY.Requester].toNumber(),
+            round[4][PARTY.Requester].toNumber(),
             arbitrationCost + sharedRequiredStake
           )
           assert.equal(
-            request[8][PARTY.Challenger].toNumber(),
+            round[4][PARTY.Challenger].toNumber(),
             arbitrationCost + sharedRequiredStake
           )
           assert.equal(
