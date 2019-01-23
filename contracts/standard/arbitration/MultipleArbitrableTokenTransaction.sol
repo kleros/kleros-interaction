@@ -231,7 +231,7 @@ contract MultipleArbitrableTokenTransaction {
         if (transaction.sellerFee < arbitrationCost) {
             transaction.status = Status.WaitingSeller;
             emit HasToPayFee(_transactionID, Party.Seller);
-        } else { // The buyer has also paid the fee. We create the dispute
+        } else { // The buyer has also paid the fee. We create the dispute.
             raiseDispute(_transactionID, arbitrationCost);
         }
     }
@@ -256,7 +256,7 @@ contract MultipleArbitrableTokenTransaction {
         if (transaction.buyerFee < arbitrationCost) {
             transaction.status = Status.WaitingBuyer;
             emit HasToPayFee(_transactionID, Party.Buyer);
-        } else { // The seller has also paid the fee. We create the dispute
+        } else { // The seller has also paid the fee. We create the dispute.
             raiseDispute(_transactionID, arbitrationCost);
         }
     }
