@@ -1,6 +1,6 @@
 /**
  *  @authors: [@eburgos, @n1c01a5]
- *  @reviewers: [@unknownunknown1*, @clesaege*, @ferittuncer]
+ *  @reviewers: [@unknownunknown1*, @clesaege*, @ferittuncer*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -60,15 +60,15 @@ contract MultipleArbitrableTransaction {
      */
     event HasToPayFee(uint indexed _transactionID, Party _party);
 
-    /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
+    /** @dev To be raised when evidence is submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _party The address of the party submiting the evidence. Note that 0 is kept for evidences not submitted by any party.
+     *  @param _party The address of the party submitting the evidence. Note that 0 is kept for evidences not submitted by any party.
      *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.
      */
     event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address indexed _party, string _evidence);
 
-    /** @dev To be emmited when a dispute is created to link the correct meta-evidence to the disputeID.
+    /** @dev To be emitted when a dispute is created to link the correct meta-evidence to the disputeID.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
@@ -196,7 +196,7 @@ contract MultipleArbitrableTransaction {
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the buyer. UNTRUSTED.
-     *  Note that this function mirror payArbitrationFeeBySeller.
+     *  Note that this function mirrors payArbitrationFeeBySeller.
      *  @param _transactionID The index of the transaction.
      */
     function payArbitrationFeeByBuyer(uint _transactionID) public payable {
@@ -211,7 +211,7 @@ contract MultipleArbitrableTransaction {
         require(transaction.buyerFee >= arbitrationCost, "The buyer fee must cover arbitration costs.");
 
         transaction.lastInteraction = now;
-        // The seller still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
+        // The seller still has to pay. This can also happen if he has paid, but arbitrationCost has increased.
         if (transaction.sellerFee < arbitrationCost) {
             transaction.status = Status.WaitingSeller;
             emit HasToPayFee(_transactionID, Party.Seller);
@@ -237,7 +237,7 @@ contract MultipleArbitrableTransaction {
         require(transaction.sellerFee >= arbitrationCost, "The seller fee must cover arbitration costs.");
 
         transaction.lastInteraction = now;
-        // The buyer still has to pay. This can also happens if he has paid, but arbitrationCost has increased.
+        // The buyer still has to pay. This can also happen if he has paid, but arbitrationCost has increased.
         if (transaction.buyerFee < arbitrationCost) {
             transaction.status = Status.WaitingBuyer;
             emit HasToPayFee(_transactionID, Party.Buyer);
