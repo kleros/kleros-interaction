@@ -662,6 +662,19 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         return addr.status == AddressStatus.Registered || addr.status == AddressStatus.ClearingRequested;
     }
 
+    /** @dev Returns address status and number of requests.
+     *  @param _address The address of the queried token.
+     *  @return The address information.
+     */
+    function getAddressInfo(address _address)
+        external
+        view
+        returns (AddressStatus status, uint numberOfRequests)
+    {
+        Address storage addr = addresses[_address];
+        return (addr.status, addr.requests.length);
+    }
+
     /* Internal */
 
     /**
