@@ -188,7 +188,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
      *  @dev Constructs the arbitrable token curated list.
      *  @param _arbitrator The chosen arbitrator.
      *  @param _arbitratorExtraData Extra data for the arbitrator contract.
-     *  @param _metaEvidence The URI of the meta evidence object.
+     *  @param _registrationMetaEvidence The URI of the meta evidence object for registration requests.
+     *  @param _clearingMetaEvidence The URI of the meta evidence object for clearing requests.
      *  @param _governor The governor of this contract.
      *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in weis required to submit or a challenge a request.
@@ -200,7 +201,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        string _metaEvidence,
+        string _registrationMetaEvidence,
+        string _clearingMetaEvidence,
         address _governor,
         uint _arbitrationFeesWaitingTime,
         uint _challengeReward,
@@ -209,7 +211,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint _winnerStakeMultiplier,
         uint _loserStakeMultiplier
     ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
-        emit MetaEvidence(0, _metaEvidence);
+        emit MetaEvidence(0, _registrationMetaEvidence);
+        emit MetaEvidence(1, _clearingMetaEvidence);
         governor = _governor;
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
         challengeReward = _challengeReward;
@@ -328,6 +331,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToAddress[request.disputeID] = _address;
             request.disputed = true;
+            emit Dispute(arbitrator, request.disputeID, addr.status == AddressStatus.RegistrationRequested ? 0 : 1);
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
@@ -426,6 +430,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                 request.disputeID = arbitrator.createDispute.value(cost)(2, arbitratorExtraData);
                 disputeIDToAddress[request.disputeID] = _address;
                 request.disputed = true;
+                emit Dispute(arbitrator, request.disputeID, addr.status == AddressStatus.RegistrationRequested ? 0 : 1);
             } else {
                 // Later round, raise an appeal.
                 arbitrator.appeal.value(cost)(request.disputeID, arbitratorExtraData);
