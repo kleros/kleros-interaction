@@ -25,7 +25,8 @@ contract('ArbitrableTokenList', function(accounts) {
   const winnerStakeMultiplier = 20000
   const loserStakeMultiplier = 2 * winnerStakeMultiplier
   const challengePeriodDuration = 5
-  const metaEvidence = 'evidence'
+  const registrationMetaEvidence = 'registrationMetaEvidence.json'
+  const clearingMetaEvidence = 'clearingMetaEvidence.json'
   const arbitrationFeesWaitingTime = 1001
   const appealPeriodDuration = 1001
 
@@ -75,7 +76,8 @@ contract('ArbitrableTokenList', function(accounts) {
     arbitrableTokenList = await ArbitrableTokenList.new(
       arbitrator.address, // arbitrator
       arbitratorExtraData,
-      metaEvidence,
+      registrationMetaEvidence,
+      clearingMetaEvidence,
       governor, // governor
       arbitrationFeesWaitingTime,
       challengeReward,
