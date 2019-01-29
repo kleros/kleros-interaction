@@ -118,7 +118,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint[3] paidFees; // Tracks the fees paid by each side on this round.
         uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake. The fourth element is used to track whether the required value for each side has been set, with 1 for true and 0 for false.
         bool requiredForSideSet; // Tracks if the required amount has been set. False if no one made any contributions after the arbitrator gave a ruling.
-        uint[3] totalContributed; // The total amount contributed for each side. Used for calculating rewards.
         uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimatly wins a dispute.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
     }
@@ -303,7 +302,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint remainingETH = msg.value - challengeReward;
         (contribution, remainingETH) = calculateContribution(remainingETH, round.requiredForSide[uint(Party.Requester)]);
         round.contributions[msg.sender][uint(Party.Requester)] = contribution;
-        round.totalContributed[uint(Party.Requester)] = contribution;
         round.paidFees[uint(Party.Requester)] = contribution;
         round.feeRewards += contribution;
         if (contribution > 0)
@@ -351,7 +349,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint contribution;
         (contribution, remainingETH) = calculateContribution(remainingETH, round.requiredForSide[uint(Party.Challenger)]);
         round.contributions[msg.sender][uint(Party.Challenger)] = contribution;
-        round.totalContributed[uint(Party.Challenger)] = contribution;
         round.paidFees[uint(Party.Challenger)] = contribution;
         round.feeRewards += contribution;
         if (contribution > 0)
@@ -445,7 +442,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint amountStillRequired = round.requiredForSide[uint(_side)] - round.paidFees[uint(_side)];
         (contribution, remainingETH) = calculateContribution(remainingETH, amountStillRequired);
         round.contributions[msg.sender][uint(_side)] += contribution;
-        round.totalContributed[uint(_side)] += contribution;
         round.paidFees[uint(_side)] += contribution;
         round.feeRewards += contribution;
         if (contribution > 0)
@@ -515,7 +511,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 winner = Party.Challenger;
 
             // Take rewards for funding the winner.
-            uint share = round.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / round.totalContributed[uint(winner)];
+            uint share = round.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / round.paidFees[uint(winner)];
             reward = (share * round.feeRewards) / MULTIPLIER_PRECISION;
             round.contributions[msg.sender][uint(winner)] = 0;
         }
@@ -921,7 +917,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             uint oldWinnerTotalCost,
             uint[3] paidFees,
             uint[3] requiredForSide,
-            uint[3] totalContributed,
             uint feeRewards
         )
     {
@@ -933,7 +928,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.oldWinnerTotalCost,
             round.paidFees,
             round.requiredForSide,
-            round.totalContributed,
             round.feeRewards
         );
     }
