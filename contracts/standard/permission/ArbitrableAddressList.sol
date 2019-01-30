@@ -910,22 +910,24 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         external
         view
         returns (
-            uint disputed,
             uint absent,
             uint registered,
-            uint registrationRequested,
-            uint clearingRequested
+            uint registrationRequest,
+            uint clearingRequest,
+            uint challengedRegistrationRequest,
+            uint challengedClearingRequest
         )
     {
         for (uint i = 0; i < addressList.length; i++) {
             Address storage addr = addresses[addressList[i]];
             Request storage request = addr.requests[addr.requests.length - 1];
 
-            if (uint(addr.status) > 1 && request.disputed) disputed++;
             if (addr.status == AddressStatus.Absent) absent++;
             else if (addr.status == AddressStatus.Registered) registered++;
-            else if (addr.status == AddressStatus.RegistrationRequested) registrationRequested++;
-            else if (addr.status == AddressStatus.ClearingRequested) clearingRequested++;
+            else if (addr.status == AddressStatus.RegistrationRequested && !request.disputed) registrationRequest++;
+            else if (addr.status == AddressStatus.ClearingRequested && !request.disputed) clearingRequest++;
+            else if (addr.status == AddressStatus.RegistrationRequested && request.disputed) challengedRegistrationRequest++;
+            else if (addr.status == AddressStatus.ClearingRequested && request.disputed) challengedClearingRequest++;
         }
     }
 

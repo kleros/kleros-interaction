@@ -965,22 +965,24 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         external
         view
         returns (
-            uint disputed,
             uint absent,
             uint registered,
-            uint registrationRequested,
-            uint clearingRequested
+            uint registrationRequest,
+            uint clearingRequest,
+            uint challengedRegistrationRequest,
+            uint challengedClearingRequest
         )
     {
         for (uint i = 0; i < tokensList.length; i++) {
             Token storage token = tokens[tokensList[i]];
             Request storage request = token.requests[token.requests.length - 1];
 
-            if (uint(token.status) > 1 && request.disputed) disputed++;
             if (token.status == TokenStatus.Absent) absent++;
             else if (token.status == TokenStatus.Registered) registered++;
-            else if (token.status == TokenStatus.RegistrationRequested) registrationRequested++;
-            else if (token.status == TokenStatus.ClearingRequested) clearingRequested++;
+            else if (token.status == TokenStatus.RegistrationRequested && !request.disputed) registrationRequest++;
+            else if (token.status == TokenStatus.ClearingRequested && !request.disputed) clearingRequest++;
+            else if (token.status == TokenStatus.RegistrationRequested && request.disputed) challengedRegistrationRequest++;
+            else if (token.status == TokenStatus.ClearingRequested && request.disputed) challengedClearingRequest++;
         }
     }
 
