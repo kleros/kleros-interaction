@@ -140,13 +140,15 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
      *  @param _address The affected address.
      *  @param _status The status of the address.
      *  @param _disputed Whether the address is disputed.
+     *  @param _appealed Whether the current round was appealed.
      */
     event AddressStatusChange(
         address indexed _requester,
         address indexed _challenger,
         address indexed _address,
         AddressStatus _status,
-        bool _disputed
+        bool _disputed,
+        bool _appealed
     );
 
     /** @dev Emitted when a party makes contribution.
@@ -288,6 +290,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             address(0x0),
             _address,
             addr.status,
+            false,
             false
         );
     }
@@ -342,15 +345,16 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
-        }
 
-        emit AddressStatusChange(
-            request.parties[uint(Party.Requester)],
-            request.parties[uint(Party.Challenger)],
-            _address,
-            addr.status,
-            request.disputed
-        );
+            emit AddressStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _address,
+                addr.status,
+                true,
+                false
+            );
+        }
     }
 
     /** @dev Takes up to the total required to fund a side of the latest round, reimburses the rest.
@@ -453,7 +457,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                 request.parties[uint(Party.Challenger)],
                 _address,
                 addr.status,
-                request.disputed
+                request.disputed,
+                round.appealed
             );
         }
     }
@@ -560,6 +565,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.parties[uint(Party.Challenger)],
             _address,
             addr.status,
+            false,
             false
         );
     }
@@ -738,6 +744,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.parties[uint(Party.Challenger)],
             disputeIDToAddress[_disputeID],
             addr.status,
+            request.disputed,
             false
         );
     }

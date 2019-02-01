@@ -145,13 +145,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _tokenID The token ID. It is the keccak256 hash of it's data.
      *  @param _status The status of the token.
      *  @param _disputed Whether the token is disputed.
+     *  @param _appealed Whether the current round was appealed.
      */
     event TokenStatusChange(
         address indexed _requester,
         address indexed _challenger,
         bytes32 indexed _tokenID,
         TokenStatus _status,
-        bool _disputed
+        bool _disputed,
+        bool _appealed
     );
 
     /** @dev Emitted when a party makes contribution.
@@ -325,6 +327,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             address(0x0),
             tokenID,
             token.status,
+            false,
             false
         );
     }
@@ -379,15 +382,16 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
-        }
 
-        emit TokenStatusChange(
-            request.parties[uint(Party.Requester)],
-            request.parties[uint(Party.Challenger)],
-            _tokenID,
-            token.status,
-            request.disputed
-        );
+            emit TokenStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _tokenID,
+                token.status,
+                true,
+                false
+            );
+        }
     }
 
     /** @dev Takes up to the total required to fund a side of the latest round, reimburses the rest.
@@ -490,7 +494,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 request.parties[uint(Party.Challenger)],
                 _tokenID,
                 token.status,
-                request.disputed
+                request.disputed,
+                round.appealed
             );
         }
     }
@@ -597,6 +602,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.parties[uint(Party.Challenger)],
             _tokenID,
             token.status,
+            false,
             false
         );
     }
@@ -764,6 +770,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.parties[uint(Party.Challenger)],
             tokenID,
             token.status,
+            request.disputed,
             false
         );
     }
