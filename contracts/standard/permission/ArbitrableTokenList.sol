@@ -156,6 +156,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bool _appealed
     );
 
+    /**
+     *  @dev Emitted when a party submits a new token.
+     *  @param _name The token name (e.g. Pinakion).
+     *  @param _ticker The token ticker (e.g. PNK).
+     *  @param _tokenID The token ID.
+     */
+    event TokenCreated(string _name, string _ticker, bytes32 _tokenID);
+
     /** @dev Emitted when a party makes contribution.
      *  @param _tokenID The ID of the token that received the contribution.
      *  @param _contributor The address that sent the contribution.
@@ -286,6 +294,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.networkID = _networkID;
             tokensList.push(tokenID);
             addressToSubmissions[_addr].push(tokenID);
+            emit TokenCreated(_name, _ticker, tokenID);
         }
 
         // Update token status.
