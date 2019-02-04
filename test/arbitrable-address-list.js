@@ -77,6 +77,7 @@ contract('ArbitrableAddressList', function(accounts) {
     arbitrableAddressList = await ArbitrableAddressList.new(
       arbitrator.address, // arbitrator
       arbitratorExtraData,
+      false,
       registrationMetaEvidence,
       clearingMetaEvidence,
       governor, // governor
@@ -149,14 +150,10 @@ contract('ArbitrableAddressList', function(accounts) {
         (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
         0
       )
-      const request = await arbitrableAddressList.getRequestInfo(
-        submissionAddress,
-        0
-      )
       await arbitrableAddressList.withdrawFeesAndRewards(
         submissionAddress,
         0,
-        request[7].toNumber() - 1,
+        0,
         {
           from: partyA
         }
