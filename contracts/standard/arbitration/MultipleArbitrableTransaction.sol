@@ -48,7 +48,7 @@ contract MultipleArbitrableTransaction {
     // *          Events          * //
     // **************************** //
 
-    /** @dev To be emited when meta-evidence is submitted.
+    /** @dev To be emitted when meta-evidence is submitted.
      *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
      *  @param _evidence A link to the meta-evidence JSON.
      */
