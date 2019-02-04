@@ -48,7 +48,7 @@ contract MultipleArbitrableTransaction {
     // *          Events          * //
     // **************************** //
 
-    /** @dev To be emmited when meta-evidence is submitted.
+    /** @dev To be emited when meta-evidence is submitted.
      *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
      *  @param _evidence A link to the meta-evidence JSON.
      */
@@ -60,7 +60,7 @@ contract MultipleArbitrableTransaction {
      */
     event HasToPayFee(uint indexed _transactionID, Party _party);
 
-    /** @dev To be raised when evidence is submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
+    /** @dev To be raised when evidence is submitted. Should point to the resource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _party The address of the party submitting the evidence. Note that 0 is kept for evidences not submitted by any party.
