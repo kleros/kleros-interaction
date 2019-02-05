@@ -17,6 +17,7 @@ import "../../libraries/CappedMath.sol";
  *  @title ArbitrableAddressList
  *  This contract is arbitrable token curated list of addresses. Users can send requests to register or remove addresses from the list which can, in turn, be challenged by parties that disagree with the request.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimately wins a dispute.
+ *  NOTE: This contract trusts the Arbitrator not to try to reenter or modify its costs during a call. The governor contract (which will be a DAO) is also to be trusted.
  */
 contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     using CappedMath for uint;
@@ -49,7 +50,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     // ************************ //
     // Changes to the address status are made via requests for either listing or removing an address from the TCR.
     // The total cost of a request varies depending on whether a party challenges that request and on the number of appeals.
-    // To place or challenge a request, a party must place value at stake. This value will rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
+    // To place or challenge a request, a party must place value at stake. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
     // Additionally to the challenge reward, in the case a party challenges a request, both sides must fully pay the amount of arbitration fees required to raise a dispute. The party that ultimately wins the case will be reimbursed.
     // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional value must placed at stake. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
     // In summary, costs for placing or challenging a request are the following:
@@ -77,8 +78,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         address[3] parties; // Address of requester and challenger, if any.
         Round[] rounds; // Tracks each round of a dispute.
         bool appealPeriodSupported; // Tracks whether the arbitrator has the appealPeriod function.
-        Arbitrator arbitrator; // The arbitrator to be used for this request.
-        bytes arbitratorExtraData; // The extra data for the arbitrator of this request.
+        Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
+        bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
     }
 
     struct Round {
@@ -162,12 +163,12 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /**
      *  @dev Constructs the arbitrable token curated list.
-     *  @param _arbitrator The chosen arbitrator.
-     *  @param _arbitratorExtraData Extra data for the arbitrator contract.
+     *  @param _arbitrator The trusted arbitrator to resolve potential disputes.
+     *  @param _arbitratorExtraData Extra data for the trusted arbitrator contract.
      *  @param _appealPeriodSupported Whether the arbitrator supports appeal period.
      *  @param _registrationMetaEvidence The URI of the meta evidence object for registration requests.
      *  @param _clearingMetaEvidence The URI of the meta evidence object for clearing requests.
-     *  @param _governor The governor of this contract.
+     *  @param _governor The trusted governor of this contract.
      *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in weis required to submit or a challenge a request.
      *  @param _challengePeriodDuration The time in seconds, parties have to challenge a request.
@@ -207,7 +208,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     // *       Requests       * //
     // ************************ //
 
-    /** @dev Submit a request to change an address status. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest.
+    /** @dev Submit a request to change an address status. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest. TRUSTED
      *  @param _address The address to receive the request.
      */
     function requestStatusChange(address _address)
@@ -266,7 +267,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** @dev Challenges the latest request of an address. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest.
+    /** @dev Challenges the latest request of an address. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest. TRUSTED.
      *  @param _address The address with the request to execute.
      */
     function challengeRequest(address _address) external payable {
@@ -328,7 +329,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Takes up to the total required to fund a side of the latest round, reimburses the rest.
+    /** @dev Takes up to the total required to fund a side of the latest round, reimburses the rest. TRUSTED.
      *  @param _address The address with the request to execute.
      *  @param _side The recipient of the contribution.
      */
@@ -359,10 +360,11 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             );
         } else if (request.appealPeriodSupported) { // Later round.
             (uint appealPeriodStart, uint appealPeriodEnd) = request.arbitrator.appealPeriod(request.disputeID);
-            if (appealPeriodEnd > appealPeriodStart && RulingOption(request.arbitrator.currentRuling(request.disputeID)) != RulingOption.Other) {
+            RulingOption currentRuling = RulingOption(request.arbitrator.currentRuling(request.disputeID));
+            if (appealPeriodEnd > appealPeriodStart && currentRuling != RulingOption.Other) {
                 // Appeal period is known and there is a winner and loser.
                 // Contributions are time restricted to the first half if the beneficiary is the loser.
-                if (RulingOption(request.arbitrator.currentRuling(request.disputeID)) == RulingOption.Refuse)
+                if (currentRuling == RulingOption.Refuse)
                     loser = Party.Requester;
                 else
                     loser = Party.Challenger;
@@ -547,7 +549,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** @dev Give a ruling for a dispute. Can only be called by the arbitrator.
+    /** @dev Give a ruling for a dispute. Can only be called by the arbitrator. TRUSTED.
      *  Overrides parent function to account for the situation where the winner loses a case due to paying less appeal fees than expected.
      *  @param _disputeID ID of the dispute in the arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
@@ -650,7 +652,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /** @dev Change the arbitrator to be used for disputes in the next requests.
      *  @param _appealPeriodSupported Whether the new arbitrator supports the appealPeriod function.
-     *  @param _arbitrator The arbitrator to be used in the next requests.
+     *  @param _arbitrator The new trusted arbitrator to be used in the next requests.
      *  @param _arbitratorExtraData The extra data used by the new arbitrator.
      */
     function changeArbitrator(
@@ -741,8 +743,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** @dev Returns the amount that must be paid by each side to fully fund a dispute or appeal.
-     *  Capped math is used to deal with overflows since the arbitrator can return high values for appeal and arbitration cost to denote unpayable amounts.
+    /** @dev Returns the amount that must be paid by each side to fully fund a dispute or appeal. TRUSTED.
+     *  Capped math is used to deal with over/underflows since the arbitrator can return high values for appeal and arbitration cost to denote unpayable amounts.
      *  @param _address The token ID to be queried.
      *  @param _oldWinnerTotalCost The total amount of fees the winner had to pay before a governance change in the second half of an appeal period. If the appeal period is not known or the arbitrator does not support appeal period, this parameter is unused.
      *  @param _requiredForSideSet Whether the required amount for each side has been set previously.
