@@ -530,6 +530,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function timeout(bytes32 _tokenID) external {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
+        require(!request.resolved, "The request is already resolved.");
         if (request.challengerDepositTime == 0) {
             // No one placed a challenge deposit.
             require(

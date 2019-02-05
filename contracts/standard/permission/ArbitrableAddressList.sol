@@ -489,6 +489,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     function timeout(address _address) external {
         Address storage addr = addresses[_address];
         Request storage request = addr.requests[addr.requests.length - 1];
+        require(!request.resolved, "The request is already resolved.");
         if (request.challengerDepositTime == 0) {
             // No one placed a challenge deposit.
             require(
