@@ -559,30 +559,37 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) public onlyArbitrator {
-        Party winner;
-        Party loser;
         RulingOption resultRuling = RulingOption(_ruling);
-        if (resultRuling == RulingOption.Accept) {
-            winner = Party.Requester;
-            loser = Party.Challenger;
-        } else if (resultRuling == RulingOption.Refuse) {
-            winner = Party.Challenger;
-            loser = Party.Requester;
-        } // Respect ruling if there aren't a winner and loser.
-
-        // Invert ruling if there are a winner and loser and the loser fully funded but the winner did not. Respect the ruling otherwise.
         Address storage addr = addresses[disputeIDToAddress[_disputeID]];
         Request storage request = addr.requests[addr.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
-        if (resultRuling != RulingOption.Other &&
-            round.paidFees[uint(loser)] >= round.requiredForSide[uint(loser)] &&
-            round.requiredForSideSet) // It only makes sense to check that the amount of fees paid by the loser is greater than or equal to the amount needed, if the amount needed was set. If it is not set, this means the loser did not receive any contributions and the ruling should be respected.
-        {
-            // Loser is fully funded but the winner is not. Rule in favor of the loser.
-            if (resultRuling == RulingOption.Accept)
-                resultRuling = RulingOption.Refuse;
-             else
-                resultRuling = RulingOption.Accept;
+
+        // Account for contributions to an appeal made by each side.
+        if(round.requiredForSideSet) { // It only makes sense to check the amount of fees paid if a party made a contribution. If it is not, the ruling should be respected.
+            if (resultRuling == RulingOption.Other) {
+                // Rule in favor of the requester if he contributed more than or the same amount as the challenger. Rule in favor of the challenger otherwise.
+                if(round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
+                    resultRuling = RulingOption.Accept;
+                else
+                    resultRuling = RulingOption.Refuse;
+            } else {
+                // Invert ruling if the loser fully funded but the winner did not.
+                Party winner;
+                Party loser;
+                if (resultRuling == RulingOption.Accept) {
+                    winner = Party.Requester;
+                    loser = Party.Challenger;
+                } else if (resultRuling == RulingOption.Refuse) {
+                    winner = Party.Challenger;
+                    loser = Party.Requester;
+                }
+                if (round.paidFees[uint(loser)] >= round.requiredForSide[uint(loser)]) {
+                    if (resultRuling == RulingOption.Refuse)
+                        resultRuling = RulingOption.Accept;
+                    else
+                        resultRuling = RulingOption.Refuse;
+                }
+            }
         }
 
         emit Ruling(Arbitrator(msg.sender), _disputeID, uint(resultRuling));
