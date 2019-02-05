@@ -76,6 +76,7 @@ contract('ArbitrableTokenList', function(accounts) {
     arbitrableTokenList = await ArbitrableTokenList.new(
       arbitrator.address, // arbitrator
       arbitratorExtraData,
+      false,
       registrationMetaEvidence,
       clearingMetaEvidence,
       governor, // governor
@@ -112,7 +113,6 @@ contract('ArbitrableTokenList', function(accounts) {
         'PNK',
         0x1,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
-        'ETH',
         { from: partyA, value: challengeReward }
       )
       tokenID = tx.logs[0].args._tokenID
@@ -132,8 +132,7 @@ contract('ArbitrableTokenList', function(accounts) {
         token[3],
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu'
       )
-      assert.equal(token[4], 'ETH')
-      assert.equal(token[5].toNumber(), TOKEN_STATUS.RegistrationRequested)
+      assert.equal(token[4].toNumber(), TOKEN_STATUS.RegistrationRequested)
 
       const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
       const round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
@@ -220,7 +219,7 @@ contract('ArbitrableTokenList', function(accounts) {
           const token = await arbitrableTokenList.getTokenInfo(tokenID)
           request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
 
-          assert.equal(token[5].toNumber(), TOKEN_STATUS.Absent)
+          assert.equal(token[4].toNumber(), TOKEN_STATUS.Absent)
           assert.isTrue(request[5]) // i.e. request.resolved == true
 
           const partyAContributionsBefore = (await arbitrableTokenList.getContributions(
@@ -274,7 +273,7 @@ contract('ArbitrableTokenList', function(accounts) {
       describe('fully fund both sides, rule in favor of challenger', () => {
         beforeEach(async () => {
           const token = await arbitrableTokenList.getTokenInfo(tokenID)
-          assert.equal(token[5].toNumber(), TOKEN_STATUS.RegistrationRequested)
+          assert.equal(token[4].toNumber(), TOKEN_STATUS.RegistrationRequested)
 
           let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           assert.isFalse(request[0])
@@ -358,7 +357,7 @@ contract('ArbitrableTokenList', function(accounts) {
           )
 
           const token = await arbitrableTokenList.getTokenInfo(tokenID)
-          assert.equal(token[5].toNumber(), TOKEN_STATUS.Registered)
+          assert.equal(token[4].toNumber(), TOKEN_STATUS.Registered)
         })
 
         it('should raise an appeal if both parties fund appeal', async () => {
@@ -412,7 +411,7 @@ contract('ArbitrableTokenList', function(accounts) {
             RULING_OPTIONS.Accept
           )
           const token = await arbitrableTokenList.getTokenInfo(tokenID)
-          assert.equal(token[5].toNumber(), TOKEN_STATUS.Registered)
+          assert.equal(token[4].toNumber(), TOKEN_STATUS.Registered)
         })
       })
     })
@@ -631,7 +630,6 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauThawDkME1nFNQbCu',
-        'ETH',
         { from: partyA, value: challengeReward }
       )
       mkrSubmissions.push(tx.logs[0].args._tokenID)
@@ -642,7 +640,6 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauZhawDkME1nFNQbCu',
-        'ETH',
         { from: partyA, value: challengeReward }
       )
       mkrSubmissions.push(tx.logs[0].args._tokenID)
@@ -653,7 +650,6 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        'ETH',
         { from: partyA, value: challengeReward }
       )
       mkrSubmissions.push(tx.logs[0].args._tokenID)
@@ -667,7 +663,6 @@ contract('ArbitrableTokenList', function(accounts) {
         'OMG',
         0x3,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        'ETH',
         { from: partyA, value: challengeReward }
       )
       tokenIDs.push(tx.logs[0].args._tokenID)
@@ -681,7 +676,6 @@ contract('ArbitrableTokenList', function(accounts) {
         'BNB',
         0x4,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        'ETH',
         { from: partyA, value: challengeReward }
       )
       tokenIDs.push(tx.logs[0].args._tokenID)
