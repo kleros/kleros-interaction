@@ -681,7 +681,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Returns address status and number of requests.
-     *  @param _address The address of the queried token.
+     *  @param _address The queried address.
      *  @return The address information.
      */
     function getAddressInfo(address _address)
