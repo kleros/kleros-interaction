@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.6.0"></a>
+
+# [0.6.0](https://github.com/kleros/kleros-interaction/compare/v0.5.0...v0.6.0) (2019-02-06)
+
+### Bug Fixes
+
+- **arbitrator:** space typos ([61cf84c](https://github.com/kleros/kleros-interaction/commit/61cf84c))
+- **escrow:** [@clesaege](https://github.com/clesaege) review and hotfixes ([71683c0](https://github.com/kleros/kleros-interaction/commit/71683c0))
+- **escrow:** fix word typo ([0026bcb](https://github.com/kleros/kleros-interaction/commit/0026bcb))
+- **escrow:** fix word typos ([9349623](https://github.com/kleros/kleros-interaction/commit/9349623))
+- **escrow:** refund extra fee even if the arbitration cost decrease ([84bcd84](https://github.com/kleros/kleros-interaction/commit/84bcd84))
+- **escrow-token:** fix word typos ([d1b7b8b](https://github.com/kleros/kleros-interaction/commit/d1b7b8b))
+- **escrow-token-factory:** fix typos ([c74ebfb](https://github.com/kleros/kleros-interaction/commit/c74ebfb))
+- **multiple-arbitrable-transaction:** fix re-entrancy ([5f72f51](https://github.com/kleros/kleros-interaction/commit/5f72f51))
+- **multiple-arbitrable-transaction:** fix re-entrancy ([66223e7](https://github.com/kleros/kleros-interaction/commit/66223e7))
+- **multiple-arbitrable-transaction:** send instead of transfer ([14bce32](https://github.com/kleros/kleros-interaction/commit/14bce32))
+- **token-escrow:** fix doc typos ([a2049ac](https://github.com/kleros/kleros-interaction/commit/a2049ac))
+- **token-escrow:** prevent re-entrency ([01454a2](https://github.com/kleros/kleros-interaction/commit/01454a2))
+- **token-escrow-factory:** remove useless assertion ([0664e6a](https://github.com/kleros/kleros-interaction/commit/0664e6a))
+
+### Features
+
+- Update ArbitrableTokenList and ArbitrableAddressList ([#210](https://github.com/kleros/kleros-interaction/issues/210)) ([90168b8](https://github.com/kleros/kleros-interaction/commit/90168b8))
+- **escrow:** refund extra fee when we pay arbitration fee ([384ee95](https://github.com/kleros/kleros-interaction/commit/384ee95))
+- **escrow-token:** add factory to create an arbitrable token contract ([8f708f9](https://github.com/kleros/kleros-interaction/commit/8f708f9))
+- **t2cr:** add method to query item status by address ([5bd07a9](https://github.com/kleros/kleros-interaction/commit/5bd07a9))
+- **t2cr:** use one meta evidence object for each type of request ([81c5aa7](https://github.com/kleros/kleros-interaction/commit/81c5aa7))
+- **token-escrow:** refund over arbitration fee ([20b52f1](https://github.com/kleros/kleros-interaction/commit/20b52f1))
+
 <a name="0.5.0"></a>
 
 # [0.5.0](https://github.com/kleros/kleros-interaction/compare/v0.4.0...v0.5.0) (2019-01-09)
