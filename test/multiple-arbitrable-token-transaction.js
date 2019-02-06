@@ -328,7 +328,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     )
   })
 
-  it('Should reimburse partially to the seller', async () => {
+  it('Should reimburse partially to the sender', async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
@@ -360,7 +360,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     assert.equal(newAmount.toNumber(), 32, 'Amount not updated correctly')
   })
 
-  it('Should fail to reimburse the seller tries more than approved', async () => {
+  it('Should fail to reimburse the sender tries more than approved', async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
     shouldFail.reverting(
@@ -421,11 +421,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
@@ -449,11 +449,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
@@ -477,11 +477,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
@@ -505,11 +505,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
@@ -537,7 +537,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
@@ -545,7 +545,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     await execteActionAndCompareBalances(
       async () => {
         await time.increase(timeoutFee + 1)
-        const tx = await maContract.timeOutByBuyer(arbitrableTransactionId, {
+        const tx = await maContract.timeOutByReceiver(arbitrableTransactionId, {
           from: payer,
           gasPrice
         })
@@ -570,18 +570,18 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await shouldFail.reverting(
-      maContract.timeOutByBuyer(arbitrableTransactionId, {
+      maContract.timeOutByReceiver(arbitrableTransactionId, {
         from: payer,
         gasPrice: gasPrice
       })
     )
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
     await time.increase(1)
     await shouldFail.reverting(
-      maContract.timeOutByBuyer(arbitrableTransactionId, {
+      maContract.timeOutByReceiver(arbitrableTransactionId, {
         from: payer,
         gasPrice: gasPrice
       })
@@ -592,7 +592,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -600,7 +600,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     await execteActionAndCompareBalances(
       async () => {
         await time.increase(timeoutFee + 1)
-        const tx = await maContract.timeOutBySeller(arbitrableTransactionId, {
+        const tx = await maContract.timeOutBySender(arbitrableTransactionId, {
           from: payee,
           gasPrice
         })
@@ -625,18 +625,18 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await shouldFail.reverting(
-      maContract.timeOutBySeller(arbitrableTransactionId, {
+      maContract.timeOutBySender(arbitrableTransactionId, {
         from: payee,
         gasPrice: gasPrice
       })
     )
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
     await time.increase(1)
     await shouldFail.reverting(
-      maContract.timeOutBySeller(arbitrableTransactionId, {
+      maContract.timeOutBySender(arbitrableTransactionId, {
         from: payee,
         gasPrice: gasPrice
       })
@@ -647,11 +647,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -671,11 +671,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -695,11 +695,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -724,21 +724,21 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const arbitrableTransactionId2 = (await createTestTransaction(maContract))
       .arbitrableTransactionId
 
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId2, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId2, {
       from: payer,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId1, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId1, {
       from: payee,
       value: arbitrationFee
     })
     // This generates transaction 1 dispute 0
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId1, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId1, {
       from: payer,
       value: arbitrationFee
     })
     // This generates transaction 2 dispute 1
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId2, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId2, {
       from: payee,
       value: arbitrationFee
     })
@@ -785,11 +785,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: payer,
       value: arbitrationFee
     })
@@ -800,14 +800,14 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     })
 
     await shouldFail.reverting(
-      maContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+      maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
         from: payee,
         value: arbitrationFee + 1
       })
     )
 
     await shouldFail.reverting(
-      maContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
+      maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
         from: payer,
         value: arbitrationFee + 1
       })

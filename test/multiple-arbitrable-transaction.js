@@ -396,14 +396,17 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
     const payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
     await centralizedArbitrator.giveRuling(0, 1, { from: arbitrator })
     const newPayerBalance = web3.eth.getBalance(payer)
@@ -439,11 +442,14 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -482,11 +488,14 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -537,11 +546,14 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
     const extraAmount = 100
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee + extraAmount
-    })
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee + extraAmount
+      }
+    )
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -581,16 +593,22 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
     await increaseTime(timeout + 1)
     const payerBalanceBeforeReimbursment = web3.eth.getBalance(payer)
-    const tx = await multipleContract.timeOutByBuyer(arbitrableTransactionId, {
-      from: payer,
-      gasPrice: gasPrice
-    })
+    const tx = await multipleContract.timeOutByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        gasPrice: gasPrice
+      }
+    )
     const txFee = tx.receipt.gasUsed * gasPrice
     const newPayerBalance = web3.eth.getBalance(payer)
     assert.equal(
@@ -630,18 +648,21 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
     await expectThrow(
-      multipleContract.timeOutByBuyer(arbitrableTransactionId, {
+      multipleContract.timeOutByReceiver(arbitrableTransactionId, {
         from: payer,
         gasPrice: gasPrice
       })
     )
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
     await increaseTime(1)
     await expectThrow(
-      multipleContract.timeOutByBuyer(arbitrableTransactionId, {
+      multipleContract.timeOutByReceiver(arbitrableTransactionId, {
         from: payer,
         gasPrice: gasPrice
       })
@@ -674,13 +695,13 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
     await increaseTime(feeTimeout + 1)
     const payeeBalanceBeforeReimbursment = web3.eth.getBalance(payee)
-    const tx = await multipleContract.timeOutBySeller(arbitrableTransactionId, {
+    const tx = await multipleContract.timeOutBySender(arbitrableTransactionId, {
       from: payee,
       gasPrice: gasPrice
     })
@@ -723,18 +744,18 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
     await expectThrow(
-      multipleContract.timeOutBySeller(arbitrableTransactionId, {
+      multipleContract.timeOutBySender(arbitrableTransactionId, {
         from: payee,
         gasPrice: gasPrice
       })
     )
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
     await increaseTime(1)
     await expectThrow(
-      multipleContract.timeOutBySeller(arbitrableTransactionId, {
+      multipleContract.timeOutBySender(arbitrableTransactionId, {
         from: payee,
         gasPrice: gasPrice
       })
@@ -768,11 +789,14 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -813,11 +837,14 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -858,11 +885,14 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId, {
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee
     })
@@ -930,21 +960,27 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     metaEvidenceEvent.stopWatching()
 
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId2, {
-      from: payer,
-      value: arbitrationFee
-    })
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId1, {
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId2,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId1, {
       from: payee,
       value: arbitrationFee
     })
     // This generates transaction 1 dispute 0
-    await multipleContract.payArbitrationFeeByBuyer(arbitrableTransactionId1, {
-      from: payer,
-      value: arbitrationFee
-    })
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId1,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
     // This generates transaction 2 dispute 1
-    await multipleContract.payArbitrationFeeBySeller(arbitrableTransactionId2, {
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId2, {
       from: payee,
       value: arbitrationFee
     })
@@ -1039,21 +1075,21 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
   //   metaEvidenceEvent.stopWatching()
 
-  //   await multipleContract1.payArbitrationFeeByBuyer(arbitrableTransactionId2, {
+  //   await multipleContract1.payArbitrationFeeByReceiver(arbitrableTransactionId2, {
   //     from: payer,
   //     value: arbitrationFee
   //   })
-  //   await multipleContract1.payArbitrationFeeBySeller(arbitrableTransactionId1, {
+  //   await multipleContract1.payArbitrationFeeBySender(arbitrableTransactionId1, {
   //     from: payee,
   //     value: arbitrationFee
   //   })
   //   // This generates transaction 1 dispute 0 from arbitrator 1
-  //   await multipleContract2.payArbitrationFeeByBuyer(arbitrableTransactionId1, {
+  //   await multipleContract2.payArbitrationFeeByReceiver(arbitrableTransactionId1, {
   //     from: payer,
   //     value: arbitrationFee
   //   })
   //   // This generates transaction 2 dispute 0 from arbitrator 2
-  //   await multipleContract2.payArbitrationFeeBySeller(arbitrableTransactionId2, {
+  //   await multipleContract2.payArbitrationFeeBySender(arbitrableTransactionId2, {
   //     from: payee,
   //     value: arbitrationFee
   //   })
