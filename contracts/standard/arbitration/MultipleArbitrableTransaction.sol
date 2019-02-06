@@ -1,6 +1,6 @@
 /**
  *  @authors: [@eburgos, @n1c01a5]
- *  @reviewers: [@unknownunknown1, @clesaege*, @ferittuncer*]
+ *  @reviewers: [@unknownunknown1*, @clesaege*, @ferittuncer*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -49,8 +49,8 @@ contract MultipleArbitrableTransaction {
     // **************************** //
 
     /** @dev To be emitted when meta-evidence is submitted.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
-     *  @param _evidence A link to the meta-evidence JSON.
+     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the `transactionID`.
+     *  @param _evidence A link to the meta-evidence JSON that follows the ERC 1497 Evidence standard (https://github.com/ethereum/EIPs/issues/1497)
      */
     event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
 
@@ -64,7 +64,7 @@ contract MultipleArbitrableTransaction {
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _party The address of the party submitting the evidence. Note that 0 is kept for evidences not submitted by any party.
-     *  @param _evidence A link to evidence or if it is short the evidence itself. Can be web link ("http://X"), IPFS ("ipfs:/X") or another storing service (using the URI, see https://en.wikipedia.org/wiki/Uniform_Resource_Identifier ). One usecase of short evidence is to include the hash of the plain English contract.
+     *  @param _evidence A link to an evidence JSON that follows the ERC 1497 Evidence standard (https://github.com/ethereum/EIPs/issues/1497).
      */
     event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address indexed _party, string _evidence);
 
@@ -221,7 +221,7 @@ contract MultipleArbitrableTransaction {
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the seller. UNTRUSTED.
-     *  Note that the arbitrator can have createDispute throw, which will make this function throw and therefore lead to a party being timed-out.
+     *  Note that the arbitrator can have `createDispute` throw, which will make this function throw and therefore lead to a party being timed-out.
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      *  @param _transactionID The index of the transaction.
      */
@@ -237,11 +237,11 @@ contract MultipleArbitrableTransaction {
         require(transaction.sellerFee >= arbitrationCost, "The seller fee must cover arbitration costs.");
 
         transaction.lastInteraction = now;
-        // The buyer still has to pay. This can also happen if he has paid, but arbitrationCost has increased.
+        // The buyer still has to pay. This can also happen if he has paid, but `arbitrationCost` has increased.
         if (transaction.buyerFee < arbitrationCost) {
             transaction.status = Status.WaitingBuyer;
             emit HasToPayFee(_transactionID, Party.Buyer);
-        } else { // The seller has also paid the fee. We create the dispute
+        } else { // The seller has also paid the fee. We create the dispute.
             raiseDispute(_transactionID, arbitrationCost);
         }
     }
@@ -314,14 +314,14 @@ contract MultipleArbitrableTransaction {
 
     /** @dev Execute a ruling of a dispute. It reimburses the fee to the winning party.
      *  @param _transactionID The index of the transaction.
-     *  @param _ruling Ruling given by the arbitrator. 1 : Reimburse the buyer. 2 : Pay the seller.
+     *  @param _ruling Ruling given by the arbitrator. 1: Reimburse the buyer. 2: Pay the seller.
      */
     function executeRuling(uint _transactionID, uint _ruling) internal {
         Transaction storage transaction = transactions[_transactionID];
         require(_ruling <= AMOUNT_OF_CHOICES, "Invalid ruling.");
 
         // Give the arbitration fee back.
-        // Note that we use send to prevent a party from blocking the execution.
+        // Note that we use `send` to prevent a party from blocking the execution.
         if (_ruling == SELLER_WINS) {
             transaction.seller.send(transaction.sellerFee + transaction.amount);
         } else if (_ruling == BUYER_WINS) {
