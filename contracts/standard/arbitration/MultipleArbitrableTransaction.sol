@@ -50,7 +50,7 @@ contract MultipleArbitrableTransaction {
 
     /** @dev To be emitted when meta-evidence is submitted.
      *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the `transactionID`.
-     *  @param _evidence A link to the meta-evidence JSON that follows the ERC 1497 Evidence standard (https://github.com/ethereum/EIPs/issues/1497)
+     *  @param _evidence A link to the meta-evidence JSON that follows the ERC 1497 Evidence standard (https://github.com/ethereum/EIPs/issues/1497).
      */
     event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
 
