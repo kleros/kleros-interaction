@@ -130,9 +130,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _name The token name (e.g. Pinakion).
      *  @param _ticker The token ticker (e.g. PNK).
      *  @param _tokenID The token ID.
-     *  @param _addr The token address.
+     *  @param _address The token address.
      */
-    event TokenSubmitted(string _name, string _ticker, bytes32 indexed _tokenID, address indexed _addr);
+    event TokenSubmitted(string _name, string _ticker, string _symbolMultihash, bytes32 indexed _tokenID, address indexed _address);
 
     /** @dev Emitted when a party makes contribution.
      *  @param _tokenID The ID of the token that received the contribution.
@@ -264,7 +264,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             token.symbolMultihash = _symbolMultihash;
             tokensList.push(tokenID);
             addressToSubmissions[_addr].push(tokenID);
-            emit TokenSubmitted(_name, _ticker, tokenID, _addr);
+            emit TokenSubmitted(_name, _ticker, _symbolMultihash, tokenID, _addr);
         }
 
         // Update token status.
