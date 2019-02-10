@@ -818,81 +818,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         return addr.status == AddressStatus.Registered || addr.status == AddressStatus.ClearingRequested;
     }
 
-    /* Internal */
-
-    /**
-     *  @dev Execute the ruling of a dispute.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
-     */
-    function executeRuling(uint _disputeID, uint _ruling) internal {
-        Address storage addr = addresses[disputeIDToAddress[_disputeID]];
-        Request storage request = addr.requests[addr.requests.length - 1];
-
-        Party winner;
-        if (RulingOption(_ruling) == RulingOption.Accept)
-            winner = Party.Requester;
-        else if (RulingOption(_ruling) == RulingOption.Refuse)
-            winner = Party.Challenger;
-
-        // Update address state
-        if (winner == Party.Requester) // Execute Request
-            if (addr.status == AddressStatus.RegistrationRequested)
-                addr.status = AddressStatus.Registered;
-            else
-                addr.status = AddressStatus.Absent;
-        else // Revert to previous state.
-            if (addr.status == AddressStatus.RegistrationRequested)
-                addr.status = AddressStatus.Absent;
-            else if (addr.status == AddressStatus.ClearingRequested)
-                addr.status = AddressStatus.Registered;
-
-        // Send challenge reward.
-        // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        if (winner == Party.Challenger)
-            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
-        else if (winner == Party.Requester)
-            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
-        else {
-            // Reimburse parties.
-            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance / 2);
-            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance / 2);
-        }
-
-        request.challengeRewardBalance = 0;
-        request.resolved = true;
-        request.ruling = RulingOption(_ruling);
-
-        emit AddressStatusChange(
-            request.parties[uint(Party.Requester)],
-            request.parties[uint(Party.Challenger)],
-            disputeIDToAddress[_disputeID],
-            addr.status,
-            request.disputed,
-            false
-        );
-    }
-
-     /** @dev Returns the contribution value and remainder from available ETH and required amount.
-     *  @param _available The amount of ETH available for the contribution.
-     *  @param _requiredAmount The amount of ETH required for the contribution.
-     *  @return The amount of ETH taken.
-     *  @return The amount of ETH left from the contribution.
-     */
-    function calculateContribution(uint _available, uint _requiredAmount)
-        internal
-        pure
-        returns(uint taken, uint remainder)
-    {
-        if (_requiredAmount > _available)
-            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
-
-        remainder = _available - _requiredAmount;
-        return (_requiredAmount, remainder);
-    }
-
-    /* Interface Views */
-
     /** @dev Returns address information. Includes length of requests array.
      *  @param _address The queried address.
      *  @return The address information.
@@ -1018,6 +943,81 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     function addressCount() external view returns (uint count) {
         return addressList.length;
     }
+
+    /* Internal */
+
+    /**
+     *  @dev Execute the ruling of a dispute.
+     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
+     */
+    function executeRuling(uint _disputeID, uint _ruling) internal {
+        Address storage addr = addresses[disputeIDToAddress[_disputeID]];
+        Request storage request = addr.requests[addr.requests.length - 1];
+
+        Party winner;
+        if (RulingOption(_ruling) == RulingOption.Accept)
+            winner = Party.Requester;
+        else if (RulingOption(_ruling) == RulingOption.Refuse)
+            winner = Party.Challenger;
+
+        // Update address state
+        if (winner == Party.Requester) // Execute Request
+            if (addr.status == AddressStatus.RegistrationRequested)
+                addr.status = AddressStatus.Registered;
+            else
+                addr.status = AddressStatus.Absent;
+        else // Revert to previous state.
+            if (addr.status == AddressStatus.RegistrationRequested)
+                addr.status = AddressStatus.Absent;
+            else if (addr.status == AddressStatus.ClearingRequested)
+                addr.status = AddressStatus.Registered;
+
+        // Send challenge reward.
+        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        if (winner == Party.Challenger)
+            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
+        else if (winner == Party.Requester)
+            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
+        else {
+            // Reimburse parties.
+            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance / 2);
+            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance / 2);
+        }
+
+        request.challengeRewardBalance = 0;
+        request.resolved = true;
+        request.ruling = RulingOption(_ruling);
+
+        emit AddressStatusChange(
+            request.parties[uint(Party.Requester)],
+            request.parties[uint(Party.Challenger)],
+            disputeIDToAddress[_disputeID],
+            addr.status,
+            request.disputed,
+            false
+        );
+    }
+
+     /** @dev Returns the contribution value and remainder from available ETH and required amount.
+     *  @param _available The amount of ETH available for the contribution.
+     *  @param _requiredAmount The amount of ETH required for the contribution.
+     *  @return The amount of ETH taken.
+     *  @return The amount of ETH left from the contribution.
+     */
+    function calculateContribution(uint _available, uint _requiredAmount)
+        internal
+        pure
+        returns(uint taken, uint remainder)
+    {
+        if (_requiredAmount > _available)
+            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
+
+        remainder = _available - _requiredAmount;
+        return (_requiredAmount, remainder);
+    }
+
+    /* Interface Views */
 
     /** @dev Return the numbers of addresses with each status. This function is O(n) at worst, where n is the number of addresses. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @return The numbers of addresses in the list per status.
