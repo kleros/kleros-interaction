@@ -41,7 +41,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     enum Party {
         None,
-        Requester, // Party that placed a request to change an address status.
+        Requester, // Party that made a request to change an address status.
         Challenger // Party challenging a request.
     }
 
@@ -50,9 +50,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     // ************************ //
     // Changes to the address status are made via requests for either listing or removing an address from the TCR.
     // The total cost of a request varies depending on whether a party challenges that request and on the number of appeals.
-    // To place or challenge a request, a party must make a deposit. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
+    // To make or challenge a request, a party must pay a deposit. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
     // Additionally to the challenge reward, in the case a party challenges a request, both sides must fully pay the amount of arbitration fees required to raise a dispute. The party that ultimately wins the case will be reimbursed.
-    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional value must placed at stake. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
+    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional value must be deposited. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
     // In summary, costs for placing or challenging a request are the following:
     // - A challenge reward given to the party that wins a potential dispute.
     // - Arbitration fees used to pay jurors.
@@ -74,7 +74,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint disputeID; // ID of the dispute, if any.
         uint submissionTime; // Time when the request was made. Used to track when the challenge period ends.
         uint challengeRewardBalance; // The summation of requester's and challenger's deposit. This value will be given to the party that ultimately wins a potential dispute, or be reimbursed to the requester if no one challenges.
-        uint challengerDepositTime; // The time when a challenger placed his deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
+        uint challengerDepositTime; // The time when a challenger paid the deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
         bool resolved; // True if the request was executed and/or any disputes raised were resolved.
         address[3] parties; // Address of requester and challenger, if any.
         Round[] rounds; // Tracks each round of a dispute.
@@ -104,7 +104,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     /* Events */
 
     /**
-     *  @dev Emitted when a party places a request, dispute or appeals are raised or when a request is resolved.
+     *  @dev Emitted when a party makes a request, dispute or appeals are raised or when a request is resolved.
      *  @param _requester Address of the party that submitted the request.
      *  @param _challenger Address of the party that challenged the request, if any.
      *  @param _address The affected address.
@@ -131,7 +131,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /** @dev Emitted when a deposit is made to challenge a request.
      *  @param _address The address that has the challenged request.
-     *  @param _challenger The address that placed the deposit.
+     *  @param _challenger The address that paid the deposit.
      */
     event ChallengeDepositPlaced(address indexed _address, address indexed _challenger);
 
@@ -284,7 +284,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         Request storage request = addr.requests[addr.requests.length - 1];
         require(now - request.submissionTime < challengePeriodDuration, "The challenge period has already passed.");
         require(request.challengerDepositTime == 0, "Request should have only the requester's deposit.");
-        require(msg.value >= request.challengeRewardBalance, "Not enough ETH. Party starting dispute must place a deposit in full.");
+        require(msg.value >= request.challengeRewardBalance, "Not enough ETH. Party starting dispute must pay the deposit in full.");
 
         // Take the deposit and save the challenger's address.
         uint remainingETH = msg.value - request.challengeRewardBalance;
@@ -357,7 +357,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         if (_side == Party.Challenger)
             require(
                 request.challengerDepositTime > 0,
-                "A challenge deposit must be placed before the challenger can accept contributions."
+                "A challenge deposit must be paid before the challenger can accept contributions."
             );
 
         // Update the total amount required for each side.
@@ -605,7 +605,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         require(request.challengerDepositTime > 0, "A party must have challenged the request.");
         require(
             now - request.challengerDepositTime > arbitrationFeesWaitingTime,
-            "There is still time to place a contribution."
+            "There is still time to contribution."
         );
 
         // Decreases in arbitration costs could mean both sides are fully funded, in which case a dispute should be raised.
@@ -753,8 +753,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         challengePeriodDuration = _challengePeriodDuration;
     }
 
-    /** @dev Change the required deposit required to place or challenge a request.
-     *  @param _challengeReward The new amount of wei required to place or challenge a request.
+    /** @dev Change the required amount required as deposit to make or challenge a request.
+     *  @param _challengeReward The new amount of wei required to make or challenge a request.
      */
     function changeChallengeReward(uint _challengeReward) external onlyGovernor {
         challengeReward = _challengeReward;
