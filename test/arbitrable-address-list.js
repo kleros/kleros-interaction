@@ -154,12 +154,10 @@ contract('ArbitrableAddressList', function(accounts) {
         0
       )
       await arbitrableAddressList.withdrawFeesAndRewards(
+        partyA,
         submissionAddress,
         0,
-        0,
-        {
-          from: partyA
-        }
+        0
       )
       assert.equal(
         (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
@@ -254,20 +252,16 @@ contract('ArbitrableAddressList', function(accounts) {
           assert.isAbove(partyBContributionsBefore, partyAContributionsBefore)
 
           await arbitrableAddressList.withdrawFeesAndRewards(
+            partyA,
             submissionAddress,
             0,
-            request[7].toNumber() - 1,
-            {
-              from: partyA
-            }
+            request[7].toNumber() - 1
           )
           await arbitrableAddressList.withdrawFeesAndRewards(
+            partyB,
             submissionAddress,
             0,
-            request[7].toNumber() - 1,
-            {
-              from: partyB
-            }
+            request[7].toNumber() - 1
           )
 
           const partyAContributionsAfter = (await arbitrableAddressList.getContributions(

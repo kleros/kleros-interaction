@@ -557,11 +557,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Reimburses caller's contributions if no disputes were raised. If a dispute was raised,  withdraws the rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
-     *  @param _tokenID The ID of the token from which to withdraw.
+     *  @param _beneficiary The address receiving the funds.
+     *  @param _tokenID The ID of the token submission from which to withdraw.
      *  @param _request The request from which to withdraw.
      *  @param _round The request from which to withdraw.
      */
-    function withdrawFeesAndRewards(bytes32 _tokenID, uint _request, uint _round) external {
+    function withdrawFeesAndRewards(address _beneficiary, bytes32 _tokenID, uint _request, uint _round) external {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
@@ -573,15 +574,16 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint reward;
         if (!request.disputed || request.ruling == RulingOption.Other) {
             // No disputes were raised, or there isn't a winner and loser. Reimburse contributions.
-            uint shareRequester = round.paidFees[uint(Party.Requester)] == 0 ? 0 : round.contributions[msg.sender][uint(Party.Requester)] * MULTIPLIER_PRECISION / round.paidFees[uint(Party.Requester)];
-            uint shareChallenger = round.paidFees[uint(Party.Challenger)] == 0 ? 0 : round.contributions[msg.sender][uint(Party.Challenger)] * MULTIPLIER_PRECISION / round.paidFees[uint(Party.Challenger)];
-
-            uint rewardRequester = (shareRequester * round.feeRewards) / MULTIPLIER_PRECISION;
-            uint rewardChallenger = (shareChallenger * round.feeRewards) / MULTIPLIER_PRECISION;
+            uint rewardRequester = round.paidFees[uint(Party.Requester)] > 0
+                ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / round.paidFees[uint(Party.Requester)]
+                : 0;
+            uint rewardChallenger = round.paidFees[uint(Party.Challenger)] > 0
+                ? (round.contributions[_beneficiary][uint(Party.Challenger)] * round.feeRewards) / round.paidFees[uint(Party.Challenger)]
+                : 0;
 
             reward = rewardRequester + rewardChallenger;
-            round.contributions[msg.sender][uint(Party.Requester)] = 0;
-            round.contributions[msg.sender][uint(Party.Challenger)] = 0;
+            round.contributions[_beneficiary][uint(Party.Requester)] = 0;
+            round.contributions[_beneficiary][uint(Party.Challenger)] = 0;
         } else {
             Party winner;
             if (request.ruling == RulingOption.Accept)
@@ -590,13 +592,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 winner = Party.Challenger;
 
             // Take rewards for funding the winner.
-            uint share = round.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / round.paidFees[uint(winner)];
+            uint share = round.contributions[_beneficiary][uint(winner)] * MULTIPLIER_PRECISION / round.paidFees[uint(winner)];
             reward = (share * round.feeRewards) / MULTIPLIER_PRECISION;
-            round.contributions[msg.sender][uint(winner)] = 0;
+            round.contributions[_beneficiary][uint(winner)] = 0;
         }
 
-        emit RewardWithdrawal(_tokenID, msg.sender, _request, _round,  reward);
-        msg.sender.transfer(reward);
+        emit RewardWithdrawal(_tokenID, _beneficiary, _request, _round,  reward);
+        _beneficiary.transfer(reward);
     }
 
     /** @dev Executes a request if the challenge period passed and one challenged the request.

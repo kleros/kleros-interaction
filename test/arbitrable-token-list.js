@@ -157,12 +157,10 @@ contract('ArbitrableTokenList', function(accounts) {
       )
       const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
       await arbitrableTokenList.withdrawFeesAndRewards(
+        partyA,
         tokenID,
         0,
-        request[7].toNumber() - 1,
-        {
-          from: partyA
-        }
+        request[7].toNumber() - 1
       )
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
@@ -236,20 +234,16 @@ contract('ArbitrableTokenList', function(accounts) {
           assert.isAbove(partyBContributionsBefore, partyAContributionsBefore)
 
           await arbitrableTokenList.withdrawFeesAndRewards(
+            partyA,
             tokenID,
             0,
-            request[7].toNumber() - 1,
-            {
-              from: partyA
-            }
+            request[7].toNumber() - 1
           )
           await arbitrableTokenList.withdrawFeesAndRewards(
+            partyB,
             tokenID,
             0,
-            request[7].toNumber() - 1,
-            {
-              from: partyB
-            }
+            request[7].toNumber() - 1
           )
 
           const partyAContributionsAfter = (await arbitrableTokenList.getContributions(
