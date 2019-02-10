@@ -82,7 +82,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         address[3] parties; // Address of requester and challenger, if any.
         Round[] rounds; // Tracks each round of a dispute.
         RulingOption ruling; // The final ruling given, if any.
-        ArbitratorData arbitratorData; // The arbitrator used for this request.
+        Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
+        bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
     }
 
     struct Round {
@@ -93,11 +94,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bool[3] requiredForSideSet; // Tracks if the required for each side was been set.
         uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
-    }
-
-    struct ArbitratorData {
-        Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
-        bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
     }
 
     /* Modifiers */
@@ -278,11 +274,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.submissionTime = now;
         request.rounds.length++;
         request.challengeRewardBalance = challengeReward;
-        request.arbitratorData = ArbitratorData(arbitrator, arbitratorExtraData);
+        request.arbitrator = arbitrator;
+        request.arbitratorExtraData = arbitratorExtraData;
 
         // Calculate total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        uint arbitrationCost = request.arbitratorData.arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost = request.arbitrator.arbitrationCost(arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] =
             arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
         round.requiredForSide[uint(Party.Challenger)] =
@@ -336,7 +333,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Update the total amount required to fully fund the each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        uint arbitrationCost = request.arbitratorData.arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost = request.arbitrator.arbitrationCost(arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] =
             arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
         round.requiredForSide[uint(Party.Challenger)] =
@@ -360,7 +357,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
-            request.disputeID = request.arbitratorData.arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
             emit Dispute(arbitrator, request.disputeID, token.status == TokenStatus.RegistrationRequested ? 0 : 1);
@@ -403,7 +400,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Update the total amount required for each side.
         Round storage round = request.rounds[request.rounds.length - 1];
-        uint arbitrationCost = request.arbitratorData.arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost = request.arbitrator.arbitrationCost(arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] =
             arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
         round.requiredForSide[uint(Party.Challenger)] =
@@ -428,7 +425,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
-            request.disputeID = request.arbitratorData.arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
             emit Dispute(arbitrator, request.disputeID, token.status == TokenStatus.RegistrationRequested ? 0 : 1);
@@ -464,10 +461,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         require(request.disputed, "A dispute must have been raised to fund an appeal.");
         require(
-            uint(request.arbitratorData.arbitrator.disputeStatus(request.disputeID)) == 1, //
+            uint(request.arbitrator.disputeStatus(request.disputeID)) == 1, //
             "Dispute must be appealable to receive funds."
         );
-        (uint appealPeriodStart, uint appealPeriodEnd) = request.arbitratorData.arbitrator.appealPeriod(request.disputeID);
+        (uint appealPeriodStart, uint appealPeriodEnd) = request.arbitrator.appealPeriod(request.disputeID);
         require(now < appealPeriodEnd, "Appeal period ended.");
 
         // Calculate and total amount required to fully fund the each side.
@@ -475,7 +472,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Party winner;
         Party loser;
         Round storage round = request.rounds[request.rounds.length - 1];
-        RulingOption ruling = RulingOption(request.arbitratorData.arbitrator.currentRuling(request.disputeID));
+        RulingOption ruling = RulingOption(request.arbitrator.currentRuling(request.disputeID));
         if (ruling == RulingOption.Accept) {
             winner = Party.Requester;
             loser = Party.Challenger;
@@ -484,7 +481,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             loser = Party.Requester;
         }
 
-        uint appealCost = request.arbitratorData.arbitrator.appealCost(request.disputeID, arbitratorExtraData);
+        uint appealCost = request.arbitrator.appealCost(request.disputeID, arbitratorExtraData);
         if (winner == Party.None) {
             // Arbitrator did not rule or refused to rule.
             round.requiredForSide[uint(Party.Requester)] =
@@ -540,7 +537,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)])
         {
             round.appealed = true;
-            request.arbitratorData.arbitrator.appeal.value(appealCost)(request.disputeID, arbitratorExtraData);
+            request.arbitrator.appeal.value(appealCost)(request.disputeID, arbitratorExtraData);
 
             request.rounds.length++;
             round.feeRewards -= appealCost;
@@ -652,7 +649,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Decreases in arbitration costs could mean both sides are fully funded, in which case a dispute should be raised.
         // Update required amount for each side to check for this case.
         Round storage round = request.rounds[request.rounds.length - 1];
-        uint arbitrationCost = request.arbitratorData.arbitrator.arbitrationCost(arbitratorExtraData);
+        uint arbitrationCost = request.arbitrator.arbitrationCost(arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] =
             arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
         round.requiredForSide[uint(Party.Challenger)] =
@@ -660,7 +657,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] && round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
-            request.disputeID = request.arbitratorData.arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
             emit Dispute(arbitrator, request.disputeID, token.status == TokenStatus.RegistrationRequested ? 0 : 1);
@@ -904,7 +901,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             bool resolved,
             address[3] parties,
             uint numberOfRounds,
-            RulingOption ruling
+            RulingOption ruling,
+            Arbitrator arbitrator,
+            bytes arbitratorExtraData
         )
     {
         Request storage request = tokens[_tokenID].requests[_request];
@@ -917,28 +916,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.resolved,
             request.parties,
             request.rounds.length,
-            request.ruling
-        );
-    }
-
-    /** @dev Gets the arbitrator information of a request.
-     *  @param _tokenID The ID of the queried token.
-     *  @param _request The request to be queried.
-     *  @return The arbitrator information.
-     */
-    function getRequestArbitratorInfo (bytes32 _tokenID, uint _request)
-        external
-        view
-        returns (
-            Arbitrator arbitrator,
-            bytes arbitratorExtraData
-        )
-    {
-        Request storage request = tokens[_tokenID].requests[_request];
-        ArbitratorData storage arbitratorData = request.arbitratorData;
-        return (
-            arbitratorData.arbitrator,
-            arbitratorData.arbitratorExtraData
+            request.ruling,
+            request.arbitrator,
+            request.arbitratorExtraData
         );
     }
 
