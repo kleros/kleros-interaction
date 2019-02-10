@@ -49,8 +49,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // *  Request Life Cycle  * //
     // ************************ //
     // Changes to the token status are made via requests for either listing or removing a token from the Token² Curated List.
-    // The total cost a request varies depending on whether a party challenges that request and on the number of appeals.
-    // To place or challenge a request, a party must place value at stake. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
+    // The total cost of a request varies depending on whether a party challenges that request and on the number of appeals.
+    // To place or challenge a request, a party must make a deposit. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
     // Additionally to the challenge reward, in the case a party challenges a request, both sides must fully pay the amount of arbitration fees required to raise a dispute. The party that ultimately wins the case will be reimbursed.
     // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional value must placed at stake. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
     // In summary, costs for placing or challenging a request are the following:
@@ -92,7 +92,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake.
         bool requiredForSideSet; // Tracks if the required amount has been set. False if no one made any contributions after the arbitrator gave a ruling.
         uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
-        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
+        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
     struct ArbitratorData {
@@ -134,7 +134,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     event TokenSubmitted(string _name, string _ticker, string _symbolMultihash, bytes32 indexed _tokenID, address indexed _address);
 
-    /** @dev Emitted when a party makes contribution.
+    /** @dev Emitted when a party makes a contribution.
      *  @param _tokenID The ID of the token that received the contribution.
      *  @param _contributor The address that sent the contribution.
      *  @param _side The side the contribution was made to.
