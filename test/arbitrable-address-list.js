@@ -77,7 +77,6 @@ contract('ArbitrableAddressList', function(accounts) {
     arbitrableAddressList = await ArbitrableAddressList.new(
       arbitrator.address, // arbitrator
       arbitratorExtraData,
-      false,
       registrationMetaEvidence,
       clearingMetaEvidence,
       governor, // governor
@@ -142,10 +141,14 @@ contract('ArbitrableAddressList', function(accounts) {
     it('should execute request and allow submitter to withdraw if no one challenges', async () => {
       await expectThrow(
         // time to challenge did not pass yet.
-        arbitrableAddressList.timeout(submissionAddress, { frogitm: partyA })
+        arbitrableAddressList.executeRequest(submissionAddress, {
+          frogitm: partyA
+        })
       )
       await increaseTime(challengePeriodDuration + 1)
-      await arbitrableAddressList.timeout(submissionAddress, { from: partyA })
+      await arbitrableAddressList.executeRequest(submissionAddress, {
+        from: partyA
+      })
       assert.equal(
         (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
         0
@@ -204,7 +207,7 @@ contract('ArbitrableAddressList', function(accounts) {
             submissionAddress,
             0
           )
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundDispute(
             submissionAddress,
             PARTY.Challenger,
             {
@@ -215,7 +218,7 @@ contract('ArbitrableAddressList', function(accounts) {
 
           await increaseTime(arbitrationFeesWaitingTime + 1)
           await expectThrow(
-            arbitrableAddressList.fundLatestRound(
+            arbitrableAddressList.fundDispute(
               submissionAddress,
               PARTY.Requester,
               {
@@ -310,7 +313,7 @@ contract('ArbitrableAddressList', function(accounts) {
             0
           )
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundDispute(
             submissionAddress,
             PARTY.Challenger,
             {
@@ -319,7 +322,7 @@ contract('ArbitrableAddressList', function(accounts) {
             }
           )
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundDispute(
             submissionAddress,
             PARTY.Requester,
             {
@@ -385,7 +388,7 @@ contract('ArbitrableAddressList', function(accounts) {
             1
           )
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundAppeal(
             submissionAddress,
             PARTY.Requester,
             {
@@ -440,7 +443,7 @@ contract('ArbitrableAddressList', function(accounts) {
               appealCost) /
             MULTIPLIER_PRECISION
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundAppeal(
             submissionAddress,
             PARTY.Requester,
             {
@@ -449,7 +452,7 @@ contract('ArbitrableAddressList', function(accounts) {
             }
           )
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundAppeal(
             submissionAddress,
             PARTY.Challenger,
             {

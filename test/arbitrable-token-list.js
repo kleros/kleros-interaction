@@ -76,7 +76,6 @@ contract('ArbitrableTokenList', function(accounts) {
     arbitrableTokenList = await ArbitrableTokenList.new(
       arbitrator.address, // arbitrator
       arbitratorExtraData,
-      false,
       registrationMetaEvidence,
       clearingMetaEvidence,
       governor, // governor
@@ -102,7 +101,7 @@ contract('ArbitrableTokenList', function(accounts) {
             'OmiseGO',
             'OMG',
             0x0,
-            'omg',
+            'BcdwnVkEp8Nn41U2hoENwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
             { from: partyA }
           )
         )
@@ -115,7 +114,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
         { from: partyA, value: challengeReward }
       )
-      tokenID = tx.logs[0].args._tokenID
+      tokenID = tx.logs[1].args._tokenID
     })
 
     it('request should have been placed', async () => {
@@ -148,10 +147,10 @@ contract('ArbitrableTokenList', function(accounts) {
     it('should execute request and allow submitter to withdraw if no one challenges', async () => {
       await expectThrow(
         // time to challenge did not pass yet.
-        arbitrableTokenList.timeout(tokenID, { frogitm: partyA })
+        arbitrableTokenList.executeRequest(tokenID, { frogitm: partyA })
       )
       await increaseTime(challengePeriodDuration + 1)
-      await arbitrableTokenList.timeout(tokenID, { from: partyA })
+      await arbitrableTokenList.executeRequest(tokenID, { from: partyA })
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
         0
@@ -203,14 +202,14 @@ contract('ArbitrableTokenList', function(accounts) {
             MULTIPLIER_PRECISION
 
           let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
-          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Challenger, {
+          await arbitrableTokenList.fundDispute(tokenID, PARTY.Challenger, {
             from: partyB,
             value: arbitrationCost + sharedRequiredStake
           })
 
           await increaseTime(arbitrationFeesWaitingTime + 1)
           await expectThrow(
-            arbitrableTokenList.fundLatestRound(tokenID, PARTY.Requester, {
+            arbitrableTokenList.fundDispute(tokenID, PARTY.Requester, {
               from: partyA,
               value: arbitrationCost + sharedRequiredStake
             })
@@ -284,12 +283,12 @@ contract('ArbitrableTokenList', function(accounts) {
           request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           let round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
 
-          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Challenger, {
+          await arbitrableTokenList.fundDispute(tokenID, PARTY.Challenger, {
             from: partyB,
             value: arbitrationCost + sharedRequiredStake
           })
 
-          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Requester, {
+          await arbitrableTokenList.fundDispute(tokenID, PARTY.Requester, {
             from: partyA,
             value: arbitrationCost + sharedRequiredStake
           })
@@ -337,7 +336,7 @@ contract('ArbitrableTokenList', function(accounts) {
             (loserStakeMultiplier * appealCost) / MULTIPLIER_PRECISION
           let round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 1)
 
-          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Requester, {
+          await arbitrableTokenList.fundAppeal(tokenID, PARTY.Requester, {
             from: partyA,
             value: appealCost + loserRequiredStake
           })
@@ -376,12 +375,12 @@ contract('ArbitrableTokenList', function(accounts) {
               appealCost) /
             MULTIPLIER_PRECISION
 
-          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Requester, {
+          await arbitrableTokenList.fundAppeal(tokenID, PARTY.Requester, {
             from: partyA,
             value: appealCost + loserRequiredStake
           })
 
-          await arbitrableTokenList.fundLatestRound(tokenID, PARTY.Challenger, {
+          await arbitrableTokenList.fundAppeal(tokenID, PARTY.Challenger, {
             from: partyB,
             value: appealCost + winnerRequiredStake
           })
@@ -632,8 +631,8 @@ contract('ArbitrableTokenList', function(accounts) {
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauThawDkME1nFNQbCu',
         { from: partyA, value: challengeReward }
       )
-      mkrSubmissions.push(tx.logs[0].args._tokenID)
-      tokenIDs.push(tx.logs[0].args._tokenID)
+      mkrSubmissions.push(tx.logs[1].args._tokenID)
+      tokenIDs.push(tx.logs[1].args._tokenID)
 
       tx = await arbitrableTokenList.requestStatusChange(
         'MakerDAO',
@@ -642,8 +641,8 @@ contract('ArbitrableTokenList', function(accounts) {
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauZhawDkME1nFNQbCu',
         { from: partyA, value: challengeReward }
       )
-      mkrSubmissions.push(tx.logs[0].args._tokenID)
-      tokenIDs.push(tx.logs[0].args._tokenID)
+      mkrSubmissions.push(tx.logs[1].args._tokenID)
+      tokenIDs.push(tx.logs[1].args._tokenID)
 
       tx = await arbitrableTokenList.requestStatusChange(
         'MakerDAO',
@@ -652,11 +651,11 @@ contract('ArbitrableTokenList', function(accounts) {
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
         { from: partyA, value: challengeReward }
       )
-      mkrSubmissions.push(tx.logs[0].args._tokenID)
-      tokenIDs.push(tx.logs[0].args._tokenID)
+      mkrSubmissions.push(tx.logs[1].args._tokenID)
+      tokenIDs.push(tx.logs[1].args._tokenID)
       await increaseTime(challengePeriodDuration + 1)
       for (const ID of mkrSubmissions)
-        await arbitrableTokenList.timeout(ID, { from: partyA })
+        await arbitrableTokenList.executeRequest(ID, { from: partyA })
 
       tx = await arbitrableTokenList.requestStatusChange(
         'OmiseGO',
@@ -665,9 +664,9 @@ contract('ArbitrableTokenList', function(accounts) {
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
         { from: partyA, value: challengeReward }
       )
-      tokenIDs.push(tx.logs[0].args._tokenID)
+      tokenIDs.push(tx.logs[1].args._tokenID)
       await increaseTime(challengePeriodDuration + 1)
-      await arbitrableTokenList.timeout(tx.logs[0].args._tokenID, {
+      await arbitrableTokenList.executeRequest(tx.logs[1].args._tokenID, {
         from: partyA
       })
 
@@ -678,9 +677,9 @@ contract('ArbitrableTokenList', function(accounts) {
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
         { from: partyA, value: challengeReward }
       )
-      tokenIDs.push(tx.logs[0].args._tokenID)
+      tokenIDs.push(tx.logs[1].args._tokenID)
       await increaseTime(challengePeriodDuration + 1)
-      await arbitrableTokenList.timeout(tx.logs[0].args._tokenID, {
+      await arbitrableTokenList.executeRequest(tx.logs[1].args._tokenID, {
         from: partyA
       })
     })
