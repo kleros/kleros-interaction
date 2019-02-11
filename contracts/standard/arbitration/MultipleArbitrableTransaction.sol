@@ -126,6 +126,7 @@ contract MultipleArbitrableTransaction {
             arbitrationCost: 0
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
+
         return transactions.length - 1;
     }
 

@@ -141,6 +141,7 @@ contract MultipleArbitrableTokenTransaction {
             arbitrationCost: 0
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
+
         return transactions.length - 1;
     }
 
@@ -155,7 +156,7 @@ contract MultipleArbitrableTokenTransaction {
         require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
 
         transaction.amount -= _amount;
-        require(token.transfer(transaction.sender, _amount) != false, "The `transfer` function must not returns `false`.");
+        require(token.transfer(transaction.sender, _amount) != false, "The `transfer` function must not failed.");
     }
 
     /** @dev Reimburse receiver. To be called if the good or service can't be fully provided. UNTRUSTED.
@@ -169,7 +170,7 @@ contract MultipleArbitrableTokenTransaction {
         require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
         transaction.amount -= _amountReimbursed;
-        token.transfer(transaction.receiver, _amountReimbursed);
+        require(token.transfer(transaction.receiver, _amountReimbursed) != false, "The `transfer` function must not failed.");
     }
 
     /** @dev Transfer the transaction's amount to the sender if the timeout has passed. UNTRUSTED.
@@ -185,7 +186,7 @@ contract MultipleArbitrableTokenTransaction {
 
         transaction.status = Status.Resolved;
 
-        token.transfer(transaction.sender, amount);
+        require(token.transfer(transaction.sender, amount) != false, "The `transfer` function must not failed.");
     }
 
     /** @dev Reimburse receiver if sender fails to pay the fee. UNTRUSTED.
@@ -348,17 +349,17 @@ contract MultipleArbitrableTokenTransaction {
         // Note that we use `send` to prevent a party from blocking the execution.
         if (_ruling == uint(RulingOptions.SenderWins)) {
             transaction.sender.send(senderFee);
-            token.transfer(transaction.sender, amount);
+            require(token.transfer(transaction.sender, amount) != false, "The `transfer` function must not failed.");
         } else if (_ruling == uint(RulingOptions.ReceiverWins)) {
             transaction.receiver.send(receiverFee);
-            token.transfer(transaction.receiver, amount);
+            require(token.transfer(transaction.receiver, amount) != false, "The `transfer` function must not failed.");
         } else {
             uint split_arbitration_fee = (senderFee + receiverFee - transaction.arbitrationCost) / 2;
             transaction.receiver.send(split_arbitration_fee);
             transaction.sender.send(split_arbitration_fee);
             // In the case of an uneven token amount, one token can be burnt.
-            token.transfer(transaction.receiver, amount / 2);
-            token.transfer(transaction.sender, amount / 2);
+            require(token.transfer(transaction.receiver, amount / 2) != false, "The `transfer` function must not failed.");
+            require(token.transfer(transaction.sender, amount / 2) != false, "The `transfer` function must not failed.");
         }
     }
 
