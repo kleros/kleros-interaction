@@ -15,22 +15,21 @@ import "../../libraries/CappedMath.sol";
 
 /**
  *  @title ArbitrableAddressList
- *  This contract is arbitrable token curated list of addresses. Users can send requests to register or remove addresses from the list which can, in turn, be challenged by parties that disagree with the request.
+ *  This contract is an arbitrable token curated registry of addresses. Users can send requests to register or remove addresses from the registry which can, in turn, be challenged by parties that disagree with the request.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimately wins a dispute.
- *  NOTE: This contract trusts the Arbitrator not to try to reenter or modify its costs during a call. The governor contract (which will be a DAO) is also to be trusted.
+ *  NOTE: This contract trusts that the Arbitrator not to try to reenter or modify its costs during a call. The governor contract (which will be a DAO) is also to be trusted.
  */
 contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     using CappedMath for uint;
     /* solium-disable max-len*/
-    /* solium-disable operator-whitespace*/
 
     /* Enums */
 
     enum AddressStatus {
-        Absent, // The address is not on the list.
-        Registered, // The address is on the list.
-        RegistrationRequested, // The address has a request to be added to the list.
-        ClearingRequested // The address has a request to be removed from the list.
+        Absent, // The address is not in the registry.
+        Registered, // The address is in the registry.
+        RegistrationRequested, // The address has a request to be added to the registry.
+        ClearingRequested // The address has a request to be removed from the registry.
     }
 
     enum RulingOption {
@@ -41,7 +40,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     enum Party {
         None,
-        Requester, // Party that placed a request to change an address status.
+        Requester, // Party that made a request to change an address status.
         Challenger // Party challenging a request.
     }
 
@@ -50,13 +49,13 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     // ************************ //
     // Changes to the address status are made via requests for either listing or removing an address from the TCR.
     // The total cost of a request varies depending on whether a party challenges that request and on the number of appeals.
-    // To place or challenge a request, a party must place value at stake. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
+    // To make or challenge a request, a party must pay a deposit. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
     // Additionally to the challenge reward, in the case a party challenges a request, both sides must fully pay the amount of arbitration fees required to raise a dispute. The party that ultimately wins the case will be reimbursed.
-    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional value must placed at stake. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
+    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional value must be deposited. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
     // In summary, costs for placing or challenging a request are the following:
     // - A challenge reward given to the party that wins a potential dispute.
     // - Arbitration fees used to pay jurors.
-    // - Fee stake that is distributed among contributors of the side that ultimately wins a dispute.
+    // - A fee stake that is distributed among insurers of the side that ultimately wins a dispute.
 
     /* Structs */
     struct Address {
@@ -74,28 +73,22 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint disputeID; // ID of the dispute, if any.
         uint submissionTime; // Time when the request was made. Used to track when the challenge period ends.
         uint challengeRewardBalance; // The summation of requester's and challenger's deposit. This value will be given to the party that ultimately wins a potential dispute, or be reimbursed to the requester if no one challenges.
-        uint challengerDepositTime; // The time when a challenger placed his deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
+        uint challengerDepositTime; // The time when a challenger paid the deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
         bool resolved; // True if the request was executed and/or any disputes raised were resolved.
         address[3] parties; // Address of requester and challenger, if any.
         Round[] rounds; // Tracks each round of a dispute.
         RulingOption ruling; // The final ruling given, if any.
-        ArbitratorData arbitratorData; // The arbitrator used for this request.
+        Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
+        bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
     }
 
     struct Round {
         bool appealed; // True if this round was appealed.
-        uint oldWinnerTotalCost; // Governance changes on the second half of the appeal funding period create a difference between the amount that must be contributed by the winner and the loser. This variable tracks the amount that was required of the winner in the first round, before a change that happened on the second half of the funding period. It is used to calculate the amount that must be paid by the winner to fully fund his side, which is max(old total cost, new appeal cost).
         uint[3] paidFees; // Tracks the fees paid by each side on this round.
         uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake.
-        bool requiredForSideSet; // Tracks if the required amount has been set. False if no one made any contributions after the arbitrator gave a ruling.
+        bool[3] requiredForSideSet; // Tracks if the required for each side was been set.
         uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
-        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side, if any.
-    }
-
-    struct ArbitratorData {
-        Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
-        bool appealPeriodSupported; // Tracks whether the arbitrator has the appealPeriod function.
-        bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
+        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
     /* Modifiers */
@@ -104,8 +97,16 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /* Events */
 
+    /** @dev Emitted when a party makes a contribution.
+     *  @param _address The address the contribution was made to.
+     *  @param _contributor The contributor's address.
+     *  @param _side The side the contribution was made to.
+     *  @param _value The value of the contribution.
+     */
+    event Contribution(address indexed _address, address indexed _contributor, Party indexed _side, uint _value);
+
     /**
-     *  @dev Emitted when a party places a request, dispute or appeals are raised or when a request is resolved.
+     *  @dev Emitted when a party makes a request, dispute or appeals are raised or when a request is resolved.
      *  @param _requester Address of the party that submitted the request.
      *  @param _challenger Address of the party that challenged the request, if any.
      *  @param _address The affected address.
@@ -122,17 +123,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         bool _appealed
     );
 
-    /** @dev Emitted when a party makes contribution.
-     *  @param _address The address the contribution was made to.
-     *  @param _contributor The contributor's address.
-     *  @param _side The side the contribution was made to.
-     *  @param _value The value of the contribution.
-     */
-    event Contribution(address indexed _address, address indexed _contributor, Party indexed _side, uint _value);
-
     /** @dev Emitted when a deposit is made to challenge a request.
      *  @param _address The address that has the challenged request.
-     *  @param _challenger The address that placed the deposit.
+     *  @param _challenger The address that paid the deposit.
      */
     event ChallengeDepositPlaced(address indexed _address, address indexed _challenger);
 
@@ -148,44 +141,45 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     /* Storage */
 
     // Settings
-    uint public challengeReward; // The deposit required for placing and/or challenging a request. A party that wins a disputed request will be reimbursed and will receive the other's deposit.
+    uint public challengeReward; // The deposit required for making and/or challenging a request. A party that wins a disputed request will be reimbursed and will receive the other's deposit.
     uint public challengePeriodDuration; // The time before a request becomes executable if not challenged.
-    uint public arbitrationFeesWaitingTime; // The time available to fund arbitration fees and fee stake for a potential dispute.
-    address public governor; // The address that can make governance changes to the parameters of the Token Curated List.
-    bool public appealPeriodSupported; // Whether the currently set arbitrator supports the appealPeriod function.
+    uint public arbitrationFeesWaitingTime; // The time available to fund arbitration fees and fee stake for a dispute.
+    address public governor; // The address that can make governance changes to the parameters of the Token² Curated Registry.
 
     // The required fee stake that a party must pay depends on who won the previous round and is proportional to the arbitration cost such that the fee stake for a round is stake multiplier * arbitration cost for that round.
     // The value is the percentage in 2 digits precision (e.g. a multiplier of 5000 results the fee stake being 50% of the arbitration cost for that round).
     uint public winnerStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that won the previous round.
     uint public loserStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that lost the previous round.
-    uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that must be paid in the case where the previous round does not have a winner (e.g. when it's the first round or the arbitrator ruled "refused to rule"/"could not rule").
+    uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that must be paid in the case where there isn't a winner and loser (e.g. when it's the first round or the arbitrator ruled "refused to rule"/"could not rule").
     uint public constant MULTIPLIER_PRECISION = 10000; // Precision parameter for multipliers.
 
     mapping(address => Address) public addresses; // Maps the address to its current state.
-    mapping(uint => address) public disputeIDToAddress; // Maps a dispute ID to the affected address.
+    mapping(uint => address) public disputeIDToAddress; // Maps a dispute ID to the address with the disputed request.
     address[] public addressList; // List of submitted addresses.
+
+    // Meta evidence can be updated by the governor. These variables track the latest meta evidence to be used in disputes;
+    uint public registrationMetaEvidenceID; // The latest meta evidence ID to be used for registration request disputes.
+    uint public clearingMetaEvidenceID; // The latest meta evidence ID to be used for clearing request disputes.
 
     /* Constructor */
 
     /**
-     *  @dev Constructs the arbitrable token curated list.
+     *  @dev Constructs the arbitrable token curated registry.
      *  @param _arbitrator The trusted arbitrator to resolve potential disputes.
      *  @param _arbitratorExtraData Extra data for the trusted arbitrator contract.
-     *  @param _appealPeriodSupported Whether the arbitrator supports appeal period.
      *  @param _registrationMetaEvidence The URI of the meta evidence object for registration requests.
      *  @param _clearingMetaEvidence The URI of the meta evidence object for clearing requests.
      *  @param _governor The trusted governor of this contract.
-     *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
+      *  @param _arbitrationFeesWaitingTime The maximum time in seconds to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in weis required to submit or a challenge a request.
      *  @param _challengePeriodDuration The time in seconds, parties have to challenge a request.
-     *  @param _sharedStakeMultiplier Percentage of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule). Value in 2 digits precision (e.g. 2500 results in 25% of the arbitration cost value of that round).
-     *  @param _winnerStakeMultiplier Percentage of the arbitration cost that the winner has to pay as fee stake for a round. Value in 2 digits precision (e.g. 5000 results in 50% of the arbitration cost value of that round).
-     *  @param _loserStakeMultiplier Percentage of the arbitration cost that the loser has to pay as fee stake for a round. Value in 2 digits precision (e.g. 10000 results in 100% of the arbitration cost value of that round).
+     *  @param _sharedStakeMultiplier Percentage of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule). Value in 2 digits precision (e.g. 2500 results in a fee stake that is 25% of the arbitration cost value of that round).
+     *  @param _winnerStakeMultiplier Percentage of the arbitration cost that the winner has to pay as fee stake for a round. Value in 2 digits precision (e.g. 5000 results in a fee stake that is 50% of the arbitration cost value of that round).
+     *  @param _loserStakeMultiplier Percentage of the arbitration cost that the loser has to pay as fee stake for a round. Value in 2 digits precision (e.g. 10000 results in a fee stake that is 100% of the arbitration cost value of that round).
      */
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        bool _appealPeriodSupported,
         string _registrationMetaEvidence,
         string _clearingMetaEvidence,
         address _governor,
@@ -196,9 +190,11 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint _winnerStakeMultiplier,
         uint _loserStakeMultiplier
     ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
-        emit MetaEvidence(0, _registrationMetaEvidence);
-        emit MetaEvidence(1, _clearingMetaEvidence);
-        appealPeriodSupported = _appealPeriodSupported;
+        registrationMetaEvidenceID = 0;
+        clearingMetaEvidenceID = 1;
+        emit MetaEvidence(registrationMetaEvidenceID, _registrationMetaEvidence);
+        emit MetaEvidence(clearingMetaEvidenceID, _clearingMetaEvidence);
+
         governor = _governor;
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
         challengeReward = _challengeReward;
@@ -241,12 +237,22 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         request.submissionTime = now;
         request.rounds.length++;
         request.challengeRewardBalance = challengeReward;
-        request.arbitratorData = ArbitratorData(arbitrator, appealPeriodSupported, arbitratorExtraData);
+        request.arbitrator = arbitrator;
+        request.arbitratorExtraData = arbitratorExtraData;
 
-        // Calculate and save the total amount required to fully fund the each side.
+        // Calculate total amount required to fully fund the each side.
+        // The amount required for each side is:
+        //   total = arbitration cost + fee stake
+        // where:
+        //    fee stake = arbitration cost * multiplier
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(_address, round.oldWinnerTotalCost, round.requiredForSideSet);
-        round.requiredForSideSet = true;
+        uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
+        round.requiredForSide[uint(Party.Requester)] =
+            arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        round.requiredForSide[uint(Party.Challenger)] =
+            arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        round.requiredForSideSet[uint(Party.Requester)] = true;
+        round.requiredForSideSet[uint(Party.Challenger)] = true;
 
         // Take up to the amount necessary to fund the current round at the current costs.
         uint contribution;
@@ -254,7 +260,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         (contribution, remainingETH) = calculateContribution(remainingETH, round.requiredForSide[uint(Party.Requester)]);
         round.contributions[msg.sender][uint(Party.Requester)] = contribution;
         round.paidFees[uint(Party.Requester)] = contribution;
-        round.feeRewards += contribution;
+        round.feeRewards = contribution;
         if (contribution > 0)
             emit Contribution(_address, msg.sender, Party.Requester, contribution);
 
@@ -271,31 +277,41 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** @dev Challenges the latest request of an address. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest. TRUSTED.
-     *  @param _address The address with the request to execute.
+    /** @dev Challenges the latest request of an address. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
+     *  @param _address The address with the request to challenge.
      */
     function challengeRequest(address _address) external payable {
         Address storage addr = addresses[_address];
         require(
             addr.status == AddressStatus.RegistrationRequested || addr.status == AddressStatus.ClearingRequested,
-            "Address does not have any pending requests."
+            "The address does not have any pending requests."
         );
         Request storage request = addr.requests[addr.requests.length - 1];
         require(now - request.submissionTime < challengePeriodDuration, "The challenge period has already passed.");
         require(request.challengerDepositTime == 0, "Request should have only the requester's deposit.");
-        require(msg.value >= request.challengeRewardBalance, "Not enough ETH. Party starting dispute must place a deposit in full.");
+        require(
+            msg.value >= request.challengeRewardBalance,
+            "Not enough ETH. The party challenging the request must pay the challenge deposit in full."
+        );
 
         // Take the deposit and save the challenger's address.
         uint remainingETH = msg.value - request.challengeRewardBalance;
         request.challengeRewardBalance += request.challengeRewardBalance;
         request.parties[uint(Party.Challenger)] = msg.sender;
-        request.challengerDepositTime = now; // Save the start of the first round arbitration fees funding period.
+        request.challengerDepositTime = now; // Save the time the request left the challenge period and entered the arbitration fees funding period.
         emit ChallengeDepositPlaced(_address, msg.sender);
 
-        // Calculate and save the total amount required to fully fund the each side.
+        // Update the total amount required to fully fund the each side.
+        // The amount required for each side is:
+        //   total = arbitration cost + fee stake
+        // where:
+        //    fee stake = arbitration cost * multiplier
         Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(_address, round.oldWinnerTotalCost, round.requiredForSideSet);
-        round.requiredForSideSet = true;
+        uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
+        round.requiredForSide[uint(Party.Requester)] =
+            arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        round.requiredForSide[uint(Party.Challenger)] =
+            arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
 
         // Take up to the amount necessary to fund the current round at the current costs.
         uint contribution;
@@ -313,11 +329,16 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
-            uint arbitrationCost = request.arbitratorData.arbitrator.arbitrationCost(arbitratorExtraData);
-            request.disputeID = request.arbitratorData.arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToAddress[request.disputeID] = _address;
             request.disputed = true;
-            emit Dispute(arbitrator, request.disputeID, addr.status == AddressStatus.RegistrationRequested ? 0 : 1);
+            emit Dispute(
+                arbitrator,
+                request.disputeID,
+                addr.status == AddressStatus.RegistrationRequested
+                    ? registrationMetaEvidenceID
+                    : clearingMetaEvidenceID
+            );
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
@@ -333,60 +354,155 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Takes up to the total required to fund a side of the latest round, reimburses the rest. TRUSTED.
+    /** @dev Takes up to the total amount required of arbitration fees and fee stakes required to create a dispute. Reimburses the rest. Creates a dispute if both sides are fully funded. TRUSTED.
      *  @param _address The address with the request to execute.
      *  @param _side The recipient of the contribution.
      */
-    function fundLatestRound(address _address, Party _side) external payable {
+    function fundDispute(address _address, Party _side) external payable {
+        Address storage addr = addresses[_address];
+        require(
+            addr.status == AddressStatus.RegistrationRequested || addr.status == AddressStatus.ClearingRequested,
+            "The Address does not have any pending requests."
+        );
+        Request storage request = addr.requests[addr.requests.length - 1];
+        require(!request.disputed, "The request must not be already disputed.");
+        require(
+            now - request.challengerDepositTime < arbitrationFeesWaitingTime,
+            "The arbitration fees funding period is over."
+        );
+        if (_side == Party.Challenger)
+            require(
+                request.challengerDepositTime > 0,
+                "A challenge deposit must be paid before the challenger can accept contributions."
+            );
+
+        // Update the total amount required for each side.
+        // The amount required for each side is:
+        //   total = arbitration cost + fee stake
+        // where:
+        //    fee stake = arbitration cost * multiplier
+        Round storage round = request.rounds[request.rounds.length - 1];
+        uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
+        round.requiredForSide[uint(Party.Requester)] =
+            arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        round.requiredForSide[uint(Party.Challenger)] =
+            arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+
+        // Take contribution.
+        uint contribution;
+        uint remainingETH = msg.value;
+        (contribution, remainingETH) = calculateContribution(remainingETH, round.requiredForSide[uint(_side)]);
+        round.contributions[msg.sender][uint(_side)] += contribution;
+        round.paidFees[uint(_side)] += contribution;
+        round.feeRewards += contribution;
+        if (contribution > 0)
+            emit Contribution(_address, msg.sender, _side, contribution);
+
+        // Reimburse leftover ETH.
+        msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
+            round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
+
+            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
+            disputeIDToAddress[request.disputeID] = _address;
+            request.disputed = true;
+            emit Dispute(
+                arbitrator,
+                request.disputeID,
+                addr.status == AddressStatus.RegistrationRequested
+                    ? registrationMetaEvidenceID
+                    : clearingMetaEvidenceID
+            );
+
+            request.rounds.length++;
+            round.feeRewards -= arbitrationCost;
+
+            emit AddressStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _address,
+                addr.status,
+                true,
+                false
+            );
+        }
+    }
+
+    /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if both sides are fully funded. TRUSTED.
+     *  @param _address The address with the request to fund.
+     *  @param _side The recipient of the contribution.
+     */
+    function fundAppeal(address _address, Party _side) external payable {
         require(
             _side == Party.Requester || _side == Party.Challenger,
-            "Side must be either the requester or challenger."
+            "Recipient must be either the requester or challenger."
         );
         Address storage addr = addresses[_address];
         require(
             addr.status == AddressStatus.RegistrationRequested || addr.status == AddressStatus.ClearingRequested,
-            "Address does not have any pending requests."
+            "The Address does not have any pending requests."
         );
         Request storage request = addr.requests[addr.requests.length - 1];
-        require(request.challengerDepositTime > 0, "The request hasn't been challenged.");
+        require(request.disputed, "A dispute must have been raised to fund an appeal.");
+        (uint appealPeriodStart, uint appealPeriodEnd) = request.arbitrator.appealPeriod(request.disputeID);
+        require(
+            now >= appealPeriodStart && now < appealPeriodEnd,
+            "Contributions must be made within the appeal period."
+        );
 
-        // Calculate and save the total amount required to fully fund the each side.
-        Round storage round = request.rounds[request.rounds.length - 1];
-        round.requiredForSide = calculateRequiredForSide(_address, round.oldWinnerTotalCost, round.requiredForSideSet);
-        round.requiredForSideSet = true;
-
-        // Check if the contribution is within time restrictions, if there are any.
+        // Calculate and total amount required to fully fund the each side.
+        // The amount required for each side is:
+        //   total = arbitration cost + fee stake
+        // where:
+        //    fee stake = arbitration cost * multiplier
+        Party winner;
         Party loser;
-        if (!request.disputed) { // First round.
-            require(
-                now - request.challengerDepositTime < arbitrationFeesWaitingTime,
-                "The arbitration fees funding period of the first round has already passed."
-            );
-        } else if (request.arbitratorData.appealPeriodSupported) { // Later round.
-            (uint appealPeriodStart, uint appealPeriodEnd) = request.arbitratorData.arbitrator.appealPeriod(request.disputeID);
-            RulingOption currentRuling = RulingOption(request.arbitratorData.arbitrator.currentRuling(request.disputeID));
-            if (appealPeriodEnd > appealPeriodStart && currentRuling != RulingOption.Other) {
-                // Appeal period is known and there is a winner and loser.
-                // Contributions are time restricted to the first half if the beneficiary is the loser.
-                if (currentRuling == RulingOption.Refuse)
-                    loser = Party.Requester;
-                else
-                    loser = Party.Challenger;
+        Round storage round = request.rounds[request.rounds.length - 1];
+        RulingOption ruling = RulingOption(request.arbitrator.currentRuling(request.disputeID));
+        if (ruling == RulingOption.Accept) {
+            winner = Party.Requester;
+            loser = Party.Challenger;
+        } else if (ruling == RulingOption.Refuse) {
+            winner = Party.Challenger;
+            loser = Party.Requester;
+        }
 
-                // The losing side must fully fund in the first half of the appeal period.
-                if (_side == loser)
-                    require(
-                        now.subCap(appealPeriodStart) < (appealPeriodEnd.subCap(appealPeriodStart)) / 2,
-                        "Appeal period for funding the losing side ended."
-                    );
-                else {
-                    require(now < appealPeriodEnd, "Appeal period ended."); // Winner can only receive contributions in the appeal period.
-                    // Beneficiary is the winning side.
-                    // If in the first half of the appeal period, update the old total cost to the winner.
-                    // This is required to calculate the amount the winner has to pay when governance changes are made in the second half of the appeal period.
-                    if (now.subCap(appealPeriodStart) < (appealPeriodEnd.subCap(appealPeriodStart)) / 2) // First half of appeal period.
-                        round.oldWinnerTotalCost = round.requiredForSide[uint(_side)];
-                }
+        uint appealCost = request.arbitrator.appealCost(request.disputeID, request.arbitratorExtraData);
+        if (winner == Party.None) {
+            // Arbitrator did not rule or refused to rule.
+            round.requiredForSide[uint(Party.Requester)] =
+                appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+            round.requiredForSide[uint(Party.Challenger)] =
+                appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+            round.requiredForSideSet[uint(Party.Requester)] = true;
+            round.requiredForSideSet[uint(Party.Challenger)] = true;
+        } else {
+            // Arbitrator gave a decisive ruling.
+            if (_side == loser)
+                require(
+                    now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2,
+                    "Contributions to the loser must be done in the first half of the appeal period."
+                );
+
+
+            if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) {
+                // In first half of the appeal period. Update the amount required for each side.
+                round.requiredForSide[uint(loser)] =
+                    appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
+                round.requiredForSide[uint(winner)] =
+                    appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_PRECISION);
+                round.requiredForSideSet[uint(winner)] = true;
+                round.requiredForSideSet[uint(loser)] = true;
+            } else {
+                // In second half of appeal period. Update only the amount required to fully fund the winner.
+                // The amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
+                round.requiredForSide[uint(winner)] = round.requiredForSide[uint(winner)] > appealCost
+                    ? round.requiredForSide[uint(winner)]
+                    : appealCost;
+
+                round.requiredForSideSet[uint(winner)] = true;
             }
         }
 
@@ -404,48 +520,36 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
-        // Raise dispute or appeal if both sides are fully funded.
-        if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
+        // Raise appeal if both sides are fully funded.
+        if (round.requiredForSideSet[uint(Party.Requester)] &&
+            round.requiredForSideSet[uint(Party.Challenger)] &&
+            round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
-            uint cost = !request.disputed // First round.
-                ? request.arbitratorData.arbitrator.arbitrationCost(arbitratorExtraData)
-                : request.arbitratorData.arbitrator.appealCost(request.disputeID, arbitratorExtraData);
-
-            if (!request.disputed) {
-                // First round, raise dispute.
-                request.disputed = true;
-                request.disputeID = request.arbitratorData.arbitrator.createDispute.value(cost)(2, arbitratorExtraData);
-                disputeIDToAddress[request.disputeID] = _address;
-                emit Dispute(arbitrator, request.disputeID, addr.status == AddressStatus.RegistrationRequested ? 0 : 1);
-            } else {
-                // Later round, raise an appeal.
-                require(request.rounds.length > 1, "Only callable after dispute creation finishes executing."); // Defend against arbitrator reentry during dispute creation.
-                require(!round.appealed, "Round was already appealed."); // Defend against arbitrator reentry during appeal creation.
-                round.appealed = true;
-                request.arbitratorData.arbitrator.appeal.value(cost)(request.disputeID, arbitratorExtraData);
-            }
+            round.appealed = true;
+            request.arbitrator.appeal.value(appealCost)(request.disputeID, request.arbitratorExtraData);
 
             request.rounds.length++;
-            round.feeRewards -= cost;
+            round.feeRewards -= appealCost;
 
             emit AddressStatusChange(
                 request.parties[uint(Party.Requester)],
                 request.parties[uint(Party.Challenger)],
                 _address,
                 addr.status,
-                request.disputed,
-                round.appealed
+                true,
+                true
             );
         }
     }
 
-    /** @dev Reimburses caller's contributions if no disputes were raised. If a dispute was raised,  withdraws the rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
-     *  @param _address The address from which to withdraw.
+    /** @dev Reimburses contributions if no disputes were raised. If a dispute was raised, sends the fee stake rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
+     *  @param _beneficiary The address that made contributions to a request.
+     *  @param _address The address with the request from which to withdraw.
      *  @param _request The request from which to withdraw.
-     *  @param _round The request from which to withdraw.
+     *  @param _round The round from which to withdraw.
      */
-    function withdrawFeesAndRewards(address _address, uint _request, uint _round) external {
+    function withdrawFeesAndRewards(address _beneficiary, address _address, uint _request, uint _round) public {
         Address storage addr = addresses[_address];
         Request storage request = addr.requests[_request];
         Round storage round = request.rounds[_round];
@@ -457,15 +561,16 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint reward;
         if (!request.disputed || request.ruling == RulingOption.Other) {
             // No disputes were raised, or there isn't a winner and loser. Reimburse contributions.
-            uint shareRequester = round.paidFees[uint(Party.Requester)] == 0 ? 0 : round.contributions[msg.sender][uint(Party.Requester)] * MULTIPLIER_PRECISION / round.paidFees[uint(Party.Requester)];
-            uint shareChallenger = round.paidFees[uint(Party.Challenger)] == 0 ? 0 : round.contributions[msg.sender][uint(Party.Challenger)] * MULTIPLIER_PRECISION / round.paidFees[uint(Party.Challenger)];
-
-            uint rewardRequester = (shareRequester * round.feeRewards) / MULTIPLIER_PRECISION;
-            uint rewardChallenger = (shareChallenger * round.feeRewards) / MULTIPLIER_PRECISION;
+            uint rewardRequester = round.paidFees[uint(Party.Requester)] > 0
+                ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / round.paidFees[uint(Party.Requester)]
+                : 0;
+            uint rewardChallenger = round.paidFees[uint(Party.Challenger)] > 0
+                ? (round.contributions[_beneficiary][uint(Party.Challenger)] * round.feeRewards) / round.paidFees[uint(Party.Challenger)]
+                : 0;
 
             reward = rewardRequester + rewardChallenger;
-            round.contributions[msg.sender][uint(Party.Requester)] = 0;
-            round.contributions[msg.sender][uint(Party.Challenger)] = 0;
+            round.contributions[_beneficiary][uint(Party.Requester)] = 0;
+            round.contributions[_beneficiary][uint(Party.Challenger)] = 0;
         } else {
             Party winner;
             if (request.ruling == RulingOption.Accept)
@@ -474,72 +579,146 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                 winner = Party.Challenger;
 
             // Take rewards for funding the winner.
-            uint share = round.contributions[msg.sender][uint(winner)] * MULTIPLIER_PRECISION / round.paidFees[uint(winner)];
-            reward = (share * round.feeRewards) / MULTIPLIER_PRECISION;
-            round.contributions[msg.sender][uint(winner)] = 0;
+            reward = round.paidFees[uint(winner)] > 0
+                ? (round.contributions[_beneficiary][uint(winner)] * round.feeRewards) / round.paidFees[uint(winner)]
+                : 0;
+
+            round.contributions[_beneficiary][uint(winner)] = 0;
         }
 
-        emit RewardWithdrawal(_address, msg.sender, _request, _round,  reward);
-        msg.sender.transfer(reward);
+        emit RewardWithdrawal(_address, _beneficiary, _request, _round,  reward);
+        _beneficiary.transfer(reward);
     }
 
-    /** @dev Execute a request if no disputes were raised within the allowed period.
+    /** @dev Withdraws rewards and reimbursements of multiple rounds at once.
+     *  @param _beneficiary The address that made contributions to the request.
+     *  @param _address The address with funds to be withdrawn.
+     *  @param _request The request from which to withdraw contributions.
+     *  @param _cursor The position from where to start withdrawing.
+     *  @param _count The number of rounds to iterate. If set to a value larger than the number of rounds a request has, iteration will stop at the last round.
+     */
+    function batchWithdraw(address _beneficiary, address _address, uint _request, uint _cursor, uint _count) external {
+        Address storage addr = addresses[_address];
+        Request storage request = addr.requests[_request];
+        for (uint i = _cursor; i < request.rounds.length && i < _count; i++)
+            withdrawFeesAndRewards(_beneficiary, _address, _request, _cursor);
+    }
+
+    /** @dev Executes a requests if the challenge period passed and one challenged the request.
+     *  @param _address The address with the request to execute.
+     */
+    function executeRequest(address _address) external {
+        Address storage addr = addresses[_address];
+        Request storage request = addr.requests[addr.requests.length - 1];
+        require(request.challengerDepositTime == 0, "A party challenged the request.");
+        require(
+            now - request.submissionTime > challengePeriodDuration,
+            "The time to challenge has not passed yet."
+        );
+
+        if (addr.status == AddressStatus.RegistrationRequested)
+            addr.status = AddressStatus.Registered;
+        else if (addr.status == AddressStatus.ClearingRequested)
+            addr.status = AddressStatus.Absent;
+        else
+            revert("The address is in the wrong status for executing request.");
+
+        // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
+        request.challengeRewardBalance = 0;
+        request.resolved = true;
+
+        emit AddressStatusChange(
+            request.parties[uint(Party.Requester)],
+            request.parties[uint(Party.Challenger)],
+            _address,
+            addr.status,
+            false,
+            false
+        );
+    }
+
+    /** @dev Rules in favor of the side that received the most fee contributions. Raises a dispute if decreases in arbitration cost means both parties are fully funded. TRUSTED.
      *  @param _address The address with the request to execute.
      */
     function timeout(address _address) external {
         Address storage addr = addresses[_address];
         Request storage request = addr.requests[addr.requests.length - 1];
         require(!request.resolved, "The request is already resolved.");
-        if (request.challengerDepositTime == 0) {
-            // No one placed a challenge deposit.
-            require(
-                now - request.submissionTime > challengePeriodDuration,
-                "The time to challenge has not passed yet."
+        require(!request.disputed, "A dispute was raised for this request.");
+        require(request.challengerDepositTime > 0, "A party must have challenged the request.");
+        require(
+            now - request.challengerDepositTime > arbitrationFeesWaitingTime,
+            "There is still time to contribution."
+        );
+
+        // Decreases in arbitration costs could mean both sides are fully funded, in which case a dispute should be raised.
+        // Update required amount for each side to check for this case.
+        // The amount required for each side is:
+        //   total = arbitration cost + fee stake
+        // where:
+        //    fee stake = arbitration cost * multiplier
+        Round storage round = request.rounds[request.rounds.length - 1];
+        uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
+        round.requiredForSide[uint(Party.Requester)] =
+            arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        round.requiredForSide[uint(Party.Challenger)] =
+            arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+
+        // Raise dispute if both sides are fully funded.
+        if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
+            round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
+
+            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
+            disputeIDToAddress[request.disputeID] = _address;
+            request.disputed = true;
+            emit Dispute(
+                arbitrator,
+                request.disputeID,
+                addr.status == AddressStatus.RegistrationRequested
+                    ? registrationMetaEvidenceID
+                    : clearingMetaEvidenceID
             );
 
+            request.rounds.length++;
+            round.feeRewards -= arbitrationCost;
+
+            emit AddressStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _address,
+                addr.status,
+                true,
+                false
+            );
+            return;
+        }
+
+        // Rule in favor of requester if he paid more or the same amount of the challenger. Rule in favor of challenger otherwise.
+        Party winner;
+        if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
+            winner = Party.Requester;
+        else
+            winner = Party.Challenger;
+
+        // Update the address state
+        if (winner == Party.Requester) // Execute Request
             if (addr.status == AddressStatus.RegistrationRequested)
                 addr.status = AddressStatus.Registered;
-            else if (addr.status == AddressStatus.ClearingRequested)
+            else
                 addr.status = AddressStatus.Absent;
-            else
-                revert("Address in wrong status for executing request.");
+        else // Revert to previous state.
+            if (addr.status == AddressStatus.RegistrationRequested)
+                addr.status = AddressStatus.Absent;
+            else if (addr.status == AddressStatus.ClearingRequested)
+                addr.status = AddressStatus.Registered;
 
-            // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        // Reimburse deposit and send challenge reward.
+        // Deliberate use of send in order to not block the contract in case the recipient refuses payments.
+        if (winner == Party.Requester)
             request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
-        } else {
-            require(!request.disputed, "A dispute must not have been raised.");
-            require(
-                now - request.challengerDepositTime > arbitrationFeesWaitingTime,
-                "There is still time to place a contribution."
-            );
-
-            // Rule in favor of requester if he paid more or the same amount of the challenger. Rule in favor of challenger otherwise.
-            Round storage round = request.rounds[request.rounds.length - 1];
-            Party winner;
-            if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
-                winner = Party.Requester;
-            else
-                winner = Party.Challenger;
-
-            // Update address state
-            if (winner == Party.Requester) // Execute Request
-                if (addr.status == AddressStatus.RegistrationRequested)
-                    addr.status = AddressStatus.Registered;
-                else
-                    addr.status = AddressStatus.Absent;
-            else // Revert to previous state.
-                if (addr.status == AddressStatus.RegistrationRequested)
-                    addr.status = AddressStatus.Absent;
-                else if (addr.status == AddressStatus.ClearingRequested)
-                    addr.status = AddressStatus.Registered;
-
-            // Send address balance.
-            // Deliberate use of send in order to not block the contract in case the recipient refuses payments.
-            if (winner == Party.Challenger)
-                request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
-            else
-                request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
-        }
+        else
+            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
 
         request.challengeRewardBalance = 0;
         request.resolved = true;
@@ -565,25 +744,29 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         Request storage request = addr.requests[addr.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
 
-        // Account for contributions to an appeal made by each side.
-        if(round.requiredForSideSet) { // It only makes sense to check the amount of fees paid if a party made a contribution. If it is not, the ruling should be respected.
+        // The ruling may be inverted depending on the amount of fee contributions received by each side.
+        // Rule in favor of the party that received the most contributions, if there were contributions at all. Respect the ruling otherwise.
+        // If the required amount for a party was never set, it means that side never received a contribution.
+        if (round.requiredForSideSet[uint(Party.Requester)] && round.requiredForSideSet[uint(Party.Challenger)]) {
+            // Both parties received contributions for an appeal.
             if (resultRuling == RulingOption.Other) {
-                // Rule in favor of the requester if he contributed more than or the same amount as the challenger. Rule in favor of the challenger otherwise.
-                if(round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
+                // Rule in favor of the requester if he received more or the same amount of contributions as the challenger. Rule in favor of the challenger otherwise.
+                if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
                     resultRuling = RulingOption.Accept;
                 else
                     resultRuling = RulingOption.Refuse;
             } else {
-                // Invert ruling if the loser fully funded but the winner did not.
+                // Invert ruling if the loser fully funded but the winner did not. Respect the ruling otherwise.
                 Party winner;
                 Party loser;
                 if (resultRuling == RulingOption.Accept) {
                     winner = Party.Requester;
                     loser = Party.Challenger;
-                } else if (resultRuling == RulingOption.Refuse) {
+                } else {
                     winner = Party.Challenger;
                     loser = Party.Requester;
                 }
+
                 if (round.paidFees[uint(loser)] >= round.requiredForSide[uint(loser)]) {
                     if (resultRuling == RulingOption.Refuse)
                         resultRuling = RulingOption.Accept;
@@ -591,6 +774,13 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                         resultRuling = RulingOption.Refuse;
                 }
             }
+        } else if (round.requiredForSideSet[uint(Party.Requester)] || round.requiredForSideSet[uint(Party.Challenger)]) {
+            // A party received a contribution but the other did not.
+            // Rule in favor of the party that received the contribution.
+            if (round.requiredForSideSet[uint(Party.Requester)])
+                resultRuling = RulingOption.Accept;
+            else
+                resultRuling = RulingOption.Refuse;
         }
 
         emit Ruling(Arbitrator(msg.sender), _disputeID, uint(resultRuling));
@@ -620,14 +810,14 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         challengePeriodDuration = _challengePeriodDuration;
     }
 
-    /** @dev Change the required deposit required to place or challenge a request.
-     *  @param _challengeReward The new amount of wei required to place or challenge a request.
+    /** @dev Change the required amount required as deposit to make or challenge a request.
+     *  @param _challengeReward The new amount of wei required to make or challenge a request.
      */
     function changeChallengeReward(uint _challengeReward) external onlyGovernor {
         challengeReward = _challengeReward;
     }
 
-    /** @dev Change the governor of the Token Curated List.
+    /** @dev Change the governor of the token curated registry.
      *  @param _governor The address of the new governor.
      */
     function changeGovernor(address _governor) external onlyGovernor {
@@ -641,8 +831,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
     }
 
-    /** @dev Change the percentage of arbitration fees that must be paid as fee stake by parties when there wasn't a winner or loser in the previous round.
-     *  @param _sharedStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 1000 will result in 10% of the arbitration fees required in that round).
+    /** @dev Change the percentage of arbitration fees that must be paid as fee stake by parties when there isn't a winner or loser.
+     *  @param _sharedStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 1000 will result in 10% of the arbitration fees required as fee stake in that round).
      */
     function changeSharedStakeMultiplier(uint _sharedStakeMultiplier) external onlyGovernor {
         sharedStakeMultiplier = _sharedStakeMultiplier;
@@ -656,30 +846,35 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by party that lost the previous round.
-     *  @param _loserStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 10000 will result in 100% of the arbitration fees required in that round).
+     *  @param _loserStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 10000 will result in 100% of the arbitration fees as fee stake required in that round).
      */
     function changeLoserStakeMultiplier(uint _loserStakeMultiplier) external onlyGovernor {
         loserStakeMultiplier = _loserStakeMultiplier;
     }
 
-    /** @dev Change the arbitrator to be used for disputes in the next requests.
-     *  @param _appealPeriodSupported Whether the new arbitrator supports the appealPeriod function.
+    /** @dev Change the arbitrator to be used for disputes that may be raised in the next requests. The arbitrator is trusted to support appeal periods and not reenter.
      *  @param _arbitrator The new trusted arbitrator to be used in the next requests.
      *  @param _arbitratorExtraData The extra data used by the new arbitrator.
      */
-    function changeArbitrator(
-        bool _appealPeriodSupported,
-        address _arbitrator,
-        bytes _arbitratorExtraData
-    ) external onlyGovernor {
-        arbitrator = Arbitrator(_arbitrator);
+    function changeArbitrator(Arbitrator _arbitrator, bytes _arbitratorExtraData) external onlyGovernor {
+        arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
-        appealPeriodSupported = _appealPeriodSupported;
+    }
+
+    /** @dev Update the meta evidence used for disputes.
+     *  @param _registrationMetaEvidence The meta evidence to be used for future registration request disputes.
+     *  @param _clearingMetaEvidence The meta evidence to be used for future clearing request disputes.
+     */
+    function changeMetaEvidence(string _registrationMetaEvidence, string _clearingMetaEvidence) external onlyGovernor {
+        registrationMetaEvidenceID++;
+        clearingMetaEvidenceID++;
+        emit MetaEvidence(registrationMetaEvidenceID, _registrationMetaEvidence);
+        emit MetaEvidence(clearingMetaEvidenceID, _clearingMetaEvidence);
     }
 
     /* Public Views */
 
-    /** @dev Return true if the address is on the list.
+    /** @dev Return true if the address is on the registry.
      *  @param _value The address to be queried.
      *  @return allowed True if the address is allowed, false otherwise.
      */
@@ -688,17 +883,111 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         return addr.status == AddressStatus.Registered || addr.status == AddressStatus.ClearingRequested;
     }
 
-    /** @dev Returns address status and number of requests.
+    /** @dev Returns address information. Includes length of requests array.
      *  @param _address The queried address.
      *  @return The address information.
      */
     function getAddressInfo(address _address)
         external
         view
-        returns (AddressStatus status, uint numberOfRequests)
+        returns (
+            AddressStatus status,
+            uint numberOfRequests
+        )
     {
         Address storage addr = addresses[_address];
-        return (addr.status, addr.requests.length);
+        return (addr.status, addr.numberOfRequests);
+    }
+
+    /** @dev Gets information on a request made for an address.
+     *  @param _address The queried address
+     *  @param _request The request to be queried.
+     *  @return The request information.
+     */
+    function getRequestInfo(address _address, uint _request)
+        external
+        view
+        returns (
+            bool disputed,
+            uint disputeID,
+            uint submissionTime,
+            uint challengeRewardBalance,
+            uint challengerDepositTime,
+            bool resolved,
+            address[3] parties,
+            uint numberOfRounds,
+            RulingOption ruling,
+            Arbitrator arbitrator,
+            bytes arbitratorExtraData
+        )
+    {
+        Request storage request = addresses[_address].requests[_request];
+        return (
+            request.disputed,
+            request.disputeID,
+            request.submissionTime,
+            request.challengeRewardBalance,
+            request.challengerDepositTime,
+            request.resolved,
+            request.parties,
+            request.rounds.length,
+            request.ruling,
+            request.arbitrator,
+            request.arbitratorExtraData
+        );
+    }
+
+    /** @dev Gets the information on a round of a request.
+     *  @param _address The queried address.
+     *  @param _request The request to be queried.
+     *  @param _round The round to be queried.
+     *  @return The round information.
+     */
+    function getRoundInfo(address _address, uint _request, uint _round)
+        external
+        view
+        returns (
+            bool appealed,
+            uint[3] paidFees,
+            uint[3] requiredForSide,
+            uint feeRewards
+        )
+    {
+        Address storage addr = addresses[_address];
+        Request storage request = addr.requests[_request];
+        Round storage round = request.rounds[_round];
+        return (
+            round.appealed,
+            round.paidFees,
+            round.requiredForSide,
+            round.feeRewards
+        );
+    }
+
+    /** @dev Gets the contributions made by a party for a given request.
+     *  @param _address The address to be queried.
+     *  @param _request The position of the request.
+     *  @param _round The position of the round.
+     *  @param _contributor The address of the contributor.
+     *  @return The contributions.
+     */
+    function getContributions(
+        address _address,
+        uint _request,
+        uint _round,
+        address _contributor
+    ) external view returns(uint[3] contributions) {
+        Address storage addr = addresses[_address];
+        Request storage request = addr.requests[_request];
+        Round storage round = request.rounds[_round];
+        contributions = round.contributions[_contributor];
+    }
+
+    /** @dev Return the numbers of addresses that were submitted. Includes addresses that never made it to the registry or were later removed.
+     *  @return The numbers of addresses in the registry.
+     */
+    function addressCount() external view returns (uint count) {
+        return addressList.length;
     }
 
     /* Internal */
@@ -756,81 +1045,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** @dev Returns the amount that must be paid by each side to fully fund a dispute or appeal. TRUSTED.
-     *  Capped math is used to deal with over/underflows since the arbitrator can return high values for appeal and arbitration cost to denote unpayable amounts.
-     *  @param _address The address to be queried.
-     *  @param _oldWinnerTotalCost The total amount of fees the winner had to pay before a governance change in the second half of an appeal period. If the appeal period is not known or the arbitrator does not support appeal period, this parameter is unused.
-     *  @param _requiredForSideSet Whether the required amount for each side has been set previously.
-     *  @return The amount of ETH required for each side.
-     */
-    function calculateRequiredForSide(address _address, uint _oldWinnerTotalCost, bool _requiredForSideSet)
-        internal
-        view
-        returns(uint[3] requiredForSide)
-    {
-        Address storage addr = addresses[_address];
-        Request storage request = addr.requests[addr.requests.length - 1];
-
-        if (!request.disputed) { // First round of a dispute.
-            uint arbitrationCost = request.arbitratorData.arbitrator.arbitrationCost(arbitratorExtraData);
-            requiredForSide[uint(Party.Requester)] =
-                arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-            requiredForSide[uint(Party.Challenger)] =
-                arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-            return;
-        }
-
-        Party winner;
-        Party loser;
-        RulingOption ruling = RulingOption(request.arbitratorData.arbitrator.currentRuling(request.disputeID));
-        if (ruling == RulingOption.Accept) {
-            winner = Party.Requester;
-            loser = Party.Challenger;
-        } else if (ruling == RulingOption.Refuse) {
-            winner = Party.Challenger;
-            loser = Party.Requester;
-        }
-
-        uint appealCost = request.arbitratorData.arbitrator.appealCost(request.disputeID, arbitratorExtraData);
-        if (winner != Party.None) {
-            // Arbitrator gave a decisive ruling.
-            // Set the required amount for the winner.
-            requiredForSide[uint(winner)] = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_PRECISION);
-
-            if (request.arbitratorData.appealPeriodSupported) {
-                (uint appealPeriodStart, uint appealPeriodEnd) = request.arbitratorData.arbitrator.appealPeriod(request.disputeID);
-                if (appealPeriodEnd > appealPeriodStart){ // The appeal period is known.
-                    // Fee changes in the second half of the appeal period may create a difference between the amount paid by the winner and the amount paid by the loser.
-                    // To deal with this case, the amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
-                    if (now.subCap(appealPeriodStart) > (appealPeriodEnd.subCap(appealPeriodStart)) / 2) {
-                        // In second half of appeal period.
-                        uint newTotalCost = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_PRECISION);
-                        requiredForSide[uint(winner)] = _oldWinnerTotalCost > newTotalCost
-                            ? _oldWinnerTotalCost
-                            : newTotalCost;
-                    }
-
-                    // Set the required amount for the loser.
-                    if (!_requiredForSideSet)
-                        requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
-
-                    // The required amount for the loser may only be updated by governance/fee changes made in the first half of the appeal period. Otherwise, increases would cause the loser to lose the case due to being underfunded.
-                    if (now.subCap(appealPeriodStart) < (appealPeriodEnd.subCap(appealPeriodStart)) / 2) // In first half of appeal period.
-                        requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
-                } else // Arbitration period is not knwon. Update loser's required value as well.
-                    requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
-            } else // The arbitrator does not support appeal period. Update loser's required value as well.
-                requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
-
-        } else {
-            // Arbitrator did not rule or refused to rule.
-            requiredForSide[uint(Party.Requester)] =
-                appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-            requiredForSide[uint(Party.Challenger)] =
-                appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-        }
-    }
-
      /** @dev Returns the contribution value and remainder from available ETH and required amount.
      *  @param _available The amount of ETH available for the contribution.
      *  @param _requiredAmount The amount of ETH required for the contribution.
@@ -851,136 +1065,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /* Interface Views */
 
-    /** @dev Returns address information. Includes length of requests array.
-     *  @param _address The queried address.
-     *  @return The address information.
-     */
-    function getTokenInfo(address _address)
-        external
-        view
-        returns (
-            AddressStatus status,
-            uint numberOfRequests
-        )
-    {
-        Address storage addr = addresses[_address];
-        return (addr.status, addr.numberOfRequests);
-    }
-
-    /** @dev Gets information on a request made for an address.
-     *  @param _address The queried address
-     *  @param _request The request to be queried.
-     *  @return The request information.
-     */
-    function getRequestInfo(address _address, uint _request)
-        external
-        view
-        returns (
-            bool disputed,
-            uint disputeID,
-            uint submissionTime,
-            uint challengeRewardBalance,
-            uint challengerDepositTime,
-            bool resolved,
-            address[3] parties,
-            uint numberOfRounds,
-            RulingOption ruling
-        )
-    {
-        Request storage request = addresses[_address].requests[_request];
-        return (
-            request.disputed,
-            request.disputeID,
-            request.submissionTime,
-            request.challengeRewardBalance,
-            request.challengerDepositTime,
-            request.resolved,
-            request.parties,
-            request.rounds.length,
-            request.ruling
-        );
-    }
-
-    /** @dev Gets the arbitrator information of a request.
-     *  @param _address The queried address.
-     *  @param _request The request to be queried.
-     *  @return The arbitrator information.
-     */
-    function getRequestArbitratorInfo (address _address, uint _request)
-        external
-        view
-        returns (
-            Arbitrator arbitrator,
-            bool appealPeriodSupported,
-            bytes arbitratorExtraData
-        )
-    {
-        Request storage request = addresses[_address].requests[_request];
-        ArbitratorData storage arbitratorData = request.arbitratorData;
-        return (
-            arbitratorData.arbitrator,
-            arbitratorData.appealPeriodSupported,
-            arbitratorData.arbitratorExtraData
-        );
-    }
-
-    /** @dev Gets the information on a round of a request.
-     *  @param _address The queried address.
-     *  @param _request The request to be queried.
-     *  @param _round The round to be queried.
-     *  @return The round information.
-     */
-    function getRoundInfo(address _address, uint _request, uint _round)
-        external
-        view
-        returns (
-            bool appealed,
-            uint oldWinnerTotalCost,
-            uint[3] paidFees,
-            uint[3] requiredForSide,
-            uint feeRewards
-        )
-    {
-        Address storage addr = addresses[_address];
-        Request storage request = addr.requests[_request];
-        Round storage round = request.rounds[_round];
-        return (
-            round.appealed,
-            round.oldWinnerTotalCost,
-            round.paidFees,
-            round.requiredForSide,
-            round.feeRewards
-        );
-    }
-
-    /** @dev Gets the contributions made by a party for a given request.
-     *  @param _address The address to be queried.
-     *  @param _request The position of the request.
-     *  @param _round The position of the round.
-     *  @param _contributor The address of the contributor.
-     *  @return The contributions.
-     */
-    function getContributions(
-        address _address,
-        uint _request,
-        uint _round,
-        address _contributor
-    ) external view returns(uint[3] contributions) {
-        Address storage addr = addresses[_address];
-        Request storage request = addr.requests[_request];
-        Round storage round = request.rounds[_round];
-        contributions = round.contributions[_contributor];
-    }
-
-    /** @dev Return the numbers of addresses that were submitted. Includes addresses that never made it to the list or were later removed.
-     *  @return The numbers of addresses in the list.
-     */
-    function addressCount() external view returns (uint count) {
-        return addressList.length;
-    }
-
     /** @dev Return the numbers of addresses with each status. This function is O(n) at worst, where n is the number of addresses. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
-     *  @return The numbers of addresses in the list per status.
+     *  @return The numbers of addresses in the registry per status.
      */
     function countByStatus()
         external

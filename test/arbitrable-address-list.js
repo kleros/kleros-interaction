@@ -77,7 +77,6 @@ contract('ArbitrableAddressList', function(accounts) {
     arbitrableAddressList = await ArbitrableAddressList.new(
       arbitrator.address, // arbitrator
       arbitratorExtraData,
-      false,
       registrationMetaEvidence,
       clearingMetaEvidence,
       governor, // governor
@@ -131,8 +130,8 @@ contract('ArbitrableAddressList', function(accounts) {
         0
       )
       assert.isFalse(request[0])
-      assert.equal(round[4].toNumber(), 0)
-      assert.equal(round[2][PARTY.Requester].toNumber(), 0)
+      assert.equal(round[3].toNumber(), 0)
+      assert.equal(round[1][PARTY.Requester].toNumber(), 0)
       assert.equal(
         await web3.eth.getBalance(arbitrableAddressList.address),
         challengeReward
@@ -142,21 +141,23 @@ contract('ArbitrableAddressList', function(accounts) {
     it('should execute request and allow submitter to withdraw if no one challenges', async () => {
       await expectThrow(
         // time to challenge did not pass yet.
-        arbitrableAddressList.timeout(submissionAddress, { frogitm: partyA })
+        arbitrableAddressList.executeRequest(submissionAddress, {
+          frogitm: partyA
+        })
       )
       await increaseTime(challengePeriodDuration + 1)
-      await arbitrableAddressList.timeout(submissionAddress, { from: partyA })
+      await arbitrableAddressList.executeRequest(submissionAddress, {
+        from: partyA
+      })
       assert.equal(
         (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
         0
       )
       await arbitrableAddressList.withdrawFeesAndRewards(
+        partyA,
         submissionAddress,
         0,
-        0,
-        {
-          from: partyA
-        }
+        0
       )
       assert.equal(
         (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
@@ -204,7 +205,7 @@ contract('ArbitrableAddressList', function(accounts) {
             submissionAddress,
             0
           )
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundDispute(
             submissionAddress,
             PARTY.Challenger,
             {
@@ -215,7 +216,7 @@ contract('ArbitrableAddressList', function(accounts) {
 
           await increaseTime(arbitrationFeesWaitingTime + 1)
           await expectThrow(
-            arbitrableAddressList.fundLatestRound(
+            arbitrableAddressList.fundDispute(
               submissionAddress,
               PARTY.Requester,
               {
@@ -251,20 +252,16 @@ contract('ArbitrableAddressList', function(accounts) {
           assert.isAbove(partyBContributionsBefore, partyAContributionsBefore)
 
           await arbitrableAddressList.withdrawFeesAndRewards(
+            partyA,
             submissionAddress,
             0,
-            request[7].toNumber() - 1,
-            {
-              from: partyA
-            }
+            request[7].toNumber() - 1
           )
           await arbitrableAddressList.withdrawFeesAndRewards(
+            partyB,
             submissionAddress,
             0,
-            request[7].toNumber() - 1,
-            {
-              from: partyB
-            }
+            request[7].toNumber() - 1
           )
 
           const partyAContributionsAfter = (await arbitrableAddressList.getContributions(
@@ -310,7 +307,7 @@ contract('ArbitrableAddressList', function(accounts) {
             0
           )
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundDispute(
             submissionAddress,
             PARTY.Challenger,
             {
@@ -319,7 +316,7 @@ contract('ArbitrableAddressList', function(accounts) {
             }
           )
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundDispute(
             submissionAddress,
             PARTY.Requester,
             {
@@ -339,20 +336,20 @@ contract('ArbitrableAddressList', function(accounts) {
           )
 
           assert.equal(
-            round[2][PARTY.Requester].toNumber(),
+            round[1][PARTY.Requester].toNumber(),
             arbitrationCost + sharedRequiredStake
           )
           assert.equal(
-            round[2][PARTY.Challenger].toNumber(),
+            round[1][PARTY.Challenger].toNumber(),
             arbitrationCost + sharedRequiredStake
           )
           assert.equal(
-            round[2][PARTY.Requester].toNumber(),
-            round[3][PARTY.Requester].toNumber()
+            round[1][PARTY.Requester].toNumber(),
+            round[2][PARTY.Requester].toNumber()
           )
           assert.equal(
-            round[2][PARTY.Challenger].toNumber(),
-            round[3][PARTY.Challenger].toNumber()
+            round[1][PARTY.Challenger].toNumber(),
+            round[2][PARTY.Challenger].toNumber()
           )
           assert.isTrue(request[0], 'request should be disputed')
 
@@ -385,7 +382,7 @@ contract('ArbitrableAddressList', function(accounts) {
             1
           )
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundAppeal(
             submissionAddress,
             PARTY.Requester,
             {
@@ -404,8 +401,8 @@ contract('ArbitrableAddressList', function(accounts) {
             1
           )
           assert.equal(
-            round[2][PARTY.Requester].toNumber(),
-            round[3][PARTY.Requester].toNumber()
+            round[1][PARTY.Requester].toNumber(),
+            round[2][PARTY.Requester].toNumber()
           )
           assert.isFalse(round[0])
 
@@ -440,7 +437,7 @@ contract('ArbitrableAddressList', function(accounts) {
               appealCost) /
             MULTIPLIER_PRECISION
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundAppeal(
             submissionAddress,
             PARTY.Requester,
             {
@@ -449,7 +446,7 @@ contract('ArbitrableAddressList', function(accounts) {
             }
           )
 
-          await arbitrableAddressList.fundLatestRound(
+          await arbitrableAddressList.fundAppeal(
             submissionAddress,
             PARTY.Challenger,
             {
