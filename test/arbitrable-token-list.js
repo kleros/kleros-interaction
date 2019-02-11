@@ -136,8 +136,8 @@ contract('ArbitrableTokenList', function(accounts) {
       const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
       const round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
       assert.isFalse(request[0])
-      assert.equal(round[4].toNumber(), 0)
-      assert.equal(round[2][PARTY.Requester].toNumber(), 0)
+      assert.equal(round[3].toNumber(), 0)
+      assert.equal(round[1][PARTY.Requester].toNumber(), 0)
       assert.equal(
         await web3.eth.getBalance(arbitrableTokenList.address),
         challengeReward
@@ -291,20 +291,20 @@ contract('ArbitrableTokenList', function(accounts) {
           round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
 
           assert.equal(
-            round[2][PARTY.Requester].toNumber(),
+            round[1][PARTY.Requester].toNumber(),
             arbitrationCost + sharedRequiredStake
           )
           assert.equal(
-            round[2][PARTY.Challenger].toNumber(),
+            round[1][PARTY.Challenger].toNumber(),
             arbitrationCost + sharedRequiredStake
           )
           assert.equal(
-            round[2][PARTY.Requester].toNumber(),
-            round[3][PARTY.Requester].toNumber()
+            round[1][PARTY.Requester].toNumber(),
+            round[2][PARTY.Requester].toNumber()
           )
           assert.equal(
-            round[2][PARTY.Challenger].toNumber(),
-            round[3][PARTY.Challenger].toNumber()
+            round[1][PARTY.Challenger].toNumber(),
+            round[2][PARTY.Challenger].toNumber()
           )
           assert.isTrue(request[0], 'request should be disputed')
 
@@ -338,8 +338,8 @@ contract('ArbitrableTokenList', function(accounts) {
           request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 1)
           assert.equal(
-            round[2][PARTY.Requester].toNumber(),
-            round[3][PARTY.Requester].toNumber()
+            round[1][PARTY.Requester].toNumber(),
+            round[2][PARTY.Requester].toNumber()
           )
           assert.isFalse(round[0])
 
