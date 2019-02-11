@@ -15,22 +15,21 @@ import "../../libraries/CappedMath.sol";
 
 /**
  *  @title ArbitrableAddressList
- *  This contract is arbitrable token curated list of addresses. Users can send requests to register or remove addresses from the list which can, in turn, be challenged by parties that disagree with the request.
+ *  This contract is an arbitrable token curated registry of addresses. Users can send requests to register or remove addresses from the registry which can, in turn, be challenged by parties that disagree with the request.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimately wins a dispute.
- *  NOTE: This contract trusts the Arbitrator not to try to reenter or modify its costs during a call. The governor contract (which will be a DAO) is also to be trusted.
+ *  NOTE: This contract trusts that the Arbitrator not to try to reenter or modify its costs during a call. The governor contract (which will be a DAO) is also to be trusted.
  */
 contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     using CappedMath for uint;
     /* solium-disable max-len*/
-    /* solium-disable operator-whitespace*/
 
     /* Enums */
 
     enum AddressStatus {
-        Absent, // The address is not on the list.
-        Registered, // The address is on the list.
-        RegistrationRequested, // The address has a request to be added to the list.
-        ClearingRequested // The address has a request to be removed from the list.
+        Absent, // The address is not in the registry.
+        Registered, // The address is in the registry.
+        RegistrationRequested, // The address has a request to be added to the registry.
+        ClearingRequested // The address has a request to be removed from the registry.
     }
 
     enum RulingOption {
@@ -56,7 +55,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     // In summary, costs for placing or challenging a request are the following:
     // - A challenge reward given to the party that wins a potential dispute.
     // - Arbitration fees used to pay jurors.
-    // - Fee stake that is distributed among contributors of the side that ultimately wins a dispute.
+    // - A fee stake that is distributed among insurers of the side that ultimately wins a dispute.
 
     /* Structs */
     struct Address {
@@ -103,6 +102,14 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /* Events */
 
+    /** @dev Emitted when a party makes a contribution.
+     *  @param _address The address the contribution was made to.
+     *  @param _contributor The contributor's address.
+     *  @param _side The side the contribution was made to.
+     *  @param _value The value of the contribution.
+     */
+    event Contribution(address indexed _address, address indexed _contributor, Party indexed _side, uint _value);
+
     /**
      *  @dev Emitted when a party makes a request, dispute or appeals are raised or when a request is resolved.
      *  @param _requester Address of the party that submitted the request.
@@ -120,14 +127,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         bool _disputed,
         bool _appealed
     );
-
-    /** @dev Emitted when a party makes a contribution.
-     *  @param _address The address the contribution was made to.
-     *  @param _contributor The contributor's address.
-     *  @param _side The side the contribution was made to.
-     *  @param _value The value of the contribution.
-     */
-    event Contribution(address indexed _address, address indexed _contributor, Party indexed _side, uint _value);
 
     /** @dev Emitted when a deposit is made to challenge a request.
      *  @param _address The address that has the challenged request.
@@ -147,7 +146,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     /* Storage */
 
     // Settings
-    uint public challengeReward; // The deposit required for placing and/or challenging a request. A party that wins a disputed request will be reimbursed and will receive the other's deposit.
+    uint public challengeReward; // The deposit required for making and/or challenging a request. A party that wins a disputed request will be reimbursed and will receive the other's deposit.
     uint public challengePeriodDuration; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The time available to fund arbitration fees and fee stake for a potential dispute.
     address public governor; // The address that can make governance changes to the parameters of the Token Curated List.
@@ -157,28 +156,28 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     // The value is the percentage in 2 digits precision (e.g. a multiplier of 5000 results the fee stake being 50% of the arbitration cost for that round).
     uint public winnerStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that won the previous round.
     uint public loserStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that lost the previous round.
-    uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that must be paid in the case where the previous round does not have a winner (e.g. when it's the first round or the arbitrator ruled "refused to rule"/"could not rule").
+    uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that must be paid in the case where there isn't a winner and loser (e.g. when it's the first round or the arbitrator ruled "refused to rule"/"could not rule").
     uint public constant MULTIPLIER_PRECISION = 10000; // Precision parameter for multipliers.
 
     mapping(address => Address) public addresses; // Maps the address to its current state.
-    mapping(uint => address) public disputeIDToAddress; // Maps a dispute ID to the affected address.
+    mapping(uint => address) public disputeIDToAddress; // Maps a dispute ID to the address with the disputed request.
     address[] public addressList; // List of submitted addresses.
 
     /* Constructor */
 
     /**
-     *  @dev Constructs the arbitrable token curated list.
+     *  @dev Constructs the arbitrable token curated registry.
      *  @param _arbitrator The trusted arbitrator to resolve potential disputes.
      *  @param _arbitratorExtraData Extra data for the trusted arbitrator contract.
      *  @param _registrationMetaEvidence The URI of the meta evidence object for registration requests.
      *  @param _clearingMetaEvidence The URI of the meta evidence object for clearing requests.
      *  @param _governor The trusted governor of this contract.
-     *  @param _arbitrationFeesWaitingTime The maximum time to wait for arbitration fees if the dispute is raised.
+      *  @param _arbitrationFeesWaitingTime The maximum time in seconds to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in weis required to submit or a challenge a request.
      *  @param _challengePeriodDuration The time in seconds, parties have to challenge a request.
-     *  @param _sharedStakeMultiplier Percentage of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule). Value in 2 digits precision (e.g. 2500 results in 25% of the arbitration cost value of that round).
-     *  @param _winnerStakeMultiplier Percentage of the arbitration cost that the winner has to pay as fee stake for a round. Value in 2 digits precision (e.g. 5000 results in 50% of the arbitration cost value of that round).
-     *  @param _loserStakeMultiplier Percentage of the arbitration cost that the loser has to pay as fee stake for a round. Value in 2 digits precision (e.g. 10000 results in 100% of the arbitration cost value of that round).
+     *  @param _sharedStakeMultiplier Percentage of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule). Value in 2 digits precision (e.g. 2500 results in a fee stake that is 25% of the arbitration cost value of that round).
+     *  @param _winnerStakeMultiplier Percentage of the arbitration cost that the winner has to pay as fee stake for a round. Value in 2 digits precision (e.g. 5000 results in a fee stake that is 50% of the arbitration cost value of that round).
+     *  @param _loserStakeMultiplier Percentage of the arbitration cost that the loser has to pay as fee stake for a round. Value in 2 digits precision (e.g. 10000 results in a fee stake that is 100% of the arbitration cost value of that round).
      */
     constructor(
         Arbitrator _arbitrator,
@@ -273,8 +272,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** @dev Challenges the latest request of an address. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest. TRUSTED.
-     *  @param _address The address with the request to execute.
+    /** @dev Challenges the latest request of an address. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
+     *  @param _address The address with the request to challenge.
      */
     function challengeRequest(address _address) external payable {
         Address storage addr = addresses[_address];
@@ -291,7 +290,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint remainingETH = msg.value - request.challengeRewardBalance;
         request.challengeRewardBalance += request.challengeRewardBalance;
         request.parties[uint(Party.Challenger)] = msg.sender;
-        request.challengerDepositTime = now; // Save the start of the first round arbitration fees funding period.
+        request.challengerDepositTime = now; // Save the time the request left the challenge period and entered the arbitration fees funding period.
         emit ChallengeDepositPlaced(_address, msg.sender);
 
         // Update the total amount required to fully fund the each side.
@@ -339,7 +338,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Takes up to the total required to fund a side of the latest round, reimburses the rest. TRUSTED.
+    /** @dev Takes up to the total amount required of arbitration fees and fee stakes required to create a dispute. Reimburses the rest. Creates a dispute if both sides are fully funded. TRUSTED.
      *  @param _address The address with the request to execute.
      *  @param _side The recipient of the contribution.
      */
@@ -407,7 +406,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. TRUSTED.
+    /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if both sides are fully funded. TRUSTED.
      *  @param _address The address with the request to fund.
      *  @param _side The recipient of the contribution.
      */
@@ -516,11 +515,11 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Reimburses caller's contributions if no disputes were raised. If a dispute was raised,  withdraws the rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
-     *  @param _beneficiary The address receiving the funds.
-     *  @param _address The address from which to withdraw.
+    /** @dev Reimburses contributions if no disputes were raised. If a dispute was raised, sends the fee stake rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
+     *  @param _beneficiary The address that made contributions to the winner.
+     *  @param _address The address with the request from which to withdraw.
      *  @param _request The request from which to withdraw.
-     *  @param _round The request from which to withdraw.
+     *  @param _round The round from which to withdraw.
      */
     function withdrawFeesAndRewards(address _beneficiary, address _address, uint _request, uint _round) external {
         Address storage addr = addresses[_address];
@@ -689,8 +688,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         Request storage request = addr.requests[addr.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
 
-        // Ruling may be inverted depending on the amount of fee contributions received by each side.
-        // Rule in favor of the party that received more contributions if there were contributions, respect the ruling otherwise.
+        // The ruling may be inverted depending on the amount of fee contributions received by each side.
+        // Rule in favor of the party that received the most contributions, if there were contributions at all. Respect the ruling otherwise.
         // If the required amount for a party was never set, it means that side never received a contribution.
         if (round.requiredForSideSet[uint(Party.Requester)] && round.requiredForSideSet[uint(Party.Challenger)]) {
             // Both parties received contributions for an appeal.
@@ -701,7 +700,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                 else
                     resultRuling = RulingOption.Refuse;
             } else {
-                // Invert ruling if the loser fully funded but the winner did not.
+                // Invert ruling if the loser fully funded but the winner did not. Respect the ruling otherwise.
                 Party winner;
                 Party loser;
                 if (resultRuling == RulingOption.Accept) {
@@ -761,7 +760,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         challengeReward = _challengeReward;
     }
 
-    /** @dev Change the governor of the Token Curated List.
+    /** @dev Change the governor of the token curated registry.
      *  @param _governor The address of the new governor.
      */
     function changeGovernor(address _governor) external onlyGovernor {
@@ -775,8 +774,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         arbitrationFeesWaitingTime = _arbitrationFeesWaitingTime;
     }
 
-    /** @dev Change the percentage of arbitration fees that must be paid as fee stake by parties when there wasn't a winner or loser in the previous round.
-     *  @param _sharedStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 1000 will result in 10% of the arbitration fees required in that round).
+    /** @dev Change the percentage of arbitration fees that must be paid as fee stake by parties when there isn't a winner or loser.
+     *  @param _sharedStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 1000 will result in 10% of the arbitration fees required as fee stake in that round).
      */
     function changeSharedStakeMultiplier(uint _sharedStakeMultiplier) external onlyGovernor {
         sharedStakeMultiplier = _sharedStakeMultiplier;
@@ -790,27 +789,24 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by party that lost the previous round.
-     *  @param _loserStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 10000 will result in 100% of the arbitration fees required in that round).
+     *  @param _loserStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 10000 will result in 100% of the arbitration fees as fee stake required in that round).
      */
     function changeLoserStakeMultiplier(uint _loserStakeMultiplier) external onlyGovernor {
         loserStakeMultiplier = _loserStakeMultiplier;
     }
 
-    /** @dev Change the arbitrator to be used for disputes in the next requests.
+    /** @dev Change the arbitrator to be used for disputes that may be raised in the next requests. The arbitrator is trusted to support appeal periods and not reenter.
      *  @param _arbitrator The new trusted arbitrator to be used in the next requests.
      *  @param _arbitratorExtraData The extra data used by the new arbitrator.
      */
-    function changeArbitrator(
-        Arbitrator _arbitrator,
-        bytes _arbitratorExtraData
-    ) external onlyGovernor {
+    function changeArbitrator(Arbitrator _arbitrator, bytes _arbitratorExtraData) external onlyGovernor {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
     }
 
     /* Public Views */
 
-    /** @dev Return true if the address is on the list.
+    /** @dev Return true if the address is on the registry.
      *  @param _value The address to be queried.
      *  @return allowed True if the address is allowed, false otherwise.
      */
@@ -921,8 +917,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         contributions = round.contributions[_contributor];
     }
 
-    /** @dev Return the numbers of addresses that were submitted. Includes addresses that never made it to the list or were later removed.
-     *  @return The numbers of addresses in the list.
+    /** @dev Return the numbers of addresses that were submitted. Includes addresses that never made it to the registry or were later removed.
+     *  @return The numbers of addresses in the registry.
      */
     function addressCount() external view returns (uint count) {
         return addressList.length;
@@ -1004,7 +1000,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     /* Interface Views */
 
     /** @dev Return the numbers of addresses with each status. This function is O(n) at worst, where n is the number of addresses. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
-     *  @return The numbers of addresses in the list per status.
+     *  @return The numbers of addresses in the registry per status.
      */
     function countByStatus()
         external
