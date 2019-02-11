@@ -510,12 +510,12 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Reimburses contributions if no disputes were raised. If a dispute was raised, sends the fee stake rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
-     *  @param _beneficiary The address that made contributions to the winner.
+     *  @param _beneficiary The address that made contributions to a request.
      *  @param _address The address with the request from which to withdraw.
      *  @param _request The request from which to withdraw.
      *  @param _round The round from which to withdraw.
      */
-    function withdrawFeesAndRewards(address _beneficiary, address _address, uint _request, uint _round) external {
+    function withdrawFeesAndRewards(address _beneficiary, address _address, uint _request, uint _round) public {
         Address storage addr = addresses[_address];
         Request storage request = addr.requests[_request];
         Round storage round = request.rounds[_round];
@@ -554,6 +554,20 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
         emit RewardWithdrawal(_address, _beneficiary, _request, _round,  reward);
         _beneficiary.transfer(reward);
+    }
+
+    /** @dev Withdraws rewards and reimbursements of multiple rounds at once.
+     *  @param _beneficiary The address that made contributions to the request.
+     *  @param _address The address with funds to be withdrawn.
+     *  @param _request The request from which to withdraw contributions.
+     *  @param _cursor The position from where to start withdrawing.
+     *  @param _count The number of rounds to iterate. If set to a value larger than the number of rounds a request has, iteration will stop at the last round.
+     */
+    function batchWithdraw(address _beneficiary, address _address, uint _request, uint _cursor, uint _count) external {
+        Address storage addr = addresses[_address];
+        Request storage request = addr.requests[_request];
+        for (uint i = _cursor; i < request.rounds.length && i < _count; i++)
+            withdrawFeesAndRewards(_beneficiary, _address, _request, _cursor);
     }
 
     /** @dev Executes a requests if the challenge period passed and one challenged the request.

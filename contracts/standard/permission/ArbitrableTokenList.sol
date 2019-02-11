@@ -551,12 +551,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Reimburses contributions if no disputes were raised. If a dispute was raised, sends the fee stake rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
-     *  @param _beneficiary The address that made contributions to the winner.
+     *  @param _beneficiary The address that made contributions to a request.
      *  @param _tokenID The ID of the token submission with the request from which to withdraw.
      *  @param _request The request from which to withdraw.
      *  @param _round The round from which to withdraw.
      */
-    function withdrawFeesAndRewards(address _beneficiary, bytes32 _tokenID, uint _request, uint _round) external {
+    function withdrawFeesAndRewards(address _beneficiary, bytes32 _tokenID, uint _request, uint _round) public {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
@@ -595,6 +595,20 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         emit RewardWithdrawal(_tokenID, _beneficiary, _request, _round,  reward);
         _beneficiary.transfer(reward);
+    }
+
+    /** @dev Withdraws rewards and reimbursements of multiple rounds at once.
+     *  @param _beneficiary The address that made contributions to the request.
+     *  @param _tokenID The token ID with funds to be withdrawn.
+     *  @param _request The request from which to withdraw contributions.
+     *  @param _cursor The position from where to start withdrawing.
+     *  @param _count The number of rounds to iterate. If set to a value larger than the number of rounds a request has, iteration will stop at the last round.
+     */
+    function batchWithdraw(address _beneficiary, bytes32 _tokenID, uint _request, uint _cursor, uint _count) external {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        for (uint i = _cursor; i < request.rounds.length && i < _count; i++)
+            withdrawFeesAndRewards(_beneficiary, _tokenID, _request, _cursor);
     }
 
     /** @dev Executes a request if the challenge period passed and one challenged the request.
