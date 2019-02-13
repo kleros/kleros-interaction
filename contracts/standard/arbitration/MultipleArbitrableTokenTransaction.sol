@@ -156,7 +156,7 @@ contract MultipleArbitrableTokenTransaction {
         require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
 
         transaction.amount -= _amount;
-        require(token.transfer(transaction.sender, _amount) != false, "The `transfer` function must not failed.");
+        require(token.transfer(transaction.sender, _amount) != false, "The `transfer` function must not fail.");
     }
 
     /** @dev Reimburse receiver. To be called if the good or service can't be fully provided. UNTRUSTED.
