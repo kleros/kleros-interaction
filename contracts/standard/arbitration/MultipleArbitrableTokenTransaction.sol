@@ -78,7 +78,7 @@ contract MultipleArbitrableTokenTransaction {
     /** @dev To be emitted when a dispute is created to link the correct meta-evidence to the disputeID.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
+     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the `transactionID`.
      */
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
 
@@ -114,7 +114,7 @@ contract MultipleArbitrableTokenTransaction {
 
     /** @dev Create a transaction. UNTRUSTED.
      *  @param _amount The amount of tokens in this transaction.
-     *  @param _timeoutPayment Time after which a party automatically lose a dispute.
+     *  @param _timeoutPayment Time after which a party automatically loses a dispute.
      *  @param _sender The recipient of the transaction.
      *  @param _metaEvidence Link to the meta-evidence.
      *  @return The index of the transaction.
@@ -170,7 +170,7 @@ contract MultipleArbitrableTokenTransaction {
         require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
         transaction.amount -= _amountReimbursed;
-        require(token.transfer(transaction.receiver, _amountReimbursed) != false, "The `transfer` function must not failed.");
+        require(token.transfer(transaction.receiver, _amountReimbursed) != false, "The `transfer` function must not fail.");
     }
 
     /** @dev Transfer the transaction's amount to the sender if the timeout has passed. UNTRUSTED.
@@ -186,7 +186,7 @@ contract MultipleArbitrableTokenTransaction {
 
         transaction.status = Status.Resolved;
 
-        require(token.transfer(transaction.sender, amount) != false, "The `transfer` function must not failed.");
+        require(token.transfer(transaction.sender, amount) != false, "The `transfer` function must not fail.");
     }
 
     /** @dev Reimburse receiver if sender fails to pay the fee. UNTRUSTED.
@@ -349,17 +349,17 @@ contract MultipleArbitrableTokenTransaction {
         // Note that we use `send` to prevent a party from blocking the execution.
         if (_ruling == uint(RulingOptions.SenderWins)) {
             transaction.sender.send(senderFee);
-            require(token.transfer(transaction.sender, amount) != false, "The `transfer` function must not failed.");
+            require(token.transfer(transaction.sender, amount) != false, "The `transfer` function must not fail.");
         } else if (_ruling == uint(RulingOptions.ReceiverWins)) {
             transaction.receiver.send(receiverFee);
-            require(token.transfer(transaction.receiver, amount) != false, "The `transfer` function must not failed.");
+            require(token.transfer(transaction.receiver, amount) != false, "The `transfer` function must not fail.");
         } else {
             uint split_arbitration_fee = (senderFee + receiverFee - transaction.arbitrationCost) / 2;
             transaction.receiver.send(split_arbitration_fee);
             transaction.sender.send(split_arbitration_fee);
             // In the case of an uneven token amount, one token can be burnt.
-            require(token.transfer(transaction.receiver, amount / 2) != false, "The `transfer` function must not failed.");
-            require(token.transfer(transaction.sender, amount / 2) != false, "The `transfer` function must not failed.");
+            require(token.transfer(transaction.receiver, amount / 2) != false, "The `transfer` function must not fail.");
+            require(token.transfer(transaction.sender, amount / 2) != false, "The `transfer` function must not fail.");
         }
     }
 
