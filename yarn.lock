@@ -345,6 +345,11 @@
   resolved "https://registry.yarnpkg.com/@nodelib/fs.stat/-/fs.stat-1.1.3.tgz#2b5a3ab3f918cca48a8c754c08168e3f03eba61b"
   integrity sha512-shAmDyaQC4H92APFoIaVDHCx5bStIocgvbwQyxPRrbUY20V1EYTbSDchWbuwlMG3V17cprZhA6+78JfB+3DTPw==
 
+"@realitio/realitio-contracts@^2.0.5":
+  version "2.0.5"
+  resolved "https://registry.yarnpkg.com/@realitio/realitio-contracts/-/realitio-contracts-2.0.5.tgz#785db5f1af064add917e91cd56f037243ff392a3"
+  integrity sha512-bt2dQxqd0VDqJwdOJn6t+dySGRe8YqaqmFwzWnB+R9ozREQPQ0kSfOnhFV7nFFZRdI2eEXP0M3p18l1WyGtrZg==
+
 "@samverschueren/stream-to-observable@^0.3.0":
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/@samverschueren/stream-to-observable/-/stream-to-observable-0.3.0.tgz#ecdf48d532c58ea477acfcab80348424f8d0662f"

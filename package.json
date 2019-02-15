@@ -43,18 +43,19 @@
   "devDependencies": {
     "@kleros/kathari": "^0.13.3",
     "chai": "^4.2.0",
-    "pify": "^4.0.1",
     "coveralls": "^3.0.2",
     "eth-gas-reporter": "0.1.1",
     "ganache-cli": "^6.1.6",
     "husky": "^1.2.0",
     "npm-run-all": "^4.1.3",
+    "pify": "^4.0.1",
     "solidity-coverage": "^0.5.7",
     "standard-version": "^4.4.0",
     "truffle": "^4.1.13",
     "web3": "^1.0.0-beta.22"
   },
   "dependencies": {
+    "@realitio/realitio-contracts": "^2.0.5",
     "minimetoken": "^0.2.0",
     "openzeppelin-solidity": "^1.12.0",
     "solidity-bytes-utils": "^0.0.5"
