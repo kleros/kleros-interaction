@@ -33,7 +33,6 @@ contract MultipleArbitrableTransaction {
         uint receiverFee; // Total fees paid by the receiver.
         uint lastInteraction; // Last interaction for the dispute procedure.
         Status status;
-        uint arbitrationCost;
     }
 
     Transaction[] public transactions;
@@ -122,8 +121,7 @@ contract MultipleArbitrableTransaction {
             senderFee: 0,
             receiverFee: 0,
             lastInteraction: now,
-            status: Status.NoDispute,
-            arbitrationCost: 0
+            status: Status.NoDispute
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
 
@@ -255,7 +253,6 @@ contract MultipleArbitrableTransaction {
     function raiseDispute(uint _transactionID, uint _arbitrationCost) internal {
         Transaction storage transaction = transactions[_transactionID];
         transaction.status = Status.DisputeCreated;
-        transaction.arbitrationCost = _arbitrationCost;
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
         disputeIDtoTransactionID[transaction.disputeId] = _transactionID;
         emit Dispute(arbitrator, transaction.disputeId, _transactionID);
@@ -329,7 +326,7 @@ contract MultipleArbitrableTransaction {
         } else if (_ruling == RECEIVER_WINS) {
             transaction.receiver.send(transaction.receiverFee + transaction.amount);
         } else {
-            uint split_amount = (transaction.senderFee + transaction.receiverFee - transaction.arbitrationCost + transaction.amount) / 2;
+            uint split_amount = (transaction.senderFee + transaction.amount) / 2;
             transaction.receiver.send(split_amount);
             transaction.sender.send(split_amount);
         }
