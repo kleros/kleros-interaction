@@ -1,6 +1,6 @@
 /**
  *  @authors: [@n1c01a5, @hellwolf]
- *  @reviewers: [@ferittuncer*, @unknownunknown1]
+ *  @reviewers: [@ferittuncer*, @unknownunknown1*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -40,7 +40,6 @@ contract MultipleArbitrableTokenTransaction {
         uint receiverFee; // Total fees paid by the receiver.
         uint lastInteraction; // Last interaction for the dispute procedure.
         Status status;
-        uint arbitrationCost;
     }
 
     Transaction[] public transactions;
@@ -137,8 +136,7 @@ contract MultipleArbitrableTokenTransaction {
             senderFee: 0,
             receiverFee: 0,
             lastInteraction: now,
-            status: Status.NoDispute,
-            arbitrationCost: 0
+            status: Status.NoDispute
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
 
@@ -269,7 +267,6 @@ contract MultipleArbitrableTokenTransaction {
     function raiseDispute(uint _transactionID, uint _arbitrationCost) internal {
         Transaction storage transaction = transactions[_transactionID];
         transaction.status = Status.DisputeCreated;
-        transaction.arbitrationCost = _arbitrationCost;
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
         disputeIDtoTransactionID[transaction.disputeId] = _transactionID;
         emit Dispute(arbitrator, transaction.disputeId, _transactionID);
@@ -354,7 +351,8 @@ contract MultipleArbitrableTokenTransaction {
             transaction.receiver.send(receiverFee);
             require(token.transfer(transaction.receiver, amount) != false, "The `transfer` function must not fail.");
         } else {
-            uint split_arbitration_fee = (senderFee + receiverFee - transaction.arbitrationCost) / 2;
+            // `senderFee` or `receiverFee` are equal to the arbitration cost.
+            uint split_arbitration_fee = senderFee / 2;
             transaction.receiver.send(split_arbitration_fee);
             transaction.sender.send(split_arbitration_fee);
             // In the case of an uneven token amount, one token can be burnt.
