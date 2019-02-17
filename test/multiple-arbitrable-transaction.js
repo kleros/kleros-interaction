@@ -567,6 +567,145 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
   })
 
+  it('Should change status to WaitingReceiver after the arbitration cost increase', async () => {
+    const centralizedArbitrator = await CentralizedArbitrator.new(
+      arbitrationFee,
+      { from: arbitrator }
+    )
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      0,
+      { from: payer }
+    )
+
+    const lastTransaction = await getLastTransaction(
+      multipleContract,
+      async () => {
+        await multipleContract.createTransaction(
+          timeoutPayment,
+          payee,
+          metaEvidenceUri,
+          { from: payer, value: amount }
+        )
+      }
+    )
+
+    const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
+
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
+
+    arbitrableTransactionStatus = (await multipleContract.transactions(
+      arbitrableTransactionId
+    ))[8]
+
+    assert.equal(
+      arbitrableTransactionStatus.toNumber(),
+      1, // `Status.WaitingSender == 1` 
+      'The transaction did not change correctly to new status: `Status.WaitingSender`'
+    )
+
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, { from: arbitrator })
+
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee + 42
+    })
+
+    arbitrableTransactionStatus = (await multipleContract.transactions(
+      arbitrableTransactionId
+    ))[8]
+
+    assert.equal(
+      arbitrableTransactionStatus.toNumber(),
+      2, // `Status.WaitingReceiver == 2` 
+      'The transaction did not change correctly to new status: `Status.WaitingReceiver`'
+    )
+  })
+
+  it('Should split correclty the arbitration cost after the arbitration cost increase', async () => {
+    const centralizedArbitrator = await CentralizedArbitrator.new(
+      arbitrationFee,
+      { from: arbitrator }
+    )
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      centralizedArbitrator.address,
+      0x0,
+      0,
+      { from: payer }
+    )
+
+    const lastTransaction = await getLastTransaction(
+      multipleContract,
+      async () => {
+        await multipleContract.createTransaction(
+          timeoutPayment,
+          payee,
+          metaEvidenceUri,
+          { from: payer, value: amount }
+        )
+      }
+    )
+
+    const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
+
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: arbitrationFee
+      }
+    )
+
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, { from: arbitrator })
+
+    await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
+      from: payee,
+      value: arbitrationFee + 42
+    })
+
+    await multipleContract.payArbitrationFeeByReceiver(
+      arbitrableTransactionId,
+      {
+        from: payer,
+        value: 42 + 10 // Pay the rest of arbitration fee with an extra to test also the refund in this case
+      }
+    )
+
+    const payerBalanceBeforeRuling = web3.eth.getBalance(payer)
+    const payeeBalanceBeforeRuling = web3.eth.getBalance(payee)
+
+    await centralizedArbitrator.giveRuling(0, 0, { from: arbitrator })
+
+    const payerBalanceAfterRuling = web3.eth.getBalance(payer)
+    const payeeBalanceAfterRuling = web3.eth.getBalance(payee)
+
+    assert.equal(
+      payeeBalanceAfterRuling.toString(),
+      payeeBalanceBeforeRuling.plus(510).plus(21).toString(),
+      'The payee has not been reimbursed correctly'
+    )
+
+    assert.equal(
+      payerBalanceAfterRuling.toString(),
+      payerBalanceBeforeRuling.plus(510).plus(21).toString(),
+      'The payer has not been paid properly'
+    )
+
+    // check also the contract balance
+    assert.equal(
+      web3.eth.getBalance(multipleContract.address),
+      0,
+      'The ETH amount in the contract is not 0'
+    )
+  })
+
   it('Should reimburse the payer in case of timeout of the payee', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(
       arbitrationFee,
@@ -621,7 +760,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
   })
 
-  it("Shouldn't work before timeout for the payer", async () => {
+  it('Shouldn\'t work before timeout for the payer', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(
       arbitrationFee,
       { from: arbitrator }
@@ -717,7 +856,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
   })
 
-  it("Shouldn't work before timeout for the payee", async () => {
+  it('Shouldn\'t work before timeout for the payee', async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(
       arbitrationFee,
       { from: arbitrator }
@@ -920,7 +1059,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     let currentResolve
     let lastTransactionEvent = -1
-    const _handler = metaEvidenceEvent.watch((_error, result) => {
+    metaEvidenceEvent.watch((_error, result) => {
       const eventTransaction = result.args._metaEvidenceID.toNumber()
       if (eventTransaction > lastTransactionEvent) {
         lastTransactionEvent = eventTransaction
