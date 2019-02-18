@@ -351,7 +351,7 @@ contract MultipleArbitrableTokenTransaction {
             transaction.receiver.send(receiverFee);
             require(token.transfer(transaction.receiver, amount) != false, "The `transfer` function must not fail.");
         } else {
-            // `senderFee` or `receiverFee` are equal to the arbitration cost.
+            // `senderFee` and `receiverFee` are equal to the arbitration cost.
             uint split_arbitration_fee = senderFee / 2;
             transaction.receiver.send(split_arbitration_fee);
             transaction.sender.send(split_arbitration_fee);
