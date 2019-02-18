@@ -134,12 +134,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bool _appealed
     );
 
-    /** @dev Emitted when a deposit is made to challenge a request.
-     *  @param _tokenID The ID of the token that has the challenged request.
-     *  @param _challenger The address that paid the deposit.
-     */
-    event ChallengeDepositPlaced(bytes32 indexed _tokenID, address indexed _challenger);
-
     /** @dev Emitted when a reimbursements and/or contribution rewards are withdrawn.
      *  @param _tokenID The ID of the token from which the withdrawal was made.
      *  @param _contributor The address that sent the contribution.
@@ -338,7 +332,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.challengeRewardBalance += request.challengeRewardBalance;
         request.parties[uint(Party.Challenger)] = msg.sender;
         request.challengerDepositTime = now; // Save the time the request left the challenge period and entered the arbitration fees funding period.
-        emit ChallengeDepositPlaced(_tokenID, msg.sender);
 
         // Update the total amount required to fully fund the each side.
         // The amount required for each side is:
