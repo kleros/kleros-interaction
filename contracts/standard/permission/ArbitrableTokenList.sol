@@ -83,6 +83,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         RulingOption ruling; // The final ruling given, if any.
         Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
         bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
+        uint requestID; // The global unique identifier of the request. Used for Evidence submissions.
     }
 
     struct Round {
@@ -111,10 +112,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     event TokenSubmitted(string _name, string _ticker, string _symbolMultihash, address indexed _address);
 
     /** @dev Emitted when a party makes a request to change a token status.
+     *  @param _requestID The global identifier of the request.
      *  @param _tokenID The ID of the affected token.
      *  @param _registrationRequest Whether the request is a registration request. False means it is a clearing request.
      */
-    event RequestSubmitted(bytes32 indexed _tokenID, bool indexed _registrationRequest);
+    event RequestSubmitted(uint indexed _requestID, bytes32 indexed _tokenID, bool indexed _registrationRequest);
 
     /**
      *  @dev Emitted when a party makes a request, dispute or appeals are raised or when a request is resolved.
@@ -173,6 +175,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     // Token list
     mapping(address => bytes32[]) public addressToSubmissions; // Maps addresses to submitted token IDs.
+
+    // Request ID Counter
+    uint private nextRequestID = 0
 
     /* Constructor */
 
@@ -275,7 +280,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.challengeRewardBalance = challengeReward;
         request.arbitrator = arbitrator;
         request.arbitratorExtraData = arbitratorExtraData;
-        emit RequestSubmitted(tokenID, token.status == TokenStatus.RegistrationRequested);
+        request.requestID = nextRequestID;
+        nextRequestID++;
+
+        emit RequestSubmitted(request.requestID, tokenID, token.status == TokenStatus.RegistrationRequested);
 
         // Calculate total amount required to fully fund the each side.
         // The amount required for each side is:
@@ -366,14 +374,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                request.requestID
             );
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
 
             if (bytes(_evidence).length > 0)
-                emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
+                emit Evidence(request.arbitrator, request.requestID, msg.sender, _evidence);
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -464,7 +473,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                request.requestID
             );
 
             request.rounds.length++;
@@ -781,7 +791,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                request.requestID
             );
 
             request.rounds.length++;
@@ -891,10 +902,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function submitEvidence(bytes32 _tokenID, string _evidence) external {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
-        require(request.disputed, "The request is not disputed.");
         require(!request.resolved, "The dispute was resolved.");
 
-        emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
+        emit Evidence(request.arbitrator, request.requestID, msg.sender, _evidence);
     }
 
     // ************************ //
