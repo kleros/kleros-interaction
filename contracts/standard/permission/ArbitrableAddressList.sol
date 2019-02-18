@@ -846,7 +846,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         require(request.disputed, "The request is not disputed.");
         require(!request.resolved, "The dispute was resolved.");
 
-        emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
+        emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
     }
 
     // ************************ //
