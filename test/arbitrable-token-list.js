@@ -171,10 +171,10 @@ contract('ArbitrableTokenList', function(accounts) {
     describe('challenge registration', () => {
       beforeEach(async () => {
         await expectThrow(
-          arbitrableTokenList.challengeRequest(tokenID, { from: partyB })
+          arbitrableTokenList.challengeRequest(tokenID, '', { from: partyB })
         )
 
-        await arbitrableTokenList.challengeRequest(tokenID, {
+        await arbitrableTokenList.challengeRequest(tokenID, '', {
           from: partyB,
           value: challengeReward
         })

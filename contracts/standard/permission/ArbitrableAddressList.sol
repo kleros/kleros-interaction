@@ -270,8 +270,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /** @dev Challenges the latest request of an address. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
      *  @param _address The address with the request to challenge.
+     *  @param _evidence A link to an evidence using its URI. Ignored if not provided or if not enough funds were raised to create a dispute.
      */
-    function challengeRequest(address _address) external payable {
+    function challengeRequest(address _address, string _evidence) external payable {
         Address storage addr = addresses[_address];
         require(
             addr.status == AddressStatus.RegistrationRequested || addr.status == AddressStatus.ClearingRequested,
@@ -328,6 +329,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
+
+            if (bytes(_evidence).length > 0)
+                emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
 
             emit AddressStatusChange(
                 request.parties[uint(Party.Requester)],

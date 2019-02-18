@@ -312,8 +312,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /** @dev Challenges the latest request of a token. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
      *  @param _tokenID The ID of the token with the request to challenge.
+     *  @param _evidence A link to an evidence using its URI. Ignored if not provided or if not enough funds were raised to create a dispute.
      */
-    function challengeRequest(bytes32 _tokenID) external payable {
+    function challengeRequest(bytes32 _tokenID, string _evidence) external payable {
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
@@ -370,6 +371,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
+
+            if (bytes(_evidence).length > 0)
+                emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
