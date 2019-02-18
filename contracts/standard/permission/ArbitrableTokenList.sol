@@ -91,6 +91,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake.
         bool[3] requiredForSideSet; // Tracks if the amount of fees required for each side has been set.
         uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
+        Party sidePendingFunds; // The side that must receive fee contributions to not lose the case.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
@@ -115,23 +116,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     event RequestSubmitted(bytes32 indexed _tokenID, bool indexed _registrationRequest);
 
-    /** @dev Emitted when a party makes a contribution.
-     *  @param _tokenID The ID of the token that received the contribution.
-     *  @param _contributor The address that sent the contribution.
-     *  @param _request The request the contribution was made to.
-     *  @param _round The round the contribution was made to.
-     *  @param _side The side the contribution was made to.
-     *  @param _value The value of the contribution.
-     */
-    event Contribution(
-        bytes32 indexed _tokenID,
-        address indexed _contributor,
-        uint indexed _request,
-        uint _round,
-        Party _side,
-        uint _value
-    );
-
     /**
      *  @dev Emitted when a party makes a request, dispute or appeals are raised or when a request is resolved.
      *  @param _requester Address of the party that submitted the request.
@@ -150,12 +134,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bool _appealed
     );
 
-    /** @dev Emitted when a deposit is made to challenge a request.
-     *  @param _tokenID The ID of the token that has the challenged request.
-     *  @param _challenger The address that paid the deposit.
-     */
-    event ChallengeDepositPlaced(bytes32 indexed _tokenID, address indexed _challenger);
-
     /** @dev Emitted when a reimbursements and/or contribution rewards are withdrawn.
      *  @param _tokenID The ID of the token from which the withdrawal was made.
      *  @param _contributor The address that sent the contribution.
@@ -164,6 +142,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _value The value of the reward.
      */
     event RewardWithdrawal(bytes32 indexed _tokenID, address indexed _contributor, uint indexed _request, uint _round, uint _value);
+
+    /** @dev Emitted when a side surpassed the adversary in funding and the opponent must fund his side to not lose the case.
+     *  @param _tokenID The ID of the token with the request in the fee funding period.
+     *  @param _side The side that must receive contributions to not lose the case.
+     *  @param _party The account of the side that must receive contributions to not lose the case.
+     */
+    event WaitingOpponent(bytes32 indexed _tokenID, Party indexed _side, address indexed _party);
 
     /* Storage */
 
@@ -311,15 +296,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.contributions[msg.sender][uint(Party.Requester)] = contribution;
         round.paidFees[uint(Party.Requester)] = contribution;
         round.feeRewards = contribution;
-        if (contribution > 0)
-            emit Contribution(
-                tokenID,
-                msg.sender,
-                token.requests.length - 1,
-                0,
-                Party.Requester,
-                contribution
-            );
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -336,8 +312,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /** @dev Challenges the latest request of a token. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
      *  @param _tokenID The ID of the token with the request to challenge.
+     *  @param _evidence A link to an evidence using its URI. Ignored if not provided or if not enough funds were raised to create a dispute.
      */
-    function challengeRequest(bytes32 _tokenID) external payable {
+    function challengeRequest(bytes32 _tokenID, string _evidence) external payable {
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
@@ -356,7 +333,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.challengeRewardBalance += request.challengeRewardBalance;
         request.parties[uint(Party.Challenger)] = msg.sender;
         request.challengerDepositTime = now; // Save the time the request left the challenge period and entered the arbitration fees funding period.
-        emit ChallengeDepositPlaced(_tokenID, msg.sender);
 
         // Update the total amount required to fully fund the each side.
         // The amount required for each side is:
@@ -374,15 +350,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.contributions[msg.sender][uint(Party.Challenger)] = contribution;
         round.paidFees[uint(Party.Challenger)] = contribution;
         round.feeRewards += contribution;
-        if (contribution > 0)
-            emit Contribution(
-                _tokenID,
-                msg.sender,
-                token.requests.length - 1,
-                0,
-                Party.Challenger,
-                contribution
-            );
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -405,6 +372,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
 
+            if (bytes(_evidence).length > 0)
+                emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
+
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
                 request.parties[uint(Party.Challenger)],
@@ -412,6 +382,22 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 token.status,
                 true,
                 false
+            );
+        } else if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)]) {
+            // Notify challenger if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Challenger;
+            emit WaitingOpponent(
+                _tokenID,
+                Party.Challenger,
+                request.parties[uint(Party.Challenger)]
+            );
+        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)]) {
+            // Notify requester if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Requester;
+            emit WaitingOpponent(
+                _tokenID,
+                Party.Requester,
+                request.parties[uint(Party.Requester)]
             );
         }
     }
@@ -462,15 +448,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.contributions[msg.sender][uint(_side)] += contribution;
         round.paidFees[uint(_side)] += contribution;
         round.feeRewards += contribution;
-        if (contribution > 0)
-            emit Contribution(
-                _tokenID,
-                msg.sender,
-                token.requests.length - 1,
-                0,
-                _side,
-                contribution
-            );
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -501,7 +478,24 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 true,
                 false
             );
+        } else if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] && round.sidePendingFunds == Party.Requester) {
+            // Notify challenger if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Challenger;
+            emit WaitingOpponent(
+                _tokenID,
+                Party.Challenger,
+                request.parties[uint(Party.Challenger)]
+            );
+        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] && round.sidePendingFunds == Party.Challenger) {
+            // Notify requester if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Requester;
+            emit WaitingOpponent(
+                _tokenID,
+                Party.Requester,
+                request.parties[uint(Party.Requester)]
+            );
         }
+
     }
 
     /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if both sides are fully funded. TRUSTED.
@@ -585,15 +579,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.contributions[msg.sender][uint(_side)] += contribution;
         round.paidFees[uint(_side)] += contribution;
         round.feeRewards += contribution;
-        if (contribution > 0)
-            emit Contribution(
-                _tokenID,
-                msg.sender,
-                token.requests.length - 1,
-                request.rounds.length - 1,
-                _side,
-                contribution
-            );
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -617,6 +602,28 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 token.status,
                 true,
                 true
+            );
+        } else if (
+            round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] &&
+            (round.sidePendingFunds == Party.Requester || round.sidePendingFunds == Party.None)) {
+
+            // Notify challenger if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Challenger;
+            emit WaitingOpponent(
+                _tokenID,
+                Party.Challenger,
+                request.parties[uint(Party.Challenger)]
+            );
+        } else if (
+            round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] &&
+            (round.sidePendingFunds == Party.Challenger || round.sidePendingFunds == Party.None)) {
+
+            // Notify requester if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Requester;
+            emit WaitingOpponent(
+                _tokenID,
+                Party.Requester,
+                request.parties[uint(Party.Requester)]
             );
         }
     }
@@ -729,7 +736,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
-            request.parties[uint(Party.Challenger)],
+            address(0x0),
             _tokenID,
             token.status,
             false,
@@ -887,7 +894,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         require(request.disputed, "The request is not disputed.");
         require(!request.resolved, "The dispute was resolved.");
 
-        emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
+        emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
     }
 
     // ************************ //

@@ -87,6 +87,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake.
         bool[3] requiredForSideSet; // Tracks if the amount of fees required for each side has been set.
         uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
+        Party sidePendingFunds; // The side that must receive fee contributions to not lose the case.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
@@ -101,23 +102,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
      *  @param _registrationRequest Whether the request is a registration request. False means it is a clearing request.
      */
     event RequestSubmitted(address indexed _address, bool indexed _registrationRequest);
-
-    /** @dev Emitted when a party makes a contribution.
-     *  @param _address The address that received the contribution.
-     *  @param _contributor The address that sent the contribution.
-     *  @param _request The request the contribution was made to.
-     *  @param _round The round the contribution was made to.
-     *  @param _side The side the contribution was made to.
-     *  @param _value The value of the contribution.
-     */
-    event Contribution(
-        address indexed _address,
-        address indexed _contributor,
-        uint indexed _request,
-        uint _round,
-        Party _side,
-        uint _value
-    );
 
     /**
      *  @dev Emitted when a party makes a request, dispute or appeals are raised or when a request is resolved.
@@ -137,12 +121,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         bool _appealed
     );
 
-    /** @dev Emitted when a deposit is made to challenge a request.
-     *  @param _address The address that has the challenged request.
-     *  @param _challenger The address that paid the deposit.
-     */
-    event ChallengeDepositPlaced(address indexed _address, address indexed _challenger);
-
     /** @dev Emitted when a reimbursements and/or contribution rewards are withdrawn.
      *  @param _address The address from which the withdrawal was made.
      *  @param _contributor The address that sent the contribution.
@@ -151,6 +129,13 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
      *  @param _value The value of the reward.
      */
     event RewardWithdrawal(address indexed _address, address indexed _contributor, uint indexed _request, uint _round, uint _value);
+
+    /** @dev Emitted when a side surpassed the adversary in funding and the opponent must fund his side to not lose the case.
+     *  @param _address The address with the request in the fee funding period.
+     *  @param _side The side that must receive contributions to not lose the case.
+     *  @param _party The account of the side that must receive contributions to not lose the case.
+     */
+    event WaitingOpponent(address indexed _address, Party indexed _side, address indexed _party);
 
     /* Storage */
 
@@ -269,15 +254,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         round.contributions[msg.sender][uint(Party.Requester)] = contribution;
         round.paidFees[uint(Party.Requester)] = contribution;
         round.feeRewards = contribution;
-        if (contribution > 0)
-            emit Contribution(
-                _address,
-                msg.sender,
-                addr.requests.length - 1,
-                0,
-                Party.Requester,
-                contribution
-            );
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -294,8 +270,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
     /** @dev Challenges the latest request of an address. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
      *  @param _address The address with the request to challenge.
+     *  @param _evidence A link to an evidence using its URI. Ignored if not provided or if not enough funds were raised to create a dispute.
      */
-    function challengeRequest(address _address) external payable {
+    function challengeRequest(address _address, string _evidence) external payable {
         Address storage addr = addresses[_address];
         require(
             addr.status == AddressStatus.RegistrationRequested || addr.status == AddressStatus.ClearingRequested,
@@ -314,7 +291,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         request.challengeRewardBalance += request.challengeRewardBalance;
         request.parties[uint(Party.Challenger)] = msg.sender;
         request.challengerDepositTime = now; // Save the time the request left the challenge period and entered the arbitration fees funding period.
-        emit ChallengeDepositPlaced(_address, msg.sender);
 
         // Update the total amount required to fully fund the each side.
         // The amount required for each side is:
@@ -332,15 +308,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         round.contributions[msg.sender][uint(Party.Challenger)] = contribution;
         round.paidFees[uint(Party.Challenger)] = contribution;
         round.feeRewards += contribution;
-        if (contribution > 0)
-            emit Contribution(
-                _address,
-                msg.sender,
-                addr.requests.length - 1,
-                0,
-                Party.Challenger,
-                contribution
-            );
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -363,6 +330,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
 
+            if (bytes(_evidence).length > 0)
+                emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
+
             emit AddressStatusChange(
                 request.parties[uint(Party.Requester)],
                 request.parties[uint(Party.Challenger)],
@@ -370,6 +340,22 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                 addr.status,
                 true,
                 false
+            );
+        } else if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)]) {
+            // Notify challenger if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Challenger;
+            emit WaitingOpponent(
+                _address,
+                Party.Challenger,
+                request.parties[uint(Party.Challenger)]
+            );
+        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] && round.sidePendingFunds == Party.Challenger) {
+            // Notify requester if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Requester;
+            emit WaitingOpponent(
+                _address,
+                Party.Requester,
+                request.parties[uint(Party.Requester)]
             );
         }
     }
@@ -420,15 +406,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         round.contributions[msg.sender][uint(_side)] += contribution;
         round.paidFees[uint(_side)] += contribution;
         round.feeRewards += contribution;
-        if (contribution > 0)
-            emit Contribution(
-                _address,
-                msg.sender,
-                addr.requests.length - 1,
-                0,
-                _side,
-                contribution
-            );
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -458,6 +435,22 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                 addr.status,
                 true,
                 false
+            );
+        } else if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] && round.sidePendingFunds == Party.Requester) {
+            // Notify challenger if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Challenger;
+            emit WaitingOpponent(
+                _address,
+                Party.Challenger,
+                request.parties[uint(Party.Challenger)]
+            );
+        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] && round.sidePendingFunds == Party.Challenger) {
+            // Notify requester if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Requester;
+            emit WaitingOpponent(
+                _address,
+                Party.Requester,
+                request.parties[uint(Party.Requester)]
             );
         }
     }
@@ -543,15 +536,6 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         round.contributions[msg.sender][uint(_side)] += contribution;
         round.paidFees[uint(_side)] += contribution;
         round.feeRewards += contribution;
-        if (contribution > 0)
-            emit Contribution(
-                _address,
-                msg.sender,
-                addr.requests.length - 1,
-                request.rounds.length - 1,
-                _side,
-                contribution
-            );
 
         // Reimburse leftover ETH.
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
@@ -575,6 +559,28 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
                 addr.status,
                 true,
                 true
+            );
+        } else if (
+            round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] &&
+            (round.sidePendingFunds == Party.Requester || round.sidePendingFunds == Party.None)) {
+
+            // Notify challenger if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Challenger;
+            emit WaitingOpponent(
+                _address,
+                Party.Challenger,
+                request.parties[uint(Party.Challenger)]
+            );
+        } else if (
+            round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] &&
+            (round.sidePendingFunds == Party.Challenger || round.sidePendingFunds == Party.None)) {
+
+            // Notify requester if he must receive contributions to not lose the case.
+            round.sidePendingFunds = Party.Requester;
+            emit WaitingOpponent(
+                _address,
+                Party.Requester,
+                request.parties[uint(Party.Requester)]
             );
         }
     }
@@ -687,7 +693,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
         emit AddressStatusChange(
             request.parties[uint(Party.Requester)],
-            request.parties[uint(Party.Challenger)],
+            address(0x0),
             _address,
             addr.status,
             false,
@@ -844,7 +850,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         require(request.disputed, "The request is not disputed.");
         require(!request.resolved, "The dispute was resolved.");
 
-        emit Evidence(arbitrator, request.disputeID, msg.sender, _evidence);
+        emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
     }
 
     // ************************ //

@@ -168,12 +168,12 @@ contract('ArbitrableAddressList', function(accounts) {
     describe('challenge registration', () => {
       beforeEach(async () => {
         await expectThrow(
-          arbitrableAddressList.challengeRequest(submissionAddress, {
+          arbitrableAddressList.challengeRequest(submissionAddress, '', {
             from: partyB
           })
         )
 
-        await arbitrableAddressList.challengeRequest(submissionAddress, {
+        await arbitrableAddressList.challengeRequest(submissionAddress, '', {
           from: partyB,
           value: challengeReward
         })
