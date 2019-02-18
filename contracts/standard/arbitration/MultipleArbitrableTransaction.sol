@@ -61,18 +61,19 @@ contract MultipleArbitrableTransaction {
 
     /** @dev To be raised when evidence is submitted. Should point to the resource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
+     *  @param _evidenceGroupID Unique identifier of the evidence group the evidence belongs to.
      *  @param _party The address of the party submitting the evidence. Note that 0 is kept for evidences not submitted by any party.
      *  @param _evidence A link to an evidence JSON that follows the ERC 1497 Evidence standard (https://github.com/ethereum/EIPs/issues/1497).
      */
-    event Evidence(Arbitrator indexed _arbitrator, uint indexed _disputeID, address indexed _party, string _evidence);
+    event Evidence(Arbitrator indexed _arbitrator, uint indexed _evidenceGroupID, address indexed _party, string _evidence);
 
     /** @dev To be emitted when a dispute is created to link the correct meta-evidence to the disputeID.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
+     *  @param _evidenceGroupID Unique identifier of the evidence group that is linked to this dispute.
      */
-    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID);
+    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID, uint _evidenceGroupID);
 
     /** @dev To be raised when a ruling is given.
      *  @param _arbitrator The arbitrator giving the ruling.
@@ -255,7 +256,7 @@ contract MultipleArbitrableTransaction {
         transaction.status = Status.DisputeCreated;
         transaction.disputeId = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES, arbitratorExtraData);
         disputeIDtoTransactionID[transaction.disputeId] = _transactionID;
-        emit Dispute(arbitrator, transaction.disputeId, _transactionID);
+        emit Dispute(arbitrator, transaction.disputeId, _transactionID, _transactionID);
 
         // Refund sender if it overpaid.
         if (transaction.senderFee > _arbitrationCost) {
@@ -281,7 +282,7 @@ contract MultipleArbitrableTransaction {
         require(msg.sender == transaction.receiver || msg.sender == transaction.sender, "The caller must be the receiver or the sender.");
 
         require(transaction.status >= Status.DisputeCreated, "The dispute has not been created yet.");
-        emit Evidence(arbitrator, transaction.disputeId, msg.sender, _evidence);
+        emit Evidence(arbitrator, _transactionID, msg.sender, _evidence);
     }
 
     /** @dev Appeal an appealable ruling.

@@ -33,13 +33,13 @@ contract SimpleTwoPartyArbitrableEscrowPayment is Arbitrable {
 
     function raiseDispute() public payable onlySenderOrReceiver {
         disputeID = arbitrator.createDispute.value(msg.value)(2, extraData);
-        emit Dispute(arbitrator, disputeID, 0);
+        emit Dispute(arbitrator, disputeID, 0, 0);
     }
 
     function submitEvidence(string _evidence) public onlySenderOrReceiver {
         require(disputed, "The payment has to be disputed.");
         require(!appealed, "The payment can not be appealed.");
-        emit Evidence(arbitrator, disputeID, msg.sender, _evidence);
+        emit Evidence(arbitrator, 0, msg.sender, _evidence);
     }
 
     function appeal() public payable onlySenderOrReceiver {

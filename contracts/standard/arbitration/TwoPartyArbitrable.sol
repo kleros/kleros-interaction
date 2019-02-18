@@ -51,15 +51,15 @@ contract TwoPartyArbitrable is Arbitrable {
      *  @param _metaEvidence Link to the meta-evidence.
      */
     constructor(
-        Arbitrator _arbitrator, 
-        uint _timeout, 
+        Arbitrator _arbitrator,
+        uint _timeout,
         address _partyB,
         uint8 _amountOfChoices,
-        bytes _arbitratorExtraData, 
+        bytes _arbitratorExtraData,
         string _metaEvidence
-    ) 
-        Arbitrable(_arbitrator,_arbitratorExtraData) 
-        public 
+    )
+        Arbitrable(_arbitrator,_arbitratorExtraData)
+        public
     {
         timeout = _timeout;
         partyA = msg.sender;
@@ -70,7 +70,7 @@ contract TwoPartyArbitrable is Arbitrable {
 
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the party A. UNTRUSTED.
-     *  Note that the arbitrator can have createDispute throw, which will make this function 
+     *  Note that the arbitrator can have createDispute throw, which will make this function
      *  throw and therefore lead to a party being timed-out.
      *  This is not a vulnerability as the arbitrator can rule in favor of one party anyway.
      */
@@ -122,7 +122,7 @@ contract TwoPartyArbitrable is Arbitrable {
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
         disputeID = arbitrator.createDispute.value(_arbitrationCost)(amountOfChoices,arbitratorExtraData);
-        emit Dispute(arbitrator,disputeID,0);
+        emit Dispute(arbitrator, disputeID, 0, 0);
     }
 
     /** @dev Reimburse partyA if partyB fails to pay the fee.
@@ -148,7 +148,7 @@ contract TwoPartyArbitrable is Arbitrable {
      */
     function submitEvidence(string _evidence) public onlyParty {
         require(status >= Status.DisputeCreated, "The dispute has not been created yet.");
-        emit Evidence(arbitrator,disputeID,msg.sender,_evidence);
+        emit Evidence(arbitrator, 0, msg.sender, _evidence);
     }
 
     /** @dev Appeal an appealable ruling.
@@ -171,7 +171,7 @@ contract TwoPartyArbitrable is Arbitrable {
 
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
-        // In both cases sends the highest amount paid to avoid ETH to be stuck in 
+        // In both cases sends the highest amount paid to avoid ETH to be stuck in
         // the contract if the arbitrator lowers its fee.
         if (_ruling==PARTY_A_WINS)
             partyA.send(partyAFee > partyBFee ? partyAFee : partyBFee);

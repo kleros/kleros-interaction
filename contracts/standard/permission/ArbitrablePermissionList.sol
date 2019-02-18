@@ -152,7 +152,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.status = ItemStatus.PreventiveClearingRequested;
         else
             revert("Item in wrong status for clearing."); // If the item is neither Registered nor Absent, it is not possible to request clearing it.
-        
+
         if (item.lastAction == 0) {
             itemsList.push(_value);
         }
@@ -181,7 +181,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
-            emit Dispute(arbitrator, item.disputeID, 0);
+            emit Dispute(arbitrator, item.disputeID, 0, 0);
         } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.Resubmitted)
                 item.status = ItemStatus.Cleared;
@@ -218,7 +218,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.disputed = true;
             item.disputeID = arbitrator.createDispute.value(arbitratorCost)(2,arbitratorExtraData);
             disputeIDToItem[item.disputeID] = _value;
-            emit Dispute(arbitrator, item.disputeID, 0);
+            emit Dispute(arbitrator, item.disputeID, 0, 0);
         } else { // In the case the arbitration fees increased so much that the deposit of the requester is not high enough. Cancel the request.
             if (item.status == ItemStatus.ClearingRequested)
                 item.status = ItemStatus.Registered;
@@ -269,7 +269,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
     /* Public Views */
 
     /**
-     *  @dev Return true if the item is allowed. 
+     *  @dev Return true if the item is allowed.
      *  We consider the item to be in the list if its status is contested and it has not won a dispute previously.
      *  @param _value The value of the item to check.
      *  @return allowed True if the item is allowed, false otherwise.
@@ -305,7 +305,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
                     item.submitter.send(item.balance); // Deliberate use of send in order to not block the contract in case of reverting fallback.
                 else
                     item.challenger.send(item.balance);
-                    
+
                 item.status = ItemStatus.Registered;
             }
         } else if (_ruling == CLEAR) {
@@ -325,7 +325,7 @@ contract ArbitrablePermissionList is PermissionInterface, Arbitrable {
             item.submitter.send(item.balance / 2);
             item.challenger.send(item.balance / 2);
         }
-        
+
         item.disputed = false;
         if (rechallengePossible && item.status==ItemStatus.Submitted && _ruling==REGISTER)
             item.lastAction = now; // If the item can be rechallenged, update the time and keep the remaining balance.

@@ -160,7 +160,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     address[] public addressList; // List of submitted addresses.
 
     // Request ID Counter
-    uint private nextRequestID = 0
+    uint private nextRequestID = 0;
 
     /* Constructor */
 

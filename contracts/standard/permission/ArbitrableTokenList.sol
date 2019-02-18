@@ -177,7 +177,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     mapping(address => bytes32[]) public addressToSubmissions; // Maps addresses to submitted token IDs.
 
     // Request ID Counter
-    uint private nextRequestID = 0
+    uint private nextRequestID = 0;
 
     /* Constructor */
 

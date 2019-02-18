@@ -152,7 +152,7 @@ contract ArbitrableDeposit is Arbitrable {
     function raiseDispute(uint _arbitrationCost) internal {
         status = Status.DisputeCreated;
         disputeID = arbitrator.createDispute.value(_arbitrationCost)(AMOUNT_OF_CHOICES,arbitratorExtraData);
-        emit Dispute(arbitrator, disputeID, 0);
+        emit Dispute(arbitrator, disputeID, 0, 0);
     }
 
     /** @dev Reimburse owner if claimant fails to pay the fee.

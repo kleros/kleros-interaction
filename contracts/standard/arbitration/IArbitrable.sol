@@ -27,13 +27,13 @@ interface IArbitrable {
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _metaEvidenceID Unique identifier of meta-evidence.
-     *  @param _evidenceGroupID Unique identifier of the group of evidence that are linked to this dispute.
+     *  @param _evidenceGroupID Unique identifier of the evidence group that is linked to this dispute.
      */
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID, uint _evidenceGroupID);
 
     /** @dev To be raised when evidence are submitted. Should point to the ressource (evidences are not to be stored on chain due to gas considerations).
      *  @param _arbitrator The arbitrator of the contract.
-     *  @param _evidenceGroupID Unique identifier of the group of evidence that relates the evidences to a dispute.
+     *  @param _evidenceGroupID Unique identifier of the evidence group the evidence belongs to.
      *  @param _party The address of the party submiting the evidence. Note that 0x0 refers to evidence not submitted by any party.
      *  @param _evidence A URI to the evidence JSON file whose name should be its keccak256 hash followed by .json.
      */

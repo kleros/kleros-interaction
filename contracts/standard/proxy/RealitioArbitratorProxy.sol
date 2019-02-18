@@ -54,7 +54,7 @@ contract RealitioArbitratorProxy is Arbitrable {
         disputeIDToQuestionID[disputeID] = _questionID;
         questionIDToDisputer[_questionID] = msg.sender;
         realitio.notifyOfArbitrationRequest(_questionID, msg.sender, _maxPrevious);
-        emit Dispute(arbitrator, disputeID, 0);
+        emit Dispute(arbitrator, disputeID, 0, 0);
     }
 
     /** @dev Report the answer to a specified question from the ERC792 arbitrator to the Realitio contract.
