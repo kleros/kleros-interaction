@@ -387,7 +387,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 Party.Challenger,
                 request.parties[uint(Party.Challenger)]
             );
-        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] && round.sidePendingFunds == Party.Challenger) {
+        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)]) {
             // Notify requester if he must receive contributions to not lose the case.
             round.sidePendingFunds = Party.Requester;
             emit WaitingOpponent(
@@ -599,7 +599,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 true,
                 true
             );
-        } else if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] && round.sidePendingFunds == Party.Requester) {
+        } else if (
+            round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] &&
+            (round.sidePendingFunds == Party.Requester || round.sidePendingFunds == Party.None)) {
+
             // Notify challenger if he must receive contributions to not lose the case.
             round.sidePendingFunds = Party.Challenger;
             emit WaitingOpponent(
@@ -607,7 +610,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 Party.Challenger,
                 request.parties[uint(Party.Challenger)]
             );
-        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] && round.sidePendingFunds == Party.Challenger) {
+        } else if (
+            round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] &&
+            (round.sidePendingFunds == Party.Challenger || round.sidePendingFunds == Party.None)) {
+
             // Notify requester if he must receive contributions to not lose the case.
             round.sidePendingFunds = Party.Requester;
             emit WaitingOpponent(
