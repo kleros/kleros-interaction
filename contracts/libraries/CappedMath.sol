@@ -17,16 +17,16 @@ library CappedMath {
     uint constant private UINT_MAX = 2**256 - 1;
 
     /**
-    * @dev Adds two unsigned integers, returns 2^256 - 1 on overflow.
-    */
+     * @dev Adds two unsigned integers, returns 2^256 - 1 on overflow.
+     */
     function addCap(uint _a, uint _b) internal pure returns (uint) {
         uint c = _a + _b;
         return c >= _a ? c : UINT_MAX;
     }
 
     /**
-    * @dev Subtracts two integers, returns 0 on underflow.
-    */
+     * @dev Subtracts two integers, returns 0 on underflow.
+     */
     function subCap(uint _a, uint _b) internal pure returns (uint) {
         if (_b > _a)
             return 0;
@@ -35,8 +35,8 @@ library CappedMath {
     }
 
     /**
-    * @dev Multiplies two unsigned integers, returns 2^256 - 1 on overflow.
-    */
+     * @dev Multiplies two unsigned integers, returns 2^256 - 1 on overflow.
+     */
     function mulCap(uint _a, uint _b) internal pure returns (uint) {
         // Gas optimization: this is cheaper than requiring '_a' not being zero, but the
         // benefit is lost if '_b' is also tested.
