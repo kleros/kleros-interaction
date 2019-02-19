@@ -418,6 +418,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _side The recipient of the contribution.
      */
     function fundDispute(bytes32 _tokenID, Party _side) external payable {
+        // Recipient must be either the requester or challenger.
         require(_side == Party.Requester || _side == Party.Challenger); // solium-disable-line error-reason
         Token storage token = tokens[_tokenID];
         require(
@@ -520,6 +521,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _side The recipient of the contribution.
      */
     function fundAppeal(bytes32 _tokenID, Party _side) external payable {
+        // Recipient must be either the requester or challenger.
         require(_side == Party.Requester || _side == Party.Challenger); // solium-disable-line error-reason
         Token storage token = tokens[_tokenID];
         require(
@@ -652,6 +654,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
+        // The request must be executed and there can be no disputes pending resolution.
         require(request.resolved); // solium-disable-line error-reason
 
         uint reward;
