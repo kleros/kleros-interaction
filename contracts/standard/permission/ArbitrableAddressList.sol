@@ -233,6 +233,7 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
         request.challengeRewardBalance = challengeReward;
         request.arbitrator = arbitrator;
         request.arbitratorExtraData = arbitratorExtraData;
+
         emit RequestSubmitted(_address, addr.status == AddressStatus.RegistrationRequested);
 
         // Calculate total amount required to fully fund the each side.
@@ -319,19 +320,28 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToAddress[request.disputeID] = _address;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _address,
+                        addr.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 addr.status == AddressStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                requestID
             );
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
 
             if (bytes(_evidence).length > 0)
-                emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
+                emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
 
             emit AddressStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -417,12 +427,21 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToAddress[request.disputeID] = _address;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _address,
+                        addr.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 addr.status == AddressStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                requestID
             );
 
             request.rounds.length++;
@@ -733,12 +752,21 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToAddress[request.disputeID] = _address;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _address,
+                        addr.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 addr.status == AddressStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                requestID
             );
 
             request.rounds.length++;
@@ -847,10 +875,17 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
     function submitEvidence(address _address, string _evidence) external {
         Address storage addr = addresses[_address];
         Request storage request = addr.requests[addr.requests.length - 1];
-        require(request.disputed, "The request is not disputed.");
         require(!request.resolved, "The dispute was resolved.");
 
-        emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
+        uint requestID = uint(
+            keccak256(
+                abi.encodePacked(
+                    _address,
+                    addr.requests.length - 1
+                )
+            )
+        );
+        emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
     }
 
     // ************************ //

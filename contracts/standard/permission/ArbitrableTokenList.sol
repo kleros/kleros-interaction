@@ -83,6 +83,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         RulingOption ruling; // The final ruling given, if any.
         Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
         bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
+        uint requestID; // The global unique identifier of the request. Used for Evidence submissions.
     }
 
     struct Round {
@@ -275,6 +276,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.challengeRewardBalance = challengeReward;
         request.arbitrator = arbitrator;
         request.arbitratorExtraData = arbitratorExtraData;
+
         emit RequestSubmitted(tokenID, token.status == TokenStatus.RegistrationRequested);
 
         // Calculate total amount required to fully fund the each side.
@@ -361,19 +363,28 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _tokenID,
+                        token.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                requestID
             );
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
 
             if (bytes(_evidence).length > 0)
-                emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
+                emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -407,10 +418,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _side The recipient of the contribution.
      */
     function fundDispute(bytes32 _tokenID, Party _side) external payable {
-        require(
-            _side == Party.Requester || _side == Party.Challenger,
-            "Recipient must be either the requester or challenger."
-        );
+        require(_side == Party.Requester || _side == Party.Challenger); // solium-disable-line error-reason
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
@@ -459,12 +467,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _tokenID,
+                        token.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                requestID
             );
 
             request.rounds.length++;
@@ -503,10 +520,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _side The recipient of the contribution.
      */
     function fundAppeal(bytes32 _tokenID, Party _side) external payable {
-        require(
-            _side == Party.Requester || _side == Party.Challenger,
-            "Recipient must be either the requester or challenger."
-        );
+        require(_side == Party.Requester || _side == Party.Challenger); // solium-disable-line error-reason
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
@@ -638,10 +652,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
-        require(
-            request.resolved,
-            "The request was not executed and/or there are disputes pending resolution."
-        );
+        require(request.resolved); // solium-disable-line error-reason
 
         uint reward;
         if (!request.disputed || request.ruling == RulingOption.Other) {
@@ -776,12 +787,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _tokenID,
+                        token.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1
+                    : metaEvidenceUpdates + 1,
+                requestID
             );
 
             request.rounds.length++;
@@ -891,10 +911,17 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function submitEvidence(bytes32 _tokenID, string _evidence) external {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
-        require(request.disputed, "The request is not disputed.");
         require(!request.resolved, "The dispute was resolved.");
 
-        emit Evidence(request.arbitrator, request.disputeID, msg.sender, _evidence);
+        uint requestID = uint(
+            keccak256(
+                abi.encodePacked(
+                    _tokenID,
+                    token.requests.length - 1
+                )
+            )
+        );
+        emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
     }
 
     // ************************ //
