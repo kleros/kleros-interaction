@@ -112,11 +112,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     event TokenSubmitted(string _name, string _ticker, string _symbolMultihash, address indexed _address);
 
     /** @dev Emitted when a party makes a request to change a token status.
-     *  @param _requestID The global identifier of the request.
      *  @param _tokenID The ID of the affected token.
      *  @param _registrationRequest Whether the request is a registration request. False means it is a clearing request.
      */
-    event RequestSubmitted(uint indexed _requestID, bytes32 indexed _tokenID, bool indexed _registrationRequest);
+    event RequestSubmitted(bytes32 indexed _tokenID, bool indexed _registrationRequest);
 
     /**
      *  @dev Emitted when a party makes a request, dispute or appeals are raised or when a request is resolved.
@@ -175,9 +174,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     // Token list
     mapping(address => bytes32[]) public addressToSubmissions; // Maps addresses to submitted token IDs.
-
-    // Request ID Counter
-    uint private nextRequestID = 0;
 
     /* Constructor */
 
@@ -280,10 +276,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.challengeRewardBalance = challengeReward;
         request.arbitrator = arbitrator;
         request.arbitratorExtraData = arbitratorExtraData;
-        request.requestID = nextRequestID;
-        nextRequestID++;
 
-        emit RequestSubmitted(request.requestID, tokenID, token.status == TokenStatus.RegistrationRequested);
+        emit RequestSubmitted(tokenID, token.status == TokenStatus.RegistrationRequested);
 
         // Calculate total amount required to fully fund the each side.
         // The amount required for each side is:
@@ -369,20 +363,28 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _tokenID,
+                        token.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
                     : metaEvidenceUpdates + 1,
-                request.requestID
+                requestID
             );
 
             request.rounds.length++;
             round.feeRewards -= arbitrationCost;
 
             if (bytes(_evidence).length > 0)
-                emit Evidence(request.arbitrator, request.requestID, msg.sender, _evidence);
+                emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
 
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -416,10 +418,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _side The recipient of the contribution.
      */
     function fundDispute(bytes32 _tokenID, Party _side) external payable {
-        require(
-            _side == Party.Requester || _side == Party.Challenger,
-            "Recipient must be either the requester or challenger."
-        );
+        require(_side == Party.Requester || _side == Party.Challenger); // solium-disable-line error-reason
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
@@ -468,13 +467,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _tokenID,
+                        token.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
                     : metaEvidenceUpdates + 1,
-                request.requestID
+                requestID
             );
 
             request.rounds.length++;
@@ -513,10 +520,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _side The recipient of the contribution.
      */
     function fundAppeal(bytes32 _tokenID, Party _side) external payable {
-        require(
-            _side == Party.Requester || _side == Party.Challenger,
-            "Recipient must be either the requester or challenger."
-        );
+        require(_side == Party.Requester || _side == Party.Challenger); // solium-disable-line error-reason
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
@@ -648,10 +652,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
-        require(
-            request.resolved,
-            "The request was not executed and/or there are disputes pending resolution."
-        );
+        require(request.resolved); // solium-disable-line error-reason
 
         uint reward;
         if (!request.disputed || request.ruling == RulingOption.Other) {
@@ -786,13 +787,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
             disputeIDToTokenID[request.disputeID] = _tokenID;
             request.disputed = true;
+            uint requestID = uint(
+                keccak256(
+                    abi.encodePacked(
+                        _tokenID,
+                        token.requests.length - 1
+                    )
+                )
+            );
             emit Dispute(
                 arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
                     : metaEvidenceUpdates + 1,
-                request.requestID
+                requestID
             );
 
             request.rounds.length++;
@@ -904,7 +913,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.resolved, "The dispute was resolved.");
 
-        emit Evidence(request.arbitrator, request.requestID, msg.sender, _evidence);
+        uint requestID = uint(
+            keccak256(
+                abi.encodePacked(
+                    _tokenID,
+                    token.requests.length - 1
+                )
+            )
+        );
+        emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
     }
 
     // ************************ //
