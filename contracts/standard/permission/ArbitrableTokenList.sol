@@ -83,7 +83,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         RulingOption ruling; // The final ruling given, if any.
         Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
         bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
-        uint requestID; // The global unique identifier of the request. Used for Evidence submissions.
     }
 
     struct Round {
@@ -538,9 +537,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Calculate the total amount required to fully fund the each side.
         // The amount required for each side is:
-        //   total = arbitration cost + fee stake
+        //   total = appeal cost + fee stake
         // where:
-        //   fee stake = arbitration cost * multiplier
+        //   fee stake = appeal cost * multiplier
         Party winner;
         Party loser;
         Round storage round = request.rounds[request.rounds.length - 1];
@@ -1088,7 +1087,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             bool appealed,
             uint[3] paidFees,
             uint[3] requiredForSide,
-            uint feeRewards
+            uint feeRewards,
+            Party sidePendingFunds
         )
     {
         Token storage token = tokens[_tokenID];
@@ -1098,7 +1098,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.appealed,
             round.paidFees,
             round.requiredForSide,
-            round.feeRewards
+            round.feeRewards,
+            round.sidePendingFunds
         );
     }
 

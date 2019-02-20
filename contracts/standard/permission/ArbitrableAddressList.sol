@@ -498,9 +498,9 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
         // Calculate the total amount required to fully fund the each side.
         // The amount required for each side is:
-        //   total = arbitration cost + fee stake
+        //   total = appeal cost + fee stake
         // where:
-        //   fee stake = arbitration cost * multiplier
+        //   fee stake = appeal cost * multiplier
         Party winner;
         Party loser;
         Round storage round = request.rounds[request.rounds.length - 1];
@@ -1038,7 +1038,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             bool appealed,
             uint[3] paidFees,
             uint[3] requiredForSide,
-            uint feeRewards
+            uint feeRewards,
+            Party sidePendingFunds
         )
     {
         Address storage addr = addresses[_address];
@@ -1048,7 +1049,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             round.appealed,
             round.paidFees,
             round.requiredForSide,
-            round.feeRewards
+            round.feeRewards,
+            round.sidePendingFunds
         );
     }
 
