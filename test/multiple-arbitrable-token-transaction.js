@@ -537,13 +537,10 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeByReceiver(
-      arbitrableTransactionId,
-      {
-        from: payer,
-        value: arbitrationFee
-      }
-    )
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
 
     arbitrableTransactionStatus = (await maContract.transactions(
       arbitrableTransactionId
@@ -551,11 +548,13 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
     assert.equal(
       arbitrableTransactionStatus.toNumber(),
-      1, // `Status.WaitingSender == 1` 
+      1, // `Status.WaitingSender == 1`
       'The transaction did not change correctly to new status: `Status.WaitingSender`'
     )
 
-    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, { from: arbitrator })
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, {
+      from: arbitrator
+    })
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
@@ -568,7 +567,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
     assert.equal(
       arbitrableTransactionStatus.toNumber(),
-      2, // `Status.WaitingReceiver == 2` 
+      2, // `Status.WaitingReceiver == 2`
       'The transaction did not change correctly to new status: `Status.WaitingReceiver`'
     )
   })
@@ -577,32 +576,28 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeByReceiver(
-      arbitrableTransactionId,
-      {
-        from: payer,
-        value: arbitrationFee
-      }
-    )
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+      from: payer,
+      value: arbitrationFee
+    })
 
-    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, { from: arbitrator })
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, {
+      from: arbitrator
+    })
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
       value: arbitrationFee + 42
     })
 
-    await maContract.payArbitrationFeeByReceiver(
-      arbitrableTransactionId,
-      {
-        from: payer,
-        value: 42 // Pay the rest of arbitration fee with an extra to test also the refund in this case
-      }
-    )
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+      from: payer,
+      value: 42 // Pay the rest of arbitration fee with an extra to test also the refund in this case
+    })
 
-    arbitrableTransaction = (await maContract.transactions(
+    arbitrableTransaction = await maContract.transactions(
       arbitrableTransactionId
-    ))
+    )
 
     const payerBalanceBeforeRuling = web3.eth.getBalance(payer)
     const payeeBalanceBeforeRuling = web3.eth.getBalance(payee)
@@ -614,13 +609,19 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
     assert.equal(
       payeeBalanceAfterRuling.toString(),
-      payeeBalanceBeforeRuling.plus(10).plus(21).toString(),
+      payeeBalanceBeforeRuling
+        .plus(10)
+        .plus(21)
+        .toString(),
       'The payee has not been reimbursed correctly'
     )
 
     assert.equal(
       payerBalanceAfterRuling.toString(),
-      payerBalanceBeforeRuling.plus(10).plus(21).toString(),
+      payerBalanceBeforeRuling
+        .plus(10)
+        .plus(21)
+        .toString(),
       'The payer has not been paid properly'
     )
 

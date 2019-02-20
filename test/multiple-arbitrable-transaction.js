@@ -607,11 +607,13 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     assert.equal(
       arbitrableTransactionStatus.toNumber(),
-      1, // `Status.WaitingSender == 1` 
+      1, // `Status.WaitingSender == 1`
       'The transaction did not change correctly to new status: `Status.WaitingSender`'
     )
 
-    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, { from: arbitrator })
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, {
+      from: arbitrator
+    })
 
     await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
@@ -624,7 +626,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     assert.equal(
       arbitrableTransactionStatus.toNumber(),
-      2, // `Status.WaitingReceiver == 2` 
+      2, // `Status.WaitingReceiver == 2`
       'The transaction did not change correctly to new status: `Status.WaitingReceiver`'
     )
   })
@@ -663,7 +665,9 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       }
     )
 
-    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, { from: arbitrator })
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, {
+      from: arbitrator
+    })
 
     await multipleContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: payee,
@@ -688,13 +692,19 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     assert.equal(
       payeeBalanceAfterRuling.toString(),
-      payeeBalanceBeforeRuling.plus(510).plus(21).toString(),
+      payeeBalanceBeforeRuling
+        .plus(510)
+        .plus(21)
+        .toString(),
       'The payee has not been reimbursed correctly'
     )
 
     assert.equal(
       payerBalanceAfterRuling.toString(),
-      payerBalanceBeforeRuling.plus(510).plus(21).toString(),
+      payerBalanceBeforeRuling
+        .plus(510)
+        .plus(21)
+        .toString(),
       'The payer has not been paid properly'
     )
 
@@ -760,7 +770,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
   })
 
-  it('Shouldn\'t work before timeout for the payer', async () => {
+  it("Shouldn't work before timeout for the payer", async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(
       arbitrationFee,
       { from: arbitrator }
@@ -856,7 +866,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
   })
 
-  it('Shouldn\'t work before timeout for the payee', async () => {
+  it("Shouldn't work before timeout for the payee", async () => {
     const centralizedArbitrator = await CentralizedArbitrator.new(
       arbitrationFee,
       { from: arbitrator }
