@@ -215,7 +215,7 @@ contract MultipleArbitrableTransaction {
         if (transaction.senderFee < arbitrationCost) {
             transaction.status = Status.WaitingSender;
             emit HasToPayFee(_transactionID, Party.Sender);
-        } else { // The receiver has also paid the fee. We create the dispute
+        } else { // The sender has also paid the fee. We create the dispute.
             raiseDispute(_transactionID, arbitrationCost);
         }
     }
@@ -242,7 +242,7 @@ contract MultipleArbitrableTransaction {
         if (transaction.receiverFee < arbitrationCost) {
             transaction.status = Status.WaitingReceiver;
             emit HasToPayFee(_transactionID, Party.Receiver);
-        } else { // The sender has also paid the fee. We create the dispute
+        } else { // The receiver has also paid the fee. We create the dispute.
             raiseDispute(_transactionID, arbitrationCost);
         }
     }
