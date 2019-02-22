@@ -32,12 +32,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         ClearingRequested // The token has a request to be removed from the registry.
     }
 
-    enum RulingOption {
-        Other, // Arbitrator did not rule or refused to rule.
-        Accept, // Execute request. Rule in favor of requester.
-        Refuse // Refuse request. Rule in favor of challenger.
-    }
-
     enum Party {
         None,
         Requester, // Party that made a request to change a token status.
@@ -80,7 +74,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         bool resolved; // True if the request was executed and/or any disputes raised were resolved.
         address[3] parties; // Address of requester and challenger, if any.
         Round[] rounds; // Tracks each round of a dispute.
-        RulingOption ruling; // The final ruling given, if any.
+        Party ruling; // The final ruling given, if any.
         Arbitrator arbitrator; // The arbitrator trusted to solve disputes for this request.
         bytes arbitratorExtraData; // The extra data for the trusted arbitrator of this request.
     }
@@ -543,11 +537,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Party winner;
         Party loser;
         Round storage round = request.rounds[request.rounds.length - 1];
-        if (RulingOption(request.arbitrator.currentRuling(request.disputeID)) == RulingOption.Accept) {
-            winner = Party.Requester;
+        winner = Party(request.arbitrator.currentRuling(request.disputeID));
+        if (winner == Party.Requester) {
             loser = Party.Challenger;
-        } else if (RulingOption(request.arbitrator.currentRuling(request.disputeID)) == RulingOption.Refuse) {
-            winner = Party.Challenger;
+        } else if (winner == Party.Challenger) {
             loser = Party.Requester;
         }
 
@@ -657,7 +650,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         require(request.resolved); // solium-disable-line error-reason
 
         uint reward;
-        if (!request.disputed || request.ruling == RulingOption.Other) {
+        if (!request.disputed || request.ruling == Party.None) {
             // No disputes were raised, or there isn't a winner and loser. Reimburse contributions.
             uint rewardRequester = round.paidFees[uint(Party.Requester)] > 0
                 ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / round.paidFees[uint(Party.Requester)]
@@ -670,18 +663,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.contributions[_beneficiary][uint(Party.Requester)] = 0;
             round.contributions[_beneficiary][uint(Party.Challenger)] = 0;
         } else {
-            Party winner;
-            if (request.ruling == RulingOption.Accept)
-                winner = Party.Requester;
-            else
-                winner = Party.Challenger;
-
             // Take rewards for funding the winner.
-            reward = round.paidFees[uint(winner)] > 0
-                ? (round.contributions[_beneficiary][uint(winner)] * round.feeRewards) / round.paidFees[uint(winner)]
+            reward = round.paidFees[uint(request.ruling)] > 0
+                ? (round.contributions[_beneficiary][uint(request.ruling)] * round.feeRewards) / round.paidFees[uint(request.ruling)]
                 : 0;
 
-            round.contributions[_beneficiary][uint(winner)] = 0;
+            round.contributions[_beneficiary][uint(request.ruling)] = 0;
         }
 
         emit RewardWithdrawal(_tokenID, _beneficiary, _request, _round,  reward);
@@ -865,40 +852,40 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function rule(uint _disputeID, uint _ruling) public onlyArbitrator {
-        RulingOption resultRuling = RulingOption(_ruling);
+        require(_ruling <= 2); // solium-disable-line error-reason
+        Party resultRuling = Party(_ruling);
         bytes32 tokenID = disputeIDToTokenID[_disputeID];
         Token storage token = tokens[tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
+        
 
         // The ruling may be inverted depending on the amount of fee contributions received by each side.
         // Rule in favor of the party that received the most contributions, if there were contributions at all. Respect the ruling otherwise.
         // If the required amount for a party was never set, it means that side never received a contribution.
         if (round.requiredForSideSet[uint(Party.Requester)] && round.requiredForSideSet[uint(Party.Challenger)]) {
             // The amount required from both parties was set. Compare amounts.
-            if (resultRuling == RulingOption.Other) {
+            if (resultRuling == Party.None) {
                 // Rule in favor of the requester if he received more or the same amount of contributions as the challenger. Rule in favor of the challenger otherwise.
                 if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
-                    resultRuling = RulingOption.Accept;
+                    resultRuling = Party.Requester;
                 else
-                    resultRuling = RulingOption.Refuse;
+                    resultRuling = Party.Challenger;
             } else {
                 // Invert ruling if the loser fully funded but the winner did not. Respect the ruling otherwise.
-                Party winner;
+                Party winner = resultRuling;
                 Party loser;
-                if (resultRuling == RulingOption.Accept) {
-                    winner = Party.Requester;
+                if (winner == Party.Requester) {
                     loser = Party.Challenger;
                 } else {
-                    winner = Party.Challenger;
                     loser = Party.Requester;
                 }
 
                 if (round.paidFees[uint(loser)] >= round.requiredForSide[uint(loser)]) {
-                    if (resultRuling == RulingOption.Refuse)
-                        resultRuling = RulingOption.Accept;
+                    if (resultRuling == Party.Challenger)
+                        resultRuling = Party.Requester;
                     else
-                        resultRuling = RulingOption.Refuse;
+                        resultRuling = Party.Challenger;
                 }
             }
         }
@@ -1053,7 +1040,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             bool resolved,
             address[3] parties,
             uint numberOfRounds,
-            RulingOption ruling,
+            Party ruling,
             Arbitrator arbitrator,
             bytes arbitratorExtraData
         )
@@ -1141,11 +1128,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[tokenID];
         Request storage request = token.requests[token.requests.length - 1];
 
-        Party winner;
-        if (RulingOption(_ruling) == RulingOption.Accept)
-            winner = Party.Requester;
-        else if (RulingOption(_ruling) == RulingOption.Refuse)
-            winner = Party.Challenger;
+        Party winner = Party(_ruling);
 
         // Update token state
         if (winner == Party.Requester) // Execute Request
@@ -1173,7 +1156,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         request.challengeRewardBalance = 0;
         request.resolved = true;
-        request.ruling = RulingOption(_ruling);
+        request.ruling = Party(_ruling);
 
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
@@ -1215,15 +1198,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = tokens[_tokenID].requests[_request];
         if (!request.resolved) return total;
 
-        Party winner;
-        if (request.ruling == RulingOption.Accept)
-            winner = Party.Requester;
-        else if (request.ruling == RulingOption.Refuse)
-            winner = Party.Challenger;
-
         for (uint i = 0; i < request.rounds.length; i++) {
             Round storage round = request.rounds[i];
-            if (!request.disputed || request.ruling == RulingOption.Other) {
+            if (!request.disputed || request.ruling == Party.None) {
                 uint rewardRequester = round.paidFees[uint(Party.Requester)] > 0
                     ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / round.paidFees[uint(Party.Requester)]
                     : 0;
@@ -1233,8 +1210,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
                 total += rewardRequester + rewardChallenger;
             } else {
-                total += round.paidFees[uint(winner)] > 0
-                    ? (round.contributions[_beneficiary][uint(winner)] * round.feeRewards) / round.paidFees[uint(winner)]
+                total += round.paidFees[uint(request.ruling)] > 0
+                    ? (round.contributions[_beneficiary][uint(request.ruling)] * round.feeRewards) / round.paidFees[uint(request.ruling)]
                     : 0;
             }
         }
