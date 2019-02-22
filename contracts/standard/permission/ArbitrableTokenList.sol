@@ -529,23 +529,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.requiredForSide[uint(Party.Challenger)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
         } else {
             // Arbitrator gave a decisive ruling.
-            if (_side == loser)
-                require(
-                    now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2,
-                    "Contributions to the loser must be done in the first half of the appeal period."
-                );
-
-
-            if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) {
-                // In first half of the appeal period. Update the amount required for each side.
+            if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) { // In first half of the appeal period.
+                // Update the amount required for each side.
                 round.requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
                 round.requiredForSide[uint(winner)] = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_PRECISION);
-            } else {
-                // In second half of appeal period. Update only the amount required to fully fund the winner.
-                // The amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
-                round.requiredForSide[uint(winner)] = round.requiredForSide[uint(winner)] > appealCost
-                    ? round.requiredForSide[uint(winner)]
-                    : appealCost;
+            } else { // In second half of appeal period.
+                if (_side == loser)
+                    revert("The loser can only fund in the first half of the appeal period.");
+                else // The amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
+                    round.requiredForSide[uint(winner)] = round.requiredForSide[uint(winner)] > appealCost ? round.requiredForSide[uint(winner)] : appealCost;
             }
         }
 
@@ -816,37 +808,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
-        
 
-        // The ruling may be inverted depending on the amount of fee contributions received by each side.
-        // Rule in favor of the party that received the most contributions, if there were contributions at all. Respect the ruling otherwise.
-        // If the required amount for a party was never set, it means that side never received a contribution.
-        if (round.requiredForSide[uint(Party.Requester)]!=0 && round.requiredForSide[uint(Party.Challenger)]!=0) {
-            // The amount required from both parties was set. Compare amounts.
-            if (resultRuling == Party.None) {
-                // Rule in favor of the requester if he received more or the same amount of contributions as the challenger. Rule in favor of the challenger otherwise.
-                if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
-                    resultRuling = Party.Requester;
-                else
-                    resultRuling = Party.Challenger;
-            } else {
-                // Invert ruling if the loser fully funded but the winner did not. Respect the ruling otherwise.
-                Party winner = resultRuling;
-                Party loser;
-                if (winner == Party.Requester) 
-                    loser = Party.Challenger;
-                else
-                    loser = Party.Requester;
-
-                if (round.paidFees[uint(loser)] >= round.requiredForSide[uint(loser)]) {
-                    if (resultRuling == Party.Challenger)
-                        resultRuling = Party.Requester;
-                    else
-                        resultRuling = Party.Challenger;
-                }
-            }
+        // The ruling is inverted if the loser was fully funded while the winner was not.
+        if (round.requiredForSide[uint(Party.Requester)]!=0 && round.requiredForSide[uint(Party.Challenger)]!=0) { // The amount required from both parties was set.
+            if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)]) // If one side paid its fees, the ruling is in its favor. Note that if the other side had also paid, an appeal would have been created.
+                resultRuling = Party.Requester;
+            else if (round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)])
+                resultRuling = Party.Challenger;
         }
-
         emit Ruling(Arbitrator(msg.sender), _disputeID, uint(resultRuling));
         executeRuling(_disputeID, uint(resultRuling));
     }
