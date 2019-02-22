@@ -643,7 +643,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function batchRoundWithdraw(address _beneficiary, bytes32 _tokenID, uint _request, uint _cursor, uint _count) public {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
-        for (uint i = _cursor; (_count == 0 && i < request.rounds.length) || (_count > 0 && i < request.rounds.length && i < _count); i++)
+        for (uint i = _cursor; i<request.rounds.length && (_count==0 || i<_count); i++)
             withdrawFeesAndRewards(_beneficiary, _tokenID, _request, _cursor);
     }
 
@@ -664,7 +664,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint _roundCount
     ) external {
         Token storage token = tokens[_tokenID];
-        for (uint i = _cursor; (_count == 0 && i < token.requests.length) || (_count > 0 && i < token.requests.length && i < _count); i++)
+        for (uint i = _cursor; i<token.requests.length && (_count==0 || i<_count); i++)
             batchRoundWithdraw(_beneficiary, _tokenID, i, _roundCursor, _roundCount);
     }
 
