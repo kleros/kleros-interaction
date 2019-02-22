@@ -17,7 +17,7 @@ import "../../libraries/CappedMath.sol";
  *  @title ArbitrableTokenList
  *  This contract is an arbitrable token curated registry for tokens, sometimes referred to as a Token² Curated Registry. Users can send requests to register or remove tokens from the registry which can, in turn, be challenged by parties that disagree with the request.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimately wins a dispute.
- *  NOTE: This contract trusts that the Arbitrator will not reenter or modify its costs during a call. The governor contract (which will be a DAO) is also to be trusted.
+ *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call. This contract is only to be used with an arbitrator returning appealPeriod. The governor contract (which will be a DAO) is also to be trusted.
  */
 contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     using CappedMath for uint;
