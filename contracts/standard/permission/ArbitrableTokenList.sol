@@ -907,8 +907,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function changeMetaEvidence(string _registrationMetaEvidence, string _clearingMetaEvidence) external onlyGovernor {
         metaEvidenceUpdates++;
-        emit MetaEvidence(metaEvidenceUpdates, _registrationMetaEvidence);
-        emit MetaEvidence(metaEvidenceUpdates + 1, _clearingMetaEvidence);
+        emit MetaEvidence(2 * metaEvidenceUpdates, _registrationMetaEvidence);
+        emit MetaEvidence(2 * metaEvidenceUpdates + 1, _clearingMetaEvidence);
     }
 
     /* Public Views */
