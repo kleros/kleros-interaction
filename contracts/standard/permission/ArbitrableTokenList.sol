@@ -1,5 +1,5 @@
 /**
- *  @authors: [@mtsalenc]
+ *  @authors: [@mtsalenc, @clesaege]
  *  @reviewers: []
  *  @auditors: []
  *  @bounties: []
@@ -271,7 +271,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         emit RequestSubmitted(tokenID, token.status == TokenStatus.RegistrationRequested);
 
-        // Calculate total amount required to fully fund the each side.
+        // Calculate total amount required to fully fund each side.
         // The amount required for each side is:
         //   total = arbitration cost + fee stake
         // where:
@@ -326,7 +326,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.parties[uint(Party.Challenger)] = msg.sender;
         request.challengerDepositTime = now; // Save the time the request left the challenge period and entered the arbitration fees funding period.
 
-        // Update the total amount required to fully fund the each side.
+        // Update the total amount required to fully fund each side.
         // The amount required for each side is:
         //   total = arbitration cost + fee stake
         // where:
@@ -526,7 +526,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             "Contributions must be made within the appeal period."
         );
 
-        // Calculate the total amount required to fully fund the each side.
+        // Calculate the total amount required to fully fund each side.
         // The amount required for each side is:
         //   total = appeal cost + fee stake
         // where:
