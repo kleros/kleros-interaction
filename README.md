@@ -33,6 +33,11 @@ Smart contracts able to interact with Kleros and standard proposals.
 - `yarn run cz` - Run commitizen.
 - `yarn run build` - Compile contracts.
 
+## Test
+
+Testrpc default gas limit is lower than the mainnet which prevents deploying some contracts. Before running truffle tests use:
+`testrpc -l 8000000`.
+
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/kleros/kleros-interaction/blob/master/CONTRIBUTING.md).
