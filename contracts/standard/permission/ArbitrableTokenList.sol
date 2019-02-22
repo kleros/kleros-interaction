@@ -517,11 +517,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Party loser;
         Round storage round = request.rounds[request.rounds.length - 1];
         winner = Party(request.arbitrator.currentRuling(request.disputeID));
-        if (winner == Party.Requester) {
+        if (winner == Party.Requester)
             loser = Party.Challenger;
-        } else if (winner == Party.Challenger) {
+        else if (winner == Party.Challenger)
             loser = Party.Requester;
-        }
 
         uint appealCost = request.arbitrator.appealCost(request.disputeID, request.arbitratorExtraData);
         if (winner == Party.None) {
@@ -773,17 +772,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             winner = Party.Challenger;
 
         // Update token state
-        if (winner == Party.Requester) // Execute Request
+        if (winner == Party.Requester) { // Execute Request
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Registered;
             else
                 token.status = TokenStatus.Absent;
-        else // Revert to previous state.
+        }
+        else { // Revert to previous state.
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Absent;
             else if (token.status == TokenStatus.ClearingRequested)
                 token.status = TokenStatus.Registered;
-
+        }
         // Reimburse deposit and send challenge reward.
         // Deliberate use of send in order to not block the contract in case the recipient refuses payments.
         if (winner == Party.Requester)
@@ -833,11 +833,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 // Invert ruling if the loser fully funded but the winner did not. Respect the ruling otherwise.
                 Party winner = resultRuling;
                 Party loser;
-                if (winner == Party.Requester) {
+                if (winner == Party.Requester) 
                     loser = Party.Challenger;
-                } else {
+                else
                     loser = Party.Requester;
-                }
 
                 if (round.paidFees[uint(loser)] >= round.requiredForSide[uint(loser)]) {
                     if (resultRuling == Party.Challenger)
