@@ -17,7 +17,7 @@ import "../../libraries/CappedMath.sol";
  *  @title ArbitrableTokenList
  *  This contract is an arbitrable token curated registry for tokens, sometimes referred to as a Token² Curated Registry. Users can send requests to register or remove tokens from the registry which can, in turn, be challenged by parties that disagree with the request.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimately wins a dispute.
- *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call. This contract is only to be used with an arbitrator returning appealPeriod. The governor contract (which will be a DAO) is also to be trusted.
+ *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call. This contract is only to be used with an arbitrator returning appealPeriod and having non-zero fees. The governor contract (which will be a DAO) is also to be trusted.
  */
 contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     using CappedMath for uint;
@@ -82,8 +82,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     struct Round {
         bool appealed; // True if this round was appealed.
         uint[3] paidFees; // Tracks the fees paid by each side on this round.
-        uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake.
-        bool[3] requiredForSideSet; // Tracks if the amount of fees required for each side has been set.
+        uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake. Is 0 before it's set.
         uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
         Party sidePendingFunds; // The side that must receive fee contributions to not lose the case.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
@@ -281,8 +280,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
         round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-        round.requiredForSideSet[uint(Party.Requester)] = true;
-        round.requiredForSideSet[uint(Party.Challenger)] = true;
 
         // Take up to the amount necessary to fund the current round at the current costs.
         uint contribution;
@@ -549,8 +546,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             // Arbitrator did not rule or refused to rule.
             round.requiredForSide[uint(Party.Requester)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
             round.requiredForSide[uint(Party.Challenger)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-            round.requiredForSideSet[uint(Party.Requester)] = true;
-            round.requiredForSideSet[uint(Party.Challenger)] = true;
         } else {
             // Arbitrator gave a decisive ruling.
             if (_side == loser)
@@ -564,16 +559,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 // In first half of the appeal period. Update the amount required for each side.
                 round.requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
                 round.requiredForSide[uint(winner)] = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_PRECISION);
-                round.requiredForSideSet[uint(winner)] = true;
-                round.requiredForSideSet[uint(loser)] = true;
             } else {
                 // In second half of appeal period. Update only the amount required to fully fund the winner.
                 // The amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
                 round.requiredForSide[uint(winner)] = round.requiredForSide[uint(winner)] > appealCost
                     ? round.requiredForSide[uint(winner)]
                     : appealCost;
-
-                round.requiredForSideSet[uint(winner)] = true;
             }
         }
 
@@ -592,8 +583,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
 
         // Raise appeal if both sides are fully funded.
-        if (round.requiredForSideSet[uint(Party.Requester)] &&
-            round.requiredForSideSet[uint(Party.Challenger)] &&
+        if (round.requiredForSide[uint(Party.Requester)]!=0 &&
+            round.requiredForSide[uint(Party.Challenger)]!=0 &&
             round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
@@ -863,7 +854,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // The ruling may be inverted depending on the amount of fee contributions received by each side.
         // Rule in favor of the party that received the most contributions, if there were contributions at all. Respect the ruling otherwise.
         // If the required amount for a party was never set, it means that side never received a contribution.
-        if (round.requiredForSideSet[uint(Party.Requester)] && round.requiredForSideSet[uint(Party.Challenger)]) {
+        if (round.requiredForSide[uint(Party.Requester)]!=0 && round.requiredForSide[uint(Party.Challenger)]!=0) {
             // The amount required from both parties was set. Compare amounts.
             if (resultRuling == Party.None) {
                 // Rule in favor of the requester if he received more or the same amount of contributions as the challenger. Rule in favor of the challenger otherwise.
