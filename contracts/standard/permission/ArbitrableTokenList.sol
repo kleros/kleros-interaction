@@ -84,7 +84,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint[3] paidFees; // Tracks the fees paid by each side on this round.
         uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake. Is 0 before it's set.
         uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
-        Party sidePendingFunds; // The side that must receive fee contributions to not lose the case.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
@@ -384,21 +383,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 true,
                 false
             );
-        } else if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)]) {
+        } else {
             // Notify challenger if he must receive contributions to not lose the case.
-            round.sidePendingFunds = Party.Challenger;
             emit WaitingOpponent(
                 _tokenID,
                 Party.Challenger,
-                request.parties[uint(Party.Challenger)]
-            );
-        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)]) {
-            // Notify requester if he must receive contributions to not lose the case.
-            round.sidePendingFunds = Party.Requester;
-            emit WaitingOpponent(
-                _tokenID,
-                Party.Requester,
-                request.parties[uint(Party.Requester)]
+                round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] ? request.parties[uint(Party.Challenger)] : request.parties[uint(Party.Requester)]
             );
         }
     }
@@ -487,21 +477,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 true,
                 false
             );
-        } else if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] && round.sidePendingFunds == Party.Requester) {
+        } else {
             // Notify challenger if he must receive contributions to not lose the case.
-            round.sidePendingFunds = Party.Challenger;
             emit WaitingOpponent(
                 _tokenID,
                 Party.Challenger,
-                request.parties[uint(Party.Challenger)]
-            );
-        } else if (round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] && round.sidePendingFunds == Party.Challenger) {
-            // Notify requester if he must receive contributions to not lose the case.
-            round.sidePendingFunds = Party.Requester;
-            emit WaitingOpponent(
-                _tokenID,
-                Party.Requester,
-                request.parties[uint(Party.Requester)]
+                round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] ? request.parties[uint(Party.Challenger)] : request.parties[uint(Party.Requester)]
             );
         }
 
@@ -603,27 +584,12 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 true,
                 true
             );
-        } else if (
-            round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] &&
-            (round.sidePendingFunds == Party.Requester || round.sidePendingFunds == Party.None)) {
-
+        } else {
             // Notify challenger if he must receive contributions to not lose the case.
-            round.sidePendingFunds = Party.Challenger;
             emit WaitingOpponent(
                 _tokenID,
                 Party.Challenger,
-                request.parties[uint(Party.Challenger)]
-            );
-        } else if (
-            round.paidFees[uint(Party.Challenger)] > round.paidFees[uint(Party.Requester)] &&
-            (round.sidePendingFunds == Party.Challenger || round.sidePendingFunds == Party.None)) {
-
-            // Notify requester if he must receive contributions to not lose the case.
-            round.sidePendingFunds = Party.Requester;
-            emit WaitingOpponent(
-                _tokenID,
-                Party.Requester,
-                request.parties[uint(Party.Requester)]
+                round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] ? request.parties[uint(Party.Challenger)] : request.parties[uint(Party.Requester)]
             );
         }
     }
@@ -1066,8 +1032,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             bool appealed,
             uint[3] paidFees,
             uint[3] requiredForSide,
-            uint feeRewards,
-            Party sidePendingFunds
+            uint feeRewards
         )
     {
         Token storage token = tokens[_tokenID];
@@ -1077,8 +1042,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.appealed,
             round.paidFees,
             round.requiredForSide,
-            round.feeRewards,
-            round.sidePendingFunds
+            round.feeRewards
         );
     }
 
