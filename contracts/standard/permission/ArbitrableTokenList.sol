@@ -418,6 +418,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The request must not be already disputed.");
         require(
+            request.challengerDepositTime==0 ||
             now - request.challengerDepositTime < arbitrationFeesWaitingTime,
             "The arbitration fees funding period is over."
         );
