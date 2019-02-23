@@ -881,7 +881,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by party that lost the previous round.
-     *  @param _loserStakeMultiplier Multipliere of arbitration fees that must be paid as fee stake in basis points.
+     *  @param _loserStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake in basis points.
      */
     function changeLoserStakeMultiplier(uint _loserStakeMultiplier) external onlyGovernor {
         loserStakeMultiplier = _loserStakeMultiplier;
