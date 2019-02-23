@@ -35,7 +35,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Requester, // Party that made the request to change a token status.
         Challenger // Party challenging a request.
     }
-
+    
     // ************************ //
     // *  Request Life Cycle  * //
     // ************************ //
@@ -264,7 +264,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.arbitratorExtraData = arbitratorExtraData;
 
         emit RequestSubmitted(tokenID, token.status == TokenStatus.RegistrationRequested);
-
+        
+        uint remainingETH = msg.value - challengeReward;
         // Calculate total amount required to fully fund each side.
         // The amount required for each side is:
         //   total = arbitration cost + fee stake
@@ -274,17 +275,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
         round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
-
-        // Take up to the amount necessary to fund the current round at the current costs.
-        uint contribution;
-        uint remainingETH = msg.value - challengeReward;
-        (contribution, remainingETH) = calculateContribution(remainingETH, round.requiredForSide[uint(Party.Requester)]);
-        round.contributions[msg.sender][uint(Party.Requester)] = contribution;
-        round.paidFees[uint(Party.Requester)] = contribution;
-        round.feeRewards = contribution;
-
-        // Reimburse leftover ETH.
-        msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        contribute(round, Party.Requester, msg.sender, remainingETH);
 
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
@@ -294,6 +285,25 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             false,
             false
         );
+    }
+    
+    /** Make a fee contribution.
+     *  @param _round The round to contribute.
+     *  @param _side The side for which to contribute.
+     *  @param _contributor The contributor.
+     *  @param _amount The amount contributed.
+     */
+    function contribute(Round storage _round, Party _side, address _contributor, uint _amount) internal {
+        // Take up to the amount necessary to fund the current round at the current costs.
+        uint contribution;
+        uint remainingETH;
+        (contribution, remainingETH) = calculateContribution(_amount, _round.requiredForSide[uint(_side)].subCap(_round.paidFees[uint(_side)]));
+        _round.contributions[msg.sender][uint(_side)] += contribution;
+        _round.paidFees[uint(_side)] += contribution;
+        _round.feeRewards += contribution;
+
+        // Reimburse leftover ETH.
+        _contributor.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
     }
 
     /** @dev Challenges the latest request of a token. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
@@ -332,24 +342,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.requiredForSide[uint(Party.Requester)] = totalCost;
         if (round.requiredForSide[uint(Party.Challenger)] != totalCost)
             round.requiredForSide[uint(Party.Challenger)] = totalCost;
-
-        // Take up to the amount necessary to fund the current round at the current costs.
-        uint contribution;
-        (contribution, remainingETH) = calculateContribution(remainingETH, round.requiredForSide[uint(Party.Challenger)]);
-        round.contributions[msg.sender][uint(Party.Challenger)] = contribution;
-        round.paidFees[uint(Party.Challenger)] = contribution;
-        round.feeRewards += contribution;
-
-        // Reimburse leftover ETH.
-        msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        contribute(round, Party.Challenger, msg.sender, remainingETH);
 
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
                 
-            raiseDispute(_tokenID);
+            raiseDispute(_tokenID, arbitrationCost);
             if (bytes(_evidence).length > 0)
-                emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
+                emit Evidence(request.arbitrator, uint(keccak256(abi.encodePacked(_tokenID,token.requests.length - 1))), msg.sender, _evidence);
 
         } else {
             // Notify challenger if he must receive contributions to not lose the case.
@@ -363,13 +364,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     
     /** @dev Raise a dispute. TRUSTED.
      *  @param _tokenID The ID of the token disputed.
+     *  @param _fee The amount of fees to pay.
      */
-    function raiseDispute(uint _tokenID) internal {
+    function raiseDispute(bytes32 _tokenID, uint _fee) internal {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
         
-        request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
+        request.disputeID = request.arbitrator.createDispute.value(_fee)(2, request.arbitratorExtraData);
         arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
         request.disputed = true;
         uint requestID = uint(
@@ -390,7 +392,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
 
         request.rounds.length++;
-        round.feeRewards -= arbitrationCost;
+        round.feeRewards -= _fee;
         
         emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
@@ -437,26 +439,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
         round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
-
-        // Take contribution.
-        uint contribution;
-        uint remainingETH = msg.value;
-        (contribution, remainingETH) = calculateContribution(
-            remainingETH,
-            round.requiredForSide[uint(_side)].subCap(round.paidFees[uint(_side)])
-        );
-        round.contributions[msg.sender][uint(_side)] += contribution;
-        round.paidFees[uint(_side)] += contribution;
-        round.feeRewards += contribution;
-
-        // Reimburse leftover ETH.
-        msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        contribute(round, _side, msg.sender, msg.value);
+        
 
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
             
-            raiseDispute(_tokenID);
+            raiseDispute(_tokenID, arbitrationCost);
         } else {
             // Notify challenger if he must receive contributions to not lose the case.
             emit WaitingOpponent(
@@ -493,10 +483,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         //   total = appeal cost + fee stake
         // where:
         //   fee stake = appeal cost * multiplier
-        Party winner;
-        Party loser;
         Round storage round = request.rounds[request.rounds.length - 1];
-        winner = Party(request.arbitrator.currentRuling(request.disputeID));
+        Party winner = Party(request.arbitrator.currentRuling(request.disputeID));
+        Party loser;
         if (winner == Party.Requester)
             loser = Party.Challenger;
         else if (winner == Party.Challenger)
@@ -521,19 +510,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             }
         }
 
-        // Take only the necessary ETH.
-        uint contribution;
-        uint remainingETH = msg.value;
-        (contribution, remainingETH) = calculateContribution(
-            remainingETH,
-            round.requiredForSide[uint(_side)].subCap(round.paidFees[uint(_side)])
-        );
-        round.contributions[msg.sender][uint(_side)] += contribution;
-        round.paidFees[uint(_side)] += contribution;
-        round.feeRewards += contribution;
-
-        // Reimburse leftover ETH.
-        msg.sender.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+        contribute(round, _side, msg.sender, msg.value);
 
         // Raise appeal if both sides are fully funded.
         if (round.requiredForSide[uint(Party.Requester)]!=0 &&
@@ -564,7 +541,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             );
         }
     }
-
+    
     /** @dev Reimburses contributions if no disputes were raised. If a dispute was raised, sends the fee stake rewards and reimbursements proportional to the contributions made to the winner of a dispute.
      *  @param _beneficiary The address that made contributions to a request.
      *  @param _tokenID The ID of the token submission with the request from which to withdraw.
@@ -702,7 +679,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
-            raiseDispute(_tokenID);
+            raiseDispute(_tokenID, arbitrationCost);
             return;
         }
 
