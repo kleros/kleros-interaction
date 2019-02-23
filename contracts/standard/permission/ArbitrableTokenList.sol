@@ -1095,8 +1095,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      /** @dev Returns the contribution value and remainder from available ETH and required amount.
      *  @param _available The amount of ETH available for the contribution.
      *  @param _requiredAmount The amount of ETH required for the contribution.
-     *  @return The amount of ETH taken.
-     *  @return The amount of ETH left from the contribution.
+     *  @return taken The amount of ETH taken.
+     *  @return remainder The amount of ETH left from the contribution.
      */
     function calculateContribution(uint _available, uint _requiredAmount)
         internal
