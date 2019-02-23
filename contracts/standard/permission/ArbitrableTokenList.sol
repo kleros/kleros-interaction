@@ -5,23 +5,21 @@
  *  @bounties: []
  *  @deployments: []
  */
-
+/* solium-disable max-len*/
 pragma solidity ^0.4.24;
 
 import "../arbitration/Arbitrable.sol";
 import "./PermissionInterface.sol";
 import "../../libraries/CappedMath.sol";
 
-
 /**
  *  @title ArbitrableTokenList
- *  This contract is an arbitrable token curated registry for tokens, sometimes referred to as a Token² Curated Registry. Users can send requests to register or remove tokens from the registry which can, in turn, be challenged by parties that disagree with the request.
+ *  This contract is an arbitrable token curated registry for tokens, sometimes referred to as a Token² Curated Registry. Users can send requests to register or remove tokens from the registry, which can in turn, be challenged by parties that disagree with them.
  *  A crowdsourced insurance system allows parties to contribute to arbitration fees and win rewards if the side they backed ultimately wins a dispute.
  *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call. This contract is only to be used with an arbitrator returning appealPeriod and having non-zero fees. The governor contract (which will be a DAO) is also to be trusted.
  */
 contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     using CappedMath for uint;
-    /* solium-disable max-len*/
 
     /* Enums */
 
@@ -34,7 +32,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     enum Party {
         None,
-        Requester, // Party that made a request to change a token status.
+        Requester, // Party that made the request to change a token status.
         Challenger // Party challenging a request.
     }
 
@@ -42,34 +40,34 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // *  Request Life Cycle  * //
     // ************************ //
     // Changes to the token status are made via requests for either listing or removing a token from the Token² Curated Registry.
-    // The total cost of a request varies depending on whether a party challenges that request and on the number of appeals.
     // To make or challenge a request, a party must pay a deposit. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
     // Additionally to the challenge reward, in the case a party challenges a request, both sides must fully pay the amount of arbitration fees required to raise a dispute. The party that ultimately wins the case will be reimbursed.
-    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional value must be deposited. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
+    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional fee stake must be deposited. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
     // In summary, costs for placing or challenging a request are the following:
     // - A challenge reward given to the party that wins a potential dispute.
     // - Arbitration fees used to pay jurors.
     // - A fee stake that is distributed among insurers of the side that ultimately wins a dispute.
 
     /* Structs */
+    
     struct Token {
         string name; // The token name (e.g. Pinakion).
         string ticker; // The token ticker (e.g. PNK).
         address addr; // The Ethereum address of the token.
         string symbolMultihash; // The multihash of the token symbol.
-        TokenStatus status;
+        TokenStatus status; // The status of the token.
         Request[] requests; // List of status change requests made for the token.
     }
 
-    // Some arrays below have 3 elements to map with the Party enums for better readability.
-    // - 0 is unused, matches Party.None.
-    // - 1 for Party.Requester.
-    // - 2 for Party.Challenger.
+    // Some arrays below have 3 elements to map with the Party enums for better readability:
+    // - 0: is unused, matches Party.None.
+    // - 1: for Party.Requester.
+    // - 2: for Party.Challenger.
     struct Request {
         bool disputed; // True if a dispute was raised.
         uint disputeID; // ID of the dispute, if any.
         uint submissionTime; // Time when the request was made. Used to track when the challenge period ends.
-        uint challengeRewardBalance; // The summation of requester's and challenger's deposit. This value will be given to the party that ultimately wins a potential dispute, or be reimbursed to the requester if no one challenges.
+        uint challengeRewardBalance; // The sum of requester's and challenger's deposit. This value will be given to the party that ultimately wins a potential dispute, or be reimbursed to the requester if no one challenges.
         uint challengerDepositTime; // The time when a challenger paid the deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
         bool resolved; // True if the request was executed and/or any disputes raised were resolved.
         address[3] parties; // Address of requester and challenger, if any.
@@ -82,8 +80,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     struct Round {
         bool appealed; // True if this round was appealed.
         uint[3] paidFees; // Tracks the fees paid by each side on this round.
-        uint[3] requiredForSide; // The total amount required to fully fund each side. It is the summation of the dispute or appeal cost and the fee stake. Is 0 before it's set.
-        uint feeRewards; // Summation of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
+        uint[3] requiredForSide; // The total amount required to fully fund each side. It is the sum of the dispute or appeal cost and the fee stake. Is 0 before it's set.
+        uint feeRewards; // Sum of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
@@ -106,10 +104,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _tokenID The ID of the affected token.
      *  @param _registrationRequest Whether the request is a registration request. False means it is a clearing request.
      */
-    event RequestSubmitted(bytes32 indexed _tokenID, bool indexed _registrationRequest);
+    event RequestSubmitted(bytes32 indexed _tokenID, bool _registrationRequest);
 
     /**
-     *  @dev Emitted when a party makes a request, dispute or appeals are raised or when a request is resolved.
+     *  @dev Emitted when a party makes a request, dispute or appeals are raised, or when a request is resolved.
      *  @param _requester Address of the party that submitted the request.
      *  @param _challenger Address of the party that has challenged the request, if any.
      *  @param _tokenID The token ID. It is the keccak256 hash of it's data.
@@ -140,7 +138,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _side The side that must receive contributions to not lose the case.
      *  @param _party The account of the side that must receive contributions to not lose the case.
      */
-    event WaitingOpponent(bytes32 indexed _tokenID, Party indexed _side, address indexed _party);
+    event WaitingOpponent(bytes32 indexed _tokenID, Party _side, address indexed _party);
 
     /* Storage */
 
@@ -152,11 +150,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     address public governor; // The address that can make governance changes to the parameters of the Token² Curated Registry.
 
     // The required fee stake that a party must pay depends on who won the previous round and is proportional to the arbitration cost such that the fee stake for a round is stake multiplier * arbitration cost for that round.
-    // The value is the percentage in 2 digits precision (e.g. a multiplier of 5000 results the fee stake being 50% of the arbitration cost for that round).
+    // Multipliers are in basis points.
     uint public winnerStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that won the previous round.
     uint public loserStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that lost the previous round.
     uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that must be paid in the case where there isn't a winner and loser (e.g. when it's the first round or the arbitrator ruled "refused to rule"/"could not rule").
-    uint public constant MULTIPLIER_PRECISION = 10000; // Precision parameter for multipliers.
+    uint public constant MULTIPLIER_DIVISOR = 10000; // Divisor parameter for multipliers.
 
     // Registry data.
     mapping(bytes32 => Token) public tokens; // Maps the token ID to the token data.
@@ -178,9 +176,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _arbitrationFeesWaitingTime The maximum time in seconds to wait for arbitration fees if the dispute is raised.
      *  @param _challengeReward The amount in weis required to submit or challenge a request.
      *  @param _challengePeriodDuration The time in seconds, parties have to challenge a request.
-     *  @param _sharedStakeMultiplier Percentage of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule). Value in 2 digits precision (e.g. 2500 results in a fee stake that is 25% of the arbitration cost value of that round).
-     *  @param _winnerStakeMultiplier Percentage of the arbitration cost that the winner has to pay as fee stake for a round. Value in 2 digits precision (e.g. 5000 results in a fee stake that is 50% of the arbitration cost value of that round).
-     *  @param _loserStakeMultiplier Percentage of the arbitration cost that the loser has to pay as fee stake for a round. Value in 2 digits precision (e.g. 10000 results in a fee stake that is 100% of the arbitration cost value of that round).
+     *  @param _sharedStakeMultiplier Multiplier of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule) in basis points.
+     *  @param _winnerStakeMultiplier Multiplier of the arbitration cost that the winner has to pay as fee stake for a round in basis points.
+     *  @param _loserStakeMultiplier Multiplier of the arbitration cost that the loser has to pay as fee stake for a round in basis points. 
      */
     constructor(
         Arbitrator _arbitrator,
@@ -206,8 +204,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         winnerStakeMultiplier = _winnerStakeMultiplier;
         loserStakeMultiplier = _loserStakeMultiplier;
     }
-
-    /* Public */
 
     // ************************ //
     // *       Requests       * //
@@ -240,7 +236,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         Token storage token = tokens[tokenID];
         if (token.requests.length == 0) {
-            // Initial token registration
+            // Initial token registration.
             token.name = _name;
             token.ticker = _ticker;
             token.addr = _addr;
@@ -256,11 +252,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         else if (token.status == TokenStatus.Registered)
             token.status = TokenStatus.ClearingRequested;
         else
-            revert("Token is in wrong status for request.");
+            revert("Token already has a pending request.");
 
         // Setup request.
-        token.requests.length++;
-        Request storage request = token.requests[token.requests.length - 1];
+        Request storage request = token.requests[token.requests.length++];
         request.parties[uint(Party.Requester)] = msg.sender;
         request.submissionTime = now;
         request.rounds.length++;
@@ -277,8 +272,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         //   fee stake = arbitration cost * multiplier
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
 
         // Take up to the amount necessary to fund the current round at the current costs.
         uint contribution;
@@ -303,7 +298,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /** @dev Challenges the latest request of a token. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
      *  @param _tokenID The ID of the token with the request to challenge.
-     *  @param _evidence A link to an evidence using its URI. Ignored if not provided or if not enough funds were raised to create a dispute.
+     *  @param _evidence A link to an evidence using its URI. Ignored if not provided or if not enough funds were provided to create a dispute.
      */
     function challengeRequest(bytes32 _tokenID, string _evidence) external payable {
         Token storage token = tokens[_tokenID];
@@ -313,7 +308,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
         Request storage request = token.requests[token.requests.length - 1];
         require(now - request.submissionTime < challengePeriodDuration, "The challenge period has already passed.");
-        require(request.challengerDepositTime == 0, "Request should have only the requester's deposit.");
+        require(request.challengerDepositTime == 0, "The request is already challenged.");
         require(
             msg.value >= request.challengeRewardBalance,
             "Not enough ETH. The party challenging the request must pay the challenge deposit in full."
@@ -332,8 +327,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         //   fee stake = arbitration cost * multiplier
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        if (round.requiredForSide[uint(Party.Requester)] != totalCost)
+            round.requiredForSide[uint(Party.Requester)] = totalCost;
+        if (round.requiredForSide[uint(Party.Challenger)] != totalCost)
+            round.requiredForSide[uint(Party.Challenger)] = totalCost;
 
         // Take up to the amount necessary to fund the current round at the current costs.
         uint contribution;
@@ -361,7 +359,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 )
             );
             emit Dispute(
-                arbitrator,
+                request.arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
@@ -415,7 +413,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (_side == Party.Challenger)
             require(
                 request.challengerDepositTime > 0,
-                "A challenge deposit must be paid before the challenger can accept contributions."
+                "You cannot fund a dispute for a request that is not challenged."
             );
 
         // Update the total amount required for each side.
@@ -425,8 +423,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         //   fee stake = arbitration cost * multiplier
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
 
         // Take contribution.
         uint contribution;
@@ -458,7 +456,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 )
             );
             emit Dispute(
-                arbitrator,
+                request.arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
@@ -525,14 +523,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint appealCost = request.arbitrator.appealCost(request.disputeID, request.arbitratorExtraData);
         if (winner == Party.None) {
             // Arbitrator did not rule or refused to rule.
-            round.requiredForSide[uint(Party.Requester)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-            round.requiredForSide[uint(Party.Challenger)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+            round.requiredForSide[uint(Party.Requester)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+            round.requiredForSide[uint(Party.Challenger)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
         } else {
             // Arbitrator gave a decisive ruling.
             if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) { // In first half of the appeal period.
                 // Update the amount required for each side.
-                round.requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_PRECISION);
-                round.requiredForSide[uint(winner)] = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_PRECISION);
+                round.requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_DIVISOR);
+                round.requiredForSide[uint(winner)] = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_DIVISOR);
             } else { // In second half of appeal period.
                 if (_side == loser)
                     revert("The loser can only fund in the first half of the appeal period.");
@@ -585,7 +583,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Reimburses contributions if no disputes were raised. If a dispute was raised, sends the fee stake rewards and reimbursements proportional to the contribtutions made to the winner of a dispute.
+    /** @dev Reimburses contributions if no disputes were raised. If a dispute was raised, sends the fee stake rewards and reimbursements proportional to the contributions made to the winner of a dispute.
      *  @param _beneficiary The address that made contributions to a request.
      *  @param _tokenID The ID of the token submission with the request from which to withdraw.
      *  @param _request The request from which to withdraw.
@@ -635,14 +633,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
         for (uint i = _cursor; i<request.rounds.length && (_count==0 || i<_count); i++)
-            withdrawFeesAndRewards(_beneficiary, _tokenID, _request, _cursor);
+            withdrawFeesAndRewards(_beneficiary, _tokenID, _request, i);
     }
 
     /** @dev Withdraws rewards and reimbursements of multiple requests at once. This function is O(n*m) where n is the number of requests and m is the number of rounds. This could exceed gas limits, therefore this function should be used only as a utility and not be relied upon by other contracts.
      *  @param _beneficiary The address that made contributions to the request.
      *  @param _tokenID The token ID with funds to be withdrawn.
      *  @param _cursor The request from which to start withdrawing.
-     *  @param _count The number of requests o iterate. If set to 0 or a value larger than the number of request, iterates until the last request.
+     *  @param _count The number of requests to iterate. If set to 0 or a value larger than the number of request, iterates until the last request.
      *  @param _roundCursor The round of each request from where to start withdrawing.
      *  @param _roundCount The number of rounds to iterate on each request. If set to 0 or a value larger than the number of rounds a request has, iteration for that request will stop at the last round.
      */
@@ -715,8 +713,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         //   fee stake = arbitration cost * multiplier
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
-        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_PRECISION);
+        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
 
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
@@ -734,7 +732,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 )
             );
             emit Dispute(
-                arbitrator,
+                request.arbitrator,
                 request.disputeID,
                 token.status == TokenStatus.RegistrationRequested
                     ? metaEvidenceUpdates
@@ -778,10 +776,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
         // Reimburse deposit and send challenge reward.
         // Deliberate use of send in order to not block the contract in case the recipient refuses payments.
-        if (winner == Party.Requester)
-            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
-        else
-            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
+        request.parties[uint(winner)].send(request.challengeRewardBalance);
 
         request.challengeRewardBalance = 0;
         request.resolved = true;
@@ -872,21 +867,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by parties when there isn't a winner or loser.
-     *  @param _sharedStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 1000 will result in 10% of the arbitration fees required as fee stake in that round).
+     *  @param _sharedStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake in basis points.
      */
     function changeSharedStakeMultiplier(uint _sharedStakeMultiplier) external onlyGovernor {
         sharedStakeMultiplier = _sharedStakeMultiplier;
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by winner of the previous round.
-     *  @param _winnerStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 5000 will result in 50% of the arbitration fees required in that round).
+     *  @param _winnerStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake in basis points.
      */
     function changeWinnerStakeMultiplier(uint _winnerStakeMultiplier) external onlyGovernor {
         winnerStakeMultiplier = _winnerStakeMultiplier;
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by party that lost the previous round.
-     *  @param _loserStakeMultiplier The new percentage of arbitration fees that must be paid as fee stake with 2 digits precision (e.g. a value of 10000 will result in 100% of the arbitration fees as fee stake required in that round).
+     *  @param _loserStakeMultiplier Multipliere of arbitration fees that must be paid as fee stake in basis points.
      */
     function changeLoserStakeMultiplier(uint _loserStakeMultiplier) external onlyGovernor {
         loserStakeMultiplier = _loserStakeMultiplier;
