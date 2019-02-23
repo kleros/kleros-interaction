@@ -861,7 +861,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         governor = _governor;
     }
 
-    /** @dev Change duration of the arbitration fees funding period.
+    /** @dev Change the duration of the arbitration fees funding period.
      *  @param _arbitrationFeesWaitingTime The new duration of the arbitration fees funding period in seconds.
      */
     function changeArbitrationFeesWaitingTime(uint _arbitrationFeesWaitingTime) external onlyGovernor {
@@ -875,14 +875,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         sharedStakeMultiplier = _sharedStakeMultiplier;
     }
 
-    /** @dev Change the percentage of arbitration fees that must be paid as fee stake by winner of the previous round.
+    /** @dev Change the percentage of arbitration fees that must be paid as fee stake by the winner of the previous round.
      *  @param _winnerStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake in basis points.
      */
     function changeWinnerStakeMultiplier(uint _winnerStakeMultiplier) external onlyGovernor {
         winnerStakeMultiplier = _winnerStakeMultiplier;
     }
 
-    /** @dev Change the percentage of arbitration fees that must be paid as fee stake by party that lost the previous round.
+    /** @dev Change the percentage of arbitration fees that must be paid as fee stake by the party that lost the previous round.
      *  @param _loserStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake in basis points.
      */
     function changeLoserStakeMultiplier(uint _loserStakeMultiplier) external onlyGovernor {
@@ -908,7 +908,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit MetaEvidence(2 * metaEvidenceUpdates + 1, _clearingMetaEvidence);
     }
 
-    /* Public Views */
+    /* Views */
 
     /** @dev Return true if the token is on the list.
      *  @param _tokenID The ID of the token to be queried.
@@ -1065,14 +1065,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Send challenge reward.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
-        if (winner == Party.Challenger)
-            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance);
-        else if (winner == Party.Requester)
-            request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
-        else {
+        if (winner == Party.None) {
             // Reimburse parties.
             request.parties[uint(Party.Requester)].send(request.challengeRewardBalance / 2);
-            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance / 2);
+            request.parties[uint(Party.Challenger)].send(request.challengeRewardBalance / 2);            
+        }
+        else {
+            request.parties[uint(winner)].send(request.challengeRewardBalance);
         }
 
         request.challengeRewardBalance = 0;
@@ -1109,10 +1108,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     /* Interface Views */
 
-    /** @dev Return the summation of withdrawable wei of a request an account is elegible to. This function is O(n), where n is the number of rounds of the request. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+    /** @dev Return the sum of withdrawable wei of a request an account is entitled to. This function is O(n), where n is the number of rounds of the request. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @param _tokenID The ID of the token to query.
      *  @param _beneficiary The contributor for which to query.
-     *  @param _request The request from which to query for contributions.
+     *  @param _request The request from which to query for.
      *  @return The total amount of wei available to withdraw.
      */
     function amountWithdrawable(bytes32 _tokenID, address _beneficiary, uint _request) external view returns (uint total){
@@ -1181,7 +1180,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  - Include tokens submitted by the caller.
      *  - Include tokens challenged by the caller.
      *  @param _oldestFirst Whether to sort from oldest to the newest item.
-     *  @param _tokenAddr A token addess. If set, will query all submissions for that address.
+     *  @param _tokenAddr A token address to filter submissions by address (optional).
      *  @return The values of the tokens found and whether there are more tokens for the current filter and sort.
      */
     function queryTokens(bytes32 _cursor, uint _count, bool[8] _filter, bool _oldestFirst, address _tokenAddr)
