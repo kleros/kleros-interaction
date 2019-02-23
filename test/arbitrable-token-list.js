@@ -33,7 +33,7 @@ contract('ArbitrableTokenList', function(accounts) {
   let appealableArbitrator
   let enhancedAppealableArbitrator
   let arbitrableTokenList
-  let MULTIPLIER_PRECISION
+  let MULTIPLIER_DIVISOR
   let tokenID
 
   const TOKEN_STATUS = {
@@ -87,7 +87,7 @@ contract('ArbitrableTokenList', function(accounts) {
       loserStakeMultiplier
     )
 
-    MULTIPLIER_PRECISION = await arbitrableTokenList.MULTIPLIER_PRECISION()
+    MULTIPLIER_DIVISOR = await arbitrableTokenList.MULTIPLIER_DIVISOR()
   }
 
   describe('registration request', () => {
@@ -197,7 +197,7 @@ contract('ArbitrableTokenList', function(accounts) {
           const sharedRequiredStake =
             ((await arbitrableTokenList.sharedStakeMultiplier()).toNumber() *
               arbitrationCost) /
-            MULTIPLIER_PRECISION
+            MULTIPLIER_DIVISOR
 
           let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           await arbitrableTokenList.fundDispute(tokenID, PARTY.Challenger, {
@@ -272,7 +272,7 @@ contract('ArbitrableTokenList', function(accounts) {
           assert.isFalse(request[0])
 
           const sharedRequiredStake =
-            (sharedStakeMultiplier * arbitrationCost) / MULTIPLIER_PRECISION
+            (sharedStakeMultiplier * arbitrationCost) / MULTIPLIER_DIVISOR
 
           request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           let round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
@@ -319,17 +319,15 @@ contract('ArbitrableTokenList', function(accounts) {
           assert.equal(dispute[3].toNumber(), RULING_OPTIONS.Refuse)
           assert.equal(dispute[4].toNumber(), DISPUTE_STATUS.Appealable)
         })
-
-        it(`winner doesn't fund appeal, rule in favor of looser`, async () => {
+        it(`winner doesn't fund appeal, rule in favor of loser`, async () => {
           let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
           const appealCost = (await enhancedAppealableArbitrator.appealCost(
             request[1].toNumber(),
             arbitratorExtraData
           )).toNumber()
           const loserRequiredStake =
-            (loserStakeMultiplier * appealCost) / MULTIPLIER_PRECISION
+            (loserStakeMultiplier * appealCost) / MULTIPLIER_DIVISOR
           let round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 1)
-
           await arbitrableTokenList.fundAppeal(tokenID, PARTY.Requester, {
             from: partyA,
             value: appealCost + loserRequiredStake
@@ -342,7 +340,6 @@ contract('ArbitrableTokenList', function(accounts) {
             round[2][PARTY.Requester].toNumber()
           )
           assert.isFalse(round[0])
-
           await increaseTime(appealPeriodDuration + 1)
           await enhancedAppealableArbitrator.giveRuling(
             request[1],
@@ -352,7 +349,7 @@ contract('ArbitrableTokenList', function(accounts) {
           const token = await arbitrableTokenList.getTokenInfo(tokenID)
           assert.equal(token[4].toNumber(), TOKEN_STATUS.Registered)
         })
-
+        
         it('should raise an appeal if both parties fund appeal', async () => {
           let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
 
@@ -363,11 +360,11 @@ contract('ArbitrableTokenList', function(accounts) {
           const winnerRequiredStake =
             ((await arbitrableTokenList.winnerStakeMultiplier()).toNumber() *
               appealCost) /
-            MULTIPLIER_PRECISION
+            MULTIPLIER_DIVISOR
           const loserRequiredStake =
             ((await arbitrableTokenList.loserStakeMultiplier()).toNumber() *
               appealCost) /
-            MULTIPLIER_PRECISION
+            MULTIPLIER_DIVISOR
 
           await arbitrableTokenList.fundAppeal(tokenID, PARTY.Requester, {
             from: partyA,
@@ -701,5 +698,6 @@ contract('ArbitrableTokenList', function(accounts) {
       for (let i = 0; i < tokenIDs.length; i++)
         assert.equal(tokenIDs[i], data[0][i])
     })
+    
   })
 })
