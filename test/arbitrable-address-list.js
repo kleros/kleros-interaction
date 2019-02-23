@@ -34,7 +34,7 @@ contract('ArbitrableAddressList', function(accounts) {
   let appealableArbitrator
   let enhancedAppealableArbitrator
   let arbitrableAddressList
-  let MULTIPLIER_PRECISION
+  let MULTIPLIER_DIVISOR
   let submissionAddress
 
   const ADDRESS_STATUS = {
@@ -88,7 +88,7 @@ contract('ArbitrableAddressList', function(accounts) {
       loserStakeMultiplier
     )
 
-    MULTIPLIER_PRECISION = await arbitrableAddressList.MULTIPLIER_PRECISION()
+    MULTIPLIER_DIVISOR = await arbitrableAddressList.MULTIPLIER_DIVISOR()
   }
 
   describe('registration request', () => {
@@ -199,7 +199,7 @@ contract('ArbitrableAddressList', function(accounts) {
           const sharedRequiredStake =
             ((await arbitrableAddressList.sharedStakeMultiplier()).toNumber() *
               arbitrationCost) /
-            MULTIPLIER_PRECISION
+            MULTIPLIER_DIVISOR
 
           let request = await arbitrableAddressList.getRequestInfo(
             submissionAddress,
@@ -295,7 +295,7 @@ contract('ArbitrableAddressList', function(accounts) {
           assert.isFalse(request[0])
 
           const sharedRequiredStake =
-            (sharedStakeMultiplier * arbitrationCost) / MULTIPLIER_PRECISION
+            (sharedStakeMultiplier * arbitrationCost) / MULTIPLIER_DIVISOR
 
           request = await arbitrableAddressList.getRequestInfo(
             submissionAddress,
@@ -375,7 +375,7 @@ contract('ArbitrableAddressList', function(accounts) {
             arbitratorExtraData
           )).toNumber()
           const loserRequiredStake =
-            (loserStakeMultiplier * appealCost) / MULTIPLIER_PRECISION
+            (loserStakeMultiplier * appealCost) / MULTIPLIER_DIVISOR
           let round = await arbitrableAddressList.getRoundInfo(
             submissionAddress,
             0,
@@ -431,11 +431,11 @@ contract('ArbitrableAddressList', function(accounts) {
           const winnerRequiredStake =
             ((await arbitrableAddressList.winnerStakeMultiplier()).toNumber() *
               appealCost) /
-            MULTIPLIER_PRECISION
+            MULTIPLIER_DIVISOR
           const loserRequiredStake =
             ((await arbitrableAddressList.loserStakeMultiplier()).toNumber() *
               appealCost) /
-            MULTIPLIER_PRECISION
+            MULTIPLIER_DIVISOR
 
           await arbitrableAddressList.fundAppeal(
             submissionAddress,
