@@ -40,4 +40,4 @@ Testrpc default gas limit is lower than the mainnet which prevents deploying som
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/kleros/kleros-interaction/blob/master/CONTRIBUTING.md).
+See [contributing](https://kleros.gitbook.io/contributing-md/).
