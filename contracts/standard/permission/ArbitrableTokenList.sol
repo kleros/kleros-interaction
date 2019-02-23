@@ -158,7 +158,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     // Registry data.
     mapping(bytes32 => Token) public tokens; // Maps the token ID to the token data.
-    mapping(uint => bytes32) public disputeIDToTokenID; // Maps a dispute ID to the ID of the token with the disputed request.
+    mapping(address => mapping(uint => bytes32)) public arbitratorDisputeIDToTokenID; // Maps a dispute ID to the ID of the token with the disputed request. On the form arbitratorDisputeIDToTokenID[arbitrator][disputeID].
     bytes32[] public tokensList; // List of IDs of submitted tokens.
 
     // Token list
@@ -348,7 +348,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
-            disputeIDToTokenID[request.disputeID] = _tokenID;
+            arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
             request.disputed = true;
             uint requestID = uint(
                 keccak256(
@@ -445,7 +445,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
-            disputeIDToTokenID[request.disputeID] = _tokenID;
+            arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
             request.disputed = true;
             uint requestID = uint(
                 keccak256(
@@ -721,7 +721,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
             request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
-            disputeIDToTokenID[request.disputeID] = _tokenID;
+            arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
             request.disputed = true;
             uint requestID = uint(
                 keccak256(
@@ -796,13 +796,15 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _disputeID ID of the dispute in the arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
-    function rule(uint _disputeID, uint _ruling) public onlyArbitrator {
-        require(_ruling <= 2); // solium-disable-line error-reason
+    function rule(uint _disputeID, uint _ruling) public {
         Party resultRuling = Party(_ruling);
-        bytes32 tokenID = disputeIDToTokenID[_disputeID];
+        bytes32 tokenID = arbitratorDisputeIDToTokenID[msg.sender][_disputeID];
         Token storage token = tokens[tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
+        require(_ruling <= 2); // solium-disable-line error-reason
+        require(request.arbitrator == msg.sender); // solium-disable-line error-reason
+        require(!request.resolved); // solium-disable-line error-reason
 
         // The ruling is inverted if the loser was fully funded while the winner was not.
         if (round.requiredForSide[uint(Party.Requester)]!=0 && round.requiredForSide[uint(Party.Challenger)]!=0) { // The amount required from both parties was set.
@@ -1043,7 +1045,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
-        bytes32 tokenID = disputeIDToTokenID[_disputeID];
+        bytes32 tokenID = arbitratorDisputeIDToTokenID[msg.sender][_disputeID];
         Token storage token = tokens[tokenID];
         Request storage request = token.requests[token.requests.length - 1];
 
