@@ -346,41 +346,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
-
-            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
-            arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
-            request.disputed = true;
-            uint requestID = uint(
-                keccak256(
-                    abi.encodePacked(
-                        _tokenID,
-                        token.requests.length - 1
-                    )
-                )
-            );
-            emit Dispute(
-                request.arbitrator,
-                request.disputeID,
-                token.status == TokenStatus.RegistrationRequested
-                    ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1,
-                requestID
-            );
-
-            request.rounds.length++;
-            round.feeRewards -= arbitrationCost;
-
+                
+            raiseDispute(_tokenID);
             if (bytes(_evidence).length > 0)
                 emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
 
-            emit TokenStatusChange(
-                request.parties[uint(Party.Requester)],
-                request.parties[uint(Party.Challenger)],
-                _tokenID,
-                token.status,
-                true,
-                false
-            );
         } else {
             // Notify challenger if he must receive contributions to not lose the case.
             emit WaitingOpponent(
@@ -390,6 +360,48 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             );
         }
     }
+    
+    /** @dev Raise a dispute. TRUSTED.
+     *  @param _tokenID The ID of the token disputed.
+     */
+    function raiseDispute(uint _tokenID) internal {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[token.requests.length - 1];
+        Round storage round = request.rounds[request.rounds.length - 1];
+        
+        request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
+        arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
+        request.disputed = true;
+        uint requestID = uint(
+            keccak256(
+                abi.encodePacked(
+                    _tokenID,
+                    token.requests.length - 1
+                )
+            )
+        );
+        emit Dispute(
+            request.arbitrator,
+            request.disputeID,
+            token.status == TokenStatus.RegistrationRequested
+                ? metaEvidenceUpdates
+                : metaEvidenceUpdates + 1,
+            requestID
+        );
+
+        request.rounds.length++;
+        round.feeRewards -= arbitrationCost;
+        
+        emit TokenStatusChange(
+                request.parties[uint(Party.Requester)],
+                request.parties[uint(Party.Challenger)],
+                _tokenID,
+                token.status,
+                true,
+                false
+            );
+    }
+    
 
     /** @dev Takes up to the total amount required of arbitration fees and fee stakes required to create a dispute. Reimburses the rest. Creates a dispute if both sides are fully funded. TRUSTED.
      *  @param _tokenID The ID of the token with the request to fund.
@@ -443,38 +455,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
-
-            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
-            arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
-            request.disputed = true;
-            uint requestID = uint(
-                keccak256(
-                    abi.encodePacked(
-                        _tokenID,
-                        token.requests.length - 1
-                    )
-                )
-            );
-            emit Dispute(
-                request.arbitrator,
-                request.disputeID,
-                token.status == TokenStatus.RegistrationRequested
-                    ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1,
-                requestID
-            );
-
-            request.rounds.length++;
-            round.feeRewards -= arbitrationCost;
-
-            emit TokenStatusChange(
-                request.parties[uint(Party.Requester)],
-                request.parties[uint(Party.Challenger)],
-                _tokenID,
-                token.status,
-                true,
-                false
-            );
+            
+            raiseDispute(_tokenID);
         } else {
             // Notify challenger if he must receive contributions to not lose the case.
             emit WaitingOpponent(
@@ -720,37 +702,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
-            request.disputeID = request.arbitrator.createDispute.value(arbitrationCost)(2, request.arbitratorExtraData);
-            arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
-            request.disputed = true;
-            uint requestID = uint(
-                keccak256(
-                    abi.encodePacked(
-                        _tokenID,
-                        token.requests.length - 1
-                    )
-                )
-            );
-            emit Dispute(
-                request.arbitrator,
-                request.disputeID,
-                token.status == TokenStatus.RegistrationRequested
-                    ? metaEvidenceUpdates
-                    : metaEvidenceUpdates + 1,
-                requestID
-            );
-
-            request.rounds.length++;
-            round.feeRewards -= arbitrationCost;
-
-            emit TokenStatusChange(
-                request.parties[uint(Party.Requester)],
-                request.parties[uint(Party.Challenger)],
-                _tokenID,
-                token.status,
-                true,
-                false
-            );
+            raiseDispute(_tokenID);
             return;
         }
 
