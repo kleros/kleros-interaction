@@ -349,7 +349,7 @@ contract('ArbitrableTokenList', function(accounts) {
           const token = await arbitrableTokenList.getTokenInfo(tokenID)
           assert.equal(token[4].toNumber(), TOKEN_STATUS.Registered)
         })
-        
+
         it('should raise an appeal if both parties fund appeal', async () => {
           let request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
 
@@ -698,6 +698,5 @@ contract('ArbitrableTokenList', function(accounts) {
       for (let i = 0; i < tokenIDs.length; i++)
         assert.equal(tokenIDs[i], data[0][i])
     })
-    
   })
 })
