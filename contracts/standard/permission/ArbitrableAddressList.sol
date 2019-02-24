@@ -345,8 +345,8 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
             request.arbitrator,
             request.disputeID,
             addr.status == AddressStatus.RegistrationRequested
-                ? metaEvidenceUpdates
-                : metaEvidenceUpdates + 1,
+                ? 2 * metaEvidenceUpdates
+                : 2 * metaEvidenceUpdates + 1,
             requestID
         );
 
