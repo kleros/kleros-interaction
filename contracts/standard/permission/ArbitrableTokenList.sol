@@ -386,8 +386,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             request.arbitrator,
             request.disputeID,
             token.status == TokenStatus.RegistrationRequested
-                ? metaEvidenceUpdates
-                : metaEvidenceUpdates + 1,
+                ? 2 * metaEvidenceUpdates
+                : 2 * metaEvidenceUpdates + 1,
             requestID
         );
 
