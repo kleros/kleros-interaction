@@ -19,7 +19,7 @@ import "../../libraries/CappedMath.sol";
  *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call. This contract is only to be used with an arbitrator returning appealPeriod and having non-zero fees. The governor contract (which will be a DAO) is also to be trusted.
  */
 contract ArbitrableTokenList is PermissionInterface, Arbitrable {
-    using CappedMath for uint;
+    using CappedMath for uint; // Operations bounded between 0 and 2**256 - 1.
 
     /* Enums */
 
@@ -31,9 +31,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     enum Party {
-        None,
+        None,      // Party per default when there is no challenger or requester. Also used for unconclusive ruling.
         Requester, // Party that made the request to change a token status.
-        Challenger // Party challenging a request.
+        Challenger // Party that challenges the request to change a token status.
     }
 
     // ************************ //
@@ -42,7 +42,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // Changes to the token status are made via requests for either listing or removing a token from the Token² Curated Registry.
     // To make or challenge a request, a party must pay a deposit. This value will be rewarded to the party that ultimately wins a dispute. If no one challenges the request, the value will be reimbursed to the requester.
     // Additionally to the challenge reward, in the case a party challenges a request, both sides must fully pay the amount of arbitration fees required to raise a dispute. The party that ultimately wins the case will be reimbursed.
-    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional fee stake must be deposited. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportinally to their contribution.
+    // Finally, arbitration fees can be crowdsourced. To incentivise insurers, an additional fee stake must be deposited. Contributors that fund the side that ultimately wins a dispute will be reimbursed and rewarded with the other side's fee stake proportionally to their contribution.
     // In summary, costs for placing or challenging a request are the following:
     // - A challenge reward given to the party that wins a potential dispute.
     // - Arbitration fees used to pay jurors.
@@ -60,9 +60,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     // Some arrays below have 3 elements to map with the Party enums for better readability:
-    // - 0: is unused, matches Party.None.
-    // - 1: for Party.Requester.
-    // - 2: for Party.Challenger.
+    // - 0: is unused, matches `Party.None`.
+    // - 1: for `Party.Requester`.
+    // - 2: for `Party.Challenger`.
     struct Request {
         bool disputed; // True if a dispute was raised.
         uint disputeID; // ID of the dispute, if any.
@@ -84,9 +84,37 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
+    /* Storage */
+    
+    // Constants
+    
+    uint RULING_OPTIONS = 2;
+
+    // Settings
+    address public governor; // The address that can make governance changes to the parameters of the Token² Curated Registry.
+    uint public challengeReward; // The deposit required for making and/or challenging a request. A party that wins a disputed request will have its deposit reimbursed and will receive the other's deposit.
+    uint public challengePeriodDuration; // The time before a request becomes executable if not challenged.
+    uint public arbitrationFeesWaitingTime; // The time available to fund arbitration fees and fee stake for a dispute.
+    uint public metaEvidenceUpdates; // The number of times the meta evidence has been updated. Used to track the latest meta evidence ID.
+
+    // The required fee stake that a party must pay depends on who won the previous round and is proportional to the arbitration cost such that the fee stake for a round is stake multiplier * arbitration cost for that round.
+    // Multipliers are in basis points.
+    uint public winnerStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that won the previous round.
+    uint public loserStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that lost the previous round.
+    uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that must be paid in the case where there isn't a winner and loser (e.g. when it's the first round or the arbitrator ruled "refused to rule"/"could not rule").
+    uint public constant MULTIPLIER_DIVISOR = 10000; // Divisor parameter for multipliers.
+
+    // Registry data.
+    mapping(bytes32 => Token) public tokens; // Maps the token ID to the token data.
+    mapping(address => mapping(uint => bytes32)) public arbitratorDisputeIDToTokenID; // Maps a dispute ID to the ID of the token with the disputed request. On the form arbitratorDisputeIDToTokenID[arbitrator][disputeID].
+    bytes32[] public tokensList; // List of IDs of submitted tokens.
+
+    // Token list
+    mapping(address => bytes32[]) public addressToSubmissions; // Maps addresses to submitted token IDs.
+
     /* Modifiers */
 
-    modifier onlyGovernor {require(msg.sender == governor, "The caller is not the governor."); _;}
+    modifier onlyGovernor {require(msg.sender == governor, "The caller must be the governor."); _;}
 
     /* Events */
 
@@ -132,30 +160,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     event RewardWithdrawal(bytes32 indexed _tokenID, address indexed _contributor, uint indexed _request, uint _round, uint _value);
 
-    /* Storage */
-
-    // Settings
-    uint public challengeReward; // The deposit required for making and/or challenging a request. A party that wins a disputed request will have its deposit reimbursed and will receive the other's deposit.
-    uint public challengePeriodDuration; // The time before a request becomes executable if not challenged.
-    uint public arbitrationFeesWaitingTime; // The time available to fund arbitration fees and fee stake for a dispute.
-    uint public metaEvidenceUpdates; // The number of times the meta evidence has been updated. Used to track the latest meta evidence ID.
-    address public governor; // The address that can make governance changes to the parameters of the Token² Curated Registry.
-
-    // The required fee stake that a party must pay depends on who won the previous round and is proportional to the arbitration cost such that the fee stake for a round is stake multiplier * arbitration cost for that round.
-    // Multipliers are in basis points.
-    uint public winnerStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that won the previous round.
-    uint public loserStakeMultiplier; // Multiplier for calculating the fee stake paid by the party that lost the previous round.
-    uint public sharedStakeMultiplier; // Multiplier for calculating the fee stake that must be paid in the case where there isn't a winner and loser (e.g. when it's the first round or the arbitrator ruled "refused to rule"/"could not rule").
-    uint public constant MULTIPLIER_DIVISOR = 10000; // Divisor parameter for multipliers.
-
-    // Registry data.
-    mapping(bytes32 => Token) public tokens; // Maps the token ID to the token data.
-    mapping(address => mapping(uint => bytes32)) public arbitratorDisputeIDToTokenID; // Maps a dispute ID to the ID of the token with the disputed request. On the form arbitratorDisputeIDToTokenID[arbitrator][disputeID].
-    bytes32[] public tokensList; // List of IDs of submitted tokens.
-
-    // Token list
-    mapping(address => bytes32[]) public addressToSubmissions; // Maps addresses to submitted token IDs.
-
+    
     /* Constructor */
 
     /**
@@ -166,7 +171,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _clearingMetaEvidence The URI of the meta evidence object for clearing requests.
      *  @param _governor The trusted governor of this contract.
      *  @param _arbitrationFeesWaitingTime The maximum time in seconds to wait for arbitration fees if the dispute is raised.
-     *  @param _challengeReward The amount in weis required to submit or challenge a request.
+     *  @param _challengeReward The amount in wei required to submit or challenge a request.
      *  @param _challengePeriodDuration The time in seconds, parties have to challenge a request.
      *  @param _sharedStakeMultiplier Multiplier of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule) in basis points.
      *  @param _winnerStakeMultiplier Multiplier of the arbitration cost that the winner has to pay as fee stake for a round in basis points.
@@ -286,8 +291,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     function contribute(Round storage _round, Party _side, address _contributor, uint _amount) internal {
         // Take up to the amount necessary to fund the current round at the current costs.
-        uint contribution;
-        uint remainingETH;
+        uint contribution; // Amount contributed.
+        uint remainingETH; // Remaining ETH to send back.
         (contribution, remainingETH) = calculateContribution(_amount, _round.requiredForSide[uint(_side)].subCap(_round.paidFees[uint(_side)]));
         _round.contributions[_contributor][uint(_side)] += contribution;
         _round.paidFees[uint(_side)] += contribution;
@@ -305,11 +310,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "The token does not have any pending requests."
+            "The token must have a pending request."
         );
         Request storage request = token.requests[token.requests.length - 1];
-        require(now - request.submissionTime < challengePeriodDuration, "The challenge period has already passed.");
-        require(request.challengerDepositTime == 0, "The request is already challenged.");
+        require(now - request.submissionTime < challengePeriodDuration, "Challenges must occur during the challenge period.");
+        require(request.challengerDepositTime == 0, "The request should not already be challenged.");
         require(
             msg.value >= request.challengeRewardBalance,
             "Not enough ETH. The party challenging the request must pay the challenge deposit in full."
@@ -355,7 +360,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
 
-        request.disputeID = request.arbitrator.createDispute.value(_fee)(2, request.arbitratorExtraData);
+        request.disputeID = request.arbitrator.createDispute.value(_fee)(RULING_OPTIONS, request.arbitratorExtraData);
         arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
         request.disputed = true;
         emit Dispute(
@@ -390,19 +395,19 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "The token does not have any pending requests."
+            "The token must have a pending request."
         );
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.disputed, "The request must not be already disputed.");
         require(
             request.challengerDepositTime==0 ||
             now - request.challengerDepositTime < arbitrationFeesWaitingTime,
-            "The arbitration fees funding period is over."
+            "Fees must be paid before the end of the fee waiting period."
         );
         if (_side == Party.Challenger)
             require(
                 request.challengerDepositTime > 0,
-                "You cannot fund a dispute for a request that is not challenged."
+                "The request must be challenged."
             );
 
         // Update the total amount required for each side.
@@ -591,10 +596,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function executeRequest(bytes32 _tokenID) external {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
-        require(request.challengerDepositTime == 0, "A party challenged the request.");
+        require(request.challengerDepositTime == 0, "The request must be unchallenged.");
         require(
             now - request.submissionTime > challengePeriodDuration,
-            "The time to challenge has not passed yet."
+            "Time to challenge the request must have passed."
         );
 
         if (token.status == TokenStatus.RegistrationRequested)
@@ -602,7 +607,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         else if (token.status == TokenStatus.ClearingRequested)
             token.status = TokenStatus.Absent;
         else
-            revert("The token is in the wrong status for executing request.");
+            revert("There must be a request.");
 
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
         request.parties[uint(Party.Requester)].send(request.challengeRewardBalance);
@@ -699,7 +704,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[tokenID];
         Request storage request = token.requests[token.requests.length - 1];
         Round storage round = request.rounds[request.rounds.length - 1];
-        require(_ruling <= 2); // solium-disable-line error-reason
+        require(_ruling <= RULING_OPTIONS); // solium-disable-line error-reason
         require(request.arbitrator == msg.sender); // solium-disable-line error-reason
         require(!request.resolved); // solium-disable-line error-reason
 
@@ -720,7 +725,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     function submitEvidence(bytes32 _tokenID, string _evidence) external {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[token.requests.length - 1];
-        require(!request.resolved, "The dispute was resolved.");
+        require(!request.resolved, "The dispute must not already be resolved.");
 
         emit Evidence(request.arbitrator, uint(keccak256(abi.encodePacked(_tokenID,token.requests.length - 1))), msg.sender, _evidence);
     }
@@ -736,7 +741,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         challengePeriodDuration = _challengePeriodDuration;
     }
 
-    /** @dev Change the required amount required as deposit to make or challenge a request.
+    /** @dev Change the required amount required as a deposit to make or challenge a request.
      *  @param _challengeReward The new amount of wei required to make or challenge a request.
      */
     function changeChallengeReward(uint _challengeReward) external onlyGovernor {
@@ -920,7 +925,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Return the numbers of tokens that were submitted. Includes tokens that never made it to the list or were later removed.
-     *  @return The numbers of tokens in the list.
+     *  @return count The numbers of tokens in the list.
      */
     function tokenCount() external view returns (uint count) {
         return tokensList.length;
