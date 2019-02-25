@@ -132,13 +132,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      */
     event RewardWithdrawal(bytes32 indexed _tokenID, address indexed _contributor, uint indexed _request, uint _round, uint _value);
 
-    /** @dev Emitted when a side surpassed the adversary in funding and the opponent must fund his side to not lose the case.
-     *  @param _tokenID The ID of the token with the request in the fee funding period.
-     *  @param _side The side that must receive contributions to not lose the case.
-     *  @param _party The account of the side that must receive contributions to not lose the case.
-     */
-    event WaitingOpponent(bytes32 indexed _tokenID, Party _side, address indexed _party);
-
     /* Storage */
 
     // Settings
@@ -350,13 +343,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             if (bytes(_evidence).length > 0)
                 emit Evidence(request.arbitrator, uint(keccak256(abi.encodePacked(_tokenID,token.requests.length - 1))), msg.sender, _evidence);
 
-        } else {
-            // Notify challenger if he must receive contributions to not lose the case.
-            emit WaitingOpponent(
-                _tokenID,
-                Party.Challenger,
-                round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] ? request.parties[uint(Party.Challenger)] : request.parties[uint(Party.Requester)]
-            );
         }
     }
 
@@ -444,15 +430,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
             raiseDispute(_tokenID, arbitrationCost);
-        } else {
-            // Notify challenger if he must receive contributions to not lose the case.
-            emit WaitingOpponent(
-                _tokenID,
-                Party.Challenger,
-                round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] ? request.parties[uint(Party.Challenger)] : request.parties[uint(Party.Requester)]
-            );
         }
-
     }
 
     /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if both sides are fully funded. TRUSTED.
@@ -527,13 +505,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 token.status,
                 true,
                 true
-            );
-        } else {
-            // Notify challenger if he must receive contributions to not lose the case.
-            emit WaitingOpponent(
-                _tokenID,
-                Party.Challenger,
-                round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] ? request.parties[uint(Party.Challenger)] : request.parties[uint(Party.Requester)]
             );
         }
     }
