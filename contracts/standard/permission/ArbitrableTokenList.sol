@@ -619,7 +619,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** @dev Rules in favor of the side that received the most fee contributions. Raises a dispute if decreases in arbitration cost mean both parties are fully funded. TRUSTED.
+    /** @dev To be called when fees are not paid within the time limit. Rules in favor of the side that received the most fee contributions. Raises a dispute if decreases in arbitration cost mean both parties are fully funded. TRUSTED.
      *  @param _tokenID The ID of the token with the request to execute.
      */
     function timeout(bytes32 _tokenID) external {
@@ -656,13 +656,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
 
         // Rule in favor of requester if he paid more or the same amount of the challenger. Rule in favor of challenger otherwise.
-        Party winner;
-        if (round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)])
-            winner = Party.Requester;
-        else
-            winner = Party.Challenger;
+        Party winner = round.paidFees[uint(Party.Requester)] >= round.paidFees[uint(Party.Challenger)] ? Party.Requester : Party.Challenger;
 
-        // Update token state
+        // Update token state.
         if (winner == Party.Requester) { // Execute Request
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Registered;
@@ -670,10 +666,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 token.status = TokenStatus.Absent;
         }
         else { // Revert to previous state.
-            if (token.status == TokenStatus.RegistrationRequested)
-                token.status = TokenStatus.Absent;
-            else if (token.status == TokenStatus.ClearingRequested)
+            if (token.status == TokenStatus.ClearingRequested)
                 token.status = TokenStatus.Registered;
+            else 
+                token.status = TokenStatus.Absent;
         }
         // Reimburse deposit and send challenge reward.
         // Deliberate use of send in order to not block the contract in case the recipient refuses payments.
@@ -945,16 +941,17 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Party winner = Party(_ruling);
 
         // Update token state
-        if (winner == Party.Requester) // Execute Request
+        if (winner == Party.Requester) { // Execute Request
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Registered;
             else
                 token.status = TokenStatus.Absent;
-        else // Revert to previous state.
+        } else { // Revert to previous state.
             if (token.status == TokenStatus.RegistrationRequested)
                 token.status = TokenStatus.Absent;
             else if (token.status == TokenStatus.ClearingRequested)
                 token.status = TokenStatus.Registered;
+        }
 
         // Send challenge reward.
         // Deliberate use of send in order to not block the contract in case of reverting fallback.
