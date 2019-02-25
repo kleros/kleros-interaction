@@ -202,6 +202,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         loserStakeMultiplier = _loserStakeMultiplier;
     }
 
+    
+    /* External and Public */
+    
     // ************************ //
     // *       Requests       * //
     // ************************ //
@@ -283,25 +286,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
     }
 
-    /** Make a fee contribution.
-     *  @param _round The round to contribute.
-     *  @param _side The side for which to contribute.
-     *  @param _contributor The contributor.
-     *  @param _amount The amount contributed.
-     */
-    function contribute(Round storage _round, Party _side, address _contributor, uint _amount) internal {
-        // Take up to the amount necessary to fund the current round at the current costs.
-        uint contribution; // Amount contributed.
-        uint remainingETH; // Remaining ETH to send back.
-        (contribution, remainingETH) = calculateContribution(_amount, _round.requiredForSide[uint(_side)].subCap(_round.paidFees[uint(_side)]));
-        _round.contributions[_contributor][uint(_side)] += contribution;
-        _round.paidFees[uint(_side)] += contribution;
-        _round.feeRewards += contribution;
-
-        // Reimburse leftover ETH.
-        _contributor.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
-    }
-
     /** @dev Challenges the latest request of a token. Accepts enough ETH to fund a potential dispute considering the current required amount. Reimburses unused ETH. TRUSTED.
      *  @param _tokenID The ID of the token with the request to challenge.
      *  @param _evidence A link to an evidence using its URI. Ignored if not provided or if not enough funds were provided to create a dispute.
@@ -351,39 +335,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
     }
 
-    /** @dev Raise a dispute. TRUSTED.
-     *  @param _tokenID The ID of the token disputed.
-     *  @param _fee The amount of fees to pay.
-     */
-    function raiseDispute(bytes32 _tokenID, uint _fee) internal {
-        Token storage token = tokens[_tokenID];
-        Request storage request = token.requests[token.requests.length - 1];
-        Round storage round = request.rounds[request.rounds.length - 1];
-
-        request.disputeID = request.arbitrator.createDispute.value(_fee)(RULING_OPTIONS, request.arbitratorExtraData);
-        arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
-        request.disputed = true;
-        emit Dispute(
-            request.arbitrator,
-            request.disputeID,
-            token.status == TokenStatus.RegistrationRequested
-                ? 2 * metaEvidenceUpdates
-                : 2 * metaEvidenceUpdates + 1,
-            uint(keccak256(abi.encodePacked(_tokenID,token.requests.length - 1)))
-        );
-
-        request.rounds.length++;
-        round.feeRewards -= _fee;
-
-        emit TokenStatusChange(
-            request.parties[uint(Party.Requester)],
-            request.parties[uint(Party.Challenger)],
-            _tokenID,
-            token.status,
-            true,
-            false
-        );
-    }
 
     /** @dev Takes up to the total amount required of arbitration fees and fee stakes required to create a dispute. Reimburses the rest. Creates a dispute if both sides are fully funded. TRUSTED.
      *  @param _tokenID The ID of the token with the request to fund.
@@ -802,139 +753,81 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit MetaEvidence(2 * metaEvidenceUpdates + 1, _clearingMetaEvidence);
     }
 
-    /* Views */
-
-    /** @dev Return true if the token is on the list.
-     *  @param _tokenID The ID of the token to be queried.
-     *  @return allowed True if the token is allowed, false otherwise.
-     */
-    function isPermitted(bytes32 _tokenID) external view returns (bool allowed) {
-        Token storage token = tokens[_tokenID];
-        return token.status == TokenStatus.Registered || token.status == TokenStatus.ClearingRequested;
-    }
-
-    /** @dev Returns token information. Includes length of requests array.
-     *  @param _tokenID The ID of the queried token.
-     *  @return The token information.
-     */
-    function getTokenInfo(bytes32 _tokenID)
-        external
-        view
-        returns (
-            string name,
-            string ticker,
-            address addr,
-            string symbolMultihash,
-            TokenStatus status,
-            uint numberOfRequests
-        )
-    {
-        Token storage token = tokens[_tokenID];
-        return (
-            token.name,
-            token.ticker,
-            token.addr,
-            token.symbolMultihash,
-            token.status,
-            token.requests.length
-        );
-    }
-
-    /** @dev Gets information on a request made for a token.
-     *  @param _tokenID The ID of the queried token.
-     *  @param _request The request to be queried.
-     *  @return The request information.
-     */
-    function getRequestInfo(bytes32 _tokenID, uint _request)
-        external
-        view
-        returns (
-            bool disputed,
-            uint disputeID,
-            uint submissionTime,
-            uint challengeRewardBalance,
-            uint challengerDepositTime,
-            bool resolved,
-            address[3] parties,
-            uint numberOfRounds,
-            Party ruling,
-            Arbitrator arbitrator,
-            bytes arbitratorExtraData
-        )
-    {
-        Request storage request = tokens[_tokenID].requests[_request];
-        return (
-            request.disputed,
-            request.disputeID,
-            request.submissionTime,
-            request.challengeRewardBalance,
-            request.challengerDepositTime,
-            request.resolved,
-            request.parties,
-            request.rounds.length,
-            request.ruling,
-            request.arbitrator,
-            request.arbitratorExtraData
-        );
-    }
-
-    /** @dev Gets the information on a round of a request.
-     *  @param _tokenID The ID of the queried token.
-     *  @param _request The request to be queried.
-     *  @param _round The round to be queried.
-     *  @return The round information.
-     */
-    function getRoundInfo(bytes32 _tokenID, uint _request, uint _round)
-        external
-        view
-        returns (
-            bool appealed,
-            uint[3] paidFees,
-            uint[3] requiredForSide,
-            uint feeRewards
-        )
-    {
-        Token storage token = tokens[_tokenID];
-        Request storage request = token.requests[_request];
-        Round storage round = request.rounds[_round];
-        return (
-            _round != (request.rounds.length-1),
-            round.paidFees,
-            round.requiredForSide,
-            round.feeRewards
-        );
-    }
-
-    /** @dev Gets the contributions made by a party for a given round of a request.
-     *  @param _tokenID The ID of the token.
-     *  @param _request The position of the request.
-     *  @param _round The position of the round.
-     *  @param _contributor The address of the contributor.
-     *  @return The contributions.
-     */
-    function getContributions(
-        bytes32 _tokenID,
-        uint _request,
-        uint _round,
-        address _contributor
-    ) external view returns(uint[3] contributions) {
-        Token storage token = tokens[_tokenID];
-        Request storage request = token.requests[_request];
-        Round storage round = request.rounds[_round];
-        contributions = round.contributions[_contributor];
-    }
-
-    /** @dev Return the numbers of tokens that were submitted. Includes tokens that never made it to the list or were later removed.
-     *  @return count The numbers of tokens in the list.
-     */
-    function tokenCount() external view returns (uint count) {
-        return tokensList.length;
-    }
-
+    
     /* Internal */
 
-    /**
-     *  @dev Execute the ruling of a dispute.
+    /** @dev Returns the contribution value and remainder from available ETH and required amount.
+     *  @param _available The amount of ETH available for the contribution.
+     *  @param _requiredAmount The amount of ETH required for the contribution.
+     *  @return taken The amount of ETH taken.
+     *  @return remainder The amount of ETH left from the contribution.
+     */
+    function calculateContribution(uint _available, uint _requiredAmount)
+        internal
+        pure
+        returns(uint taken, uint remainder)
+    {
+        if (_requiredAmount > _available)
+            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
+
+        remainder = _available - _requiredAmount;
+        return (_requiredAmount, remainder);
+    }
+    
+    /** @dev Make a fee contribution.
+     *  @param _round The round to contribute.
+     *  @param _side The side for which to contribute.
+     *  @param _contributor The contributor.
+     *  @param _amount The amount contributed.
+     */
+    function contribute(Round storage _round, Party _side, address _contributor, uint _amount) internal {
+        // Take up to the amount necessary to fund the current round at the current costs.
+        uint contribution; // Amount contributed.
+        uint remainingETH; // Remaining ETH to send back.
+        (contribution, remainingETH) = calculateContribution(_amount, _round.requiredForSide[uint(_side)].subCap(_round.paidFees[uint(_side)]));
+        _round.contributions[_contributor][uint(_side)] += contribution;
+        _round.paidFees[uint(_side)] += contribution;
+        _round.feeRewards += contribution;
+
+        // Reimburse leftover ETH.
+        _contributor.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+    }
+    
+    /** @dev Raise a dispute. TRUSTED.
+     *  @param _tokenID The ID of the token disputed.
+     *  @param _fee The amount of fees to pay.
+     */
+    function raiseDispute(bytes32 _tokenID, uint _fee) internal {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[token.requests.length - 1];
+        Round storage round = request.rounds[request.rounds.length - 1];
+
+        request.disputeID = request.arbitrator.createDispute.value(_fee)(RULING_OPTIONS, request.arbitratorExtraData);
+        arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
+        request.disputed = true;
+        emit Dispute(
+            request.arbitrator,
+            request.disputeID,
+            token.status == TokenStatus.RegistrationRequested
+                ? 2 * metaEvidenceUpdates
+                : 2 * metaEvidenceUpdates + 1,
+            uint(keccak256(abi.encodePacked(_tokenID,token.requests.length - 1)))
+        );
+
+        request.rounds.length++;
+        round.feeRewards -= _fee;
+
+        emit TokenStatusChange(
+            request.parties[uint(Party.Requester)],
+            request.parties[uint(Party.Challenger)],
+            _tokenID,
+            token.status,
+            true,
+            false
+        );
+    }
+    
+    /** @dev Execute the ruling of a dispute.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
@@ -982,25 +875,20 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             false
         );
     }
+    
+    
+    /* Views */
 
-     /** @dev Returns the contribution value and remainder from available ETH and required amount.
-     *  @param _available The amount of ETH available for the contribution.
-     *  @param _requiredAmount The amount of ETH required for the contribution.
-     *  @return taken The amount of ETH taken.
-     *  @return remainder The amount of ETH left from the contribution.
+    /** @dev Return true if the token is on the list.
+     *  @param _tokenID The ID of the token to be queried.
+     *  @return allowed True if the token is allowed, false otherwise.
      */
-    function calculateContribution(uint _available, uint _requiredAmount)
-        internal
-        pure
-        returns(uint taken, uint remainder)
-    {
-        if (_requiredAmount > _available)
-            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
-
-        remainder = _available - _requiredAmount;
-        return (_requiredAmount, remainder);
+    function isPermitted(bytes32 _tokenID) external view returns (bool allowed) {
+        Token storage token = tokens[_tokenID];
+        return token.status == TokenStatus.Registered || token.status == TokenStatus.ClearingRequested;
     }
 
+    
     /* Interface Views */
 
     /** @dev Return the sum of withdrawable wei of a request an account is entitled to. This function is O(n), where n is the number of rounds of the request. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
@@ -1033,7 +921,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         return total;
     }
-
+    
+    /** @dev Return the numbers of tokens that were submitted. Includes tokens that never made it to the list or were later removed.
+     *  @return count The numbers of tokens in the list.
+     */
+    function tokenCount() external view returns (uint count) {
+        return tokensList.length;
+    }
+    
     /** @dev Return the numbers of tokens with each status. This function is O(n), where n is the number of tokens. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
      *  @return The numbers of tokens in the list per status.
      */
@@ -1132,5 +1027,116 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 }
             }
         }
+    }
+    
+    /** @dev Gets the contributions made by a party for a given round of a request.
+     *  @param _tokenID The ID of the token.
+     *  @param _request The position of the request.
+     *  @param _round The position of the round.
+     *  @param _contributor The address of the contributor.
+     *  @return The contributions.
+     */
+    function getContributions(
+        bytes32 _tokenID,
+        uint _request,
+        uint _round,
+        address _contributor
+    ) external view returns(uint[3] contributions) {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        Round storage round = request.rounds[_round];
+        contributions = round.contributions[_contributor];
+    }
+    
+    /** @dev Returns token information. Includes length of requests array.
+     *  @param _tokenID The ID of the queried token.
+     *  @return The token information.
+     */
+    function getTokenInfo(bytes32 _tokenID)
+        external
+        view
+        returns (
+            string name,
+            string ticker,
+            address addr,
+            string symbolMultihash,
+            TokenStatus status,
+            uint numberOfRequests
+        )
+    {
+        Token storage token = tokens[_tokenID];
+        return (
+            token.name,
+            token.ticker,
+            token.addr,
+            token.symbolMultihash,
+            token.status,
+            token.requests.length
+        );
+    }
+
+    /** @dev Gets information on a request made for a token.
+     *  @param _tokenID The ID of the queried token.
+     *  @param _request The request to be queried.
+     *  @return The request information.
+     */
+    function getRequestInfo(bytes32 _tokenID, uint _request)
+        external
+        view
+        returns (
+            bool disputed,
+            uint disputeID,
+            uint submissionTime,
+            uint challengeRewardBalance,
+            uint challengerDepositTime,
+            bool resolved,
+            address[3] parties,
+            uint numberOfRounds,
+            Party ruling,
+            Arbitrator arbitrator,
+            bytes arbitratorExtraData
+        )
+    {
+        Request storage request = tokens[_tokenID].requests[_request];
+        return (
+            request.disputed,
+            request.disputeID,
+            request.submissionTime,
+            request.challengeRewardBalance,
+            request.challengerDepositTime,
+            request.resolved,
+            request.parties,
+            request.rounds.length,
+            request.ruling,
+            request.arbitrator,
+            request.arbitratorExtraData
+        );
+    }
+
+    /** @dev Gets the information on a round of a request.
+     *  @param _tokenID The ID of the queried token.
+     *  @param _request The request to be queried.
+     *  @param _round The round to be queried.
+     *  @return The round information.
+     */
+    function getRoundInfo(bytes32 _tokenID, uint _request, uint _round)
+        external
+        view
+        returns (
+            bool appealed,
+            uint[3] paidFees,
+            uint[3] requiredForSide,
+            uint feeRewards
+        )
+    {
+        Token storage token = tokens[_tokenID];
+        Request storage request = token.requests[_request];
+        Round storage round = request.rounds[_round];
+        return (
+            _round != (request.rounds.length-1),
+            round.paidFees,
+            round.requiredForSide,
+            round.feeRewards
+        );
     }
 }
