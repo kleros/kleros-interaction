@@ -142,7 +142,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     /* Storage */
 
     // Settings
-    uint public challengeReward; // The deposit required for making and/or challenging a request. A party that wins a disputed request will be reimbursed and will receive the other's deposit.
+    uint public challengeReward; // The deposit required for making and/or challenging a request. A party that wins a disputed request will have its deposit reimbursed and will receive the other's deposit.
     uint public challengePeriodDuration; // The time before a request becomes executable if not challenged.
     uint public arbitrationFeesWaitingTime; // The time available to fund arbitration fees and fee stake for a dispute.
     uint public metaEvidenceUpdates; // The number of times the meta evidence has been updated. Used to track the latest meta evidence ID.
@@ -273,7 +273,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
-        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        round.requiredForSide[uint(Party.Challenger)] = round.requiredForSide[uint(Party.Requester)];
         contribute(round, Party.Requester, msg.sender, remainingETH);
 
         emit TokenStatusChange(
