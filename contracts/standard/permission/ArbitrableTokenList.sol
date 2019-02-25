@@ -412,8 +412,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         //   fee stake = arbitration cost * multiplier
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
-        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        if (round.requiredForSide[uint(Party.Requester)] != totalCost)
+            round.requiredForSide[uint(Party.Requester)] = totalCost;
+        if (round.requiredForSide[uint(Party.Challenger)] != totalCost)
+            round.requiredForSide[uint(Party.Challenger)] = totalCost;
         contribute(round, _side, msg.sender, msg.value);
 
 
@@ -461,19 +464,26 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint appealCost = request.arbitrator.appealCost(request.disputeID, request.arbitratorExtraData);
         if (winner == Party.None) {
             // Arbitrator did not rule or refused to rule.
-            round.requiredForSide[uint(Party.Requester)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
-            round.requiredForSide[uint(Party.Challenger)] = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+            uint totalCost = appealCost.addCap((appealCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+            if (round.requiredForSide[uint(Party.Requester)] != totalCost)
+                round.requiredForSide[uint(Party.Requester)] = totalCost;
+            if (round.requiredForSide[uint(Party.Challenger)] != totalCost)
+                round.requiredForSide[uint(Party.Challenger)] = totalCost;
         } else {
             // Arbitrator gave a decisive ruling.
             if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) { // In first half of the appeal period.
                 // Update the amount required for each side.
-                round.requiredForSide[uint(loser)] = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_DIVISOR);
-                round.requiredForSide[uint(winner)] = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_DIVISOR);
+                uint loserCost = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_DIVISOR);
+                if (round.requiredForSide[uint(loser)] != loserCost)
+                    round.requiredForSide[uint(loser)] = loserCost;
+                uint winnerCost = appealCost.addCap((appealCost.mulCap(winnerStakeMultiplier)) / MULTIPLIER_DIVISOR);
+                if (round.requiredForSide[uint(winner)] != winnerCost)
+                    round.requiredForSide[uint(winner)] = winnerCost;
             } else { // In second half of appeal period.
                 if (_side == loser)
                     revert("The loser can only fund in the first half of the appeal period.");
-                else // The amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
-                    round.requiredForSide[uint(winner)] = round.requiredForSide[uint(winner)] > appealCost ? round.requiredForSide[uint(winner)] : appealCost;
+                else if (appealCost > round.requiredForSide[uint(winner)]) // The amount that must be paid by the winner is max(old appeal cost + old winner stake, new appeal cost).
+                    round.requiredForSide[uint(winner)] = appealCost;
             }
         }
 
@@ -631,8 +641,11 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         //   fee stake = arbitration cost * multiplier
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
-        round.requiredForSide[uint(Party.Challenger)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
+        if (round.requiredForSide[uint(Party.Requester)] != totalCost)
+            round.requiredForSide[uint(Party.Requester)] = totalCost;
+        if (round.requiredForSide[uint(Party.Challenger)] != totalCost)
+            round.requiredForSide[uint(Party.Challenger)] = totalCost;
 
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
