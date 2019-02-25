@@ -547,7 +547,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
 
         emit RewardWithdrawal(_tokenID, _beneficiary, _request, _round,  reward);
-        _beneficiary.transfer(reward);
+        _beneficiary.send(reward); // Its user responsability to accept ETH.
     }
 
     /** @dev Withdraws rewards and reimbursements of multiple rounds at once. This function is O(n) where n is the number of rounds. This could exceed gas limits, therefore this function should be used only as a utility and not be relied upon by other contracts.
