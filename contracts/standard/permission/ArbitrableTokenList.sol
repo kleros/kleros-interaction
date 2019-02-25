@@ -358,21 +358,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         request.disputeID = request.arbitrator.createDispute.value(_fee)(2, request.arbitratorExtraData);
         arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
         request.disputed = true;
-        uint requestID = uint(
-            keccak256(
-                abi.encodePacked(
-                    _tokenID,
-                    token.requests.length - 1
-                )
-            )
-        );
         emit Dispute(
             request.arbitrator,
             request.disputeID,
             token.status == TokenStatus.RegistrationRequested
                 ? 2 * metaEvidenceUpdates
                 : 2 * metaEvidenceUpdates + 1,
-            requestID
+            uint(keccak256(abi.encodePacked(_tokenID,token.requests.length - 1)))
         );
 
         request.rounds.length++;
@@ -721,15 +713,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length - 1];
         require(!request.resolved, "The dispute was resolved.");
 
-        uint requestID = uint(
-            keccak256(
-                abi.encodePacked(
-                    _tokenID,
-                    token.requests.length - 1
-                )
-            )
-        );
-        emit Evidence(request.arbitrator, requestID, msg.sender, _evidence);
+        emit Evidence(request.arbitrator, uint(keccak256(abi.encodePacked(_tokenID,token.requests.length - 1))), msg.sender, _evidence);
     }
 
     // ************************ //
