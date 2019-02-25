@@ -257,10 +257,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[token.requests.length++];
         request.parties[uint(Party.Requester)] = msg.sender;
         request.submissionTime = now;
-        request.rounds.length++;
         request.challengeRewardBalance = challengeReward;
         request.arbitrator = arbitrator;
         request.arbitratorExtraData = arbitratorExtraData;
+        Round storage round = request.rounds[request.rounds.length++];
 
         emit RequestSubmitted(tokenID, token.status == TokenStatus.RegistrationRequested);
 
@@ -270,7 +270,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         //   total = arbitration cost + fee stake
         // where:
         //   fee stake = arbitration cost * multiplier
-        Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
         round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
         round.requiredForSide[uint(Party.Challenger)] = round.requiredForSide[uint(Party.Requester)];
@@ -297,7 +296,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint contribution;
         uint remainingETH;
         (contribution, remainingETH) = calculateContribution(_amount, _round.requiredForSide[uint(_side)].subCap(_round.paidFees[uint(_side)]));
-        _round.contributions[msg.sender][uint(_side)] += contribution;
+        _round.contributions[_contributor][uint(_side)] += contribution;
         _round.paidFees[uint(_side)] += contribution;
         _round.feeRewards += contribution;
 
