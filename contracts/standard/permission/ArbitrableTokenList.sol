@@ -470,7 +470,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             if (round.requiredForSide[uint(Party.Challenger)] != totalCost)
                 round.requiredForSide[uint(Party.Challenger)] = totalCost;
         } else {
-            // Arbitrator gave a decisive ruling.
+            // Arbitrator gave a ruling.
             if (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2) { // In first half of the appeal period.
                 // Update the amount required for each side.
                 uint loserCost = appealCost.addCap((appealCost.mulCap(loserStakeMultiplier)) / MULTIPLIER_DIVISOR);
@@ -526,7 +526,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         uint reward;
         if (!request.disputed || request.ruling == Party.None) {
-            // No disputes were raised, or there isn't a winner and loser. Reimburse contributions.
+            // No disputes were raised, or there isn't a winner and loser. Reimburse unspent fees proportionally.
             uint rewardRequester = round.paidFees[uint(Party.Requester)] > 0
                 ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / round.paidFees[uint(Party.Requester)]
                 : 0;
@@ -538,7 +538,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.contributions[_beneficiary][uint(Party.Requester)] = 0;
             round.contributions[_beneficiary][uint(Party.Challenger)] = 0;
         } else {
-            // Take rewards for funding the winner.
+            // Reward the winner.
             reward = round.paidFees[uint(request.ruling)] > 0
                 ? (round.contributions[_beneficiary][uint(request.ruling)] * round.feeRewards) / round.paidFees[uint(request.ruling)]
                 : 0;
