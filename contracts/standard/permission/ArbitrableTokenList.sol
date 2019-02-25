@@ -275,7 +275,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         round.requiredForSide[uint(Party.Requester)] = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR);
         round.requiredForSide[uint(Party.Challenger)] = round.requiredForSide[uint(Party.Requester)];
         contribute(round, Party.Requester, msg.sender, remainingETH);
-
+        require(round.requiredForSide[uint(Party.Requester)] >= round.paidFees[uint(Party.Requester)], "You must fully fund your side.");
+        
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
             address(0x0),
@@ -323,7 +324,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.requiredForSide[uint(Party.Challenger)] != totalCost)
             round.requiredForSide[uint(Party.Challenger)] = totalCost;
         contribute(round, Party.Challenger, msg.sender, remainingETH);
-
+        require(round.requiredForSide[uint(Party.Challenger)] >= round.paidFees[uint(Party.Challenger)], "You must fully fund your side.");
+        
         // Raise dispute if both sides are fully funded.
         if (round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
@@ -336,7 +338,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
 
-    /** @dev Takes up to the total amount required of arbitration fees and fee stakes required to create a dispute. Reimburses the rest. Creates a dispute if both sides are fully funded. TRUSTED.
+    /** @dev Takes up to the total amount required of arbitration fees and fee stakes required to create a dispute. Reimburses the rest. Creates a dispute if both sides are fully funded.
+     *  Note that even if parties are required to fully fund when creating a request or a challenge, this function is required deal with arbitration fee changes. TRUSTED.
      *  @param _tokenID The ID of the token with the request to fund.
      *  @param _side The recipient of the contribution.
      */
