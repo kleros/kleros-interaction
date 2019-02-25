@@ -68,7 +68,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         uint disputeID; // ID of the dispute, if any.
         uint submissionTime; // Time when the request was made. Used to track when the challenge period ends.
         uint challengeRewardBalance; // The sum of requester's and challenger's deposit. This value will be given to the party that ultimately wins a potential dispute, or be reimbursed to the requester if no one challenges.
-        uint challengerDepositTime; // The time when a challenger paid the deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period.
+        uint challengerDepositTime; // The time when a challenger paid the deposit. Used to track when the request left the challenge period and entered the arbitration fees funding period. 0 before a challenge is made.
         bool resolved; // True if the request was executed and/or any disputes raised were resolved.
         address[3] parties; // Address of requester and challenger, if any.
         Round[] rounds; // Tracks each round of a dispute.
@@ -78,7 +78,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     struct Round {
-        bool appealed; // True if this round was appealed.
         uint[3] paidFees; // Tracks the fees paid by each side on this round.
         uint[3] requiredForSide; // The total amount required to fully fund each side. It is the sum of the dispute or appeal cost and the fee stake. Is 0 before it's set.
         uint feeRewards; // Sum of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
@@ -517,7 +516,6 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             round.paidFees[uint(Party.Requester)] >= round.requiredForSide[uint(Party.Requester)] &&
             round.paidFees[uint(Party.Challenger)] >= round.requiredForSide[uint(Party.Challenger)]) {
 
-            round.appealed = true;
             request.arbitrator.appeal.value(appealCost)(request.disputeID, request.arbitratorExtraData);
 
             request.rounds.length++;
@@ -932,7 +930,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
         return (
-            round.appealed,
+            _round != (request.rounds.length-1),
             round.paidFees,
             round.requiredForSide,
             round.feeRewards
