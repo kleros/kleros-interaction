@@ -285,7 +285,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             "The token must have a pending request."
         );
         Request storage request = token.requests[token.requests.length - 1];
-        require(now - request.submissionTime < challengePeriodDuration, "Challenges must occur during the challenge period.");
+        require(now - request.submissionTime <= challengePeriodDuration, "Challenges must occur during the challenge period.");
         require(!request.disputed, "The request should not have already been disputed.");
 
         // Take the deposit and save the challenger's address.
