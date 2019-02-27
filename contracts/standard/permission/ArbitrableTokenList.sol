@@ -86,7 +86,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     
     // Constants
     
-    uint RULING_OPTIONS = 2;
+    uint RULING_OPTIONS = 2; // The amount of non 0 choices the arbitrator can give.
 
     // Settings
     address public governor; // The address that can make governance changes to the parameters of the Token² Curated Registry.
@@ -169,7 +169,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _governor The trusted governor of this contract.
      *  @param _challengeReward The amount in wei required to submit or challenge a request.
      *  @param _challengePeriodDuration The time in seconds, parties have to challenge a request.
-     *  @param _sharedStakeMultiplier Multiplier of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule) in basis points.
+     *  @param _sharedStakeMultiplier Multiplier of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule). In basis points.
      *  @param _winnerStakeMultiplier Multiplier of the arbitration cost that the winner has to pay as fee stake for a round in basis points.
      *  @param _loserStakeMultiplier Multiplier of the arbitration cost that the loser has to pay as fee stake for a round in basis points.
      */
@@ -203,7 +203,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     // *       Requests       * //
     // ************************ //
 
-    /** @dev Submit a request to change a token status. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest. TRUSTED.
+    /** @dev Submits a request to change a token status. Accepts enough ETH to fund a potential dispute considering the current required amount and reimburses the rest. TRUSTED.
      *  @param _name The token name (e.g. Pinakion).
      *  @param _ticker The token ticker (e.g. PNK).
      *  @param _addr The Ethereum address of the token.
@@ -335,7 +335,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         require(
             token.status == TokenStatus.RegistrationRequested || token.status == TokenStatus.ClearingRequested,
-            "The token does not have any pending requests."
+            "The token must have a pending request."
         );
         Request storage request = token.requests[token.requests.length - 1];
         require(request.disputed, "A dispute must have been raised to fund an appeal.");
@@ -421,7 +421,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         }
 
         emit RewardWithdrawal(_tokenID, _beneficiary, _request, _round,  reward);
-        _beneficiary.send(reward); // Its user responsability to accept ETH.
+        _beneficiary.send(reward); // It is the user responsibility to accept ETH.
     }
 
     /** @dev Withdraws rewards and reimbursements of multiple rounds at once. This function is O(n) where n is the number of rounds. This could exceed gas limits, therefore this function should be used only as a utility and not be relied upon by other contracts.
@@ -552,21 +552,21 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by parties when there isn't a winner or loser.
-     *  @param _sharedStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake in basis points.
+     *  @param _sharedStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake. In basis points.
      */
     function changeSharedStakeMultiplier(uint _sharedStakeMultiplier) external onlyGovernor {
         sharedStakeMultiplier = _sharedStakeMultiplier;
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by the winner of the previous round.
-     *  @param _winnerStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake in basis points.
+     *  @param _winnerStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake. In basis points.
      */
     function changeWinnerStakeMultiplier(uint _winnerStakeMultiplier) external onlyGovernor {
         winnerStakeMultiplier = _winnerStakeMultiplier;
     }
 
     /** @dev Change the percentage of arbitration fees that must be paid as fee stake by the party that lost the previous round.
-     *  @param _loserStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake in basis points.
+     *  @param _loserStakeMultiplier Multiplier of arbitration fees that must be paid as fee stake. In basis points.
      */
     function changeLoserStakeMultiplier(uint _loserStakeMultiplier) external onlyGovernor {
         loserStakeMultiplier = _loserStakeMultiplier;
