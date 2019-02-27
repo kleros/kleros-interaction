@@ -259,7 +259,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         // Amount required to fully fund each side: challengeReward + arbitration cost + (arbitration cost * multiplier).
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR) + challengeReward;
+        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR).addCap(challengeReward);
         contribute(round, Party.Requester, msg.sender, msg.value, totalCost);
         require(round.paidFees[uint(Party.Requester)] >= totalCost, "You must fully fund your side.");
         round.hasPaid[uint(Party.Requester)] = true;
@@ -286,14 +286,14 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
         Request storage request = token.requests[token.requests.length - 1];
         require(now - request.submissionTime < challengePeriodDuration, "Challenges must occur during the challenge period.");
-        require(!request.disputed, "The request should not already have been disputed.");
+        require(!request.disputed, "The request should not have already been disputed.");
 
         // Take the deposit and save the challenger's address.
         request.parties[uint(Party.Challenger)] = msg.sender;
 
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR) + challengeReward;
+        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR).addCap(challengeReward);
         contribute(round, Party.Challenger, msg.sender, msg.value, totalCost);
         require(round.paidFees[uint(Party.Challenger)] >= totalCost, "You must fully fund your side.");
         round.hasPaid[uint(Party.Challenger)] = true;
@@ -303,7 +303,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         arbitratorDisputeIDToTokenID[request.arbitrator][request.disputeID] = _tokenID;
         request.disputed = true;
         request.rounds.length++;
-        round.feeRewards -= arbitrationCost;
+        round.feeRewards = round.feeRewards.subCap(arbitrationCost);
         
         emit Dispute(
             request.arbitrator,
@@ -373,7 +373,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         if (round.hasPaid[uint(Party.Challenger)] && round.hasPaid[uint(Party.Requester)]) {
             request.arbitrator.appeal.value(appealCost)(request.disputeID, request.arbitratorExtraData);
             request.rounds.length++;
-            round.feeRewards -= appealCost;
+            round.feeRewards = round.feeRewards.subCap(appealCost);
             emit TokenStatusChange(
                 request.parties[uint(Party.Requester)],
                 request.parties[uint(Party.Challenger)],
@@ -405,7 +405,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
                 ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / (round.paidFees[uint(Party.Challenger)] + round.paidFees[uint(Party.Requester)])
                 : 0;
             uint rewardChallenger = round.paidFees[uint(Party.Challenger)] > 0
-                ? (round.contributions[_beneficiary][uint(Party.Challenger)] * round.feeRewards) / (round.paidFees[uint(Party.Requester)] + round.paidFees[uint(Party.Challenger)])
+                ? (round.contributions[_beneficiary][uint(Party.Challenger)] * round.feeRewards) / (round.paidFees[uint(Party.Challenger)] + round.paidFees[uint(Party.Requester)])
                 : 0;
 
             reward = rewardRequester + rewardChallenger;
@@ -469,6 +469,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             now - request.submissionTime > challengePeriodDuration,
             "Time to challenge the request must have passed."
         );
+        require(!request.disputed, "The request should not be disputed.");
 
         if (token.status == TokenStatus.RegistrationRequested)
             token.status = TokenStatus.Registered;
@@ -658,7 +659,13 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         request.resolved = true;
         request.ruling = Party(_ruling);
-        withdrawFeesAndRewards(request.parties[uint(winner)], tokenID, token.requests.length-1, 0); // Automatically withdraw for the winner.
+        // Automatically withdraw.
+        if (winner == Party.None) {
+            withdrawFeesAndRewards(request.parties[uint(Party.Requester)], tokenID, token.requests.length-1, 0);
+            withdrawFeesAndRewards(request.parties[uint(Party.Challenger)], tokenID, token.requests.length-1, 0);
+        } else {
+            withdrawFeesAndRewards(request.parties[uint(winner)], tokenID, token.requests.length-1, 0); 
+        }
 
         emit TokenStatusChange(
             request.parties[uint(Party.Requester)],
@@ -699,10 +706,10 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             Round storage round = request.rounds[i];
             if (!request.disputed || request.ruling == Party.None) {
                 uint rewardRequester = round.paidFees[uint(Party.Requester)] > 0
-                    ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / round.paidFees[uint(Party.Requester)]
+                    ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / (round.paidFees[uint(Party.Requester)] + round.paidFees[uint(Party.Challenger)])
                     : 0;
                 uint rewardChallenger = round.paidFees[uint(Party.Challenger)] > 0
-                    ? (round.contributions[_beneficiary][uint(Party.Challenger)] * round.feeRewards) / round.paidFees[uint(Party.Challenger)]
+                    ? (round.contributions[_beneficiary][uint(Party.Challenger)] * round.feeRewards) / (round.paidFees[uint(Party.Requester)] + round.paidFees[uint(Party.Challenger)])
                     : 0;
 
                 total += rewardRequester + rewardChallenger;
