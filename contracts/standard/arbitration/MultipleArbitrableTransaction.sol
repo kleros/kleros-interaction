@@ -9,8 +9,9 @@
 pragma solidity ^0.4.24;
 
 import "./Arbitrator.sol";
+import "./IArbitrable.sol";
 
-contract MultipleArbitrableTransaction {
+contract MultipleArbitrableTransaction is IArbitrable {
 
     // **************************** //
     // *    Contract variables    * //

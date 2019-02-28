@@ -15,10 +15,11 @@
 pragma solidity ^0.4.24;
 
 import "./Arbitrator.sol";
+import "./IArbitrable.sol";
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
-contract MultipleArbitrableTokenTransaction {
+contract MultipleArbitrableTokenTransaction is IArbitrable {
 
     // **************************** //
     // *    Contract variables    * //
