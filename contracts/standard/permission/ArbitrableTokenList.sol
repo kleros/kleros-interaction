@@ -90,7 +90,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
     // Settings
     address public governor; // The address that can make governance changes to the parameters of the Token² Curated Registry.
-    uint public challengeReward; // The deposit required for making and/or challenging a request. A party that wins a disputed request will have its deposit reimbursed and will receive the other's deposit.
+    uint public requesterBaseDeposit; // The base deposit to make a request.
+    uint public challengerBaseDeposit; // The base deposit to challenge a request.
     uint public challengePeriodDuration; // The time before a request becomes executable if not challenged.
     uint public metaEvidenceUpdates; // The number of times the meta evidence has been updated. Used to track the latest meta evidence ID.
 
@@ -167,7 +168,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _registrationMetaEvidence The URI of the meta evidence object for registration requests.
      *  @param _clearingMetaEvidence The URI of the meta evidence object for clearing requests.
      *  @param _governor The trusted governor of this contract.
-     *  @param _challengeReward The amount in wei required to submit or challenge a request.
+     *  @param _requesterBaseDeposit The base deposit of the requester.
+     *  @param _challengerBaseDeposit The base deposit of the challenger.
      *  @param _challengePeriodDuration The time in seconds, parties have to challenge a request.
      *  @param _sharedStakeMultiplier Multiplier of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule). In basis points.
      *  @param _winnerStakeMultiplier Multiplier of the arbitration cost that the winner has to pay as fee stake for a round in basis points.
@@ -179,7 +181,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         string _registrationMetaEvidence,
         string _clearingMetaEvidence,
         address _governor,
-        uint _challengeReward,
+        uint _requesterBaseDeposit,
+        uint _challengerBaseDeposit,
         uint _challengePeriodDuration,
         uint _sharedStakeMultiplier,
         uint _winnerStakeMultiplier,
@@ -189,7 +192,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         emit MetaEvidence(1, _clearingMetaEvidence);
 
         governor = _governor;
-        challengeReward = _challengeReward;
+        requesterBaseDeposit = _requesterBaseDeposit;
+        challengerBaseDeposit = _challengerBaseDeposit;
         challengePeriodDuration = _challengePeriodDuration;
         sharedStakeMultiplier = _sharedStakeMultiplier;
         winnerStakeMultiplier = _winnerStakeMultiplier;
@@ -257,9 +261,9 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         emit RequestSubmitted(tokenID, token.status == TokenStatus.RegistrationRequested);
 
-        // Amount required to fully fund each side: challengeReward + arbitration cost + (arbitration cost * multiplier).
+        // Amount required to fully fund each side: requesterBaseDeposit + arbitration cost + (arbitration cost * multiplier).
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR).addCap(challengeReward);
+        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR).addCap(requesterBaseDeposit);
         contribute(round, Party.Requester, msg.sender, msg.value, totalCost);
         require(round.paidFees[uint(Party.Requester)] >= totalCost, "You must fully fund your side.");
         round.hasPaid[uint(Party.Requester)] = true;
@@ -293,7 +297,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
 
         Round storage round = request.rounds[request.rounds.length - 1];
         uint arbitrationCost = request.arbitrator.arbitrationCost(request.arbitratorExtraData);
-        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR).addCap(challengeReward);
+        uint totalCost = arbitrationCost.addCap((arbitrationCost.mulCap(sharedStakeMultiplier)) / MULTIPLIER_DIVISOR).addCap(challengerBaseDeposit);
         contribute(round, Party.Challenger, msg.sender, msg.value, totalCost);
         require(round.paidFees[uint(Party.Challenger)] >= totalCost, "You must fully fund your side.");
         round.hasPaid[uint(Party.Challenger)] = true;
@@ -538,11 +542,18 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         challengePeriodDuration = _challengePeriodDuration;
     }
 
-    /** @dev Change the required amount required as a deposit to make or challenge a request.
-     *  @param _challengeReward The new amount of wei required to make or challenge a request.
+    /** @dev Change the base amount required as a deposit to challenge a request.
+     *  @param _requesterBaseDeposit The new base amount of wei required to make a request.
      */
-    function changeChallengeReward(uint _challengeReward) external onlyGovernor {
-        challengeReward = _challengeReward;
+    function changeRequesterBaseDeposit(uint _requesterBaseDeposit) external onlyGovernor {
+        requesterBaseDeposit = _requesterBaseDeposit;
+    }
+    
+    /** @dev Change the base amount required as a deposit to challenge a request.
+     *  @param _challengerBaseDeposit The new base amount of wei required to challenge a request.
+     */
+    function changeChallengerBaseDeposit(uint _challengerBaseDeposit) external onlyGovernor {
+        challengerBaseDeposit = _challengerBaseDeposit;
     }
 
     /** @dev Change the governor of the token curated registry.
