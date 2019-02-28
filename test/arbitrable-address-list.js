@@ -27,7 +27,6 @@ contract('ArbitrableAddressList', function(accounts) {
   const challengePeriodDuration = 5
   const registrationMetaEvidence = 'registrationMetaEvidence.json'
   const clearingMetaEvidence = 'clearingMetaEvidence.json'
-  const arbitrationFeesWaitingTime = 1001
   const appealPeriodDuration = 1001
   const submissionAddr = 0x0
 
@@ -80,7 +79,6 @@ contract('ArbitrableAddressList', function(accounts) {
       registrationMetaEvidence,
       clearingMetaEvidence,
       governor, // governor
-      arbitrationFeesWaitingTime,
       challengeReward,
       challengePeriodDuration,
       sharedStakeMultiplier,
@@ -106,15 +104,16 @@ contract('ArbitrableAddressList', function(accounts) {
 
       const tx = await arbitrableAddressList.requestStatusChange(
         submissionAddr,
-        { from: partyA, value: challengeReward }
+        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost) / 10000 }
       )
+
       submissionAddress = tx.logs[0].args._address
     })
 
     it('request should have been placed', async () => {
       assert.equal(
         (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
-        challengeReward
+        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
       )
 
       const addr = await arbitrableAddressList.getAddressInfo(submissionAddress)
@@ -130,11 +129,9 @@ contract('ArbitrableAddressList', function(accounts) {
         0
       )
       assert.isFalse(request[0])
-      assert.equal(round[3].toNumber(), 0)
-      assert.equal(round[1][PARTY.Requester].toNumber(), 0)
       assert.equal(
         await web3.eth.getBalance(arbitrableAddressList.address),
-        challengeReward
+        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
       )
     })
 
@@ -149,10 +146,6 @@ contract('ArbitrableAddressList', function(accounts) {
       await arbitrableAddressList.executeRequest(submissionAddress, {
         from: partyA
       })
-      assert.equal(
-        (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
-        0
-      )
       await arbitrableAddressList.withdrawFeesAndRewards(
         partyA,
         submissionAddress,
@@ -175,110 +168,18 @@ contract('ArbitrableAddressList', function(accounts) {
 
         await arbitrableAddressList.challengeRequest(submissionAddress, '', {
           from: partyB,
-          value: challengeReward
+          value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost) / 10000
         })
 
-        assert.equal(
-          (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
-          challengeReward * 2
-        )
         const request = await arbitrableAddressList.getRequestInfo(
           submissionAddress,
           0
         )
-        assert.isFalse(request[0]) // Should not be disputed.
         assert.isAbove(
-          request[4].toNumber(),
+          request[2].toNumber(),
           0,
           'deposit time should be above 0'
         )
-      })
-
-      describe('requester fails to fund his side in time', () => {
-        it('should rule in favor of challenger', async () => {
-          const sharedRequiredStake =
-            ((await arbitrableAddressList.sharedStakeMultiplier()).toNumber() *
-              arbitrationCost) /
-            MULTIPLIER_DIVISOR
-
-          let request = await arbitrableAddressList.getRequestInfo(
-            submissionAddress,
-            0
-          )
-          await arbitrableAddressList.fundDispute(
-            submissionAddress,
-            PARTY.Challenger,
-            {
-              from: partyB,
-              value: arbitrationCost + sharedRequiredStake
-            }
-          )
-
-          await increaseTime(arbitrationFeesWaitingTime + 1)
-          await expectThrow(
-            arbitrableAddressList.fundDispute(
-              submissionAddress,
-              PARTY.Requester,
-              {
-                from: partyA,
-                value: arbitrationCost + sharedRequiredStake
-              }
-            )
-          )
-          await arbitrableAddressList.timeout(submissionAddress)
-          const addr = await arbitrableAddressList.getAddressInfo(
-            submissionAddress
-          )
-          request = await arbitrableAddressList.getRequestInfo(
-            submissionAddress,
-            0
-          )
-
-          assert.equal(addr[0].toNumber(), ADDRESS_STATUS.Absent)
-          assert.isTrue(request[5]) // i.e. request.resolved == true
-
-          const partyAContributionsBefore = (await arbitrableAddressList.getContributions(
-            submissionAddress,
-            0,
-            request[7].toNumber() - 1,
-            partyA
-          ))[PARTY.Requester].toNumber()
-          const partyBContributionsBefore = (await arbitrableAddressList.getContributions(
-            submissionAddress,
-            0,
-            request[7].toNumber() - 1,
-            partyB
-          ))[PARTY.Challenger].toNumber()
-          assert.isAbove(partyBContributionsBefore, partyAContributionsBefore)
-
-          await arbitrableAddressList.withdrawFeesAndRewards(
-            partyA,
-            submissionAddress,
-            0,
-            request[7].toNumber() - 1
-          )
-          await arbitrableAddressList.withdrawFeesAndRewards(
-            partyB,
-            submissionAddress,
-            0,
-            request[7].toNumber() - 1
-          )
-
-          const partyAContributionsAfter = (await arbitrableAddressList.getContributions(
-            submissionAddress,
-            0,
-            request[7].toNumber() - 1,
-            partyA
-          ))[PARTY.Requester].toNumber()
-          const partyBContributionsAfter = (await arbitrableAddressList.getContributions(
-            submissionAddress,
-            0,
-            request[7].toNumber() - 1,
-            partyB
-          ))[PARTY.Challenger].toNumber()
-          assert.equal(partyAContributionsAfter, 0)
-          assert.equal(partyBContributionsAfter, 0)
-        })
       })
 
       describe('fully fund both sides, rule in favor of challenger', () => {
@@ -292,7 +193,6 @@ contract('ArbitrableAddressList', function(accounts) {
             submissionAddress,
             0
           )
-          assert.isFalse(request[0])
 
           const sharedRequiredStake =
             (sharedStakeMultiplier * arbitrationCost) / MULTIPLIER_DIVISOR
@@ -307,24 +207,6 @@ contract('ArbitrableAddressList', function(accounts) {
             0
           )
 
-          await arbitrableAddressList.fundDispute(
-            submissionAddress,
-            PARTY.Challenger,
-            {
-              from: partyB,
-              value: arbitrationCost + sharedRequiredStake
-            }
-          )
-
-          await arbitrableAddressList.fundDispute(
-            submissionAddress,
-            PARTY.Requester,
-            {
-              from: partyA,
-              value: arbitrationCost + sharedRequiredStake
-            }
-          )
-
           request = await arbitrableAddressList.getRequestInfo(
             submissionAddress,
             0
@@ -335,22 +217,6 @@ contract('ArbitrableAddressList', function(accounts) {
             0
           )
 
-          assert.equal(
-            round[1][PARTY.Requester].toNumber(),
-            arbitrationCost + sharedRequiredStake
-          )
-          assert.equal(
-            round[1][PARTY.Challenger].toNumber(),
-            arbitrationCost + sharedRequiredStake
-          )
-          assert.equal(
-            round[1][PARTY.Requester].toNumber(),
-            round[2][PARTY.Requester].toNumber()
-          )
-          assert.equal(
-            round[1][PARTY.Challenger].toNumber(),
-            round[2][PARTY.Challenger].toNumber()
-          )
           assert.isTrue(request[0], 'request should be disputed')
 
           await enhancedAppealableArbitrator.giveRuling(
@@ -399,10 +265,6 @@ contract('ArbitrableAddressList', function(accounts) {
             submissionAddress,
             0,
             1
-          )
-          assert.equal(
-            round[1][PARTY.Requester].toNumber(),
-            round[2][PARTY.Requester].toNumber()
           )
           assert.isFalse(round[0])
 
@@ -548,31 +410,6 @@ contract('ArbitrableAddressList', function(accounts) {
         )
       })
 
-      it('should update arbitrationFeesWaitingTime', async () => {
-        const arbitrationFeesWaitingTimeBefore = await arbitrableAddressList.arbitrationFeesWaitingTime()
-        const newarbitrationFeesWaitingTime =
-          arbitrationFeesWaitingTimeBefore.toNumber() + 1000
-
-        await arbitrableAddressList.changeArbitrationFeesWaitingTime(
-          newarbitrationFeesWaitingTime,
-          {
-            from: governor
-          }
-        )
-
-        const arbitrationFeesWaitingTimeAfter = await arbitrableAddressList.arbitrationFeesWaitingTime()
-        assert.notEqual(
-          arbitrationFeesWaitingTimeAfter,
-          arbitrationFeesWaitingTimeBefore,
-          'arbitrationFeesWaitingTime should have changed'
-        )
-        assert.equal(
-          arbitrationFeesWaitingTimeAfter.toNumber(),
-          newarbitrationFeesWaitingTime,
-          'arbitrationFeesWaitingTime should have changed'
-        )
-      })
-
       it('should update challengePeriodDuration', async () => {
         const challengePeriodDurationBefore = await arbitrableAddressList.challengePeriodDuration()
         const newTimeToChallenge =
@@ -642,33 +479,6 @@ contract('ArbitrableAddressList', function(accounts) {
           challengeRewardAfter.toNumber(),
           newChallengeReward,
           'challengeReward should not have changed'
-        )
-      })
-
-      it('should not update arbitrationFeesWaitingTime', async () => {
-        const arbitrationFeesWaitingTimeBefore = await arbitrableAddressList.arbitrationFeesWaitingTime()
-        const newArbitrationFeesWaitingTime =
-          arbitrationFeesWaitingTimeBefore.toNumber() + 1000
-
-        await expectThrow(
-          arbitrableAddressList.changeArbitrationFeesWaitingTime(
-            newArbitrationFeesWaitingTime,
-            {
-              from: partyB
-            }
-          )
-        )
-
-        const arbitrationFeesWaitingTimeAfter = await arbitrableAddressList.arbitrationFeesWaitingTime()
-        assert.equal(
-          arbitrationFeesWaitingTimeAfter.toNumber(),
-          arbitrationFeesWaitingTimeBefore.toNumber(),
-          'arbitrationFeesWaitingTime should not have changed'
-        )
-        assert.notEqual(
-          arbitrationFeesWaitingTimeAfter.toNumber(),
-          newArbitrationFeesWaitingTime,
-          'arbitrationFeesWaitingTime should not have changed'
         )
       })
 
