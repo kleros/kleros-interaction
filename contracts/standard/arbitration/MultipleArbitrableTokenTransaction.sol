@@ -293,9 +293,12 @@ contract MultipleArbitrableTokenTransaction {
      */
     function submitEvidence(uint _transactionID, string _evidence) public {
         Transaction storage transaction = transactions[_transactionID];
-        require(msg.sender == transaction.receiver || msg.sender == transaction.sender, "The caller must be the receiver or the sender.");
-
+        require(
+            msg.sender == transaction.receiver || msg.sender == transaction.sender,
+            "The caller must be the receiver or the sender."
+        );
         require(transaction.status >= Status.DisputeCreated, "The dispute has not been created yet.");
+
         emit Evidence(arbitrator, _transactionID, msg.sender, _evidence);
     }
 
@@ -306,6 +309,11 @@ contract MultipleArbitrableTokenTransaction {
      */
     function appeal(uint _transactionID) public payable {
         Transaction storage transaction = transactions[_transactionID];
+
+        require(
+            msg.sender == transaction.receiver || msg.sender == transaction.sender,
+            "The caller must be the receiver or the sender."
+        );
 
         arbitrator.appeal.value(msg.value)(transaction.disputeId, arbitratorExtraData);
     }
