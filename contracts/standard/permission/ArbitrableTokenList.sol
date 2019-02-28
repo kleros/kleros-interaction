@@ -168,8 +168,8 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _registrationMetaEvidence The URI of the meta evidence object for registration requests.
      *  @param _clearingMetaEvidence The URI of the meta evidence object for clearing requests.
      *  @param _governor The trusted governor of this contract.
-     *  @param _requesterBaseDeposit The base deposit of the requester.
-     *  @param _challengerBaseDeposit The base deposit of the challenger.
+     *  @param _requesterBaseDeposit The base deposit to make a request.
+     *  @param _challengerBaseDeposit The base deposit to challenge a request.
      *  @param _challengePeriodDuration The time in seconds, parties have to challenge a request.
      *  @param _sharedStakeMultiplier Multiplier of the arbitration cost that each party must pay as fee stake for a round when there isn't a winner/loser in the previous round (e.g. when it's the first round or the arbitrator refused to or did not rule). In basis points.
      *  @param _winnerStakeMultiplier Multiplier of the arbitration cost that the winner has to pay as fee stake for a round in basis points.
