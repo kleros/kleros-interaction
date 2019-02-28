@@ -422,7 +422,7 @@ contract('AppealableArbitrator', function(accounts) {
       from: appealable,
       value: arbitrationFee
     })
-    centralizedArbitrator.giveRuling(0, 2, { from: arbitrator })
+    centralizedArbitrator.giveRuling(0, 1, { from: arbitrator })
     const disputeAppeal = await appealableArbitrator.disputes(0)
     const disputeArbitrator = await centralizedArbitrator.disputes(0)
     assert.equal(
