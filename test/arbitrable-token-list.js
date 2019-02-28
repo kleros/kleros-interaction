@@ -110,7 +110,13 @@ contract('ArbitrableTokenList', function(accounts) {
         'PNK',
         0x1,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        {
+          from: partyA,
+          value:
+            challengeReward +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
       )
       tokenID = tx.logs[1].args._tokenID
     })
@@ -118,7 +124,9 @@ contract('ArbitrableTokenList', function(accounts) {
     it('request should have been placed', async () => {
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
+        challengeReward +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000
       )
 
       const token = await arbitrableTokenList.getTokenInfo(tokenID)
@@ -136,7 +144,9 @@ contract('ArbitrableTokenList', function(accounts) {
       assert.isFalse(request[0])
       assert.equal(
         await web3.eth.getBalance(arbitrableTokenList.address),
-        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
+        challengeReward +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000
       )
     })
 
@@ -318,7 +328,13 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauThawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000}
+        {
+          from: partyA,
+          value:
+            challengeReward +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
       )
       mkrSubmissions.push(tx.logs[1].args._tokenID)
       tokenIDs.push(tx.logs[1].args._tokenID)
@@ -328,7 +344,13 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauZhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        {
+          from: partyA,
+          value:
+            challengeReward +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
       )
       mkrSubmissions.push(tx.logs[1].args._tokenID)
       tokenIDs.push(tx.logs[1].args._tokenID)
@@ -338,7 +360,13 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        {
+          from: partyA,
+          value:
+            challengeReward +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
       )
       mkrSubmissions.push(tx.logs[1].args._tokenID)
       tokenIDs.push(tx.logs[1].args._tokenID)
@@ -351,7 +379,13 @@ contract('ArbitrableTokenList', function(accounts) {
         'OMG',
         0x3,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        {
+          from: partyA,
+          value:
+            challengeReward +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
       )
       tokenIDs.push(tx.logs[1].args._tokenID)
       await increaseTime(challengePeriodDuration + 1)
@@ -364,15 +398,20 @@ contract('ArbitrableTokenList', function(accounts) {
         'BNB',
         0x4,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        {
+          from: partyA,
+          value:
+            challengeReward +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
       )
       tokenIDs.push(tx.logs[1].args._tokenID)
-      
+
       await increaseTime(challengePeriodDuration + 1)
       await arbitrableTokenList.executeRequest(tx.logs[1].args._tokenID, {
         from: partyA
       })
-
     })
 
     it('should return token submissions for address', async () => {

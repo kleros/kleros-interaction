@@ -104,7 +104,13 @@ contract('ArbitrableAddressList', function(accounts) {
 
       const tx = await arbitrableAddressList.requestStatusChange(
         submissionAddr,
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost) / 10000 }
+        {
+          from: partyA,
+          value:
+            challengeReward +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
       )
 
       submissionAddress = tx.logs[0].args._address
@@ -113,7 +119,9 @@ contract('ArbitrableAddressList', function(accounts) {
     it('request should have been placed', async () => {
       assert.equal(
         (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
-        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
+        challengeReward +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000
       )
 
       const addr = await arbitrableAddressList.getAddressInfo(submissionAddress)
@@ -131,7 +139,9 @@ contract('ArbitrableAddressList', function(accounts) {
       assert.isFalse(request[0])
       assert.equal(
         await web3.eth.getBalance(arbitrableAddressList.address),
-        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
+        challengeReward +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000
       )
     })
 
@@ -168,7 +178,10 @@ contract('ArbitrableAddressList', function(accounts) {
 
         await arbitrableAddressList.challengeRequest(submissionAddress, '', {
           from: partyB,
-          value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost) / 10000
+          value:
+            challengeReward +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
         })
 
         const request = await arbitrableAddressList.getRequestInfo(

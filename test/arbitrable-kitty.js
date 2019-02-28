@@ -237,12 +237,12 @@ contract('ArbitrableKitty', accounts => {
       )
 
       await arbitrable.consentToTransfer(kittyId, PARTY_A, { from: PARTY_B })
-      arbitrable.transfer(PARTY_A, kittyId, { from: PARTY_A })
+      await arbitrable.transfer(PARTY_A, kittyId, { from: PARTY_A })
 
       assert.equal(
         await kittyCore.ownerOf(kittyId),
         PARTY_A,
-        'party B should own kitty'
+        'party A should own kitty'
       )
     })
 
@@ -260,7 +260,7 @@ contract('ArbitrableKitty', accounts => {
       )
 
       await arbitrable.consentToTransfer(kittyId, OTHER_USER, { from: PARTY_A })
-      arbitrable.transfer(OTHER_USER, kittyId, { from: PARTY_B })
+      await arbitrable.transfer(OTHER_USER, kittyId, { from: PARTY_B })
 
       assert.equal(
         await kittyCore.ownerOf(kittyId),
