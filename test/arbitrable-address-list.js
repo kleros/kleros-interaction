@@ -19,7 +19,7 @@ contract('ArbitrableAddressList', function(accounts) {
   const partyA = accounts[2]
   const partyB = accounts[8]
   const arbitratorExtraData = 0x08575
-  const challengeReward = 10 ** 10
+  const baseDeposit = 10 ** 10
   const arbitrationCost = 1000
   const sharedStakeMultiplier = 10000
   const winnerStakeMultiplier = 20000
@@ -79,7 +79,8 @@ contract('ArbitrableAddressList', function(accounts) {
       registrationMetaEvidence,
       clearingMetaEvidence,
       governor, // governor
-      challengeReward,
+      baseDeposit,
+      baseDeposit,
       challengePeriodDuration,
       sharedStakeMultiplier,
       winnerStakeMultiplier,
@@ -104,7 +105,13 @@ contract('ArbitrableAddressList', function(accounts) {
 
       const tx = await arbitrableAddressList.requestStatusChange(
         submissionAddr,
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost) / 10000 }
+        {
+          from: partyA,
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
       )
 
       submissionAddress = tx.logs[0].args._address
@@ -113,7 +120,9 @@ contract('ArbitrableAddressList', function(accounts) {
     it('request should have been placed', async () => {
       assert.equal(
         (await web3.eth.getBalance(arbitrableAddressList.address)).toNumber(),
-        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
+        baseDeposit +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000
       )
 
       const addr = await arbitrableAddressList.getAddressInfo(submissionAddress)
@@ -131,7 +140,9 @@ contract('ArbitrableAddressList', function(accounts) {
       assert.isFalse(request[0])
       assert.equal(
         await web3.eth.getBalance(arbitrableAddressList.address),
-        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
+        baseDeposit +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000
       )
     })
 
@@ -168,7 +179,10 @@ contract('ArbitrableAddressList', function(accounts) {
 
         await arbitrableAddressList.challengeRequest(submissionAddress, '', {
           from: partyB,
-          value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost) / 10000
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
         })
 
         const request = await arbitrableAddressList.getRequestInfo(
@@ -194,16 +208,8 @@ contract('ArbitrableAddressList', function(accounts) {
             0
           )
 
-          const sharedRequiredStake =
-            (sharedStakeMultiplier * arbitrationCost) / MULTIPLIER_DIVISOR
-
           request = await arbitrableAddressList.getRequestInfo(
             submissionAddress,
-            0
-          )
-          let round = await arbitrableAddressList.getRoundInfo(
-            submissionAddress,
-            0,
             0
           )
 
@@ -389,24 +395,27 @@ contract('ArbitrableAddressList', function(accounts) {
         assert.equal(governorAfter, partyB, 'governor should be partyB')
       })
 
-      it('should update challengeReward', async () => {
-        const challengeRewardBefore = await arbitrableAddressList.challengeReward()
-        const newChallengeReward = challengeRewardBefore.toNumber() + 1000
+      it('should update baseDeposit', async () => {
+        const baseDepositBefore = await arbitrableAddressList.requesterBaseDeposit()
+        const newChallengeReward = baseDepositBefore.toNumber() + 1000
 
-        await arbitrableAddressList.changeChallengeReward(newChallengeReward, {
-          from: governor
-        })
+        await arbitrableAddressList.changeRequesterBaseDeposit(
+          newChallengeReward,
+          {
+            from: governor
+          }
+        )
 
-        const challengeRewardAfter = await arbitrableAddressList.challengeReward()
+        const baseDepositAfter = await arbitrableAddressList.requesterBaseDeposit()
         assert.notEqual(
-          challengeRewardAfter,
-          challengeRewardBefore,
-          'challengeReward should have changed'
+          baseDepositAfter,
+          baseDepositBefore,
+          'baseDeposit should have changed'
         )
         assert.equal(
-          challengeRewardAfter.toNumber(),
+          baseDepositAfter.toNumber(),
           newChallengeReward,
-          'challengeReward should have changed'
+          'baseDeposit should have changed'
         )
       })
 
@@ -459,26 +468,26 @@ contract('ArbitrableAddressList', function(accounts) {
         assert.notEqual(governorAfter, partyB, 'governor should not be partyB')
       })
 
-      it('should not update challengeReward', async () => {
-        const challengeRewardBefore = await arbitrableAddressList.challengeReward()
-        const newChallengeReward = challengeRewardBefore.toNumber() + 1000
+      it('should not update baseDeposit', async () => {
+        const baseDepositBefore = await arbitrableAddressList.requesterBaseDeposit()
+        const newChallengeReward = baseDepositBefore.toNumber() + 1000
 
         await expectThrow(
-          arbitrableAddressList.changeChallengeReward(newChallengeReward, {
+          arbitrableAddressList.changeRequesterBaseDeposit(newChallengeReward, {
             from: partyB
           })
         )
 
-        const challengeRewardAfter = await arbitrableAddressList.challengeReward()
+        const baseDepositAfter = await arbitrableAddressList.requesterBaseDeposit()
         assert.equal(
-          challengeRewardAfter.toNumber(),
-          challengeRewardBefore.toNumber(),
-          'challengeReward should not have changed'
+          baseDepositAfter.toNumber(),
+          baseDepositBefore.toNumber(),
+          'baseDeposit should not have changed'
         )
         assert.notEqual(
-          challengeRewardAfter.toNumber(),
+          baseDepositAfter.toNumber(),
           newChallengeReward,
-          'challengeReward should not have changed'
+          'baseDeposit should not have changed'
         )
       })
 
