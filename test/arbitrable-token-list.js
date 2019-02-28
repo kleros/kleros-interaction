@@ -19,7 +19,7 @@ contract('ArbitrableTokenList', function(accounts) {
   const partyA = accounts[2]
   const partyB = accounts[8]
   const arbitratorExtraData = 0x08575
-  const challengeReward = 10 ** 10
+  const baseDeposit = 10 ** 10
   const arbitrationCost = 1000
   const sharedStakeMultiplier = 10000
   const winnerStakeMultiplier = 20000
@@ -78,7 +78,8 @@ contract('ArbitrableTokenList', function(accounts) {
       registrationMetaEvidence,
       clearingMetaEvidence,
       governor, // governor
-      challengeReward,
+      baseDeposit,
+      baseDeposit,
       challengePeriodDuration,
       sharedStakeMultiplier,
       winnerStakeMultiplier,
@@ -110,7 +111,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'PNK',
         0x1,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        { from: partyA, value: baseDeposit + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
       )
       tokenID = tx.logs[1].args._tokenID
     })
@@ -118,7 +119,7 @@ contract('ArbitrableTokenList', function(accounts) {
     it('request should have been placed', async () => {
       assert.equal(
         (await web3.eth.getBalance(arbitrableTokenList.address)).toNumber(),
-        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
+        baseDeposit + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
       )
 
       const token = await arbitrableTokenList.getTokenInfo(tokenID)
@@ -136,7 +137,7 @@ contract('ArbitrableTokenList', function(accounts) {
       assert.isFalse(request[0])
       assert.equal(
         await web3.eth.getBalance(arbitrableTokenList.address),
-        challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
+        baseDeposit + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000
       )
     })
 
@@ -183,27 +184,6 @@ contract('ArbitrableTokenList', function(accounts) {
           'governor should have changed'
         )
         assert.equal(governorAfter, partyB, 'governor should be partyB')
-      })
-
-      it('should update challengeReward', async () => {
-        const challengeRewardBefore = await arbitrableTokenList.challengeReward()
-        const newChallengeReward = challengeRewardBefore.toNumber() + 1000
-
-        await arbitrableTokenList.changeChallengeReward(newChallengeReward, {
-          from: governor
-        })
-
-        const challengeRewardAfter = await arbitrableTokenList.challengeReward()
-        assert.notEqual(
-          challengeRewardAfter,
-          challengeRewardBefore,
-          'challengeReward should have changed'
-        )
-        assert.equal(
-          challengeRewardAfter.toNumber(),
-          newChallengeReward,
-          'challengeReward should have changed'
-        )
       })
 
       it('should update challengePeriodDuration', async () => {
@@ -255,29 +235,6 @@ contract('ArbitrableTokenList', function(accounts) {
         assert.notEqual(governorAfter, partyB, 'governor should not be partyB')
       })
 
-      it('should not update challengeReward', async () => {
-        const challengeRewardBefore = await arbitrableTokenList.challengeReward()
-        const newChallengeReward = challengeRewardBefore.toNumber() + 1000
-
-        await expectThrow(
-          arbitrableTokenList.changeChallengeReward(newChallengeReward, {
-            from: partyB
-          })
-        )
-
-        const challengeRewardAfter = await arbitrableTokenList.challengeReward()
-        assert.equal(
-          challengeRewardAfter.toNumber(),
-          challengeRewardBefore.toNumber(),
-          'challengeReward should not have changed'
-        )
-        assert.notEqual(
-          challengeRewardAfter.toNumber(),
-          newChallengeReward,
-          'challengeReward should not have changed'
-        )
-      })
-
       it('should not update challengePeriodDuration', async () => {
         const challengePeriodDurationBefore = await arbitrableTokenList.challengePeriodDuration()
         const newTimeToChallenge =
@@ -318,7 +275,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauThawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000}
+        { from: partyA, value: baseDeposit + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000}
       )
       mkrSubmissions.push(tx.logs[1].args._tokenID)
       tokenIDs.push(tx.logs[1].args._tokenID)
@@ -328,7 +285,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauZhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        { from: partyA, value: baseDeposit + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
       )
       mkrSubmissions.push(tx.logs[1].args._tokenID)
       tokenIDs.push(tx.logs[1].args._tokenID)
@@ -338,7 +295,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'MKR',
         0x2,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        { from: partyA, value: baseDeposit + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
       )
       mkrSubmissions.push(tx.logs[1].args._tokenID)
       tokenIDs.push(tx.logs[1].args._tokenID)
@@ -351,7 +308,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'OMG',
         0x3,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        { from: partyA, value: baseDeposit + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
       )
       tokenIDs.push(tx.logs[1].args._tokenID)
       await increaseTime(challengePeriodDuration + 1)
@@ -364,7 +321,7 @@ contract('ArbitrableTokenList', function(accounts) {
         'BNB',
         0x4,
         'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauQhawDkME1nFNQbCu',
-        { from: partyA, value: challengeReward + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
+        { from: partyA, value: baseDeposit + arbitrationCost + (sharedStakeMultiplier * arbitrationCost)/10000 }
       )
       tokenIDs.push(tx.logs[1].args._tokenID)
       
