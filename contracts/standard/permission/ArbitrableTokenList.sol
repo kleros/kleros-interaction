@@ -542,7 +542,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         challengePeriodDuration = _challengePeriodDuration;
     }
 
-    /** @dev Change the base amount required as a deposit to challenge a request.
+    /** @dev Change the base amount required as a deposit to make a request.
      *  @param _requesterBaseDeposit The new base amount of wei required to make a request.
      */
     function changeRequesterBaseDeposit(uint _requesterBaseDeposit) external onlyGovernor {
