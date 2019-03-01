@@ -6,7 +6,7 @@
 
 pragma solidity ^0.4.15;
 
-import "./Arbitrable.sol";
+import "./IArbitrable.sol";
 
 /** @title Arbitrator
  *  Arbitrator abstract contract.
@@ -32,18 +32,18 @@ contract Arbitrator {
      *  @param _disputeID ID of the dispute.
      *  @param _arbitrable The contract which created the dispute.
      */
-    event DisputeCreation(uint indexed _disputeID, Arbitrable indexed _arbitrable);
+    event DisputeCreation(uint indexed _disputeID, IArbitrable indexed _arbitrable);
 
     /** @dev To be raised when a dispute can be appealed.
      *  @param _disputeID ID of the dispute.
      */
-    event AppealPossible(uint indexed _disputeID, Arbitrable indexed _arbitrable);
+    event AppealPossible(uint indexed _disputeID, IArbitrable indexed _arbitrable);
 
     /** @dev To be raised when the current ruling is appealed.
      *  @param _disputeID ID of the dispute.
      *  @param _arbitrable The contract which created the dispute.
      */
-    event AppealDecision(uint indexed _disputeID, Arbitrable indexed _arbitrable);
+    event AppealDecision(uint indexed _disputeID, IArbitrable indexed _arbitrable);
 
     /** @dev Create a dispute. Must be called by the arbitrable contract.
      *  Must be paid at least arbitrationCost(_extraData).
@@ -64,7 +64,7 @@ contract Arbitrator {
      *  @param _extraData Can be used to give extra info on the appeal.
      */
     function appeal(uint _disputeID, bytes _extraData) public requireAppealFee(_disputeID,_extraData) payable {
-        emit AppealDecision(_disputeID, Arbitrable(msg.sender));
+        emit AppealDecision(_disputeID, IArbitrable(msg.sender));
     }
 
     /** @dev Compute the cost of appeal. It is recommended not to increase it often, as it can be higly time and gas consuming for the arbitrated contracts to cope with fee augmentation.

@@ -8,6 +8,7 @@
 
 pragma solidity ^0.4.15;
 
+import "./Arbitrable.sol";
 import "./Arbitrator.sol";
 
 /** @title Centralized Arbitrator

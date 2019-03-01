@@ -7,6 +7,7 @@
 pragma solidity ^0.4.15;
 
 import "./IArbitrable.sol";
+import "./Arbitrator.sol";
 
 /** @title Arbitrable
  *  Arbitrable abstract contract.

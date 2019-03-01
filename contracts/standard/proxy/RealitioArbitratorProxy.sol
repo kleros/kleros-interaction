@@ -8,7 +8,8 @@
 
 pragma solidity ^0.4.24;
 
-import { Arbitrable, Arbitrator } from "../arbitration/Arbitrable.sol";
+import { Arbitrator } from "../arbitration/Arbitrator.sol";
+import { Arbitrable } from "../arbitration/Arbitrable.sol";
 import { Realitio } from "@realitio/realitio-contracts/truffle/contracts/Realitio.sol";
 
 /**

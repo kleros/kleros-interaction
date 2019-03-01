@@ -8,6 +8,7 @@
 pragma solidity ^0.4.15;
 
 import "./Arbitrator.sol";
+import "./Arbitrable.sol";
 
 /** @title Centralized Court
  *  This is a centralized court deciding the result of disputes.

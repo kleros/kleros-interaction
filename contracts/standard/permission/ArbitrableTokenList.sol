@@ -327,7 +327,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         );
         if (bytes(_evidence).length > 0)
             emit Evidence(request.arbitrator, uint(keccak256(abi.encodePacked(_tokenID,token.requests.length - 1))), msg.sender, _evidence);
-        }
+    }
 
     /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if both sides are fully funded. TRUSTED.
      *  @param _tokenID The ID of the token with the request to fund.
