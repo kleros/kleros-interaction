@@ -132,11 +132,12 @@ contract('ArbitrableAddressList', function(accounts) {
         submissionAddress,
         0
       )
-      const round = await arbitrableAddressList.getRoundInfo(
-        submissionAddress,
-        0,
-        0
-      )
+      // TODO: add test for `round`
+      // const round = await arbitrableAddressList.getRoundInfo(
+      //   submissionAddress,
+      //   0,
+      //   0
+      // )
       assert.isFalse(request[0])
       assert.equal(
         await web3.eth.getBalance(arbitrableAddressList.address),
