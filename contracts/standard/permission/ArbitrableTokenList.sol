@@ -1,6 +1,6 @@
 /**
  *  @authors: [@mtsalenc, @clesaege]
- *  @reviewers: []
+ *  @reviewers: [@clesaege]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -399,7 +399,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
         Token storage token = tokens[_tokenID];
         Request storage request = token.requests[_request];
         Round storage round = request.rounds[_round];
-        // The request must be executed and there can be no disputes pending resolution.
+        // The request must be resolved and there can be no disputes pending resolution.
         require(request.resolved); // solium-disable-line error-reason
 
         uint reward;
@@ -442,7 +442,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
             withdrawFeesAndRewards(_beneficiary, _tokenID, _request, i);
     }
 
-    /** @dev Withdraws rewards and reimbursements of multiple requests at once. This function is O(n*m) where n is the number of requests and m is the number of rounds. This could exceed gas limits, therefore this function should be used only as a utility and not be relied upon by other contracts.
+    /** @dev Withdraws rewards and reimbursements of multiple requests at once. This function is O(n*m) where n is the number of requests and m is the number of rounds to withdraw per request. This could exceed gas limits, therefore this function should be used only as a utility and not be relied upon by other contracts.
      *  @param _beneficiary The address that made contributions to the request.
      *  @param _tokenID The token ID with funds to be withdrawn.
      *  @param _cursor The request from which to start withdrawing.
