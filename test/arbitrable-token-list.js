@@ -133,9 +133,35 @@ contract('ArbitrableTokenList', function(accounts) {
       const request = await arbitrableTokenList.getRequestInfo(tokenID, 0)
       assert.isFalse(request[0])
 
-      // TODO: add for the `round`
-      // const round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
+      const round = await arbitrableTokenList.getRoundInfo(tokenID, 0, 0)
+      assert.equal(round[0], false, 'Appeal attribute must be `false`')
+      assert.equal(
+        round[1][0].toNumber(),
+        0,
+        'The `Party.Requester` contribution must be 0.'
+      )
+      assert.equal(
+        round[1][1].toNumber(),
+        baseDeposit +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000,
+        'The `Party.Requester` contribution must be equal to the total reward.'
+      )
+      assert.equal(
+        round[1][2].toNumber(),
+        0,
+        'The `Party.Challenger` contribution must be 0.'
+      )
+      assert.equal(round[2][1], true, 'The `Party.Requester` had to paid.')
+      assert.equal(
+        round[3].toNumber(),
+        baseDeposit +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000,
+        'The `feeRewards` must be equal to the total reward.'
+      )
 
+      // The balance must be the same
       assert.equal(
         await web3.eth.getBalance(arbitrableTokenList.address),
         baseDeposit +
@@ -157,6 +183,84 @@ contract('ArbitrableTokenList', function(accounts) {
         tokenID,
         0,
         request[5].toNumber() - 1
+      )
+    })
+  })
+
+  describe('multiple registration requests', () => {
+    beforeEach(async () => {
+      await deployArbitrators()
+      await deployArbitrableTokenList(enhancedAppealableArbitrator)
+
+      const tx0 = await arbitrableTokenList.requestStatusChange(
+        'OmiseGO',
+        'OMG',
+        0x0,
+        'BcdwnVkEp8Nn41U2hoENwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
+        {
+          from: partyA,
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
+      )
+      const tx1 = await arbitrableTokenList.requestStatusChange(
+        'OmiseGO_1',
+        'OMG_1',
+        0x0,
+        'BcdwnVkEp8Nn41U2hoENwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
+        {
+          from: partyA,
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
+      )
+      const tx2 = await arbitrableTokenList.requestStatusChange(
+        'OmiseGO_2',
+        'OMG_2',
+        0x0,
+        'BcdwnVkEp8Nn41U2hoENwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
+        {
+          from: partyA,
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
+      )
+
+      tokenID = await arbitrableTokenList.getTokenInfo(
+        tx0.logs[1].args._tokenID
+      )
+      tokenID1 = await arbitrableTokenList.getTokenInfo(
+        tx1.logs[1].args._tokenID
+      )
+      tokenID2 = await arbitrableTokenList.getTokenInfo(
+        tx2.logs[1].args._tokenID
+      )
+    })
+    it('should save all the requests', async () => {
+      assert.equal(tokenID[0], 'OmiseGO')
+      assert.equal(tokenID[1], 'OMG')
+      assert.equal(tokenID[2], 0x0)
+      assert.equal(
+        tokenID[3],
+        'BcdwnVkEp8Nn41U2hoENwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu'
+      )
+      assert.equal(tokenID[4].toNumber(), TOKEN_STATUS.RegistrationRequested)
+
+      assert.equal(tokenID1[4].toNumber(), TOKEN_STATUS.RegistrationRequested)
+      assert.equal(tokenID2[4].toNumber(), TOKEN_STATUS.RegistrationRequested)
+
+      assert.equal(
+        await web3.eth.getBalance(arbitrableTokenList.address),
+        (baseDeposit +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000) *
+          3
       )
     })
   })
