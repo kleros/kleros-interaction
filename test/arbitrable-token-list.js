@@ -138,7 +138,7 @@ contract('ArbitrableTokenList', function(accounts) {
       assert.equal(
         round[1][0].toNumber(),
         0,
-        'The `Party.Requester` contribution must be 0.'
+        'The `Party.None` contribution must be 0.'
       )
       assert.equal(
         round[1][1].toNumber(),
@@ -183,6 +183,90 @@ contract('ArbitrableTokenList', function(accounts) {
         tokenID,
         0,
         request[5].toNumber() - 1
+      )
+    })
+
+    it('should execute request and create a dispute', async () => {
+      const tx1 = await arbitrableTokenList.requestStatusChange(
+        'Pinakion2',
+        'PNK2',
+        0x1,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
+        {
+          from: partyA, // Requester
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
+      )
+      tokenID1 = tx1.logs[1].args._tokenID
+
+      await arbitrableTokenList.challengeRequest(
+        tokenID1,
+        'evidence_tokenID1',
+        {
+          from: partyB, // Challenger
+          value:
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000 +
+            baseDeposit
+        }
+      )
+
+      const roundTokenID1 = await arbitrableTokenList.getRoundInfo(
+        tokenID1,
+        0,
+        0
+      )
+
+      assert.equal(
+        roundTokenID1[1][1].toNumber(),
+        baseDeposit +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000,
+        'The `Party.Requester` contribution must be equal to the total cost.'
+      )
+
+      assert.equal(
+        roundTokenID1[1][2].toNumber(),
+        baseDeposit +
+          arbitrationCost +
+          (sharedStakeMultiplier * arbitrationCost) / 10000,
+        'The `Party.Challenger` contribution must be equal to the total cost.'
+      )
+
+      assert.equal(roundTokenID1[2][0], false, 'The `Party.None` had to 0.')
+      assert.equal(
+        roundTokenID1[2][1],
+        true,
+        'The `Party.Requester` had to paid.'
+      )
+      assert.equal(
+        roundTokenID1[2][2],
+        true,
+        'The `Party.Challenger` had to paid.'
+      )
+
+      const token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
+
+      const requestToken1 = await arbitrableTokenList.getRequestInfo(
+        tokenID1,
+        0
+      )
+
+      assert.equal(
+        requestToken1[0],
+        true, // The first request must disputed.
+        'Must be disputed'
+      )
+
+      // TODO: check if the dispute exists on the arbitrator
+
+      assert.equal(
+        token1[4].toNumber(),
+        TOKEN_STATUS.RegistrationRequested,
+        'Must be `RegistrationRequested` as token status'
       )
     })
   })
