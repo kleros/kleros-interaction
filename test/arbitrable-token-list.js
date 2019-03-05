@@ -464,7 +464,7 @@ contract('ArbitrableTokenList', function(accounts) {
       )
     })
 
-    it('should execute request, raise a dispute, the requester wins the dispute (`RegistrationRequested`), do a appeal and challenger wins (`Absent`)', async () => {
+    it('should execute request, raise a dispute, the requester wins the dispute (`RegistrationRequested`), do an appeal and challenger wins (`Absent`)', async () => {
       const tx1 = await arbitrableTokenList.requestStatusChange(
         'Pinakion2',
         'PNK2',
