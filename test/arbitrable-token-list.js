@@ -538,6 +538,9 @@ contract('ArbitrableTokenList', function(accounts) {
       token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
 
       request = await arbitrableTokenList.getRequestInfo(tokenID1, 0)
+
+      // TODO: test the request
+
       round = await arbitrableTokenList.getRoundInfo(tokenID1, 0, 1)
       assert.isFalse(round[0])
 
@@ -545,6 +548,86 @@ contract('ArbitrableTokenList', function(accounts) {
         token1[4].toNumber(),
         TOKEN_STATUS.Absent,
         'Must be `Absent` as token status'
+      )
+    })
+
+    it.only('should withdraw fees and the reward for the winner party (challenger)', async () => {
+      const tx1 = await arbitrableTokenList.requestStatusChange(
+        'Pinakion2',
+        'PNK2',
+        0x1,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
+        {
+          from: partyA, // Requester
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
+      )
+      tokenID1 = tx1.logs[1].args._tokenID
+
+      await arbitrableTokenList.challengeRequest(
+        tokenID1,
+        'evidence_tokenID1',
+        {
+          from: partyB, // Challenger
+          value:
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000 +
+            baseDeposit
+        }
+      )
+
+      // Give a ruling in favor the requester
+      await enhancedAppealableArbitrator.giveRuling(
+        0,
+        1, // Requester wins the dispute
+        { from: governor }
+      )
+
+      const appealCost = (await enhancedAppealableArbitrator.appealCost(
+        0,
+        0x00
+      )).toNumber()
+
+      const loserRequiredStake =
+        (loserStakeMultiplier * appealCost) / MULTIPLIER_DIVISOR
+
+      console.log({ loserRequiredStake })
+
+      await arbitrableTokenList.fundAppeal(
+        tokenID1,
+        2, // Challenger
+        {
+          from: partyB,
+          value: appealCost + loserRequiredStake
+        }
+      )
+
+      await increaseTime(appealPeriodDuration + 1)
+
+      await enhancedAppealableArbitrator.giveRuling(
+        0,
+        2, // Challenger wins the dispute
+        { from: governor }
+      )
+
+      const oldChalengerBalance = await web3.eth.getBalance(partyB)
+
+      await arbitrableTokenList.withdrawFeesAndRewards(
+        partyB,
+        tokenID1,
+        0, // request
+        1 // round
+      )
+
+      const newChalengerBalance = await web3.eth.getBalance(partyB)
+
+      assert(
+        oldChalengerBalance.toNumber(),
+        newChalengerBalance.toNumber() + 5000,
+        'Challenger must be corectly refunded.'
       )
     })
   })
@@ -604,6 +687,7 @@ contract('ArbitrableTokenList', function(accounts) {
         tx2.logs[1].args._tokenID
       )
     })
+
     it('should save all the requests', async () => {
       assert.equal(tokenID[0], 'OmiseGO')
       assert.equal(tokenID[1], 'OMG')
