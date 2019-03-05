@@ -551,7 +551,7 @@ contract('ArbitrableTokenList', function(accounts) {
       )
     })
 
-    it.only('should withdraw fees and the reward for the winner party (challenger)', async () => {
+    it('should withdraw fees and the reward for the winner party (challenger)', async () => {
       const tx1 = await arbitrableTokenList.requestStatusChange(
         'Pinakion2',
         'PNK2',
@@ -594,8 +594,6 @@ contract('ArbitrableTokenList', function(accounts) {
       const loserRequiredStake =
         (loserStakeMultiplier * appealCost) / MULTIPLIER_DIVISOR
 
-      console.log({ loserRequiredStake })
-
       await arbitrableTokenList.fundAppeal(
         tokenID1,
         2, // Challenger
@@ -613,7 +611,11 @@ contract('ArbitrableTokenList', function(accounts) {
         { from: governor }
       )
 
-      const oldChalengerBalance = await web3.eth.getBalance(partyB)
+      const BigNumber = web3.BigNumber
+
+      const oldChalengerBalance = new BigNumber(
+        await web3.eth.getBalance(partyB)
+      )
 
       await arbitrableTokenList.withdrawFeesAndRewards(
         partyB,
@@ -622,11 +624,13 @@ contract('ArbitrableTokenList', function(accounts) {
         1 // round
       )
 
-      const newChalengerBalance = await web3.eth.getBalance(partyB)
+      const newChalengerBalance = new BigNumber(
+        await web3.eth.getBalance(partyB)
+      )
 
-      assert(
-        oldChalengerBalance.toNumber(),
-        newChalengerBalance.toNumber() + 5000,
+      assert.equal(
+        oldChalengerBalance.add(5000).toNumber(),
+        newChalengerBalance.toNumber(),
         'Challenger must be corectly refunded.'
       )
     })
