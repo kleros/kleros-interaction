@@ -18,7 +18,7 @@ contract('ArbitrableTokenList', function(accounts) {
   const governor = accounts[0]
   const partyA = accounts[2]
   const partyB = accounts[8]
-  const arbitratorExtraData = 0x08575
+  const arbitratorExtraData = 0x0
   const baseDeposit = 10 ** 10
   const arbitrationCost = 1000
   const sharedStakeMultiplier = 10000
@@ -59,15 +59,19 @@ contract('ArbitrableTokenList', function(accounts) {
         from: governor
       }
     )
+
+    await enhancedAppealableArbitrator.changeArbitrator(
+      enhancedAppealableArbitrator.address
+    )
   }
 
   const deployArbitrableTokenList = async arbitrator => {
     arbitrableTokenList = await ArbitrableTokenList.new(
-      arbitrator.address, // arbitrator
+      arbitrator.address,
       arbitratorExtraData,
       registrationMetaEvidence,
       clearingMetaEvidence,
-      governor, // governor
+      governor,
       baseDeposit,
       baseDeposit,
       challengePeriodDuration,
@@ -261,16 +265,21 @@ contract('ArbitrableTokenList', function(accounts) {
         'Must be disputed'
       )
 
-      // TODO: check if the dispute exists on the arbitrator
-
       assert.equal(
         token1[4].toNumber(),
         TOKEN_STATUS.RegistrationRequested,
         'Must be `RegistrationRequested` as token status'
       )
     })
+  })
 
-    it('should execute request, create a dispute and the challenger wins the dispute', async () => {
+  describe('dispute flow', () => {
+    beforeEach(async () => {
+      await deployArbitrators()
+      await deployArbitrableTokenList(enhancedAppealableArbitrator)
+    })
+
+    it('should execute request, create a dispute and the challenger wins the dispute (absent)', async () => {
       const tx1 = await arbitrableTokenList.requestStatusChange(
         'Pinakion2',
         'PNK2',
@@ -345,8 +354,6 @@ contract('ArbitrableTokenList', function(accounts) {
         'Must be disputed'
       )
 
-      // TODO: check if the dispute exists on the arbitrator
-
       assert.equal(
         token1[4].toNumber(),
         TOKEN_STATUS.RegistrationRequested,
@@ -355,8 +362,8 @@ contract('ArbitrableTokenList', function(accounts) {
 
       assert.equal(
         await enhancedAppealableArbitrator.arbitrator(),
-        governor,
-        'Must be the arbitrator address.'
+        enhancedAppealableArbitrator.address,
+        'Must be the `enhancedAppealableArbitrator` contract address.'
       )
 
       assert.equal(
@@ -395,6 +402,144 @@ contract('ArbitrableTokenList', function(accounts) {
       )
 
       token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
+
+      assert.equal(
+        token1[4].toNumber(),
+        TOKEN_STATUS.Absent,
+        'Must be `Absent` as token status'
+      )
+    })
+
+    it('should execute request, create a dispute and the requester wins the dispute (registered)', async () => {
+      const tx1 = await arbitrableTokenList.requestStatusChange(
+        'Pinakion2',
+        'PNK2',
+        0x1,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
+        {
+          from: partyA, // Requester
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
+      )
+
+      tokenID1 = tx1.logs[1].args._tokenID
+
+      await arbitrableTokenList.challengeRequest(
+        tokenID1,
+        'evidence_tokenID1',
+        {
+          from: partyB, // Challenger
+          value:
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000 +
+            baseDeposit
+        }
+      )
+
+      // Give a ruling in favor the challenger
+      await enhancedAppealableArbitrator.giveRuling(
+        0,
+        1, // Requester wins the dispute
+        { from: governor }
+      )
+
+      await increaseTime(appealPeriodDuration + 1)
+
+      // NOTE: note need to be call twice
+      await enhancedAppealableArbitrator.giveRuling(
+        0,
+        1, // Requester wins the dispute
+        { from: governor }
+      )
+
+      token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
+
+      assert.equal(
+        token1[4].toNumber(),
+        TOKEN_STATUS.Registered,
+        'Must be `Registered` as token status'
+      )
+    })
+
+    it('should execute request, raise a dispute, the requester wins the dispute (`RegistrationRequested`), do a appeal and challenger wins (`Absent`)', async () => {
+      const tx1 = await arbitrableTokenList.requestStatusChange(
+        'Pinakion2',
+        'PNK2',
+        0x1,
+        'BcdwnVkEp8Nn41U2homNwyiVWYmPsXxEdxCUBn9V8y5AvqQaDwadDkQmwEWoyWgZxYnKsFPNauPhawDkME1nFNQbCu',
+        {
+          from: partyA, // Requester
+          value:
+            baseDeposit +
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000
+        }
+      )
+      tokenID1 = tx1.logs[1].args._tokenID
+
+      await arbitrableTokenList.challengeRequest(
+        tokenID1,
+        'evidence_tokenID1',
+        {
+          from: partyB, // Challenger
+          value:
+            arbitrationCost +
+            (sharedStakeMultiplier * arbitrationCost) / 10000 +
+            baseDeposit
+        }
+      )
+
+      let token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
+
+      // Give a ruling in favor the requester
+      await enhancedAppealableArbitrator.giveRuling(
+        0,
+        1, // Requester wins the dispute
+        { from: governor }
+      )
+
+      token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
+
+      assert(
+        token1[4].toNumber(),
+        TOKEN_STATUS.RegistrationRequested,
+        'Must be the `RegistrationRequested`'
+      )
+
+      const appealCost = (await enhancedAppealableArbitrator.appealCost(
+        0,
+        0x00
+      )).toNumber()
+
+      const loserRequiredStake =
+        (loserStakeMultiplier * appealCost) / MULTIPLIER_DIVISOR
+      let round = await arbitrableTokenList.getRoundInfo(tokenID1, 0, 1)
+
+      await arbitrableTokenList.fundAppeal(
+        tokenID1,
+        2, // Challenger
+        {
+          from: partyB,
+          value: appealCost + loserRequiredStake
+        }
+      )
+
+      await increaseTime(appealPeriodDuration + 1)
+
+      await enhancedAppealableArbitrator.giveRuling(
+        0,
+        2, // Chanllenger wins the dispute
+        { from: governor }
+      )
+
+      token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
+
+      request = await arbitrableTokenList.getRequestInfo(tokenID1, 0)
+      round = await arbitrableTokenList.getRoundInfo(tokenID1, 0, 1)
+      assert.isFalse(round[0])
 
       assert.equal(
         token1[4].toNumber(),
