@@ -18,6 +18,8 @@ contract('ArbitrableTokenList', function(accounts) {
   const governor = accounts[0]
   const partyA = accounts[2]
   const partyB = accounts[8]
+  const partyC = accounts[3]
+  const partyD = accounts[4]
   const arbitratorExtraData = 0x0
   const baseDeposit = 10 ** 10
   const arbitrationCost = 1000
@@ -624,6 +626,7 @@ contract('ArbitrableTokenList', function(accounts) {
         await web3.eth.getBalance(partyB)
       )
 
+      // FIXME: we cannot compare big number with `assert.equal`
       assert.equal(
         oldChalengerBalance.add(5000).toNumber(),
         newChalengerBalance.toNumber(),
@@ -631,7 +634,7 @@ contract('ArbitrableTokenList', function(accounts) {
       )
     })
 
-    it('should withdraw fees and the reward for all winning parties (appeal challengers)', async () => {
+    it.only('should withdraw fees and the reward for all winning parties (appeal challengers)', async () => {
       const tx1 = await arbitrableTokenList.requestStatusChange(
         'Pinakion2',
         'PNK2',
@@ -683,25 +686,34 @@ contract('ArbitrableTokenList', function(accounts) {
       const BigNumber = web3.BigNumber
 
       const oldChalengerBalancePartyB = await web3.eth.getBalance(partyB)
+      const oldChalengerBalancePartyC = await web3.eth.getBalance(partyC)
+      const oldChalengerBalancePartyD = await web3.eth.getBalance(partyD)
 
       const fundAppealTX = await arbitrableTokenList.fundAppeal(
         tokenID1,
-        2, // Challenger
+        2,
         {
           from: partyB,
-          value: appealCost + loserRequiredStake // 5000
+          value: 3000
         }
       )
 
-      const txGasCost = fundAppealTX.receipt.gasUsed * 100000000000 // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
+      const fundAppealTX1 = await arbitrableTokenList.fundAppeal(
+        tokenID1,
+        2,
+        {
+          from: partyC,
+          value: 1000
+        }
+      )
 
-      const newChalengerBalancePartyB = await web3.eth.getBalance(partyB)
-
-      assert(
-        oldChalengerBalancePartyB
-          .minus(txGasCost)
-          .equals(newChalengerBalancePartyB.add(5000)),
-        'Challenge balance must decrease to pay the arbitration appeal cost.'
+      await arbitrableTokenList.fundAppeal(
+        tokenID1,
+        2,
+        {
+          from: partyD,
+          value: 1000
+        }
       )
 
       await increaseTime(appealPeriodDuration + 1)
@@ -712,10 +724,6 @@ contract('ArbitrableTokenList', function(accounts) {
         { from: governor }
       )
 
-      const oldChalengerBalance = new BigNumber(
-        await web3.eth.getBalance(partyB)
-      )
-
       await arbitrableTokenList.withdrawFeesAndRewards(
         partyB,
         tokenID1,
@@ -723,14 +731,68 @@ contract('ArbitrableTokenList', function(accounts) {
         1 // round
       )
 
-      const newChalengerBalance = new BigNumber(
+      await arbitrableTokenList.withdrawFeesAndRewards(
+        partyC,
+        tokenID1,
+        0, // request
+        1 // round
+      )
+
+      await arbitrableTokenList.withdrawFeesAndRewards(
+        partyD,
+        tokenID1,
+        0, // request
+        1 // round
+      )
+
+      tokenID1 = tx1.logs[1].args._tokenID
+
+      console.log({tokenID1})
+
+      const token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
+
+      console.log({token1})
+
+      const round = await arbitrableTokenList.getRoundInfo(tokenID1, 0, 1)
+
+      const reward = (3000 * round[3]) / round[1][2]
+
+      console.log({reward})
+
+      const newChalengerBalancePartyB = new BigNumber(
         await web3.eth.getBalance(partyB)
       )
 
-      assert.equal(
-        oldChalengerBalance.add(5000).toNumber(),
-        newChalengerBalance.toNumber(),
-        'Challenger must be corectly refunded.'
+      const newChalengerBalancePartyC = new BigNumber(
+        await web3.eth.getBalance(partyC)
+      )
+
+      const newChalengerBalancePartyD = new BigNumber(
+        await web3.eth.getBalance(partyD)
+      )
+
+      const txGasCost = fundAppealTX.receipt.gasUsed * 100000000000 // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
+      const txGasCost1 = fundAppealTX1.receipt.gasUsed * 100000000000
+
+      console.log('old', oldChalengerBalancePartyC.add(txGasCost1).toString())
+      console.log('wqd', newChalengerBalancePartyC.minus(1000).toString())
+      console.log('gas', txGasCost)
+      assert(
+        oldChalengerBalancePartyC
+          .equals(newChalengerBalancePartyC.minus(txGasCost)),
+        'Challenge balance 1 must decrease to pay the arbitration appeal cost.'
+      )
+
+      assert(
+        oldChalengerBalancePartyC
+          .equals(newChalengerBalancePartyC.minus(txGasCost).add(1000)),
+        'Challenge balance 2 must decrease to pay the arbitration appeal cost.'
+      )
+
+      assert(
+        oldChalengerBalancePartyD
+          .equals(newChalengerBalancePartyD.minus(txGasCost).add(1000)),
+        'Challenge balance 3 must decrease to pay the arbitration appeal cost.'
       )
     })
   })
