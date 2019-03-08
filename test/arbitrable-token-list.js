@@ -13,6 +13,9 @@ const AppealableArbitrator = artifacts.require(
 const EnhancedAppealableArbitrator = artifacts.require(
   './standard/arbitration/EnhancedAppealableArbitrator.sol'
 )
+const CentralizedArbitrator = artifacts.require(
+  './standard/arbitration/CentralizedArbitrator.sol'
+)
 
 contract('ArbitrableTokenList', function(accounts) {
   const governor = accounts[0]
@@ -24,8 +27,8 @@ contract('ArbitrableTokenList', function(accounts) {
   const baseDeposit = 10 ** 10
   const arbitrationCost = 1000
   const sharedStakeMultiplier = 10000
-  const winnerStakeMultiplier = 20000
-  const loserStakeMultiplier = 2 * winnerStakeMultiplier
+  const winnerStakeMultiplier = 10000
+  const loserStakeMultiplier = 2 * sharedStakeMultiplier
   const challengePeriodDuration = 5
   const registrationMetaEvidence = 'registrationMetaEvidence.json'
   const clearingMetaEvidence = 'clearingMetaEvidence.json'
@@ -33,6 +36,7 @@ contract('ArbitrableTokenList', function(accounts) {
 
   let appealableArbitrator
   let enhancedAppealableArbitrator
+  let centralizedArbitrator
   let arbitrableTokenList
   let tokenID
 
@@ -52,18 +56,18 @@ contract('ArbitrableTokenList', function(accounts) {
     )
     await appealableArbitrator.changeArbitrator(appealableArbitrator.address)
 
+    centralizedArbitrator = await CentralizedArbitrator.new(1000, {
+      from: governor
+    })
+
     enhancedAppealableArbitrator = await EnhancedAppealableArbitrator.new(
       arbitrationCost, // _arbitrationCost
-      governor, // _arbitrator
+      centralizedArbitrator.address, // _arbitrator
       null, // _arbitratorExtraData
       appealPeriodDuration, // _timeOut
       {
         from: governor
       }
-    )
-
-    await enhancedAppealableArbitrator.changeArbitrator(
-      enhancedAppealableArbitrator.address
     )
   }
 
@@ -634,7 +638,7 @@ contract('ArbitrableTokenList', function(accounts) {
       )
     })
 
-    it.only('should withdraw fees and the reward for all winning parties (appeal challengers)', async () => {
+    it('should withdraw fees and the reward for all winning parties (appeal challengers)', async () => {
       const tx1 = await arbitrableTokenList.requestStatusChange(
         'Pinakion2',
         'PNK2',
@@ -689,36 +693,33 @@ contract('ArbitrableTokenList', function(accounts) {
       const oldChalengerBalancePartyC = await web3.eth.getBalance(partyC)
       const oldChalengerBalancePartyD = await web3.eth.getBalance(partyD)
 
-      const fundAppealTX = await arbitrableTokenList.fundAppeal(
-        tokenID1,
-        2,
-        {
-          from: partyB,
-          value: 3000
-        }
-      )
+      const fundAppealTX = await arbitrableTokenList.fundAppeal(tokenID1, 2, {
+        from: partyB,
+        value: 3000
+      })
 
-      const fundAppealTX1 = await arbitrableTokenList.fundAppeal(
-        tokenID1,
-        2,
-        {
-          from: partyC,
-          value: 1000
-        }
-      )
+      const fundAppealTX1 = await arbitrableTokenList.fundAppeal(tokenID1, 2, {
+        from: partyC,
+        value: 1000
+      })
 
-      await arbitrableTokenList.fundAppeal(
-        tokenID1,
-        2,
-        {
-          from: partyD,
-          value: 1000
-        }
-      )
+      await arbitrableTokenList.fundAppeal(tokenID1, 2, {
+        from: partyD,
+        value: 1000
+      })
+
+      await arbitrableTokenList.fundAppeal(tokenID1, 1, {
+        from: governor,
+        value: 5000
+      })
 
       await increaseTime(appealPeriodDuration + 1)
 
-      await enhancedAppealableArbitrator.giveRuling(
+      console.log(
+        (await enhancedAppealableArbitrator.appealDisputes(0)).toString()
+      )
+      console.log(governor)
+      await centralizedArbitrator.giveRuling(
         0,
         2, // Challenger wins the dispute
         { from: governor }
@@ -747,52 +748,48 @@ contract('ArbitrableTokenList', function(accounts) {
 
       tokenID1 = tx1.logs[1].args._tokenID
 
-      console.log({tokenID1})
+      console.log({ tokenID1 })
 
       const token1 = await arbitrableTokenList.getTokenInfo(tokenID1)
 
-      console.log({token1})
+      console.log({ token1 })
 
       const round = await arbitrableTokenList.getRoundInfo(tokenID1, 0, 1)
 
       const reward = (3000 * round[3]) / round[1][2]
 
-      console.log({reward})
+      console.log({ reward })
 
-      const newChalengerBalancePartyB = new BigNumber(
-        await web3.eth.getBalance(partyB)
-      )
-
-      const newChalengerBalancePartyC = new BigNumber(
-        await web3.eth.getBalance(partyC)
-      )
-
-      const newChalengerBalancePartyD = new BigNumber(
-        await web3.eth.getBalance(partyD)
-      )
+      const newChalengerBalancePartyB = await web3.eth.getBalance(partyB)
+      const newChalengerBalancePartyC = await web3.eth.getBalance(partyC)
+      const newChalengerBalancePartyD = await web3.eth.getBalance(partyD)
 
       const txGasCost = fundAppealTX.receipt.gasUsed * 100000000000 // Test environment doesn't care what the gasPrice is, spent value is always gasUsed * 10^11
-      const txGasCost1 = fundAppealTX1.receipt.gasUsed * 100000000000
+      const txGasCost1 = new BigNumber(fundAppealTX1.receipt.gasUsed).mul(
+        new BigNumber('100000000000')
+      )
 
-      console.log('old', oldChalengerBalancePartyC.add(txGasCost1).toString())
-      console.log('wqd', newChalengerBalancePartyC.minus(1000).toString())
-      console.log('gas', txGasCost)
-      assert(
+      console.log(fundAppealTX1.receipt.gasUsed)
+      console.log(web3.eth.gasPrice)
+
+      console.log('old', oldChalengerBalancePartyC.toString())
+      console.log(
+        'wqd',
+        newChalengerBalancePartyC.minus(new BigNumber('1000')).toString()
+      )
+      console.log('gas', txGasCost1.toString())
+      console.log(
+        'difference',
         oldChalengerBalancePartyC
-          .equals(newChalengerBalancePartyC.minus(txGasCost)),
+          .minus(newChalengerBalancePartyC)
+          .minus(txGasCost1)
+          .toString()
+      )
+      assert(
+        oldChalengerBalancePartyC.equals(
+          newChalengerBalancePartyC.add(txGasCost1)
+        ),
         'Challenge balance 1 must decrease to pay the arbitration appeal cost.'
-      )
-
-      assert(
-        oldChalengerBalancePartyC
-          .equals(newChalengerBalancePartyC.minus(txGasCost).add(1000)),
-        'Challenge balance 2 must decrease to pay the arbitration appeal cost.'
-      )
-
-      assert(
-        oldChalengerBalancePartyD
-          .equals(newChalengerBalancePartyD.minus(txGasCost).add(1000)),
-        'Challenge balance 3 must decrease to pay the arbitration appeal cost.'
       )
     })
   })
