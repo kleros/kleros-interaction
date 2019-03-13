@@ -14,8 +14,8 @@ const ERC20Mock = artifacts.require('./ERC20Mock.sol')
 const CentralizedArbitrator = artifacts.require('./CentralizedArbitrator.sol')
 
 contract('MultipleArbitrableTokenTransaction', function(accounts) {
-  const payer = accounts[0]
-  const payee = accounts[1]
+  const sender = accounts[0]
+  const receiver = accounts[1]
   const arbitrator = accounts[2]
   const other = accounts[3]
   const arbitrationFee = 20
@@ -25,7 +25,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
   const metaEvidenceUri = 'https://kleros.io'
 
   beforeEach(async () => {
-    this.token = await ERC20Mock.new(payer, 100)
+    this.token = await ERC20Mock.new(sender, 100)
   })
 
   /**
@@ -41,11 +41,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       timeoutFee,
-      { from: payer }
+      { from: sender }
     )
     const creationMaContractTx = await maFactoryContract.createArbitrableToken(
       this.token.address,
-      { from: payer }
+      { from: sender }
     )
 
     // Get the address of the arbitrable token comtract deployed
@@ -91,15 +91,15 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
    */
   async function createTestTransaction(maContract) {
     await this.token.approve(maContract.address, 42, {
-      from: payer
+      from: sender
     })
     const lastTransaction = await getLastTransaction(maContract, async () => {
       await maContract.createTransaction(
         42,
         timeoutPayment,
-        payee,
+        receiver,
         metaEvidenceUri,
-        { from: payer }
+        { from: sender }
       )
     })
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
@@ -114,29 +114,29 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
    */
   async function execteActionAndCompareBalances(action, data) {
     // sanitizing the data parameters
-    if (typeof data.payer === 'undefined')
-      data.payer = {
+    if (typeof data.sender === 'undefined')
+      data.sender = {
         etherDelta: 0,
         tokenDelta: 0
       }
-    if (typeof data.payee === 'undefined')
-      data.payee = {
+    if (typeof data.receiver === 'undefined')
+      data.receiver = {
         etherDelta: 0,
         tokenDelta: 0
       }
-    if (!data.payer.etherDelta) data.payer.etherDelta = 0
-    if (!data.payer.tokenDelta) data.payer.tokenDelta = 0
-    if (!data.payee.etherDelta) data.payee.etherDelta = 0
-    if (!data.payee.tokenDelta) data.payee.tokenDelta = 0
+    if (!data.sender.etherDelta) data.sender.etherDelta = 0
+    if (!data.sender.tokenDelta) data.sender.tokenDelta = 0
+    if (!data.receiver.etherDelta) data.receiver.etherDelta = 0
+    if (!data.receiver.tokenDelta) data.receiver.tokenDelta = 0
     if (!data.contractTokenDelta) data.contractTokenDelta = 0
 
     const contractTokenBalanceBefore = await this.token.balanceOf(
       data.maContract.address
     )
-    const payerTokenBalanceBefore = await this.token.balanceOf(payer)
-    const payerEtherBalanceBefore = web3.eth.getBalance(payer)
-    const payeeTokenBalanceBefore = await this.token.balanceOf(payee)
-    const payeeEtherBalanceBefore = await web3.eth.getBalance(payee)
+    const senderTokenBalanceBefore = await this.token.balanceOf(sender)
+    const senderEtherBalanceBefore = web3.eth.getBalance(sender)
+    const receiverTokenBalanceBefore = await this.token.balanceOf(receiver)
+    const receiverEtherBalanceBefore = await web3.eth.getBalance(receiver)
 
     actionData = await action()
     if (typeof actionData === 'undefined') actionData = {}
@@ -144,36 +144,36 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const contractTokenBalanceAfter = await this.token.balanceOf(
       data.maContract.address
     )
-    const payerTokenBalanceAfter = await this.token.balanceOf(payer)
-    const payerEtherBalanceAfter = await web3.eth.getBalance(payer)
-    const payeeTokenBalanceAfter = await this.token.balanceOf(payee)
-    const payeeEtherBalanceAfter = await web3.eth.getBalance(payee)
+    const senderTokenBalanceAfter = await this.token.balanceOf(sender)
+    const senderEtherBalanceAfter = await web3.eth.getBalance(sender)
+    const receiverTokenBalanceAfter = await this.token.balanceOf(receiver)
+    const receiverEtherBalanceAfter = await web3.eth.getBalance(receiver)
 
     assert.equal(
-      payerEtherBalanceAfter.toString(),
-      payerEtherBalanceBefore
-        .minus(actionData.payerTotalTxCost || 0)
-        .plus(data.payer.etherDelta)
+      senderEtherBalanceAfter.toString(),
+      senderEtherBalanceBefore
+        .minus(actionData.senderTotalTxCost || 0)
+        .plus(data.sender.etherDelta)
         .toString(),
-      'The payer has not been reimbursed correctly in ether'
+      'The sender has not been reimbursed correctly in ether'
     )
     assert.equal(
-      payeeEtherBalanceAfter.toString(),
-      payeeEtherBalanceBefore
-        .minus(actionData.payeeTotalTxCost || 0)
-        .plus(data.payee.etherDelta)
+      receiverEtherBalanceAfter.toString(),
+      receiverEtherBalanceBefore
+        .minus(actionData.receiverTotalTxCost || 0)
+        .plus(data.receiver.etherDelta)
         .toString(),
-      'The payee has not been paid correctly in ether'
+      'The receiver has not been paid correctly in ether'
     )
     assert.equal(
-      payerTokenBalanceAfter.toString(),
-      payerTokenBalanceBefore.plus(data.payer.tokenDelta).toString(),
-      'The payer has not been reimbursed correctly in token'
+      senderTokenBalanceAfter.toString(),
+      senderTokenBalanceBefore.plus(data.sender.tokenDelta).toString(),
+      'The sender has not been reimbursed correctly in token'
     )
     assert.equal(
-      payeeTokenBalanceAfter.toString(),
-      payeeTokenBalanceBefore.plus(data.payee.tokenDelta).toString(),
-      'The payee has not been paid correctly in token'
+      receiverTokenBalanceAfter.toString(),
+      receiverTokenBalanceBefore.plus(data.receiver.tokenDelta).toString(),
+      'The receiver has not been paid correctly in token'
     )
     assert.equal(
       contractTokenBalanceAfter.toString(),
@@ -208,19 +208,19 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
     await execteActionAndCompareBalances(
       async () => {
-        let payerTotalTxCost = 0
+        let senderTotalTxCost = 0
         const tx = await maContract.pay(arbitrableTransactionId, 42, {
-          from: payer,
+          from: sender,
           gasPrice
         })
-        payerTotalTxCost += tx.receipt.gasUsed * gasPrice
+        senderTotalTxCost += tx.receipt.gasUsed * gasPrice
         return {
-          payerTotalTxCost
+          senderTotalTxCost
         }
       },
       {
         maContract,
-        payee: {
+        receiver: {
           tokenDelta: 42
         },
         contractTokenDelta: -42
@@ -250,19 +250,19 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
     await execteActionAndCompareBalances(
       async () => {
-        let payeeTotalTxCost = 0
+        let receiverTotalTxCost = 0
         const tx = await maContract.reimburse(arbitrableTransactionId, 42, {
-          from: payee,
+          from: receiver,
           gasPrice
         })
-        payeeTotalTxCost += tx.receipt.gasUsed * gasPrice
+        receiverTotalTxCost += tx.receipt.gasUsed * gasPrice
         return {
-          payeeTotalTxCost
+          receiverTotalTxCost
         }
       },
       {
         maContract,
-        payer: {
+        sender: {
           tokenDelta: 42
         },
         contractTokenDelta: -42
@@ -285,19 +285,19 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
       await execteActionAndCompareBalances(
         async () => {
-          let payeeTotalTxCost = 0
+          let receiverTotalTxCost = 0
           const tx = await maContract.reimburse(arbitrableTransactionId, 42, {
-            from: payee,
+            from: receiver,
             gasPrice
           })
-          payeeTotalTxCost += tx.receipt.gasUsed * gasPrice
+          receiverTotalTxCost += tx.receipt.gasUsed * gasPrice
           return {
-            payeeTotalTxCost
+            receiverTotalTxCost
           }
         },
         {
           maContract,
-          payer: {
+          sender: {
             tokenDelta: 42
           },
           contractTokenDelta: -42
@@ -320,9 +320,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         await maContract.createTransaction(
           42,
           timeoutPayment,
-          payee,
+          receiver,
           metaEvidenceUri,
-          { from: payer }
+          { from: sender }
         )
       })
     )
@@ -334,19 +334,19 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
     await execteActionAndCompareBalances(
       async () => {
-        let payeeTotalTxCost = 0
+        let receiverTotalTxCost = 0
         const tx = await maContract.reimburse(arbitrableTransactionId, 10, {
-          from: payee,
+          from: receiver,
           gasPrice
         })
-        payeeTotalTxCost += tx.receipt.gasUsed * gasPrice
+        receiverTotalTxCost += tx.receipt.gasUsed * gasPrice
         return {
-          payeeTotalTxCost
+          receiverTotalTxCost
         }
       },
       {
         maContract,
-        payer: {
+        sender: {
           tokenDelta: 10
         },
         contractTokenDelta: -10
@@ -364,41 +364,41 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
     shouldFail.reverting(
-      maContract.reimburse(arbitrableTransactionId, 43, { from: payee })
+      maContract.reimburse(arbitrableTransactionId, 43, { from: receiver })
     )
   })
 
-  it('Should fail if the payer to tries to reimburse it', async () => {
+  it('Should fail if the sender to tries to reimburse it', async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
     shouldFail.reverting(
-      maContract.reimburse(arbitrableTransactionId, 43, { from: payer })
+      maContract.reimburse(arbitrableTransactionId, 43, { from: sender })
     )
   })
 
-  it('The payee should execute transaction', async () => {
+  it('The receiver should execute transaction', async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await execteActionAndCompareBalances(
       async () => {
-        let payeeTotalTxCost = 0
+        let receiverTotalTxCost = 0
         await time.increase(timeoutPayment + 1)
         const tx = await maContract.executeTransaction(
           arbitrableTransactionId,
           {
-            from: payee,
+            from: receiver,
             gasPrice
           }
         )
-        payeeTotalTxCost += tx.receipt.gasUsed * gasPrice
+        receiverTotalTxCost += tx.receipt.gasUsed * gasPrice
         return {
-          payeeTotalTxCost
+          receiverTotalTxCost
         }
       },
       {
         maContract,
-        payee: {
+        receiver: {
           tokenDelta: 42
         },
         contractTokenDelta: -42
@@ -406,13 +406,13 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     )
   })
 
-  it('The payee should not execute transaction until timeout', async () => {
+  it('The receiver should not execute transaction until timeout', async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await shouldFail.reverting(
       maContract.executeTransaction(arbitrableTransactionId, {
-        from: payee
+        from: receiver
       })
     )
   })
@@ -422,39 +422,39 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
       value: arbitrationFee
     })
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+      from: receiver,
       value: arbitrationFee
     })
 
     await shouldFail.reverting(
       maContract.pay(arbitrableTransactionId, 42, {
-        from: payer,
+        from: sender,
         gasPrice
       })
     )
 
     await shouldFail.reverting(
       maContract.reimburse(arbitrableTransactionId, 42, {
-        from: payee,
+        from: receiver,
         gasPrice
       })
     )
   })
 
-  it('Should reimburse the payer (including arbitration fee) when the arbitrator decides so', async () => {
+  it('Should reimburse the sender (including arbitration fee) when the arbitrator decides so', async () => {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
       value: arbitrationFee
     })
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+      from: receiver,
       value: arbitrationFee
     })
 
@@ -464,7 +464,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       },
       {
         maContract,
-        payer: {
+        sender: {
           etherDelta: 20,
           tokenDelta: 42
         },
@@ -473,16 +473,16 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     )
   })
 
-  it('Should pay the payee and reimburse him the arbitration fee when the arbitrator decides so', async () => {
+  it('Should pay the receiver and reimburse him the arbitration fee when the arbitrator decides so', async () => {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
       value: arbitrationFee
     })
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+      from: receiver,
       value: arbitrationFee
     })
 
@@ -492,7 +492,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       },
       {
         maContract,
-        payee: {
+        receiver: {
           etherDelta: 20,
           tokenDelta: 42
         },
@@ -506,11 +506,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
       value: arbitrationFee
     })
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+      from: receiver,
       value: arbitrationFee
     })
 
@@ -520,11 +520,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       },
       {
         maContract,
-        payer: {
+        sender: {
           etherDelta: 10,
           tokenDelta: 21
         },
-        payee: {
+        receiver: {
           etherDelta: 10,
           tokenDelta: 21
         },
@@ -538,7 +538,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+      from: receiver,
       value: arbitrationFee
     })
 
@@ -557,7 +557,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     })
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
       value: arbitrationFee + 42
     })
 
@@ -577,7 +577,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+      from: receiver,
       value: arbitrationFee
     })
 
@@ -586,12 +586,12 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     })
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
       value: arbitrationFee + 42
     })
 
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+      from: receiver,
       value: 42 // Pay the rest of arbitration fee with an extra to test also the refund in this case
     })
 
@@ -599,30 +599,30 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       arbitrableTransactionId
     )
 
-    const payerBalanceBeforeRuling = web3.eth.getBalance(payer)
-    const payeeBalanceBeforeRuling = web3.eth.getBalance(payee)
+    const senderBalanceBeforeRuling = web3.eth.getBalance(sender)
+    const receiverBalanceBeforeRuling = web3.eth.getBalance(receiver)
 
     await centralizedArbitrator.giveRuling(0, 0, { from: arbitrator })
 
-    const payerBalanceAfterRuling = web3.eth.getBalance(payer)
-    const payeeBalanceAfterRuling = web3.eth.getBalance(payee)
+    const senderBalanceAfterRuling = web3.eth.getBalance(sender)
+    const receiverBalanceAfterRuling = web3.eth.getBalance(receiver)
 
     assert.equal(
-      payeeBalanceAfterRuling.toString(),
-      payeeBalanceBeforeRuling
+      receiverBalanceAfterRuling.toString(),
+      receiverBalanceBeforeRuling
         .plus(10)
         .plus(21)
         .toString(),
-      'The payee has not been reimbursed correctly'
+      'The receiver has not been reimbursed correctly'
     )
 
     assert.equal(
-      payerBalanceAfterRuling.toString(),
-      payerBalanceBeforeRuling
+      senderBalanceAfterRuling.toString(),
+      senderBalanceBeforeRuling
         .plus(10)
         .plus(21)
         .toString(),
-      'The payer has not been paid properly'
+      'The sender has not been paid properly'
     )
 
     // check also the contract balance
@@ -633,67 +633,12 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     )
   })
 
-  it('Should reimburse the payer in case of timeout of the payee', async () => {
-    const { maContract } = await setupContracts()
-    const { arbitrableTransactionId } = await createTestTransaction(maContract)
-
-    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
-
-    await execteActionAndCompareBalances(
-      async () => {
-        await time.increase(timeoutFee + 1)
-        const tx = await maContract.timeOutByReceiver(arbitrableTransactionId, {
-          from: payer,
-          gasPrice
-        })
-        const txFee = tx.receipt.gasUsed * gasPrice
-        return {
-          payerTotalTxCost: txFee
-        }
-      },
-      {
-        maContract,
-        payer: {
-          etherDelta: 20,
-          tokenDelta: 42
-        },
-        contractTokenDelta: -42
-      }
-    )
-  })
-
-  it("Shouldn't work before timeout for the payer", async () => {
-    const { maContract } = await setupContracts()
-    const { arbitrableTransactionId } = await createTestTransaction(maContract)
-
-    await shouldFail.reverting(
-      maContract.timeOutByReceiver(arbitrableTransactionId, {
-        from: payer,
-        gasPrice: gasPrice
-      })
-    )
-    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
-      value: arbitrationFee
-    })
-    await time.increase(1)
-    await shouldFail.reverting(
-      maContract.timeOutByReceiver(arbitrableTransactionId, {
-        from: payer,
-        gasPrice: gasPrice
-      })
-    )
-  })
-
-  it('Should reimburse the payee in case of timeout of the payer', async () => {
+  it('Should reimburse the sender in case of timeout of the receiver', async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
       value: arbitrationFee
     })
 
@@ -701,17 +646,17 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       async () => {
         await time.increase(timeoutFee + 1)
         const tx = await maContract.timeOutBySender(arbitrableTransactionId, {
-          from: payee,
+          from: sender,
           gasPrice
         })
         const txFee = tx.receipt.gasUsed * gasPrice
         return {
-          payeeTotalTxCost: txFee
+          senderTotalTxCost: txFee
         }
       },
       {
         maContract,
-        payee: {
+        sender: {
           etherDelta: 20,
           tokenDelta: 42
         },
@@ -720,74 +665,129 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     )
   })
 
-  it("Shouldn't work before timeout for the payee", async () => {
+  it("Shouldn't work before timeout for the sender", async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await shouldFail.reverting(
       maContract.timeOutBySender(arbitrableTransactionId, {
-        from: payee,
+        from: sender,
         gasPrice: gasPrice
       })
     )
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
       value: arbitrationFee
     })
     await time.increase(1)
     await shouldFail.reverting(
       maContract.timeOutBySender(arbitrableTransactionId, {
-        from: payee,
+        from: sender,
         gasPrice: gasPrice
       })
     )
   })
 
-  it('Should create events when evidence is submitted by the payer', async () => {
-    const { centralizedArbitrator, maContract } = await setupContracts()
+  it('Should reimburse the receiver in case of timeout of the sender', async () => {
+    const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+      from: receiver,
       value: arbitrationFee
     })
+
+    await execteActionAndCompareBalances(
+      async () => {
+        await time.increase(timeoutFee + 1)
+        const tx = await maContract.timeOutByReceiver(arbitrableTransactionId, {
+          from: receiver,
+          gasPrice
+        })
+        const txFee = tx.receipt.gasUsed * gasPrice
+        return {
+          receiverTotalTxCost: txFee
+        }
+      },
+      {
+        maContract,
+        receiver: {
+          etherDelta: 20,
+          tokenDelta: 42
+        },
+        contractTokenDelta: -42
+      }
+    )
+  })
+
+  it("Shouldn't work before timeout for the receiver", async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    await shouldFail.reverting(
+      maContract.timeOutByReceiver(arbitrableTransactionId, {
+        from: receiver,
+        gasPrice: gasPrice
+      })
+    )
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+      from: receiver,
+      value: arbitrationFee
+    })
+    await time.increase(1)
+    await shouldFail.reverting(
+      maContract.timeOutByReceiver(arbitrableTransactionId, {
+        from: receiver,
+        gasPrice: gasPrice
+      })
+    )
+  })
+
+  it('Should create events when evidence is submitted by the sender', async () => {
+    const { centralizedArbitrator, maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+      from: sender,
+      value: arbitrationFee
+    })
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+      from: receiver,
       value: arbitrationFee
     })
 
     const tx = await maContract.submitEvidence(
       arbitrableTransactionId,
       'ipfs:/X',
-      { from: payer }
+      { from: sender }
     )
     assert.equal(tx.logs[0].event, 'Evidence')
     assert.equal(tx.logs[0].args._arbitrator, centralizedArbitrator.address)
-    assert.equal(tx.logs[0].args._party, payer)
+    assert.equal(tx.logs[0].args._party, sender)
     assert.equal(tx.logs[0].args._evidence, 'ipfs:/X')
   })
 
-  it('Should create events when evidence is submitted by the payee', async () => {
+  it('Should create events when evidence is submitted by the receiver', async () => {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
+      from: sender,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+      from: receiver,
       value: arbitrationFee
     })
 
     const tx = await maContract.submitEvidence(
       arbitrableTransactionId,
       'ipfs:/X',
-      { from: payee }
+      { from: receiver }
     )
     assert.equal(tx.logs[0].event, 'Evidence')
     assert.equal(tx.logs[0].args._arbitrator, centralizedArbitrator.address)
-    assert.equal(tx.logs[0].args._party, payee)
+    assert.equal(tx.logs[0].args._party, receiver)
     assert.equal(tx.logs[0].args._evidence, 'ipfs:/X')
   })
 
@@ -795,12 +795,12 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
+      from: sender,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+      from: receiver,
       value: arbitrationFee
     })
 
@@ -815,7 +815,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
 
     await this.token.approve(maContract.address, 42 * 2, {
-      from: payer
+      from: sender
     })
 
     const arbitrableTransactionId1 = (await createTestTransaction(maContract))
@@ -824,22 +824,22 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const arbitrableTransactionId2 = (await createTestTransaction(maContract))
       .arbitrableTransactionId
 
-    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId2, {
-      from: payer,
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId2, {
+      from: sender,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeBySender(arbitrableTransactionId1, {
-      from: payee,
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId1, {
+      from: receiver,
       value: arbitrationFee
     })
     // This generates transaction 1 dispute 0
-    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId1, {
-      from: payer,
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId1, {
+      from: sender,
       value: arbitrationFee
     })
     // This generates transaction 2 dispute 1
-    await maContract.payArbitrationFeeBySender(arbitrableTransactionId2, {
-      from: payee,
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId2, {
+      from: receiver,
       value: arbitrationFee
     })
 
@@ -849,7 +849,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       },
       {
         maContract,
-        payer: {
+        sender: {
           etherDelta: 20,
           tokenDelta: 42
         },
@@ -863,7 +863,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       },
       {
         maContract,
-        payee: {
+        receiver: {
           etherDelta: 20,
           tokenDelta: 42
         },
@@ -885,12 +885,12 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { centralizedArbitrator, maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-      from: payee,
+    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+      from: receiver,
       value: arbitrationFee
     })
-    await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-      from: payer,
+    await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
+      from: sender,
       value: arbitrationFee
     })
 
@@ -900,15 +900,15 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     })
 
     await shouldFail.reverting(
-      maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
-        from: payee,
+      maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
+        from: receiver,
         value: arbitrationFee + 1
       })
     )
 
     await shouldFail.reverting(
-      maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
-        from: payer,
+      maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
+        from: sender,
         value: arbitrationFee + 1
       })
     )

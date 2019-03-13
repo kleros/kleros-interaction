@@ -1,6 +1,6 @@
 /**
  *  @authors: [@n1c01a5, @hellwolf]
- *  @reviewers: [@ferittuncer*, @unknownunknown1]
+ *  @reviewers: [@ferittuncer*, @unknownunknown1*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -29,7 +29,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
 
     enum Party {Sender, Receiver}
     enum Status {NoDispute, WaitingSender, WaitingReceiver, DisputeCreated, Resolved}
-    enum RulingOptions {NoRuling, ReceiverWins, SenderWins}
+    enum RulingOptions {NoRuling, SenderWins, ReceiverWins}
 
     struct Transaction {
         address sender;
@@ -116,22 +116,22 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
     /** @dev Create a transaction. UNTRUSTED.
      *  @param _amount The amount of tokens in this transaction.
      *  @param _timeoutPayment Time after which a party automatically loses a dispute.
-     *  @param _sender The recipient of the transaction.
+     *  @param _receiver The recipient of the transaction.
      *  @param _metaEvidence Link to the meta-evidence.
      *  @return The index of the transaction.
      */
     function createTransaction(
         uint _amount,
         uint _timeoutPayment,
-        address _sender,
+        address _receiver,
         string _metaEvidence
     ) public returns (uint transactionIndex) {
         // Transfers token from sender wallet to contract.
         require(token.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough funds.");
 
         transactions.push(Transaction({
-            sender: _sender,
-            receiver: msg.sender,
+            sender: msg.sender,
+            receiver: _receiver,
             amount: _amount,
             timeoutPayment: _timeoutPayment,
             disputeId: 0,
@@ -145,35 +145,35 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         return transactions.length - 1;
     }
 
-    /** @dev Pay sender. To be called if the good or service is provided. UNTRUSTED.
+    /** @dev Pay receiver. To be called if the good or service is provided. UNTRUSTED.
      *  @param _transactionID The index of the transaction.
      *  @param _amount Amount to pay in tokens.
      */
     function pay(uint _transactionID, uint _amount) public {
         Transaction storage transaction = transactions[_transactionID];
-        require(transaction.receiver == msg.sender, "The caller must be the receiver.");
+        require(transaction.sender == msg.sender, "The caller must be the sender.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
         require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
 
         transaction.amount -= _amount;
-        require(token.transfer(transaction.sender, _amount) != false, "The `transfer` function must not fail.");
+        require(token.transfer(transaction.receiver, _amount) != false, "The `transfer` function must not fail.");
     }
 
-    /** @dev Reimburse receiver. To be called if the good or service can't be fully provided. UNTRUSTED.
+    /** @dev Reimburse sender. To be called if the good or service can't be fully provided. UNTRUSTED.
      *  @param _transactionID The index of the transaction.
      *  @param _amountReimbursed Amount to reimburse in tokens.
      */
     function reimburse(uint _transactionID, uint _amountReimbursed) public {
         Transaction storage transaction = transactions[_transactionID];
-        require(transaction.sender == msg.sender, "The caller must be the sender.");
+        require(transaction.receiver == msg.sender, "The caller must be the receiver.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
         require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
         transaction.amount -= _amountReimbursed;
-        require(token.transfer(transaction.receiver, _amountReimbursed) != false, "The `transfer` function must not fail.");
+        require(token.transfer(transaction.sender, _amountReimbursed) != false, "The `transfer` function must not fail.");
     }
 
-    /** @dev Transfer the transaction's amount to the sender if the timeout has passed. UNTRUSTED.
+    /** @dev Transfer the transaction's amount to the receiver if the timeout has passed. UNTRUSTED.
      *  @param _transactionID The index of the transaction.
      */
     function executeTransaction(uint _transactionID) public {
@@ -186,19 +186,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
 
         transaction.status = Status.Resolved;
 
-        require(token.transfer(transaction.sender, amount) != false, "The `transfer` function must not fail.");
-    }
-
-    /** @dev Reimburse receiver if sender fails to pay the fee. UNTRUSTED.
-     *  @param _transactionID The index of the transaction.
-     */
-    function timeOutByReceiver(uint _transactionID) public {
-        Transaction storage transaction = transactions[_transactionID];
-
-        require(transaction.status == Status.WaitingSender, "The transaction is not waiting on the sender.");
-        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
-
-        executeRuling(_transactionID, uint(RulingOptions.ReceiverWins));
+        require(token.transfer(transaction.receiver, amount) != false, "The `transfer` function must not fail.");
     }
 
     /** @dev Pay sender if receiver fails to pay the fee. UNTRUSTED.
@@ -213,28 +201,16 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         executeRuling(_transactionID, uint(RulingOptions.SenderWins));
     }
 
-    /** @dev Pay the arbitration fee to raise a dispute. To be called by the receiver. UNTRUSTED.
-     *  Note that this function mirrors payArbitrationFeeBySender.
+    /** @dev Reimburse receiver if sender fails to pay the fee. UNTRUSTED.
      *  @param _transactionID The index of the transaction.
      */
-    function payArbitrationFeeByReceiver(uint _transactionID) public payable {
+    function timeOutByReceiver(uint _transactionID) public {
         Transaction storage transaction = transactions[_transactionID];
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
-        require(msg.sender == transaction.receiver, "The caller must be the receiver.");
 
-        transaction.receiverFee += msg.value;
-        // Require that the total paid to be at least the arbitration cost.
-        require(transaction.receiverFee >= arbitrationCost, "The receiver fee must cover arbitration costs.");
+        require(transaction.status == Status.WaitingSender, "The transaction is not waiting on the sender.");
+        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
-        transaction.lastInteraction = now;
-        // The sender still has to pay. This can also happen if he has paid, but arbitrationCost has increased.
-        if (transaction.senderFee < arbitrationCost) {
-            transaction.status = Status.WaitingSender;
-            emit HasToPayFee(_transactionID, Party.Sender);
-        } else { // The sender has also paid the fee. We create the dispute.
-            raiseDispute(_transactionID, arbitrationCost);
-        }
+        executeRuling(_transactionID, uint(RulingOptions.ReceiverWins));
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the sender. UNTRUSTED.
@@ -258,6 +234,30 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
             transaction.status = Status.WaitingReceiver;
             emit HasToPayFee(_transactionID, Party.Receiver);
         } else { // The receiver has also paid the fee. We create the dispute.
+            raiseDispute(_transactionID, arbitrationCost);
+        }
+    }
+
+    /** @dev Pay the arbitration fee to raise a dispute. To be called by the receiver. UNTRUSTED.
+     *  Note that this function mirrors payArbitrationFeeBySender.
+     *  @param _transactionID The index of the transaction.
+     */
+    function payArbitrationFeeByReceiver(uint _transactionID) public payable {
+        Transaction storage transaction = transactions[_transactionID];
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        require(transaction.status < Status.DisputeCreated, "Dispute has already been created.");
+        require(msg.sender == transaction.receiver, "The caller must be the receiver.");
+
+        transaction.receiverFee += msg.value;
+        // Require that the total paid to be at least the arbitration cost.
+        require(transaction.receiverFee >= arbitrationCost, "The receiver fee must cover arbitration costs.");
+
+        transaction.lastInteraction = now;
+        // The sender still has to pay. This can also happen if he has paid, but arbitrationCost has increased.
+        if (transaction.senderFee < arbitrationCost) {
+            transaction.status = Status.WaitingSender;
+            emit HasToPayFee(_transactionID, Party.Sender);
+        } else { // The sender has also paid the fee. We create the dispute.
             raiseDispute(_transactionID, arbitrationCost);
         }
     }

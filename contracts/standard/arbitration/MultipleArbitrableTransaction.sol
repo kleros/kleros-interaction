@@ -1,6 +1,6 @@
 /**
  *  @authors: [@eburgos, @n1c01a5]
- *  @reviewers: [@unknownunknown1, @clesaege*, @ferittuncer]
+ *  @reviewers: [@unknownunknown1*, @clesaege*, @ferittuncer*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -18,8 +18,8 @@ contract MultipleArbitrableTransaction is IArbitrable {
     // **************************** //
 
     uint8 constant AMOUNT_OF_CHOICES = 2;
-    uint8 constant RECEIVER_WINS = 1;
-    uint8 constant SENDER_WINS = 2;
+    uint8 constant SENDER_WINS = 1;
+    uint8 constant RECEIVER_WINS = 2;
 
     enum Party {Sender, Receiver}
     enum Status {NoDispute, WaitingSender, WaitingReceiver, DisputeCreated, Resolved}
@@ -105,18 +105,18 @@ contract MultipleArbitrableTransaction is IArbitrable {
 
     /** @dev Create a transaction.
      *  @param _timeoutPayment Time after which a party can automatically execute the arbitrable transaction.
-     *  @param _sender The recipient of the transaction.
+     *  @param _receiver The recipient of the transaction.
      *  @param _metaEvidence Link to the meta-evidence.
      *  @return transactionID The index of the transaction.
      */
     function createTransaction(
         uint _timeoutPayment,
-        address _sender,
+        address _receiver,
         string _metaEvidence
     ) public payable returns (uint transactionID) {
         transactions.push(Transaction({
-            sender: _sender,
-            receiver: msg.sender,
+            sender: msg.sender,
+            receiver: _receiver,
             amount: msg.value,
             timeoutPayment: _timeoutPayment,
             disputeId: 0,
@@ -130,35 +130,35 @@ contract MultipleArbitrableTransaction is IArbitrable {
         return transactions.length - 1;
     }
 
-    /** @dev Pay sender. To be called if the good or service is provided.
+    /** @dev Pay receiver. To be called if the good or service is provided.
      *  @param _transactionID The index of the transaction.
      *  @param _amount Amount to pay in wei.
      */
     function pay(uint _transactionID, uint _amount) public {
         Transaction storage transaction = transactions[_transactionID];
-        require(transaction.receiver == msg.sender, "The caller must be the receiver.");
+        require(transaction.sender == msg.sender, "The caller must be the sender.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
         require(_amount <= transaction.amount, "The amount paid has to be less than or equal to the transaction.");
 
-        transaction.sender.transfer(_amount);
+        transaction.receiver.transfer(_amount);
         transaction.amount -= _amount;
     }
 
-    /** @dev Reimburse receiver. To be called if the good or service can't be fully provided.
+    /** @dev Reimburse sender. To be called if the good or service can't be fully provided.
      *  @param _transactionID The index of the transaction.
      *  @param _amountReimbursed Amount to reimburse in wei.
      */
     function reimburse(uint _transactionID, uint _amountReimbursed) public {
         Transaction storage transaction = transactions[_transactionID];
-        require(transaction.sender == msg.sender, "The caller must be the sender.");
+        require(transaction.receiver == msg.sender, "The caller must be the receiver.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
         require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
-        transaction.receiver.transfer(_amountReimbursed);
+        transaction.sender.transfer(_amountReimbursed);
         transaction.amount -= _amountReimbursed;
     }
 
-    /** @dev Transfer the transaction's amount to the sender if the timeout has passed.
+    /** @dev Transfer the transaction's amount to the receiver if the timeout has passed.
      *  @param _transactionID The index of the transaction.
      */
     function executeTransaction(uint _transactionID) public {
@@ -166,22 +166,10 @@ contract MultipleArbitrableTransaction is IArbitrable {
         require(now - transaction.lastInteraction >= transaction.timeoutPayment, "The timeout has not passed yet.");
         require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
 
-        transaction.sender.transfer(transaction.amount);
+        transaction.receiver.transfer(transaction.amount);
         transaction.amount = 0;
 
         transaction.status = Status.Resolved;
-    }
-
-    /** @dev Reimburse receiver if sender fails to pay the fee.
-     *  @param _transactionID The index of the transaction.
-     */
-    function timeOutByReceiver(uint _transactionID) public {
-        Transaction storage transaction = transactions[_transactionID];
-
-        require(transaction.status == Status.WaitingSender, "The transaction is not waiting on the sender.");
-        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
-
-        executeRuling(_transactionID, RECEIVER_WINS);
     }
 
     /** @dev Pay sender if receiver fails to pay the fee.
@@ -196,29 +184,16 @@ contract MultipleArbitrableTransaction is IArbitrable {
         executeRuling(_transactionID, SENDER_WINS);
     }
 
-    /** @dev Pay the arbitration fee to raise a dispute. To be called by the receiver. UNTRUSTED.
-     *  Note that this function mirrors payArbitrationFeeBySender.
+    /** @dev Reimburse receiver if sender fails to pay the fee.
      *  @param _transactionID The index of the transaction.
      */
-    function payArbitrationFeeByReceiver(uint _transactionID) public payable {
+    function timeOutByReceiver(uint _transactionID) public {
         Transaction storage transaction = transactions[_transactionID];
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
 
-        require(transaction.status < Status.DisputeCreated, "Dispute has already been created or because the transaction has been executed.");
-        require(msg.sender == transaction.receiver, "The caller must be the receiver.");
+        require(transaction.status == Status.WaitingSender, "The transaction is not waiting on the sender.");
+        require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
-        transaction.receiverFee += msg.value;
-        // Require that the total paid to be at least the arbitration cost.
-        require(transaction.receiverFee >= arbitrationCost, "The receiver fee must cover arbitration costs.");
-
-        transaction.lastInteraction = now;
-        // The sender still has to pay. This can also happen if he has paid, but arbitrationCost has increased.
-        if (transaction.senderFee < arbitrationCost) {
-            transaction.status = Status.WaitingSender;
-            emit HasToPayFee(_transactionID, Party.Sender);
-        } else { // The sender has also paid the fee. We create the dispute.
-            raiseDispute(_transactionID, arbitrationCost);
-        }
+        executeRuling(_transactionID, RECEIVER_WINS);
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the sender. UNTRUSTED.
@@ -244,6 +219,31 @@ contract MultipleArbitrableTransaction is IArbitrable {
             transaction.status = Status.WaitingReceiver;
             emit HasToPayFee(_transactionID, Party.Receiver);
         } else { // The receiver has also paid the fee. We create the dispute.
+            raiseDispute(_transactionID, arbitrationCost);
+        }
+    }
+
+    /** @dev Pay the arbitration fee to raise a dispute. To be called by the receiver. UNTRUSTED.
+     *  Note that this function mirrors payArbitrationFeeBySender.
+     *  @param _transactionID The index of the transaction.
+     */
+    function payArbitrationFeeByReceiver(uint _transactionID) public payable {
+        Transaction storage transaction = transactions[_transactionID];
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+
+        require(transaction.status < Status.DisputeCreated, "Dispute has already been created or because the transaction has been executed.");
+        require(msg.sender == transaction.receiver, "The caller must be the receiver.");
+
+        transaction.receiverFee += msg.value;
+        // Require that the total paid to be at least the arbitration cost.
+        require(transaction.receiverFee >= arbitrationCost, "The receiver fee must cover arbitration costs.");
+
+        transaction.lastInteraction = now;
+        // The sender still has to pay. This can also happen if he has paid, but arbitrationCost has increased.
+        if (transaction.senderFee < arbitrationCost) {
+            transaction.status = Status.WaitingSender;
+            emit HasToPayFee(_transactionID, Party.Sender);
+        } else { // The sender has also paid the fee. We create the dispute.
             raiseDispute(_transactionID, arbitrationCost);
         }
     }
@@ -280,7 +280,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
      */
     function submitEvidence(uint _transactionID, string _evidence) public {
         Transaction storage transaction = transactions[_transactionID];
-        require(msg.sender == transaction.receiver || msg.sender == transaction.sender, "The caller must be the receiver or the sender.");
+        require(msg.sender == transaction.sender || msg.sender == transaction.receiver, "The caller must be the sender or the receiver.");
 
         require(transaction.status >= Status.DisputeCreated, "The dispute has not been created yet.");
         emit Evidence(arbitrator, _transactionID, msg.sender, _evidence);
@@ -329,8 +329,8 @@ contract MultipleArbitrableTransaction is IArbitrable {
             transaction.receiver.send(transaction.receiverFee + transaction.amount);
         } else {
             uint split_amount = (transaction.senderFee + transaction.amount) / 2;
-            transaction.receiver.send(split_amount);
             transaction.sender.send(split_amount);
+            transaction.receiver.send(split_amount);
         }
 
         transaction.amount = 0;
