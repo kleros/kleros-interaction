@@ -152,7 +152,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
     function pay(uint _transactionID, uint _amount) public {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.sender == msg.sender, "The caller must be the sender.");
-        require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
+        require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
         require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
 
         transaction.amount -= _amount;
@@ -166,7 +166,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
     function reimburse(uint _transactionID, uint _amountReimbursed) public {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.receiver == msg.sender, "The caller must be the receiver.");
-        require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
+        require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
         require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
         transaction.amount -= _amountReimbursed;
@@ -179,7 +179,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
     function executeTransaction(uint _transactionID) public {
         Transaction storage transaction = transactions[_transactionID];
         require(now - transaction.lastInteraction >= transaction.timeoutPayment, "The timeout has not passed yet.");
-        require(transaction.status == Status.NoDispute, "The transaction can't be disputed.");
+        require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
 
         uint amount = transaction.amount;
         transaction.amount = 0;
@@ -189,7 +189,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         require(token.transfer(transaction.receiver, amount) != false, "The `transfer` function must not fail.");
     }
 
-    /** @dev Pay sender if receiver fails to pay the fee. UNTRUSTED.
+    /** @dev Reimburse sender if receiver fails to pay the fee. UNTRUSTED.
      *  @param _transactionID The index of the transaction.
      */
     function timeOutBySender(uint _transactionID) public {
@@ -201,7 +201,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         executeRuling(_transactionID, uint(RulingOptions.SenderWins));
     }
 
-    /** @dev Reimburse receiver if sender fails to pay the fee. UNTRUSTED.
+    /** @dev Pay receiver if sender fails to pay the fee. UNTRUSTED.
      *  @param _transactionID The index of the transaction.
      */
     function timeOutByReceiver(uint _transactionID) public {
