@@ -108,7 +108,7 @@ contract AutoAppealableArbitrator is Arbitrator {
         dispute.arbitrated.rule(_disputeID,_ruling);
     }
     
-    /** @dev Give an appealable ruling. UNTRUSTED.
+    /** @dev Give an appealable ruling.
      *  @param _disputeID ID of the dispute to rule.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 means "Not able/wanting to make a decision".
      *  @param _appealCost The cost of appeal.
@@ -126,6 +126,18 @@ contract AutoAppealableArbitrator is Arbitrator {
         dispute.appealPeriodEnd = now.addCap(_timeToAppeal);
     }
     
+    
+    /** @dev Change the arbitration fee of a ruling.
+     *  @param _disputeID The ID of the dispute to update.
+     *  @param _appealCost The new cost to appeal this ruling.
+     */
+    function changeAppealFee(uint _disputeID, uint _appealCost) public onlyOwner {
+        Dispute storage dispute = disputes[_disputeID];
+        require(dispute.status == DisputeStatus.Appealable, "The dispute must be appealable.");
+        
+        dispute.appealCost = _appealCost;
+    }
+    
     /** @dev Appeal a ruling. Note that it has to be called before the arbitrator contract calls rule.
      *  @param _disputeID ID of the dispute to be appealed.
      *  @param _extraData Can be used to give extra info on the appeal.
@@ -140,7 +152,7 @@ contract AutoAppealableArbitrator is Arbitrator {
         emit AppealDecision(_disputeID, Arbitrable(msg.sender));
     }
     
-    /** @dev Execute the ruling of a dispute the appealPeriod has passed.
+    /** @dev Execute the ruling of a dispute the appealPeriod has passed. UNTRUSTED
      *  @param _disputeID ID of the dispute to execute.
      */
     function executeRuling(uint _disputeID) public {
