@@ -2,6 +2,66 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.8.0"></a>
+
+# [0.8.0](https://github.com/kleros/kleros-interaction/compare/v0.6.0...v0.8.0) (2019-03-14)
+
+### Bug Fixes
+
+- **appealable-arbitrator:** update currentRuling to take appeals into consideration ([804186b](https://github.com/kleros/kleros-interaction/commit/804186b))
+- **build:** hotfixes tests and linter ([83d04ba](https://github.com/kleros/kleros-interaction/commit/83d04ba))
+- **escrow:** DanilD review ([2da6007](https://github.com/kleros/kleros-interaction/commit/2da6007))
+- **escrow:** inverse receiver and sender ([e6b7ae7](https://github.com/kleros/kleros-interaction/commit/e6b7ae7))
+- **token-list:** typo ([edd66df](https://github.com/kleros/kleros-interaction/commit/edd66df))
+- implement latest t2cr fixes ([2a85f5b](https://github.com/kleros/kleros-interaction/commit/2a85f5b))
+- Issues brought by Danil & Epiqueras reviews ([8427104](https://github.com/kleros/kleros-interaction/commit/8427104))
+- update with latest changes from t2cr ([d16710b](https://github.com/kleros/kleros-interaction/commit/d16710b))
+- use different deposit values for challenger and requester ([76a2c10](https://github.com/kleros/kleros-interaction/commit/76a2c10))
+- **address-tcr:** meta evidence indexing ([cb06b2e](https://github.com/kleros/kleros-interaction/commit/cb06b2e))
+- **arbitrator change:** allow arbitrator changes ([ff2dfa6](https://github.com/kleros/kleros-interaction/commit/ff2dfa6))
+- **confusing event:** remove WaitingOpponent ([428de97](https://github.com/kleros/kleros-interaction/commit/428de97))
+- **ddos:** remove blocking transfer ([93e0df2](https://github.com/kleros/kleros-interaction/commit/93e0df2))
+- **escrow:** add the dot at the end of the comment ([2816467](https://github.com/kleros/kleros-interaction/commit/2816467))
+- **escrow:** fix word typos ([b74bd99](https://github.com/kleros/kleros-interaction/commit/b74bd99))
+- **escrow-token:** fix typo ([eef1c01](https://github.com/kleros/kleros-interaction/commit/eef1c01))
+- **escrows:** fix typos ([d47e4ef](https://github.com/kleros/kleros-interaction/commit/d47e4ef))
+- **escrows:** typos - add comment dots ([6bff4a2](https://github.com/kleros/kleros-interaction/commit/6bff4a2))
+- **funding:** Can fund requester before challenge ([a0b6fb0](https://github.com/kleros/kleros-interaction/commit/a0b6fb0))
+- **meta evidence:** Proper indexing ([2f5b857](https://github.com/kleros/kleros-interaction/commit/2f5b857))
+- **MetaEvidence:** Indexing ([48bdabe](https://github.com/kleros/kleros-interaction/commit/48bdabe))
+- **msg.sender:** replace msg.sender by \_contributo ([637804e](https://github.com/kleros/kleros-interaction/commit/637804e))
+- **ruling:** Invert ruling if one party paid fees ([64d2e20](https://github.com/kleros/kleros-interaction/commit/64d2e20))
+- **sidePendingFunds:** remove sidePendingFunds ([87217fd](https://github.com/kleros/kleros-interaction/commit/87217fd))
+- **t2cr:** [@epiqueras](https://github.com/epiqueras) review part2 ([15f34e1](https://github.com/kleros/kleros-interaction/commit/15f34e1))
+- **t2cr:** implement latest review suggestions ([d22b3d4](https://github.com/kleros/kleros-interaction/commit/d22b3d4))
+- **t2cr:** implement suggestions from review and allow batch withdraw ([ae876fe](https://github.com/kleros/kleros-interaction/commit/ae876fe))
+- **t2cr:** implement t2cr fixes in address tcr ([dfe4ac9](https://github.com/kleros/kleros-interaction/commit/dfe4ac9))
+- **t2cr:** Take [@epiqueras](https://github.com/epiqueras) comments into account ([d3b78a6](https://github.com/kleros/kleros-interaction/commit/d3b78a6))
+- **test:** baseDeposit ([805a7a1](https://github.com/kleros/kleros-interaction/commit/805a7a1))
+- **test:** Update tests for t2cr changes ([1f3019a](https://github.com/kleros/kleros-interaction/commit/1f3019a))
+- **token-escrow:** check if the `transfer` fn failed ([dbeb278](https://github.com/kleros/kleros-interaction/commit/dbeb278))
+- **token-escrow:** typo ([a6d4af7](https://github.com/kleros/kleros-interaction/commit/a6d4af7))
+- **token-escrow:** word typos ([2548e70](https://github.com/kleros/kleros-interaction/commit/2548e70))
+- **typo:** 'the each' -> 'each' ([37e2299](https://github.com/kleros/kleros-interaction/commit/37e2299))
+- **useless:** remove round variable ([3663997](https://github.com/kleros/kleros-interaction/commit/3663997))
+
+### Features
+
+- **appealFee:** Allows the owner to change it. ([0d56c0e](https://github.com/kleros/kleros-interaction/commit/0d56c0e))
+- **base-deposit:** challenger & request can be != ([d7666be](https://github.com/kleros/kleros-interaction/commit/d7666be))
+- **comment:** Arbitrator return appealPeriod ([08387e9](https://github.com/kleros/kleros-interaction/commit/08387e9))
+- **contributing:** Direct link to gitbook ([17debb0](https://github.com/kleros/kleros-interaction/commit/17debb0))
+- **escrows:** implement arbitrable interface ([4f3952c](https://github.com/kleros/kleros-interaction/commit/4f3952c))
+- **fully fund:** Require to fully fund ([e51f731](https://github.com/kleros/kleros-interaction/commit/e51f731))
+- **gas:** reduce gas for requiredForSide ([34d23ab](https://github.com/kleros/kleros-interaction/commit/34d23ab))
+- **realitio-arbitrator-proxy:** implement ([38d421c](https://github.com/kleros/kleros-interaction/commit/38d421c))
+- **test:** update tests with recent changes ([634776a](https://github.com/kleros/kleros-interaction/commit/634776a))
+- **test-coverage:** curated list ([57a678b](https://github.com/kleros/kleros-interaction/commit/57a678b))
+
+### Performance Improvements
+
+- **fee:** Remove requiredForSideSet ([c5e8add](https://github.com/kleros/kleros-interaction/commit/c5e8add))
+
 <a name="0.6.0"></a>
 
 # [0.6.0](https://github.com/kleros/kleros-interaction/compare/v0.5.0...v0.6.0) (2019-02-06)
