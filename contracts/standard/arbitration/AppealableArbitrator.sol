@@ -1,10 +1,18 @@
+/**
+*  https://contributing.kleros.io/smart-contract-workflow
+*  @authors: [@epiqueras, @ferittuncer]
+*  @reviewers: []
+*  @auditors: []
+*  @bounties: []
+*  @deployments: []
+*/
+
 pragma solidity ^0.4.24;
 
 import "./CentralizedArbitrator.sol";
 
 /**
  *  @title AppealableArbitrator
- *  @author Enrique Piqueras - <epiquerass@gmail.com>
  *  @dev A centralized arbitrator that can be appealed.
  */
 contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
