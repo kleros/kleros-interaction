@@ -131,6 +131,16 @@ contract AppealableArbitrator is CentralizedArbitrator, Arbitrable {
         else status = disputes[_disputeID].status;
     }
 
+    /** @dev Return the ruling of a dispute.
+     *  @param _disputeID ID of the dispute to rule.
+     *  @return ruling The ruling which would or has been given.
+     */
+    function currentRuling(uint _disputeID) public view returns(uint ruling) {
+      if (appealDisputes[_disputeID].arbitrator != Arbitrator(address(0))) // Appealed.
+          ruling = appealDisputes[_disputeID].arbitrator.currentRuling(appealDisputes[_disputeID].appealDisputeID); // Retrieve ruling from the arbitrator whom the dispute is appealed to.
+      else ruling = disputes[_disputeID].ruling; //  Not appealed, basic case.
+    }
+
     /* Internal */
 
     /** @dev Executes the ruling of the specified dispute.
