@@ -27,6 +27,7 @@ contract RealitioArbitratorProxy is Arbitrable {
 
     /* Storage */
 
+    address public deployer;
     Realitio public realitio;
     mapping(uint => bytes32) public disputeIDToQuestionID;
     mapping(bytes32 => address) public questionIDToDisputer;
@@ -39,19 +40,26 @@ contract RealitioArbitratorProxy is Arbitrable {
      *  @param _arbitrator The address of the ERC792 arbitrator.
      *  @param _arbitratorExtraData The extra data used to raise a dispute in the ERC792 arbitrator.
      *  @param _realitio The address of the Realitio contract.
-     *  @param _metaEvidence The URI of the meta evidence file.
      */
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        Realitio _realitio,
-        string _metaEvidence
+        Realitio _realitio
     ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
+        deployer = msg.sender;
         realitio = _realitio;
-        emit MetaEvidence(0, _metaEvidence);
     }
 
     /* External */
+
+    /** @dev Sets the meta evidence. Can only be called once.
+     *  @param _metaEvidence The URI of the meta evidence file.
+     */
+    function setMetaEvidence(string _metaEvidence) external {
+        require(msg.sender == deployer, "Can only be called once by the deployer of the contract.");
+        deployer = address(0);
+        emit MetaEvidence(0, _metaEvidence);
+    }
 
     /** @dev Raise a dispute from a specified question.
      *  @param _questionID The ID of the question.
