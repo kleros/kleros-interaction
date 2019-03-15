@@ -17,6 +17,14 @@ import { Realitio } from "@realitio/realitio-contracts/truffle/contracts/Realiti
  *  @dev A Realitio arbitrator that is just a proxy for an ERC792 arbitrator.
  */
 contract RealitioArbitratorProxy is Arbitrable {
+    /* Events */
+
+    /** @dev Emitted when arbitration is requested, to link dispute ID to question ID for UIs.
+     *  @param _disputeID The ID of the dispute in the ERC792 arbitrator.
+     *  @param _questionID The ID of the question.
+     */
+    event DisputeIDToQuestionID(uint indexed _disputeID, bytes32 _questionID);
+
     /* Storage */
 
     Realitio public realitio;
@@ -55,6 +63,7 @@ contract RealitioArbitratorProxy is Arbitrable {
         questionIDToDisputer[_questionID] = msg.sender;
         realitio.notifyOfArbitrationRequest(_questionID, msg.sender, _maxPrevious);
         emit Dispute(arbitrator, disputeID, 0, 0);
+        emit DisputeIDToQuestionID(disputeID, _questionID);
     }
 
     /** @dev Report the answer to a specified question from the ERC792 arbitrator to the Realitio contract.
