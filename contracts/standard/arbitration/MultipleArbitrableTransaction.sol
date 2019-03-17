@@ -280,9 +280,15 @@ contract MultipleArbitrableTransaction is IArbitrable {
      */
     function submitEvidence(uint _transactionID, string _evidence) public {
         Transaction storage transaction = transactions[_transactionID];
-        require(msg.sender == transaction.sender || msg.sender == transaction.receiver, "The caller must be the sender or the receiver.");
+        require(
+            msg.sender == transaction.sender || msg.sender == transaction.receiver,
+            "The caller must be the sender or the receiver."
+        );
+        require(
+            transaction.status < Status.Resolved,
+            "Must not send evidence if the dispute is resolved."
+        );
 
-        require(transaction.status >= Status.DisputeCreated, "The dispute has not been created yet.");
         emit Evidence(arbitrator, _transactionID, msg.sender, _evidence);
     }
 
