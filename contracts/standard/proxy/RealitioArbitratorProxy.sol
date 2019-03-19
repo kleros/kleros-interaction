@@ -27,11 +27,13 @@ contract RealitioArbitratorProxy is Arbitrable {
 
     /* Storage */
 
-    address public deployer;
-    Realitio public realitio;
-    mapping(uint => bytes32) public disputeIDToQuestionID;
-    mapping(bytes32 => address) public questionIDToDisputer;
-    mapping(bytes32 => bytes32) public questionIDToAnswer;
+    uint public constant NUMBER_OF_CHOICES_FOR_ARBITRATOR = (2 ** 256) - 2; // The number of choices for the ERC792 arbitrator.
+    address public deployer; // The address of the deployer of the contract.
+    Realitio public realitio; // The address of the Realitio contract.
+    mapping(uint => bytes32) public disputeIDToQuestionID; // A mapping from disputes to questions.
+    mapping(bytes32 => address) public questionIDToDisputer; // A mapping from questions to the addresses that requested arbitration for them.
+    mapping(bytes32 => bytes32) public questionIDToAnswer; // A mapping from questions to the answers the arbitrator gave for them.
+    // A mapping from questions to bools that are true if the arbitrator has answered the question and false otherwise.
     mapping(bytes32 => bool) public questionIDToRuled;
 
     /* Constructor */
@@ -61,12 +63,12 @@ contract RealitioArbitratorProxy is Arbitrable {
         emit MetaEvidence(0, _metaEvidence);
     }
 
-    /** @dev Raise a dispute from a specified question.
+    /** @dev Raise a dispute from a specified question. UNTRUSTED.
      *  @param _questionID The ID of the question.
      *  @param _maxPrevious If specified, reverts if a bond higher than this was submitted after you sent your transaction.
      */
     function requestArbitration(bytes32 _questionID, uint _maxPrevious) external payable {
-        uint disputeID = arbitrator.createDispute.value(msg.value)((2 ** 128) - 1, arbitratorExtraData);
+        uint disputeID = arbitrator.createDispute.value(msg.value)(NUMBER_OF_CHOICES_FOR_ARBITRATOR, arbitratorExtraData);
         disputeIDToQuestionID[disputeID] = _questionID;
         questionIDToDisputer[_questionID] = msg.sender;
         realitio.notifyOfArbitrationRequest(_questionID, msg.sender, _maxPrevious);
@@ -74,13 +76,13 @@ contract RealitioArbitratorProxy is Arbitrable {
         emit DisputeIDToQuestionID(disputeID, _questionID);
     }
 
-    /** @dev Report the answer to a specified question from the ERC792 arbitrator to the Realitio contract.
+    /** @dev Report the answer to a specified question from the ERC792 arbitrator to the Realitio contract. TRUSTED.
      *  @param _questionID The ID of the question.
      *  @param _lastHistoryHash The history hash given with the last answer to the question in the Realitio contract.
      *  @param _lastAnswerOrCommitmentID The last answer given, or its commitment ID if it was a commitment, to the question in the Realitio contract.
      *  @param _lastBond The bond paid for the last answer to the question in the Realitio contract.
      *  @param _lastAnswerer The last answerer to the question in the Realitio contract.
-     *  @param _isCommitment Wether the last answer to the question in the Realitio contract used commit or reveal or not. True if it did, false otherwise.
+     *  @param _isCommitment Whether the last answer to the question in the Realitio contract used commit or reveal or not. True if it did, false otherwise.
      */
     function reportAnswer(
         bytes32 _questionID,
@@ -109,7 +111,7 @@ contract RealitioArbitratorProxy is Arbitrable {
 
     /* External Views */
 
-    /** @dev Get the fee for a dispute from a specified question.
+    /** @dev Get the fee for a dispute from a specified question. UNTRUSTED.
      *  @param _questionID The ID of the question.
      *  @return fee The dispute's fee.
      */
@@ -131,12 +133,12 @@ contract RealitioArbitratorProxy is Arbitrable {
 
     /* Private Views */
 
-    /** @dev Computes the Realitio answerer, of a specified question, that should win. This function is needed to avoid the "stack too deep error".
+    /** @dev Computes the Realitio answerer, of a specified question, that should win. This function is needed to avoid the "stack too deep error". TRUSTED.
      *  @param _questionID The ID of the question.
      *  @param _lastAnswerOrCommitmentID The last answer given, or its commitment ID if it was a commitment, to the question in the Realitio contract.
      *  @param _lastBond The bond paid for the last answer to the question in the Realitio contract.
      *  @param _lastAnswerer The last answerer to the question in the Realitio contract.
-     *  @param _isCommitment Wether the last answer to the question in the Realitio contract used commit or reveal or not. True if it did, false otherwise.
+     *  @param _isCommitment Whether the last answer to the question in the Realitio contract used commit or reveal or not. True if it did, false otherwise.
      *  @return winner The computed winner.
      */
     function computeWinner(
