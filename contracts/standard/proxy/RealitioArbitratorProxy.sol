@@ -158,7 +158,7 @@ contract RealitioArbitratorProxy is Arbitrable {
                 lastAnswer = revealedAnswer;
                 isAnswered = true;
             } else {
-                require(revealTS < uint32(now), "Arbitration cannot be done until the last answerer has had time to reveal its commitment.");
+                require(revealTS <= uint32(now), "Arbitration cannot be done until the last answerer has had time to reveal its commitment.");
                 isAnswered = false;
             }
         } else {
