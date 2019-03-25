@@ -114,7 +114,7 @@ contract AutoAppealableArbitrator is Arbitrator {
      *  @param _appealCost The cost of appeal.
      *  @param _timeToAppeal The time to appeal the ruling.
      */
-    function giveAppelableRuling(uint _disputeID, uint _ruling, uint _appealCost, uint _timeToAppeal) external onlyOwner {
+    function giveAppealableRuling(uint _disputeID, uint _ruling, uint _appealCost, uint _timeToAppeal) external onlyOwner {
         Dispute storage dispute = disputes[_disputeID];
         require(_ruling <= dispute.choices, "Invalid ruling.");
         require(dispute.status == DisputeStatus.Waiting, "The dispute must be waiting for arbitration.");
