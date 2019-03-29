@@ -27,8 +27,8 @@ contract MultipleArbitrableTransaction is IArbitrable {
     struct Transaction {
         address sender;
         address receiver;
-        uint256 amount;
-        uint256 timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
+        uint amount;
+        uint timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
         uint disputeId; // If dispute exists, the ID of the dispute.
         uint senderFee; // Total fees paid by the sender.
         uint receiverFee; // Total fees paid by the receiver.
