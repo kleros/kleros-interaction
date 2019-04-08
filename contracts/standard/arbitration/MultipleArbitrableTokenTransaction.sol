@@ -61,6 +61,13 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
      */
     event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
 
+    /** @dev To be emitted when a party pays or reimburses the other.
+     *  @param _transactionID The index of the transaction.
+     *  @param _amount The amount paid.
+     *  @param _party The party that paid.
+     */
+    event Payment(uint _transactionID, uint _amount, address _party);
+
     /** @dev Indicate that a party has to pay a fee or would otherwise be considered as losing.
      *  @param _transactionID The index of the transaction.
      *  @param _party The party who has to pay.
@@ -157,6 +164,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
 
         transaction.amount -= _amount;
         require(token.transfer(transaction.receiver, _amount) != false, "The `transfer` function must not fail.");
+        emit Payment(_transactionID, _amount, msg.sender);
     }
 
     /** @dev Reimburse sender. To be called if the good or service can't be fully provided. UNTRUSTED.
@@ -171,6 +179,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
 
         transaction.amount -= _amountReimbursed;
         require(token.transfer(transaction.sender, _amountReimbursed) != false, "The `transfer` function must not fail.");
+        emit Payment(_transactionID, _amountReimbursed, msg.sender);
     }
 
     /** @dev Transfer the transaction's amount to the receiver if the timeout has passed. UNTRUSTED.

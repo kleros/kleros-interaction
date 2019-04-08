@@ -54,6 +54,13 @@ contract MultipleArbitrableTransaction is IArbitrable {
      */
     event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
 
+    /** @dev To be emitted when a party pays or reimburses the other.
+     *  @param _transactionID The index of the transaction.
+     *  @param _amount The amount paid.
+     *  @param _party The party that paid.
+     */
+    event Payment(uint _transactionID, uint _amount, address _party);
+
     /** @dev Indicate that a party has to pay a fee or would otherwise be considered as losing.
      *  @param _transactionID The index of the transaction.
      *  @param _party The party who has to pay.
@@ -142,6 +149,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
 
         transaction.receiver.transfer(_amount);
         transaction.amount -= _amount;
+        emit Payment(_transactionID, _amount, msg.sender);
     }
 
     /** @dev Reimburse sender. To be called if the good or service can't be fully provided.
@@ -156,6 +164,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
 
         transaction.sender.transfer(_amountReimbursed);
         transaction.amount -= _amountReimbursed;
+        emit Payment(_transactionID, _amountReimbursed, msg.sender);
     }
 
     /** @dev Transfer the transaction's amount to the receiver if the timeout has passed.
