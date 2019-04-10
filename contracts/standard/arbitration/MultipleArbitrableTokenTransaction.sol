@@ -66,7 +66,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
      *  @param _amount The amount paid.
      *  @param _party The party that paid.
      */
-    event Payment(uint _transactionID, uint _amount, address _party);
+    event Payment(uint indexed _transactionID, uint _amount, address _party);
 
     /** @dev Indicate that a party has to pay a fee or would otherwise be considered as losing.
      *  @param _transactionID The index of the transaction.
