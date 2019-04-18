@@ -16,6 +16,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   const receiver = accounts[1]
   const arbitrator = accounts[2]
   const other = accounts[3]
+  const governor = accounts[4]
   const amount = 1000
   const feeTimeout = 100
   const timeoutPayment = 100
@@ -48,6 +49,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
     const lastTransaction = await getLastTransaction(
@@ -87,6 +89,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
     for (var cnt = 0; cnt < 3; cnt += 1) {
@@ -133,6 +136,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
     const lastTransaction = await getLastTransaction(
@@ -172,6 +176,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
 
@@ -212,6 +217,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
     const lastTransaction = await getLastTransaction(
@@ -239,6 +245,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       0,
+      governor,
       { from: sender }
     )
     const lastTransaction = await getLastTransaction(
@@ -282,6 +289,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -322,6 +330,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -350,6 +359,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       0x0,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -384,6 +394,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -430,6 +441,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -476,6 +488,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -533,6 +546,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -580,6 +594,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -644,6 +659,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -730,6 +746,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       0,
+      governor,
       { from: sender }
     )
 
@@ -778,6 +795,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
 
@@ -823,6 +841,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
 
@@ -877,6 +896,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
 
@@ -926,6 +946,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
 
@@ -974,6 +995,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
 
@@ -1022,6 +1044,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
 
@@ -1066,6 +1089,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       centralizedArbitrator.address,
       0x0,
       feeTimeout,
+      governor,
       { from: sender }
     )
 
@@ -1157,6 +1181,91 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       receiverBalanceBeforePay.plus(1020).toString(),
       'The receiver has not been paid properly'
     )
+  })
+
+  it('should not allow non-governor to update contract', async () => {
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      feeTimeout,
+      governor,
+      { from: sender }
+    )
+
+    await expectThrow(
+      multipleContract.changeGovernor(
+        sender,
+        {
+          from: sender,
+        }
+      )
+    )
+  })
+
+  it('should allow governor to update governor', async () => {
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      feeTimeout,
+      governor,
+      { from: governor }
+    )
+
+    await multipleContract.changeGovernor(
+      sender,
+      {
+        from: governor,
+      }
+    )
+
+    const newGovernor = await multipleContract.governor()
+
+    assert.equal(newGovernor, sender)
+  })
+
+  it('should allow governor to update arbitrator', async () => {
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      feeTimeout,
+      governor,
+      { from: governor }
+    )
+
+    await multipleContract.changeArbitrator(
+      sender,
+      '0x0000000000000000000000000000000000000001',
+      {
+        from: governor,
+      }
+    )
+
+    const newArbitrator = await multipleContract.arbitrator()
+    const newExtraData = await multipleContract.arbitratorExtraData()
+
+    assert.equal(newArbitrator, sender)
+    assert.equal(newExtraData, '0x0000000000000000000000000000000000000001')
+  })
+
+  it('should allow governor to update feeTimeout', async () => {
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      feeTimeout,
+      governor,
+      { from: governor }
+    )
+
+    await multipleContract.changeFeeTimeout(
+      feeTimeout + 1,
+      {
+        from: governor,
+      }
+    )
+
+    const newFeeTimeout = await multipleContract.feeTimeout()
+
+    assert.equal(newFeeTimeout, feeTimeout + 1)
   })
 
   // FIXME

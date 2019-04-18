@@ -36,6 +36,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
         Status status;
     }
 
+    address public governor; // The address that can make governance changes to the parameters of the contract.
     Transaction[] public transactions;
     bytes public arbitratorExtraData; // Extra data to set up the arbitration.
     Arbitrator public arbitrator; // Address of the arbitrator contract.
@@ -43,6 +44,12 @@ contract MultipleArbitrableTransaction is IArbitrable {
 
 
     mapping (uint => uint) public disputeIDtoTransactionID; // One-to-one relationship between the dispute and the transaction.
+
+    // **************************** //
+    // *        Modifiers         * //
+    // **************************** //
+
+    modifier onlyGovernor {require(msg.sender == governor, "The caller must be the governor."); _;}
 
     // **************************** //
     // *          Events          * //
@@ -99,15 +106,18 @@ contract MultipleArbitrableTransaction is IArbitrable {
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _feeTimeout Arbitration fee timeout for the parties.
+     *  @param _governor Governor of smart contract.
      */
     constructor (
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        uint _feeTimeout
+        uint _feeTimeout,
+        address _governor
     ) public {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
         feeTimeout = _feeTimeout;
+        governor = _governor;
     }
 
     /** @dev Create a transaction.
@@ -386,5 +396,28 @@ contract MultipleArbitrableTransaction is IArbitrable {
             if (transactions[j].sender == _address || transactions[j].receiver == _address)
                 transactionIDs[count++] = j;
         }
+    }
+
+    /** @dev Change the governor of the contract.
+     *  @param _governor The address of the new governor.
+     */
+    function changeGovernor(address _governor) external onlyGovernor {
+        governor = _governor;
+    }
+
+    /** @dev Change the arbitrator to be used for disputes. The arbitrator is trusted to support appeal periods and not reenter.
+     *  @param _arbitrator The new arbitrator to be used.
+     *  @param _arbitratorExtraData The extra data used by the new arbitrator.
+     */
+    function changeArbitrator(Arbitrator _arbitrator, bytes _arbitratorExtraData) external onlyGovernor {
+        arbitrator = _arbitrator;
+        arbitratorExtraData = _arbitratorExtraData;
+    }
+
+    /** @dev Change the feeTimeout
+     *  @param _feeTimeout The new timeout in seconds for arbitraion fees to be paid.
+     */
+    function changeFeeTimeout(uint _feeTimeout) external onlyGovernor {
+        feeTimeout = _feeTimeout;
     }
 }
