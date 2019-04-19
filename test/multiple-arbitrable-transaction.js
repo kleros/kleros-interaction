@@ -1193,12 +1193,9 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     )
 
     await expectThrow(
-      multipleContract.changeGovernor(
-        sender,
-        {
-          from: sender,
-        }
-      )
+      multipleContract.changeGovernor(sender, {
+        from: sender
+      })
     )
   })
 
@@ -1211,12 +1208,9 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: governor }
     )
 
-    await multipleContract.changeGovernor(
-      sender,
-      {
-        from: governor,
-      }
-    )
+    await multipleContract.changeGovernor(sender, {
+      from: governor
+    })
 
     const newGovernor = await multipleContract.governor()
 
@@ -1236,7 +1230,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       sender,
       '0x0000000000000000000000000000000000000001',
       {
-        from: governor,
+        from: governor
       }
     )
 
@@ -1256,12 +1250,9 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       { from: governor }
     )
 
-    await multipleContract.changeFeeTimeout(
-      feeTimeout + 1,
-      {
-        from: governor,
-      }
-    )
+    await multipleContract.changeFeeTimeout(feeTimeout + 1, {
+      from: governor
+    })
 
     const newFeeTimeout = await multipleContract.feeTimeout()
 
