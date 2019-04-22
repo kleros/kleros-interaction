@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.9.0"></a>
+# [0.9.0](https://github.com/kleros/kleros-interaction/compare/v0.8.0...v0.9.0) (2019-04-22)
+
+
+### Bug Fixes
+
+* **auto-appealable-arbitrator:** typo ([12f56e0](https://github.com/kleros/kleros-interaction/commit/12f56e0))
+* **AutoAppealable:** Enrique review ([6069ed1](https://github.com/kleros/kleros-interaction/commit/6069ed1))
+* **escrow:** fix submit evidence workflow ([d1240de](https://github.com/kleros/kleros-interaction/commit/d1240de))
+
+
+### Features
+
+* **multiple-arbitrable-transactions:** add payment event ([d88edf3](https://github.com/kleros/kleros-interaction/commit/d88edf3))
+* **multiple-arbitrable-transactions:** index payment event ([f4686f4](https://github.com/kleros/kleros-interaction/commit/f4686f4))
+* **realitio-arbitrator-proxy:** log a link from dispute to question for UIs ([bfe33b9](https://github.com/kleros/kleros-interaction/commit/bfe33b9))
+* **realitio-arbitrator-proxy:** set up meta evidence in another step so display can store contract address ([d5b60ee](https://github.com/kleros/kleros-interaction/commit/d5b60ee))
+* **realitio-arbitrator-proxy:** use wasted second ([23f0e55](https://github.com/kleros/kleros-interaction/commit/23f0e55))
+
+
+
 <a name="0.8.0"></a>
 
 # [0.8.0](https://github.com/kleros/kleros-interaction/compare/v0.6.0...v0.8.0) (2019-03-14)
