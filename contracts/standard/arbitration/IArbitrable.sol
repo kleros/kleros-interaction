@@ -51,5 +51,5 @@ interface IArbitrable {
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
-    function rule(uint _disputeID, uint _ruling) public;
+    function rule(uint _disputeID, uint _ruling) external;
 }
