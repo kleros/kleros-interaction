@@ -186,10 +186,13 @@ contract MultipleArbitrableTransaction is IArbitrable {
      */
     function timeOutBySender(uint _transactionID) public {
         Transaction storage transaction = transactions[_transactionID];
-
         require(transaction.status == Status.WaitingReceiver, "The transaction is not waiting on the receiver.");
         require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
-
+        
+        if (transaction.receiverFee != 0) {
+            transaction.receiver.send(transaction.receiverFee);
+            transaction.receiverFee=0;
+        }
         executeRuling(_transactionID, SENDER_WINS);
     }
 
@@ -198,10 +201,13 @@ contract MultipleArbitrableTransaction is IArbitrable {
      */
     function timeOutByReceiver(uint _transactionID) public {
         Transaction storage transaction = transactions[_transactionID];
-
         require(transaction.status == Status.WaitingSender, "The transaction is not waiting on the sender.");
         require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
-
+        
+        if (transaction.senderFee != 0) {
+            transaction.sender.send(transaction.senderFee);
+            transaction.senderFee=0;
+        }
         executeRuling(_transactionID, RECEIVER_WINS);
     }
 
