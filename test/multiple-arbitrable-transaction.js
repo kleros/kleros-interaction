@@ -16,7 +16,6 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   const receiver = accounts[1]
   const arbitrator = accounts[2]
   const other = accounts[3]
-  const amount = 1000
   const feeTimeout = 100
   const timeoutPayment = 100
   const timeout = 100 // TODO must remove it
@@ -57,7 +56,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -97,7 +96,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
             timeoutPayment,
             receiver,
             metaEvidenceUri,
-            { from: sender, value: amount }
+            { from: sender, value: 1000 }
           )
         }
       )
@@ -142,7 +141,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -182,7 +181,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -221,7 +220,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -248,7 +247,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -292,7 +291,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -332,7 +331,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -360,7 +359,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -394,7 +393,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -440,7 +439,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -486,7 +485,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -543,7 +542,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -590,7 +589,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -654,7 +653,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -740,7 +739,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -788,7 +787,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -833,7 +832,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -887,7 +886,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -936,7 +935,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -984,7 +983,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -1032,7 +1031,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: amount }
+          { from: sender, value: 1000 }
         )
       }
     )
@@ -1088,7 +1087,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
         timeoutPayment,
         receiver,
         metaEvidenceUri,
-        { from: sender, value: amount }
+        { from: sender, value: 1000 }
       )
     })
 
@@ -1103,7 +1102,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
         timeoutPayment,
         receiver,
         metaEvidenceUri,
-        { from: sender, value: amount }
+        { from: sender, value: 1000 }
       )
     })
 
@@ -1196,7 +1195,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   //       timeoutPayment,
   //       receiver,
   //       metaEvidenceUri,
-  //       { from: sender, value: amount }
+  //       { from: sender, value: 1000 }
   //     )
   //   })
 
@@ -1218,7 +1217,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   //       timeoutPayment,
   //       receiver,
   //       metaEvidenceUri,
-  //       { from: sender, value: amount }
+  //       { from: sender, value: 1000 }
   //     )
   //   })
 
