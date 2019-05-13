@@ -191,7 +191,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
         
         if (transaction.receiverFee != 0) {
             transaction.receiver.send(transaction.receiverFee);
-            transaction.receiverFee=0;
+            transaction.receiverFee = 0;
         }
         executeRuling(_transactionID, SENDER_WINS);
     }
@@ -206,7 +206,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
         
         if (transaction.senderFee != 0) {
             transaction.sender.send(transaction.senderFee);
-            transaction.senderFee=0;
+            transaction.senderFee = 0;
         }
         executeRuling(_transactionID, RECEIVER_WINS);
     }
