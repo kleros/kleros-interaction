@@ -2,10 +2,6 @@
 const shouldFail = require('./helpers/should-fail')
 const time = require('./helpers/time')
 
-const MultipleArbitrableTokenTransactionFactory = artifacts.require(
-  './MultipleArbitrableTokenTransactionFactory.sol'
-)
-
 const MultipleArbitrableTokenTransaction = artifacts.require(
   './MultipleArbitrableTokenTransaction.sol'
 )
@@ -37,23 +33,11 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       arbitrationFee,
       { from: arbitrator }
     )
-    const maFactoryContract = await MultipleArbitrableTokenTransactionFactory.new(
+    const maContract = await MultipleArbitrableTokenTransaction.new(
       centralizedArbitrator.address,
       0x0,
       timeoutFee,
       { from: sender }
-    )
-    const creationMaContractTx = await maFactoryContract.createArbitrableToken(
-      this.token.address,
-      { from: sender }
-    )
-
-    // Get the address of the arbitrable token comtract deployed
-    const maContractAddress =
-      creationMaContractTx.logs[0].args._arbitrableTokenPayment
-
-    const maContract = await MultipleArbitrableTokenTransaction.at(
-      maContractAddress
     )
 
     return {
@@ -96,6 +80,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const lastTransaction = await getLastTransaction(maContract, async () => {
       await maContract.createTransaction(
         42,
+        this.token.address,
         timeoutPayment,
         receiver,
         metaEvidenceUri,
@@ -112,7 +97,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
    * @param {function} action Action function, returns promise
    * @param {object} data Data for comparisons
    */
-  async function execteActionAndCompareBalances(action, data) {
+  async function executeActionAndCompareBalances(action, data) {
     // sanitizing the data parameters
     if (typeof data.sender === 'undefined')
       data.sender = {
@@ -206,7 +191,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       "The contract hasn't updated its amount correctly."
     )
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         let senderTotalTxCost = 0
         const tx = await maContract.pay(arbitrableTransactionId, 42, {
@@ -248,7 +233,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       "The contract hasn't updated its amount correctly."
     )
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         let receiverTotalTxCost = 0
         const tx = await maContract.reimburse(arbitrableTransactionId, 42, {
@@ -283,7 +268,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         maContract
       )
 
-      await execteActionAndCompareBalances(
+      await executeActionAndCompareBalances(
         async () => {
           let receiverTotalTxCost = 0
           const tx = await maContract.reimburse(arbitrableTransactionId, 42, {
@@ -319,6 +304,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       getLastTransaction(maContract, async () => {
         await maContract.createTransaction(
           42,
+          this.token.address,
           timeoutPayment,
           receiver,
           metaEvidenceUri,
@@ -332,7 +318,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         let receiverTotalTxCost = 0
         const tx = await maContract.reimburse(arbitrableTransactionId, 10, {
@@ -380,7 +366,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         let receiverTotalTxCost = 0
         await time.increase(timeoutPayment + 1)
@@ -458,7 +444,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       value: arbitrationFee
     })
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         await centralizedArbitrator.giveRuling(0, 1, { from: arbitrator })
       },
@@ -486,7 +472,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       value: arbitrationFee
     })
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         await centralizedArbitrator.giveRuling(0, 2, { from: arbitrator })
       },
@@ -514,7 +500,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       value: arbitrationFee
     })
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         await centralizedArbitrator.giveRuling(0, 0, { from: arbitrator })
       },
@@ -544,7 +530,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
     arbitrableTransactionStatus = (await maContract.transactions(
       arbitrableTransactionId
-    ))[8]
+    ))[9]
 
     assert.equal(
       arbitrableTransactionStatus.toNumber(),
@@ -563,7 +549,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
 
     arbitrableTransactionStatus = (await maContract.transactions(
       arbitrableTransactionId
-    ))[8]
+    ))[9]
 
     assert.equal(
       arbitrableTransactionStatus.toNumber(),
@@ -642,7 +628,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       value: arbitrationFee
     })
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         await time.increase(timeoutFee + 1)
         const tx = await maContract.timeOutBySender(arbitrableTransactionId, {
@@ -697,7 +683,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       value: arbitrationFee
     })
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         await time.increase(timeoutFee + 1)
         const tx = await maContract.timeOutByReceiver(arbitrableTransactionId, {
@@ -843,7 +829,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       value: arbitrationFee
     })
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         await centralizedArbitrator.giveRuling(0, 1, { from: arbitrator })
       },
@@ -857,7 +843,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       }
     )
 
-    await execteActionAndCompareBalances(
+    await executeActionAndCompareBalances(
       async () => {
         await centralizedArbitrator.giveRuling(1, 2, { from: arbitrator })
       },
