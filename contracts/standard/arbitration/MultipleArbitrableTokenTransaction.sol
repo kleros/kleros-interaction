@@ -90,7 +90,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
      */
     event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID, uint _evidenceGroupID);
 
-    /** @dev To be raised when a ruling is given.
+    /** @dev Emitted when the final ruling of a dispute is given by the arbitrator.
      *  @param _arbitrator The arbitrator giving the ruling.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling The ruling which was given.
@@ -175,7 +175,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.receiver == msg.sender, "The caller must be the receiver.");
         require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
-        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
+        require(_amountReimbursed <= transaction.amount, "The37 amount reimbursed has to be less or equal than the transaction.");
 
         transaction.amount -= _amountReimbursed;
         require(transaction.token.transfer(transaction.sender, _amountReimbursed) != false, "The `transfer` function must not fail.");
@@ -375,9 +375,9 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
             require(transaction.token.transfer(transaction.receiver, amount) != false, "The `transfer` function must not fail.");
         } else {
             // `senderFee` and `receiverFee` are equal to the arbitration cost.
-            uint split_arbitration_fee = senderFee / 2;
-            transaction.receiver.send(split_arbitration_fee);
-            transaction.sender.send(split_arbitration_fee);
+            uint splitArbitrationFee = senderFee / 2;
+            transaction.receiver.send(splitArbitrationFee);
+            transaction.sender.send(splitArbitrationFee);
             // In the case of an uneven token amount, one token can be burnt.
             require(transaction.token.transfer(transaction.receiver, amount / 2) != false, "The `transfer` function must not fail.");
             require(transaction.token.transfer(transaction.sender, amount / 2) != false, "The `transfer` function must not fail.");
