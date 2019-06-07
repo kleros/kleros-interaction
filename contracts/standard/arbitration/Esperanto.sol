@@ -39,7 +39,7 @@ contract Esperanto is Arbitrable {
         string title; // The title of the task.
         string text; // A link to the text which translation is requested. In plaintext.
         string sourceText; // A link to the source where the text was taken from (optional, to allow translators to get context).
-        uint deadline; // Time in seconds before which the translation must be submitted. UNIX epoch.
+        uint submissionTimeout; // Time in seconds allotted for submitting a translation. The end of this period is considered a deadline.
         uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases until it reaches maximal price at deadline.
         uint maxPrice; // Maximal price for the translation and also value that must be deposited by the one requesting the translation.
         uint sourceLang; // The index of source language of translated text.
@@ -185,7 +185,7 @@ contract Esperanto is Arbitrable {
      *  @param _title The title of the task.
      *  @param _text A link to the text that requires translation.
      *  @param _sourceText (Optional) A link to the source the text was taken from.
-     *  @param _deadline Time before which the translation must be submitted. UNIX epoch.
+     *  @param _submissionTimeout Time allotted for submitting a translation.
      *  @param _minPrice A minimal price of the translation. In wei.
      *  @param _maxPrice A maximal price of the translation. In wei.
      *  @param _sourceLang The language of the provided text.
@@ -197,7 +197,7 @@ contract Esperanto is Arbitrable {
         string _title,
         string _text,
         string _sourceText,
-        uint _deadline,
+        uint _submissionTimeout,
         uint _minPrice,
         uint _maxPrice,
         uint _sourceLang,
@@ -213,7 +213,7 @@ contract Esperanto is Arbitrable {
         task.title = _title;
         task.text = _text;
         task.sourceText = _sourceText;
-        task.deadline = _deadline;
+        task.submissionTimeout = _submissionTimeout;
         task.minPrice = _minPrice;
         task.maxPrice = _maxPrice;
         task.sourceLang = _sourceLang;
@@ -241,12 +241,11 @@ contract Esperanto is Arbitrable {
         (uint price, uint deposit) = getPureDepositValueAndPrice(_taskID);
         
         require(task.status == Status.Created, "Task has already been assigned or reimbursed");
-        require(now <= task.deadline, "The deadline has already passed");
+        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
         require(msg.value >= deposit, "Not enough ETH to reach the required deposit value");
         
         task.parties[uint(Party.Translator)] = msg.sender;
         task.status = Status.Assigned;
-        task.lastInteraction = now;
         
         uint remainder = task.maxPrice - price;
         task.parties[uint(Party.Requester)].send(remainder);
@@ -265,7 +264,7 @@ contract Esperanto is Arbitrable {
     function submitTranslation(uint _taskID, string _translation) public {
         Task storage task = tasks[_taskID];
         require(task.status == Status.Assigned, "The task is either not assigned or translation has already been submitted");
-        require(now <= task.deadline, "The deadline has already passed");
+        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
         require(msg.sender == task.parties[uint(Party.Translator)], "Can't submit translation to the task that wasn't assigned to you");
         task.status = Status.AwaitingReview;
         task.lastInteraction = now;
@@ -279,7 +278,7 @@ contract Esperanto is Arbitrable {
     function reimburseRequester(uint _taskID) public {
         Task storage task = tasks[_taskID];
         require(task.status < Status.AwaitingReview, "Can't reimburse if translation was submitted");
-        require(now > task.deadline, "Can't reimburse if the deadline hasn't passed yet");
+        require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet");
         task.status = Status.Resolved;
         // Requester gets his deposit back and also the deposit of the translator, if there was one.
         uint amount = task.deposits[uint(Party.Requester)] + task.deposits[uint(Party.Translator)];
@@ -440,11 +439,11 @@ contract Esperanto is Arbitrable {
      */
     function getPureDepositValueAndPrice(uint _taskID) private view returns (uint price, uint deposit) {
         Task storage task = tasks[_taskID];
-        if (task.deadline - task.lastInteraction == 0 || now > task.deadline){
+        if (now - task.lastInteraction > task.submissionTimeout || task.submissionTimeout == 0){
             price = 0;
             deposit = NOT_PAYABLE_VALUE;
         } else {
-            price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / (task.deadline - task.lastInteraction);
+            price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
         }
@@ -488,4 +487,4 @@ contract Esperanto is Arbitrable {
         deposits = task.deposits;
         appealFeePaid = task.appealFeePaid;
     }
-}  
+}
