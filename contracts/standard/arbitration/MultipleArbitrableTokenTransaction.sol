@@ -175,7 +175,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.receiver == msg.sender, "The caller must be the receiver.");
         require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
-        require(_amountReimbursed <= transaction.amount, "The37 amount reimbursed has to be less or equal than the transaction.");
+        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
         transaction.amount -= _amountReimbursed;
         require(transaction.token.transfer(transaction.sender, _amountReimbursed), "The `transfer` function must not fail.");
