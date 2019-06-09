@@ -448,7 +448,7 @@ contract ArbitrableTokenList is PermissionInterface, Arbitrable {
      *  @param _cursor The request from which to start withdrawing.
      *  @param _count Requests greater or equal to this value won't be withdrawn. If set to 0 or a value larger than the number of request, iterates until the last request.
      *  @param _roundCursor The round of each request from where to start withdrawing.
-     *  @param _roundCount The number of rounds to iterate on each request. If set to 0 or a value larger than the number of rounds a request has, iteration for that request will stop at the last round.
+     *  @param _roundCount Rounds greater or equal to this value won't be withdrawn. If set to 0 or a value larger than the number of rounds a request has, iteration for that request will stop at the last round.
      */
     function batchRequestWithdraw(
         address _beneficiary,
