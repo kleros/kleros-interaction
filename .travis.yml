@@ -8,10 +8,11 @@ cache:
 install: yarn install --pure-lockfile
 script:
   - yarn run lint
+  - yarn run build
   - yarn run ganache-cli --gasLimit 8000000 > /dev/null &
   - sleep 5
   - yarn run test:truffle
-  - yarn run build
+
 notifications:
   kleros:
     slack: 'kleros:Ub8n81EgKJ3iRrMDyWyQIVJp'
