@@ -460,7 +460,7 @@ contract Esperanto is Arbitrable {
 
     /** @dev Gets the deposit value that is little more than minimum that the translator must pay in order to self-assign the task.
      *  Note that this function is useful for user interfaces because it adds a surplus by calculating a price 20 blocks ahead and thus accounts for the issue of price increase between the time when the transaction is created and mined.
-     *  Also note, depositing more than minimum is not a problem
+     *  Also note, depositing more than minimum is not a problem because the excess deposit will be refunded.
      *  @param _taskID The ID of the task.
      *  @return deposit The required deposit.
      */
