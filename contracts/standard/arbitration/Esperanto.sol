@@ -37,8 +37,8 @@ contract Esperanto is Arbitrable {
     
     struct Task {
         string title; // The title of the task.
-        string text; // A link to the text which translation is requested. In plaintext.
-        string sourceText; // A link to the source where the text was taken from (optional, to allow translators to get context).
+        string textURI; // A link to the text which translation is requested. In plaintext.
+        string sourceTextURI; // A link to the source where the text was taken from (optional, to allow translators to get context).
         uint submissionTimeout; // Time in seconds allotted for submitting a translation. The end of this period is considered a deadline.
         uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases until it reaches maximal price at deadline.
         uint maxPrice; // Maximal price for the translation and also value that must be deposited by the one requesting the translation.
@@ -72,10 +72,10 @@ contract Esperanto is Arbitrable {
     /** @dev To be emitted when new task is created.
      *  @param _taskID The ID of newly created task.
      *  @param _requester The address that created the task.
-     *  @param _text A link to the text translation of which is requested.
-     *  @param _sourceText A link to the source the text was taken from.
+     *  @param _textURI A link to the text translation of which is requested.
+     *  @param _sourceTextURI A link to the source the text was taken from.
     */
-    event TaskCreated(uint indexed _taskID, address indexed _requester, string _text, string _sourceText);
+    event TaskCreated(uint indexed _taskID, address indexed _requester, string _textURI, string _sourceTextURI);
     
     /** @dev To be emitted when translation is submitted.
      *  @param _taskID The ID of the respective task.
@@ -183,26 +183,28 @@ contract Esperanto is Arbitrable {
     
     /** @dev Creates a task based on provided details. Requires a value of maximal price to be deposited.
      *  @param _title The title of the task.
-     *  @param _text A link to the text that requires translation.
-     *  @param _sourceText (Optional) A link to the source the text was taken from.
+     *  @param _textURI A link to the text that requires translation.
+     *  @param _sourceTextURI (Optional) A link to the source the text was taken from.
      *  @param _submissionTimeout Time allotted for submitting a translation.
      *  @param _minPrice A minimal price of the translation. In wei.
      *  @param _maxPrice A maximal price of the translation. In wei.
      *  @param _sourceLang The language of the provided text.
      *  @param _targetLangs Languages the provided text should be translated in.
      *  @param _quality Expected quality of the translation.
+     *  @param _metaEvidence A URI of meta-evidence object for task submission.
      *  @return taskID The ID of the created task.
     */
     function createTask(
         string _title,
-        string _text,
-        string _sourceText,
+        string _textURI,
+        string _sourceTextURI,
         uint _submissionTimeout,
         uint _minPrice,
         uint _maxPrice,
         uint _sourceLang,
         uint[] _targetLangs,
-        Quality _quality
+        Quality _quality,
+        string _metaEvidence
     ) public payable returns (uint taskID){
         require(msg.value >= _maxPrice, "The value of max price must be depositted");
         require(_maxPrice > _minPrice, "Max price should be greater than min price");
@@ -211,8 +213,8 @@ contract Esperanto is Arbitrable {
         taskID = tasks.length - 1;
         Task storage task = tasks[tasks.length - 1];
         task.title = _title;
-        task.text = _text;
-        task.sourceText = _sourceText;
+        task.textURI = _textURI;
+        task.sourceTextURI = _sourceTextURI;
         task.submissionTimeout = _submissionTimeout;
         task.minPrice = _minPrice;
         task.maxPrice = _maxPrice;
@@ -229,7 +231,8 @@ contract Esperanto is Arbitrable {
         uint remainder = msg.value - _maxPrice;
         msg.sender.send(remainder);
         
-        emit TaskCreated(taskID, msg.sender, _text, _sourceText);
+        emit TaskCreated(taskID, msg.sender, _textURI, _sourceTextURI);
+        emit MetaEvidence(taskID, _metaEvidence);
     }
     
     /** @dev Assigns a specific task to the sender. Requires a translator's deposit.
@@ -238,7 +241,8 @@ contract Esperanto is Arbitrable {
     function assignTask(uint _taskID) public payable{
         Task storage task = tasks[_taskID];
         
-        (uint price, uint deposit) = getPureDepositValueAndPrice(_taskID);
+        uint price = getTaskPrice(_taskID, 0);
+        uint deposit = getPureDepositValue(_taskID);
         
         require(task.status == Status.Created, "Task has already been assigned or reimbursed");
         require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
@@ -327,6 +331,8 @@ contract Esperanto is Arbitrable {
         
         uint remainder = msg.value - challengeDeposit;
         msg.sender.send(remainder);
+        
+        emit Dispute(arbitrator, task.disputeID, _taskID, _taskID);
     }
     
     /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if all sides are fully funded..
@@ -429,42 +435,64 @@ contract Esperanto is Arbitrable {
         task.deposits[uint(Party.Challenger)] = 0;
     }
     
+    /** @dev Submit a reference to evidence. EVENT.
+     *  @param _taskID A task evidence is submitted for.
+     *  @param _evidence A link to evidence using its URI.
+     */
+    function submitEvidence(uint _taskID, string _evidence) public {
+        Task storage task = tasks[_taskID];
+        require(task.status != Status.Resolved, "The task must not already be resolved.");
+        require(msg.sender == task.parties[uint(Party.Requester)] || msg.sender == task.parties[uint(Party.Translator)] || msg.sender == task.parties[uint(Party.Challenger)], "Third parties are not allowed to submit evidence.");
+        emit Evidence(arbitrator, _taskID, msg.sender, _evidence);
+    }
+    
     // ******************** //
     // *      Getters     * //
     // ******************** //
     
-    /** @dev Gets translator's deposit value and current price of the task.
+    /** @dev Gets the deposit that translator must pay in order to self-assign the task.
      *  @param _taskID The ID of the task.
-     *  @return Current price and deposit without a surplus.
+     *  @return deposit The deposit without a surplus.
      */
-    function getPureDepositValueAndPrice(uint _taskID) private view returns (uint price, uint deposit) {
+    function getPureDepositValue(uint _taskID) public view returns (uint deposit) {
         Task storage task = tasks[_taskID];
         if (now - task.lastInteraction > task.submissionTimeout || task.submissionTimeout == 0){
-            price = 0;
             deposit = NOT_PAYABLE_VALUE;
         } else {
-            price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
+            uint price = getTaskPrice(_taskID, 0);
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
         }
     }
     
-    /** @dev Gets the deposit that translator must pay in order to self-assign the task.
-     *  Note that this function is needed because it adds a surplus and thus accounts for the issue of price increase between the time when the transaction is created and mined.
+    /** @dev Gets the required deposit value.
+     *  Note that this function is needed because it adds a surplus by calculating a price 20 blocks ahead and thus accounts for the issue of price increase between the time when the transaction is created and mined.
      *  @param _taskID The ID of the task.
      *  @return deposit The required deposit.
      */
     function getRequiredDepositValue(uint _taskID) public view returns (uint deposit){
-        (, deposit) = getPureDepositValueAndPrice(_taskID);
-        deposit += 0.1 ether;
+        Task storage task = tasks[_taskID];
+        if (now - task.lastInteraction > task.submissionTimeout || task.submissionTimeout == 0){
+            deposit = NOT_PAYABLE_VALUE;
+        } else {
+            uint price = getTaskPrice(_taskID, 300);
+            uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+            deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
+        }
     }
     
     /** @dev Gets the current price of a specified task.
      *  @param _taskID The ID of the task.
+     *  @param _extraTime Time in seconds added to the current time to calculate future price. Is needed to calculate required deposit. Set to 0 to get current price.
      *  @return price The price of the task at current point in time.
      */
-    function getTaskPrice(uint _taskID) public view returns (uint price) {
-        (price, ) = getPureDepositValueAndPrice(_taskID); 
+    function getTaskPrice(uint _taskID, uint _extraTime) public view returns (uint price) {
+        Task storage task = tasks[_taskID];
+        if (now - task.lastInteraction > task.submissionTimeout || task.submissionTimeout == 0){
+            price = 0;
+        } else {
+            price = task.minPrice + (task.maxPrice - task.minPrice) * ((now - task.lastInteraction).addCap(_extraTime)) / task.submissionTimeout;
+        } 
     }
     
     /** @dev Gets the non-primitive properties of a specified task.
