@@ -244,7 +244,7 @@ contract('Esperanto', function(accounts) {
     )
     const deposit =
       arbitrationFee + (translationMultiplier * price) / MULTIPLIER_DIVISOR
-    const depositEsperanto = await esperanto.getRequiredDepositValue(0)
+    const depositEsperanto = await esperanto.getSafeDepositValue(0)
     assert(
       Math.abs(depositEsperanto.toNumber() - deposit) <= deposit / 100,
       'Contract returns incorrect required deposit'
@@ -260,7 +260,7 @@ contract('Esperanto', function(accounts) {
       'Contract returns incorrect task price after submission timeout ended'
     )
     const deposit = NOT_PAYABLE_VALUE
-    const depositEsperanto = await esperanto.getRequiredDepositValue(0)
+    const depositEsperanto = await esperanto.getSafeDepositValue(0)
     assert.equal(
       depositEsperanto.toNumber(),
       deposit,
@@ -269,7 +269,7 @@ contract('Esperanto', function(accounts) {
   })
 
   it('Should not be possible to pay less than pure deposit value', async () => {
-    const pureDeposit = (await esperanto.getPureDepositValue(0)).toNumber()
+    const pureDeposit = (await esperanto.getMinimumDepositValue(0)).toNumber()
     // subtract small amount because pure deposit will not always fail on its own
     await expectThrow(
       esperanto.assignTask(0, {
@@ -282,8 +282,8 @@ contract('Esperanto', function(accounts) {
   it('Should reimburse requester leftover price after assigning the task and set correct values', async () => {
     const oldBalance = await web3.eth.getBalance(requester)
 
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
-    const pureDeposit = (await esperanto.getPureDepositValue(0)).toNumber()
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
+    const pureDeposit = (await esperanto.getMinimumDepositValue(0)).toNumber()
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -313,7 +313,7 @@ contract('Esperanto', function(accounts) {
     )
   })
   it('Should not be possible to submit translation after submission timeout ended', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
     await esperanto.assignTask(0, {
       from: translator,
       value: requiredDeposit.toNumber()
@@ -326,7 +326,7 @@ contract('Esperanto', function(accounts) {
     )
   })
   it('Only an assigned translator should be allowed to submit translation to a task', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
     await esperanto.assignTask(0, {
       from: translator,
       value: requiredDeposit.toNumber()
@@ -338,7 +338,7 @@ contract('Esperanto', function(accounts) {
     )
   })
   it('Should fire an event after translation is submitted', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
     await esperanto.assignTask(0, {
       from: translator,
       value: requiredDeposit.toNumber()
@@ -379,7 +379,7 @@ contract('Esperanto', function(accounts) {
     )
   })
   it('Should reimburse requester if translator failed to submit translation before submission timeout ended', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
     await esperanto.assignTask(0, {
       from: translator,
       value: requiredDeposit.toNumber()
@@ -404,7 +404,7 @@ contract('Esperanto', function(accounts) {
     await expectThrow(esperanto.reimburseRequester(0))
   })
   it('Should accept the translation and pay the translator if review timeout has passed without challenge', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
     await esperanto.assignTask(0, {
       from: translator,
       value: requiredDeposit.toNumber()
@@ -425,7 +425,7 @@ contract('Esperanto', function(accounts) {
     )
   })
   it('Should not be possible to accept translation if review timeout has not passed or if it was challenged', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -449,7 +449,7 @@ contract('Esperanto', function(accounts) {
 
   it('Should set correct values in contract and in despute after task has been challenged', async () => {
     let taskInfo
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -500,7 +500,7 @@ contract('Esperanto', function(accounts) {
     )
   })
   it('Should not allow to challenge if review timeout has passed', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -524,7 +524,7 @@ contract('Esperanto', function(accounts) {
 
   it('Should paid to all parties correctly when arbitrator refused to rule', async () => {
     let taskInfo
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -577,7 +577,7 @@ contract('Esperanto', function(accounts) {
 
   it('Should paid to all parties correctly if translator wins', async () => {
     let taskInfo
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -634,7 +634,7 @@ contract('Esperanto', function(accounts) {
 
   it('Should paid to all parties correctly if challenger wins', async () => {
     let taskInfo
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -691,7 +691,7 @@ contract('Esperanto', function(accounts) {
 
   it('Should demand correct appeal fees and register that appeal fee has been paid', async () => {
     let taskInfo
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -764,7 +764,7 @@ contract('Esperanto', function(accounts) {
   })
 
   it('Should not be possible for loser to fund appeal if first half of appeal period has passed', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -791,7 +791,7 @@ contract('Esperanto', function(accounts) {
   })
 
   it('Should not be possible for winner to fund appeal if appeal period has passed', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
@@ -820,7 +820,7 @@ contract('Esperanto', function(accounts) {
 
   it('Should change the ruling if loser paid appeal fee while winner did not', async () => {
     let taskInfo
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
