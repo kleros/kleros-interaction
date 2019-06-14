@@ -36,15 +36,9 @@ contract Esperanto is Arbitrable {
     }
 
     struct Task {
-        string title; // The title of the task.
-        string textURI; // A link to the text which translation is requested. In plaintext.
-        string sourceTextURI; // A link to the source where the text was taken from (optional, to allow translators to get context).
         uint submissionTimeout; // Time in seconds allotted for submitting a translation. The end of this period is considered a deadline.
         uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases until it reaches maximal price at deadline.
         uint maxPrice; // Maximal price for the translation and also value that must be deposited by the one requesting the translation.
-        uint sourceLang; // The index of source language of translated text.
-        uint[] targetLangs; // One or more languages the text should be translated in.
-        Quality quality; // Expected quality of the translation.
         Status status; // Status of the task.
         uint lastInteraction; // The time of the last action performed on the task.
         address[3] parties; // Requester, translator and challenger of the task, respectively.
@@ -68,14 +62,6 @@ contract Esperanto is Arbitrable {
     mapping (uint => uint) public disputeIDtoTaskID; // Maps a dispute to its respective task.
 
     /* *** Events *** */
-
-    /** @dev To be emitted when new task is created.
-     *  @param _taskID The ID of newly created task.
-     *  @param _requester The address that created the task.
-     *  @param _textURI A link to the text translation of which is requested.
-     *  @param _sourceTextURI A link to the source the text was taken from.
-    */
-    event TaskCreated(uint indexed _taskID, address indexed _requester, string _textURI, string _sourceTextURI);
 
     /** @dev To be emitted when translation is submitted.
      *  @param _taskID The ID of the respective task.
@@ -182,28 +168,16 @@ contract Esperanto is Arbitrable {
     // **************************** //
 
     /** @dev Creates a task based on provided details. Requires a value of maximal price to be deposited.
-     *  @param _title The title of the task.
-     *  @param _textURI A link to the text that requires translation.
-     *  @param _sourceTextURI (Optional) A link to the source the text was taken from.
      *  @param _submissionTimeout Time allotted for submitting a translation.
      *  @param _minPrice A minimal price of the translation. In wei.
      *  @param _maxPrice A maximal price of the translation. In wei.
-     *  @param _sourceLang The language of the provided text.
-     *  @param _targetLangs Languages the provided text should be translated in.
-     *  @param _quality Expected quality of the translation.
      *  @param _metaEvidence A URI of meta-evidence object for task submission.
      *  @return taskID The ID of the created task.
     */
     function createTask(
-        string _title,
-        string _textURI,
-        string _sourceTextURI,
         uint _submissionTimeout,
         uint _minPrice,
         uint _maxPrice,
-        uint _sourceLang,
-        uint[] _targetLangs,
-        Quality _quality,
         string _metaEvidence
     ) public payable returns (uint taskID){
         require(msg.value >= _maxPrice, "The value of max price must be depositted");
@@ -212,17 +186,9 @@ contract Esperanto is Arbitrable {
         tasks.length++;
         taskID = tasks.length - 1;
         Task storage task = tasks[tasks.length - 1];
-        task.title = _title;
-        task.textURI = _textURI;
-        task.sourceTextURI = _sourceTextURI;
         task.submissionTimeout = _submissionTimeout;
         task.minPrice = _minPrice;
         task.maxPrice = _maxPrice;
-        task.sourceLang = _sourceLang;
-        for (uint i = 0; i < _targetLangs.length; i++){
-            task.targetLangs.push(_targetLangs[i]);
-        }
-        task.quality = _quality;
         task.status = Status.Created;
         task.lastInteraction = now;
         task.parties[uint(Party.Requester)] = msg.sender;
@@ -231,7 +197,6 @@ contract Esperanto is Arbitrable {
         uint remainder = msg.value - _maxPrice;
         msg.sender.send(remainder);
 
-        emit TaskCreated(taskID, msg.sender, _textURI, _sourceTextURI);
         emit MetaEvidence(taskID, _metaEvidence);
     }
 
@@ -506,14 +471,12 @@ contract Esperanto is Arbitrable {
         public
         view
         returns (
-            uint[] targetLanguages,
             address[3] parties,
             uint[3] deposits,
             bool[3] appealFeePaid
         )
     {
         Task storage task = tasks[_taskID];
-        targetLanguages = task.targetLangs;
         parties = task.parties;
         deposits = task.deposits;
         appealFeePaid = task.appealFeePaid;

@@ -33,7 +33,6 @@ contract('Esperanto', function(accounts) {
   const taskMinPrice = 1e18
   const taskMaxPrice = 5e18
   const submissionTimeout = 3600
-  const targetLanguages = [1, 9, 0]
   let arbitrator
   let esperanto
   let MULTIPLIER_DIVISOR
@@ -64,15 +63,9 @@ contract('Esperanto', function(accounts) {
 
     MULTIPLIER_DIVISOR = (await esperanto.MULTIPLIER_DIVISOR()).toNumber()
     taskTx = await esperanto.createTask(
-      'TitleTest',
-      'https://ipfs.io/',
-      'https://www.google.com',
       submissionTimeout,
       taskMinPrice,
       taskMaxPrice,
-      11,
-      targetLanguages,
-      2,
       'TestMetaEvidence',
       {
         from: requester,
@@ -98,105 +91,63 @@ contract('Esperanto', function(accounts) {
     const task = await esperanto.tasks(0)
 
     assert.equal(
-      task[0],
-      'TitleTest',
-      'The title of the task is not set up properly'
-    )
-    assert.equal(
-      task[1],
-      'https://ipfs.io/',
-      'The link to the text is not set up properly'
-    )
-    assert.equal(
-      task[2],
-      'https://www.google.com',
-      'The link to the source of the text is not set up properly'
-    )
-    assert.equal(
-      task[3].toNumber(),
+      task[0].toNumber(),
       submissionTimeout,
       'The submissionTimeout is not set up properly'
     )
     assert.equal(
-      task[4].toNumber(),
+      task[1].toNumber(),
       taskMinPrice,
       'The min price is not set up properly'
     )
     assert.equal(
-      task[5].toNumber(),
+      task[2].toNumber(),
       taskMaxPrice,
       'The max price is not set up properly'
     )
+
     assert.equal(
-      task[6].toNumber(),
-      11,
-      'The source language is not set up properly'
-    )
-    assert.equal(task[7].toNumber(), 2, 'The quality is not set up properly')
-    assert.equal(
-      task[8].toNumber(),
+      task[3].toNumber(),
       0,
       'The task status is not set up properly'
     )
 
     const taskInfo = await esperanto.getTaskInfo(0)
-    for (let i = 0; i < targetLanguages.length; i++)
-      assert.equal(
-        taskInfo[0][i].toNumber(),
-        targetLanguages[i],
-        'The target languages are not set up properly'
-      )
 
     assert.equal(
-      taskInfo[1][0],
+      taskInfo[0][0],
       requester,
       'The requester is not set up properly'
     )
     assert.equal(
-      taskInfo[2][0].toNumber(),
+      taskInfo[1][0].toNumber(),
       taskMaxPrice,
       'The requester deposit is not set up properly'
     )
 
     assert.equal(
       taskTx.logs[0].event,
-      'TaskCreated',
+      'MetaEvidence',
       'The event has not been created'
     )
     assert.equal(
-      taskTx.logs[0].args._taskID.toNumber(),
+      taskTx.logs[0].args._metaEvidenceID.toNumber(),
       0,
       'The event has wrong task ID'
     )
     assert.equal(
-      taskTx.logs[0].args._requester,
-      requester,
+      taskTx.logs[0].args._evidence,
+      'TestMetaEvidence',
       'The event has wrong requester address'
-    )
-    assert.equal(
-      taskTx.logs[0].args._textURI,
-      'https://ipfs.io/',
-      'The event has wrong link to the text'
-    )
-    assert.equal(
-      taskTx.logs[0].args._sourceTextURI,
-      'https://www.google.com',
-      'The event has wrong link to the source of the text'
     )
   })
 
   it('Should not be possible to deposit less when creating a task', async () => {
     await expectThrow(
       esperanto.createTask(
-        'TitleTest',
-        'https://ipfs.io/',
-        'https://www.google.com',
         submissionTimeout,
         taskMinPrice,
         taskMaxPrice,
-        11,
-        targetLanguages,
-        2,
         'TestMetaEvidence',
         {
           from: requester,
@@ -207,15 +158,9 @@ contract('Esperanto', function(accounts) {
     // should throw when max price is less than min price
     await expectThrow(
       esperanto.createTask(
-        'TitleTest',
-        'https://ipfs.io/',
-        'https://www.google.com',
         submissionTimeout,
         taskMaxPrice,
         taskMinPrice,
-        11,
-        targetLanguages,
-        2,
         'TestMetaEvidence',
         {
           from: requester,
@@ -293,7 +238,7 @@ contract('Esperanto', function(accounts) {
     const newBalance = await web3.eth.getBalance(requester)
     const taskInfo = await esperanto.getTaskInfo(0)
 
-    const price = await taskInfo[2][0].toNumber()
+    const price = await taskInfo[1][0].toNumber()
     const manualNewBalance = oldBalance.toNumber() + (taskMaxPrice - price)
     // an error up to 0.1% is allowed because of time fluctuation
     assert(
@@ -302,13 +247,13 @@ contract('Esperanto', function(accounts) {
       'The requester was not reimbursed correctly'
     )
     assert.equal(
-      taskInfo[1][1],
+      taskInfo[0][1],
       translator,
       'The translator was not set up properly'
     )
     // an error up to 1% is allowed because of time fluctuation
     assert(
-      Math.abs(taskInfo[2][1].toNumber() - pureDeposit) <= pureDeposit / 100,
+      Math.abs(taskInfo[1][1].toNumber() - pureDeposit) <= pureDeposit / 100,
       'The translator deposit was not set up properly'
     )
   })
@@ -388,7 +333,7 @@ contract('Esperanto', function(accounts) {
     const oldBalance = await web3.eth.getBalance(requester)
     // task price + translator's deposit should go to requester
     const taskInfo = await esperanto.getTaskInfo(0)
-    const dif = taskInfo[2][0].toNumber() + taskInfo[2][1].toNumber()
+    const dif = taskInfo[1][0].toNumber() + taskInfo[1][1].toNumber()
     await esperanto.reimburseRequester(0)
     const newBalance = await web3.eth.getBalance(requester)
     const manualNewBalance = oldBalance.toNumber() + dif
@@ -412,7 +357,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
     await increaseTime(reviewTimeout + 1)
     const taskInfo = await esperanto.getTaskInfo(0)
-    const dif = taskInfo[2][0].toNumber() + taskInfo[2][1].toNumber()
+    const dif = taskInfo[1][0].toNumber() + taskInfo[1][1].toNumber()
     const oldBalance = await web3.eth.getBalance(translator)
     await esperanto.acceptTranslation(0)
     const newBalance = await web3.eth.getBalance(translator)
@@ -435,7 +380,7 @@ contract('Esperanto', function(accounts) {
     await expectThrow(esperanto.acceptTranslation(0))
 
     const taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -458,7 +403,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -471,13 +416,13 @@ contract('Esperanto', function(accounts) {
     // fee is subtracted from challenger's deposit upon submission. Also subtract the surplus
     const pureChallengeDeposit = challengerDeposit - arbitrationFee - 1e17
     assert.equal(
-      taskInfo[1][2],
+      taskInfo[0][2],
       challenger,
       'The challenger was not set up properly'
     )
     // an error up to 1% is allowed because of time fluctuation
     assert(
-      Math.abs(taskInfo[2][2].toNumber() - pureChallengeDeposit) <=
+      Math.abs(taskInfo[1][2].toNumber() - pureChallengeDeposit) <=
         pureChallengeDeposit / 100,
       'The challenger deposit was not set up properly'
     )
@@ -510,7 +455,7 @@ contract('Esperanto', function(accounts) {
 
     await increaseTime(reviewTimeout + 1)
     const taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -533,7 +478,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -546,9 +491,9 @@ contract('Esperanto', function(accounts) {
     const oldBalance2 = await web3.eth.getBalance(translator)
     const oldBalance3 = await web3.eth.getBalance(challenger)
     taskInfo = await esperanto.getTaskInfo(0)
-    const manualNewBalance1 = taskInfo[2][0].toNumber() + oldBalance1.toNumber()
-    const manualNewBalance2 = taskInfo[2][1].toNumber() + oldBalance2.toNumber()
-    const manualNewBalance3 = taskInfo[2][2].toNumber() + oldBalance3.toNumber()
+    const manualNewBalance1 = taskInfo[1][0].toNumber() + oldBalance1.toNumber()
+    const manualNewBalance2 = taskInfo[1][1].toNumber() + oldBalance2.toNumber()
+    const manualNewBalance3 = taskInfo[1][2].toNumber() + oldBalance3.toNumber()
 
     await arbitrator.giveRuling(0, 0)
     await increaseTime(appealTimeOut + 1)
@@ -586,7 +531,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -602,9 +547,9 @@ contract('Esperanto', function(accounts) {
     taskInfo = await esperanto.getTaskInfo(0)
 
     const manualNewBalance2 =
-      taskInfo[2][0].toNumber() +
-      taskInfo[2][1].toNumber() +
-      taskInfo[2][2].toNumber() +
+      taskInfo[1][0].toNumber() +
+      taskInfo[1][1].toNumber() +
+      taskInfo[1][2].toNumber() +
       oldBalance2.toNumber()
 
     await arbitrator.giveRuling(0, 1)
@@ -643,7 +588,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -657,10 +602,10 @@ contract('Esperanto', function(accounts) {
     const oldBalance3 = await web3.eth.getBalance(challenger)
 
     taskInfo = await esperanto.getTaskInfo(0)
-    const manualNewBalance1 = taskInfo[2][0].toNumber() + oldBalance1.toNumber()
+    const manualNewBalance1 = taskInfo[1][0].toNumber() + oldBalance1.toNumber()
     const manualNewBalance3 =
-      taskInfo[2][1].toNumber() +
-      taskInfo[2][2].toNumber() +
+      taskInfo[1][1].toNumber() +
+      taskInfo[1][2].toNumber() +
       oldBalance3.toNumber()
 
     await arbitrator.giveRuling(0, 2)
@@ -700,7 +645,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -725,12 +670,12 @@ contract('Esperanto', function(accounts) {
     })
     taskInfo = await esperanto.getTaskInfo(0)
     assert.equal(
-      taskInfo[3][1],
+      taskInfo[2][1],
       true,
       'Did not register appeal fee payment for translator'
     )
     assert.equal(
-      taskInfo[3][2],
+      taskInfo[2][2],
       false,
       'Appeal fee payment for challenger should not be registered'
     )
@@ -752,12 +697,12 @@ contract('Esperanto', function(accounts) {
     taskInfo = await esperanto.getTaskInfo(0)
     // if both sides paid their fee it starts the new round where appeal fee payment should not be registered
     assert.equal(
-      taskInfo[3][1],
+      taskInfo[2][1],
       false,
       'Appeal fee payment for translator should not be registered'
     )
     assert.equal(
-      taskInfo[3][2],
+      taskInfo[2][2],
       false,
       'Appeal fee payment for challenger should not be registered'
     )
@@ -773,7 +718,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     const taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -800,7 +745,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     const taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -829,7 +774,7 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     taskInfo = await esperanto.getTaskInfo(0)
-    const price = taskInfo[2][0].toNumber()
+    const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
@@ -854,9 +799,9 @@ contract('Esperanto', function(accounts) {
     taskInfo = await esperanto.getTaskInfo(0)
     // translator's balance should increase while other's stay the same despite ruling being in favor of challenger
     const manualNewBalance2 =
-      taskInfo[2][0].toNumber() +
-      taskInfo[2][1].toNumber() +
-      taskInfo[2][2].toNumber() +
+      taskInfo[1][0].toNumber() +
+      taskInfo[1][1].toNumber() +
+      taskInfo[1][2].toNumber() +
       oldBalance2.toNumber()
 
     await arbitrator.giveRuling(0, 2)
