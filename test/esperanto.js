@@ -73,6 +73,7 @@ contract('Esperanto', function(accounts) {
       11,
       targetLanguages,
       2,
+      'TestMetaEvidence',
       {
         from: requester,
         value: taskMaxPrice
@@ -173,12 +174,12 @@ contract('Esperanto', function(accounts) {
       'The event has wrong requester address'
     )
     assert.equal(
-      taskTx.logs[0].args._text,
+      taskTx.logs[0].args._textURI,
       'https://ipfs.io/',
       'The event has wrong link to the text'
     )
     assert.equal(
-      taskTx.logs[0].args._sourceText,
+      taskTx.logs[0].args._sourceTextURI,
       'https://www.google.com',
       'The event has wrong link to the source of the text'
     )
@@ -196,6 +197,7 @@ contract('Esperanto', function(accounts) {
         11,
         targetLanguages,
         2,
+        'TestMetaEvidence',
         {
           from: requester,
           value: taskMaxPrice - 1000
@@ -214,6 +216,7 @@ contract('Esperanto', function(accounts) {
         11,
         targetLanguages,
         2,
+        'TestMetaEvidence',
         {
           from: requester,
           value: taskMaxPrice
@@ -223,8 +226,8 @@ contract('Esperanto', function(accounts) {
   })
 
   it('Should return correct task price and assignment deposit value before submission timeout ended', async () => {
-    const priceEsperanto = await esperanto.getTaskPrice(0)
-    const price = Math.floor(
+    const priceEsperanto = await esperanto.getTaskPrice(0, 0)
+    let price = Math.floor(
       taskMinPrice +
         ((taskMaxPrice - taskMinPrice) * secondsPassed) / submissionTimeout
     )
@@ -233,10 +236,14 @@ contract('Esperanto', function(accounts) {
       Math.abs(priceEsperanto.toNumber() - price) <= price / 100,
       'Contract returns incorrect task price'
     )
+    // for a required deposit we take a price that will be 20 blocks from now (300 seconds) to add a surplus to the deposit
+    price = Math.floor(
+      taskMinPrice +
+        ((taskMaxPrice - taskMinPrice) * (secondsPassed + 300)) /
+          submissionTimeout
+    )
     const deposit =
-      arbitrationFee +
-      (translationMultiplier * price) / MULTIPLIER_DIVISOR +
-      1e17
+      arbitrationFee + (translationMultiplier * price) / MULTIPLIER_DIVISOR
     const depositEsperanto = await esperanto.getRequiredDepositValue(0)
     assert(
       Math.abs(depositEsperanto.toNumber() - deposit) <= deposit / 100,
@@ -246,13 +253,13 @@ contract('Esperanto', function(accounts) {
 
   it('Should return correct task price and assignment deposit value after submission timeout ended', async () => {
     await increaseTime(submissionTimeout + 1)
-    const priceEsperanto = await esperanto.getTaskPrice(0)
+    const priceEsperanto = await esperanto.getTaskPrice(0, 0)
     assert.equal(
       priceEsperanto.toNumber(),
       0,
       'Contract returns incorrect task price after submission timeout ended'
     )
-    const deposit = NOT_PAYABLE_VALUE + 1e17
+    const deposit = NOT_PAYABLE_VALUE
     const depositEsperanto = await esperanto.getRequiredDepositValue(0)
     assert.equal(
       depositEsperanto.toNumber(),
@@ -262,9 +269,7 @@ contract('Esperanto', function(accounts) {
   })
 
   it('Should not be possible to pay less than pure deposit value', async () => {
-    const requiredDeposit = await esperanto.getRequiredDepositValue(0)
-    // pure deposit value is the required deposit without the surplus of 0.1 ETH
-    const pureDeposit = requiredDeposit.toNumber() - 1e17
+    const pureDeposit = (await esperanto.getPureDepositValue(0)).toNumber()
     // subtract small amount because pure deposit will not always fail on its own
     await expectThrow(
       esperanto.assignTask(0, {
@@ -278,7 +283,7 @@ contract('Esperanto', function(accounts) {
     const oldBalance = await web3.eth.getBalance(requester)
 
     const requiredDeposit = await esperanto.getRequiredDepositValue(0)
-    const pureDeposit = requiredDeposit.toNumber() - 1e17
+    const pureDeposit = (await esperanto.getPureDepositValue(0)).toNumber()
 
     await esperanto.assignTask(0, {
       from: translator,
