@@ -41,3 +41,5 @@ Testrpc default gas limit is lower than the mainnet which prevents deploying som
 ## Contributing
 
 See [contributing](https://kleros.gitbook.io/contributing-md/).
+
+Learn how to develop arbitrable and arbitrator contracts [here](https://erc-792.readthedocs.io/en/latest/).
