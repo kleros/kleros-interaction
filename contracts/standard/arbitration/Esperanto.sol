@@ -23,11 +23,6 @@ contract Esperanto is Arbitrable {
 
     enum Status {Created, Assigned, AwaitingReview, DisputeCreated, Resolved}
 
-    enum Quality {
-        CostEffective, // Basic quality of translation is expected. The conveyed meaning must be similar but it is acceptable to lose nuances.
-        Standard, // The meaning must be almost identical. Occasional typos are acceptable.
-        Perfect // The meaning must be almost identical and the translator must work to correctly reflect the style and nuance of the original text.
-    }
 
     enum Party {
         Requester, // The one requesting the translation.
@@ -106,12 +101,6 @@ contract Esperanto is Arbitrable {
     // *    Governance    * //
     // ******************** //
 
-    /** @dev Adds a language to the array of supported languages. Its array index is used to refer to it later.
-     *  @param _lang Added language.
-    */
-    function addLanguage(string _lang) public onlyGovernor {
-        languages.push(_lang);
-    }
 
     /** @dev Changes the governor of this contract.
      *  @param _governor A new governor.
