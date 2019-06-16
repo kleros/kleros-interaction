@@ -48,12 +48,6 @@ contract MultipleArbitrableTransaction is IArbitrable {
     // *          Events          * //
     // **************************** //
 
-    /** @dev To be emitted when meta-evidence is submitted.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the `transactionID`.
-     *  @param _evidence A link to the meta-evidence JSON that follows the ERC 1497 Evidence standard (https://github.com/ethereum/EIPs/issues/1497).
-     */
-    event MetaEvidence(uint indexed _metaEvidenceID, string _evidence);
-
     /** @dev To be emitted when a party pays or reimburses the other.
      *  @param _transactionID The index of the transaction.
      *  @param _amount The amount paid.
@@ -66,22 +60,6 @@ contract MultipleArbitrableTransaction is IArbitrable {
      *  @param _party The party who has to pay.
      */
     event HasToPayFee(uint indexed _transactionID, Party _party);
-
-    /** @dev To be raised when evidence is submitted. Should point to the resource (evidences are not to be stored on chain due to gas considerations).
-     *  @param _arbitrator The arbitrator of the contract.
-     *  @param _evidenceGroupID Unique identifier of the evidence group the evidence belongs to.
-     *  @param _party The address of the party submitting the evidence. Note that 0 is kept for evidences not submitted by any party.
-     *  @param _evidence A link to an evidence JSON that follows the ERC 1497 Evidence standard (https://github.com/ethereum/EIPs/issues/1497).
-     */
-    event Evidence(Arbitrator indexed _arbitrator, uint indexed _evidenceGroupID, address indexed _party, string _evidence);
-
-    /** @dev To be emitted when a dispute is created to link the correct meta-evidence to the disputeID.
-     *  @param _arbitrator The arbitrator of the contract.
-     *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _metaEvidenceID Unique identifier of meta-evidence. Should be the transactionID.
-     *  @param _evidenceGroupID Unique identifier of the evidence group that is linked to this dispute.
-     */
-    event Dispute(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _metaEvidenceID, uint _evidenceGroupID);
 
     /** @dev To be raised when a ruling is given.
      *  @param _arbitrator The arbitrator giving the ruling.
@@ -188,7 +166,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.status == Status.WaitingReceiver, "The transaction is not waiting on the receiver.");
         require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
-        
+
         if (transaction.receiverFee != 0) {
             transaction.receiver.send(transaction.receiverFee);
             transaction.receiverFee = 0;
@@ -203,7 +181,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.status == Status.WaitingSender, "The transaction is not waiting on the sender.");
         require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
-        
+
         if (transaction.senderFee != 0) {
             transaction.sender.send(transaction.senderFee);
             transaction.senderFee = 0;
