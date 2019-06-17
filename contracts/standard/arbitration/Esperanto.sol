@@ -55,15 +55,6 @@ contract Esperanto is Arbitrable {
 
     mapping (uint => uint) public disputeIDtoTaskID; // Maps a dispute to its respective task.
 
-    /* *** Events *** */
-
-    /** @dev To be emitted when translation is submitted.
-     *  @param _taskID The ID of the respective task.
-     *  @param _translator The address that performed the translation.
-     *  @param _translatedText A link to the translated text.
-    */
-    event TranslationSubmitted(uint indexed _taskID, address indexed _translator, string _translatedText);
-
     /* *** Modifiers *** */
     modifier onlyGovernor() {require(msg.sender == governor, "Only governor is allowed to perform this"); _;}
 
@@ -216,9 +207,9 @@ contract Esperanto is Arbitrable {
 
     /** @dev Submits translated text for a specific task.
      *  @param _taskID The ID of the task.
-     *  @param _translation A link to the translated text.
+     *  @param _translationURI A link to the translated text.
     */
-    function submitTranslation(uint _taskID, string _translation) public {
+    function submitTranslation(uint _taskID, string _translationURI) public {
         Task storage task = tasks[_taskID];
         require(task.status == Status.Assigned, "The task is either not assigned or translation has already been submitted");
         require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
@@ -226,7 +217,7 @@ contract Esperanto is Arbitrable {
         task.status = Status.AwaitingReview;
         task.lastInteraction = now;
 
-        emit TranslationSubmitted(_taskID, msg.sender, _translation);
+        emit Evidence(arbitrator, _taskID, msg.sender, _translationURI);
     }
 
     /** @dev Reimburses the requester if no one picked the task or the translator failed to submit the translation before deadline.
