@@ -52,7 +52,6 @@ contract Esperanto is Arbitrable {
     uint public loserStakeMultiplier; // Multiplier for calculating the appeal fee of the party that lost the previous round.
 
     Task[] public tasks; // Stores all created tasks.
-    string[] public languages; // Stores all supported languages.
 
     mapping (uint => uint) public disputeIDtoTaskID; // Maps a dispute to its respective task.
 
