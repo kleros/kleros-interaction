@@ -1,6 +1,6 @@
 /**
  *  @authors: [@unknownunknown1]
- *  @reviewers: [@ferittuncer]
+ *  @reviewers: [@ferittuncer*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -39,7 +39,16 @@ contract Esperanto is Arbitrable {
         address[3] parties; // Requester, translator and challenger of the task, respectively.
         uint[3] deposits; // Deposits of requester, translator and challenger.
         uint disputeID; // The ID of the dispute created in arbitrator contract.
-        bool[3] appealFeePaid; // Tracks whether translator and challenger paid fee or not. The "0" index is not used but is needed to map the parties with dispute choice values.
+        Round[] rounds; // Tracks each appeal round of a dispute.
+        uint ruling; // Ruling given to the dispute of the task by the arbitrator.
+    }
+
+    struct Round {
+        uint[3] paidFees; // Tracks the fees paid by each side on this round.
+        bool[3] hasPaid; // True when the side has fully paid its fee. False otherwise.
+        uint feeRewards; // Sum of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
+        mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
+        uint successfullyPaid; // Sum of all successfully paid fees paid by all sides.
     }
 
     address public governor; // The governor of the contract.
@@ -279,7 +288,7 @@ contract Esperanto is Arbitrable {
 
         task.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
         disputeIDtoTaskID[task.disputeID] = _taskID;
-
+        task.rounds.length++;
         task.deposits[uint(Party.Challenger)] = challengeDeposit.subCap(arbitrationCost);
 
         uint remainder = msg.value - challengeDeposit;
@@ -288,7 +297,7 @@ contract Esperanto is Arbitrable {
         emit Dispute(arbitrator, task.disputeID, _taskID, _taskID);
     }
 
-    /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if all sides are fully funded..
+    /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if all sides are fully funded.
      *  @param _taskID The ID of challenged task.
      *  @param _side The party that pays the appeal fee.
     */
@@ -296,14 +305,11 @@ contract Esperanto is Arbitrable {
         Task storage task = tasks[_taskID];
         require(_side == Party.Translator || _side == Party.Challenger, "Recipient must be either the translator or challenger.");
         require(task.status == Status.DisputeCreated, "No dispute to appeal");
-        require(task.parties[uint(_side)] == msg.sender, "Should fund his own side");
 
         require(arbitrator.disputeStatus(task.disputeID) == Arbitrator.DisputeStatus.Appealable, "Dispute is not appealable.");
 
         (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(task.disputeID);
         require(now >= appealPeriodStart && now < appealPeriodEnd, "Funding must be made within the appeal period.");
-
-        require(!task.appealFeePaid[uint(_side)], "Appeal fee has already been paid");
 
         bool winner;
         uint multiplier;
@@ -317,23 +323,95 @@ contract Esperanto is Arbitrable {
         }
 
         require(winner || (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2), "The loser must pay during the first half of the appeal period.");
+        Round storage round = task.rounds[task.rounds.length - 1];
+        require(!round.hasPaid[uint(_side)], "Appeal fee has already been paid");
 
         uint appealCost = arbitrator.appealCost(task.disputeID, arbitratorExtraData);
         uint totalCost = appealCost.addCap((appealCost.mulCap(multiplier)) / MULTIPLIER_DIVISOR);
 
-        require(msg.value >= totalCost, "Not enough ETH to cover appeal cost");
-
-        task.appealFeePaid[uint(_side)] = true;
-
-        uint remainder = msg.value - totalCost;
-        msg.sender.send(remainder);
+        contribute(round, _side, msg.sender, msg.value, totalCost);
 
         // Create an appeal if each side is funded.
-        if(task.appealFeePaid[uint(Party.Translator)] && task.appealFeePaid[uint(Party.Challenger)]){
+        if (round.hasPaid[uint(Party.Translator)] && round.hasPaid[uint(Party.Challenger)]) {
             arbitrator.appeal.value(appealCost)(task.disputeID, arbitratorExtraData);
-            task.appealFeePaid[uint(Party.Translator)] = false;
-            task.appealFeePaid[uint(Party.Challenger)] = false;
+            task.rounds.length++;
+            round.feeRewards = round.feeRewards.subCap(appealCost);
         }
+    }
+
+    /** @dev Returns the contribution value and remainder from available ETH and required amount.
+     *  @param _available The amount of ETH available for the contribution.
+     *  @param _requiredAmount The amount of ETH required for the contribution.
+     *  @return taken The amount of ETH taken.
+     *  @return remainder The amount of ETH left from the contribution.
+     */
+    function calculateContribution(uint _available, uint _requiredAmount)
+        internal
+        pure
+        returns(uint taken, uint remainder)
+    {
+        if (_requiredAmount > _available)
+            return (_available, 0); // Take whatever is available, return 0 as leftover ETH.
+
+        remainder = _available - _requiredAmount;
+        return (_requiredAmount, remainder);
+    }
+
+    /** @dev Make a fee contribution.
+     *  @param _round The round to contribute.
+     *  @param _side The side for which to contribute.
+     *  @param _contributor The contributor.
+     *  @param _amount The amount contributed.
+     *  @param _totalRequired The total amount required for this side.
+     */
+    function contribute(Round storage _round, Party _side, address _contributor, uint _amount, uint _totalRequired) internal {
+        // Take up to the amount necessary to fund the current round at the current costs.
+        uint contribution; // Amount contributed.
+        uint remainingETH; // Remaining ETH to send back.
+        (contribution, remainingETH) = calculateContribution(_amount, _totalRequired.subCap(_round.paidFees[uint(_side)]));
+        _round.contributions[_contributor][uint(_side)] += contribution;
+        _round.paidFees[uint(_side)] += contribution;
+        // Add contribution to reward when the fee funding is successful, otherwise it can be withdrawn later.
+        if (_round.paidFees[uint(_side)] >= _totalRequired) {
+            _round.hasPaid[uint(_side)] = true;
+            _round.feeRewards += _round.paidFees[uint(_side)];
+            _round.successfullyPaid += _round.paidFees[uint(_side)];
+        }
+
+        // Reimburse leftover ETH.
+        _contributor.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
+    }
+    function withdrawFeesAndRewards(address _beneficiary, uint _taskID, uint _round) public {
+        Task storage task = tasks[_taskID];
+        Round storage round = task.rounds[_round];
+        // The task must be resolved and there can be no disputes pending resolution.
+        require(task.status == Status.Resolved, "The task should be resolved");
+        uint reward;
+        // Skip 0 party because it can't be funded.
+        for (uint i = 1; i < task.parties.length; i++){
+            // Allow to reimburse if funding was unsuccessful.
+            if (!round.hasPaid[i]) {
+                reward += round.contributions[_beneficiary][i];
+                round.contributions[_beneficiary][i] = 0;
+            } else {
+                // Reimburse unspent fees proportionally if there is no winner and loser.
+                if (task.ruling == 0) {
+                    uint partyReward = round.successfullyPaid > 0
+                        ? (round.contributions[_beneficiary][i] * round.feeRewards) / round.successfullyPaid
+                        : 0;
+                    reward += partyReward;
+                    round.contributions[_beneficiary][i] = 0;
+                } else if (task.ruling == i) {
+                    // Reward the winner.
+                    reward += round.paidFees[i] > 0
+                    ? (round.contributions[_beneficiary][i] * round.feeRewards) / round.paidFees[i]
+                    : 0;
+                    round.contributions[_beneficiary][i] = 0;
+                }
+            }
+        }
+
+        _beneficiary.send(reward); // It is the user responsibility to accept ETH.
     }
 
 
@@ -346,13 +424,14 @@ contract Esperanto is Arbitrable {
         Party resultRuling = Party(_ruling);
         uint taskID = disputeIDtoTaskID[_disputeID];
         Task storage task = tasks[taskID];
+        Round storage round = task.rounds[task.rounds.length - 1];
         require(msg.sender == address(arbitrator), "Must be called by the arbitrator");
         require(task.status == Status.DisputeCreated, "The dispute has already been resolved");
 
         // The ruling is inverted if the loser paid its fees.
-        if (task.appealFeePaid[uint(Party.Translator)] == true)
+        if (round.hasPaid[uint(Party.Translator)] == true)
             resultRuling = Party.Translator;
-        else if (task.appealFeePaid[uint(Party.Challenger)] == true)
+        else if (round.hasPaid[uint(Party.Challenger)] == true)
             resultRuling = Party.Challenger;
 
         emit Ruling(Arbitrator(msg.sender), _disputeID, uint(resultRuling));
@@ -368,6 +447,7 @@ contract Esperanto is Arbitrable {
         uint taskID = disputeIDtoTaskID[_disputeID];
         Task storage task = tasks[taskID];
         task.status = Status.Resolved;
+        task.ruling = _ruling;
         uint amount;
 
         if(_ruling == 0){
@@ -451,6 +531,22 @@ contract Esperanto is Arbitrable {
         }
     }
 
+    /** @dev Gets the contributions made by a party for a given round of task's appeal.
+     *  @param _taskID The ID of the task.
+     *  @param _round The position of the round.
+     *  @param _contributor The address of the contributor.
+     *  @return The contributions.
+     */
+    function getContributions(
+        uint _taskID,
+        uint _round,
+        address _contributor
+    ) public view returns(uint[3] contributions) {
+        Task storage task = tasks[_taskID];
+        Round storage round = task.rounds[_round];
+        contributions = round.contributions[_contributor];
+    }
+
     /** @dev Gets the non-primitive properties of a specified task.
      *  @param _taskID The ID of the task.
      *  @return The task's non-primitive properties.
@@ -460,13 +556,36 @@ contract Esperanto is Arbitrable {
         view
         returns (
             address[3] parties,
-            uint[3] deposits,
-            bool[3] appealFeePaid
+            uint[3] deposits
         )
     {
         Task storage task = tasks[_taskID];
         parties = task.parties;
         deposits = task.deposits;
-        appealFeePaid = task.appealFeePaid;
+    }
+
+    /** @dev Gets the information on a round of a task.
+     *  @param _taskID The ID of the task.
+     *  @param _round The round to be queried.
+     *  @return The round information.
+     */
+    function getRoundInfo(uint _taskID, uint _round)
+        public
+        view
+        returns (
+            uint[3] paidFees,
+            bool[3] hasPaid,
+            uint feeRewards,
+            uint successfullyPaid
+        )
+    {
+        Task storage task = tasks[_taskID];
+        Round storage round = task.rounds[_round];
+        return (
+            round.paidFees,
+            round.hasPaid,
+            round.feeRewards,
+            round.successfullyPaid
+        );
     }
 }
