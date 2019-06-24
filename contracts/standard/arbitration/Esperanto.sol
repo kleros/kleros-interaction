@@ -13,6 +13,10 @@ pragma solidity ^0.4.24;
 import "./Arbitrable.sol";
 import "../../libraries/CappedMath.sol";
 
+/** @title Esperanto
+ *  Esperanto is a decentralized platform where anyone can submit a document for translation and have it translated by freelancers.
+ *  It has no platform fees and disputes about translation quality are handled by Kleros jurors.
+ */
 contract Esperanto is Arbitrable {
 
     using CappedMath for uint;
@@ -72,6 +76,12 @@ contract Esperanto is Arbitrable {
      *  @param _translatedText A link to the translated text.
     */
     event TranslationSubmitted(uint indexed _taskID, address indexed _translator, string _translatedText);
+
+    /** @dev To be emitted when one of the parties successfully paid its appeal fees.
+     *  @param _taskID The ID of the respective task.
+     *  @param _party The party that paid appeal fees.
+    */
+    event HasPaidAppealFee(uint indexed _taskID, Party _party);
 
     /* *** Modifiers *** */
     modifier onlyGovernor() {require(msg.sender == governor, "Only governor is allowed to perform this"); _;}
@@ -176,7 +186,7 @@ contract Esperanto is Arbitrable {
         uint _minPrice,
         uint _maxPrice,
         string _metaEvidence
-    ) public payable returns (uint taskID){
+    ) external payable returns (uint taskID){
         require(msg.value >= _maxPrice, "The value of max price must be depositted");
         require(_maxPrice > _minPrice, "Max price should be greater than min price");
 
@@ -200,7 +210,7 @@ contract Esperanto is Arbitrable {
     /** @dev Assigns a specific task to the sender. Requires a translator's deposit.
      *  @param _taskID The ID of the task.
     */
-    function assignTask(uint _taskID) public payable{
+    function assignTask(uint _taskID) external payable{
         Task storage task = tasks[_taskID];
 
         uint price = getTaskPrice(_taskID, 0);
@@ -227,7 +237,7 @@ contract Esperanto is Arbitrable {
      *  @param _taskID The ID of the task.
      *  @param _translation A link to the translated text.
     */
-    function submitTranslation(uint _taskID, string _translation) public {
+    function submitTranslation(uint _taskID, string _translation) external {
         Task storage task = tasks[_taskID];
         require(task.status == Status.Assigned, "The task is either not assigned or translation has already been submitted");
         require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
@@ -241,7 +251,7 @@ contract Esperanto is Arbitrable {
     /** @dev Reimburses the requester if no one picked the task or the translator failed to submit the translation before deadline.
      *  @param _taskID The ID of the task.
     */
-    function reimburseRequester(uint _taskID) public {
+    function reimburseRequester(uint _taskID) external {
         Task storage task = tasks[_taskID];
         require(task.status < Status.AwaitingReview, "Can't reimburse if translation was submitted");
         require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet");
@@ -257,7 +267,7 @@ contract Esperanto is Arbitrable {
     /** @dev Pays the translator for completed task if no one challenged the translation during review period.
      *  @param _taskID The ID of the task.
     */
-    function acceptTranslation(uint _taskID) public {
+    function acceptTranslation(uint _taskID) external {
         Task storage task = tasks[_taskID];
         require(task.status == Status.AwaitingReview, "The task is in the wrong status");
         require(now - task.lastInteraction > reviewTimeout, "The review phase hasn't passed yet");
@@ -273,7 +283,7 @@ contract Esperanto is Arbitrable {
     /** @dev Challenges the translation of a specific task. Requires challenger's deposit.
      *  @param _taskID The ID of the task.
     */
-    function challengeTranslation(uint _taskID) public payable {
+    function challengeTranslation(uint _taskID) external payable {
         Task storage task = tasks[_taskID];
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -301,7 +311,7 @@ contract Esperanto is Arbitrable {
      *  @param _taskID The ID of challenged task.
      *  @param _side The party that pays the appeal fee.
     */
-    function fundAppeal(uint _taskID, Party _side) public payable {
+    function fundAppeal(uint _taskID, Party _side) external payable {
         Task storage task = tasks[_taskID];
         require(_side == Party.Translator || _side == Party.Challenger, "Recipient must be either the translator or challenger.");
         require(task.status == Status.DisputeCreated, "No dispute to appeal");
@@ -329,7 +339,7 @@ contract Esperanto is Arbitrable {
         uint appealCost = arbitrator.appealCost(task.disputeID, arbitratorExtraData);
         uint totalCost = appealCost.addCap((appealCost.mulCap(multiplier)) / MULTIPLIER_DIVISOR);
 
-        contribute(round, _side, msg.sender, msg.value, totalCost);
+        contribute(_taskID, round, _side, msg.sender, msg.value, totalCost);
 
         // Create an appeal if each side is funded.
         if (round.hasPaid[uint(Party.Translator)] && round.hasPaid[uint(Party.Challenger)]) {
@@ -358,13 +368,14 @@ contract Esperanto is Arbitrable {
     }
 
     /** @dev Make a fee contribution.
+     *  @param _taskID The ID of the task.
      *  @param _round The round to contribute.
      *  @param _side The side for which to contribute.
      *  @param _contributor The contributor.
      *  @param _amount The amount contributed.
      *  @param _totalRequired The total amount required for this side.
      */
-    function contribute(Round storage _round, Party _side, address _contributor, uint _amount, uint _totalRequired) internal {
+    function contribute(uint _taskID, Round storage _round, Party _side, address _contributor, uint _amount, uint _totalRequired) internal {
         // Take up to the amount necessary to fund the current round at the current costs.
         uint contribution; // Amount contributed.
         uint remainingETH; // Remaining ETH to send back.
@@ -376,12 +387,13 @@ contract Esperanto is Arbitrable {
             _round.hasPaid[uint(_side)] = true;
             _round.feeRewards += _round.paidFees[uint(_side)];
             _round.successfullyPaid += _round.paidFees[uint(_side)];
+            emit HasPaidAppealFee(_taskID, _side);
         }
 
         // Reimburse leftover ETH.
         _contributor.send(remainingETH); // Deliberate use of send in order to not block the contract in case of reverting fallback.
     }
-    function withdrawFeesAndRewards(address _beneficiary, uint _taskID, uint _round) public {
+    function withdrawFeesAndRewards(address _beneficiary, uint _taskID, uint _round) external {
         Task storage task = tasks[_taskID];
         Round storage round = task.rounds[_round];
         // The task must be resolved and there can be no disputes pending resolution.
@@ -443,7 +455,7 @@ contract Esperanto is Arbitrable {
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
      */
-    function executeRuling(uint _disputeID, uint _ruling) internal{
+    function executeRuling(uint _disputeID, uint _ruling) internal {
         uint taskID = disputeIDtoTaskID[_disputeID];
         Task storage task = tasks[taskID];
         task.status = Status.Resolved;
@@ -472,7 +484,7 @@ contract Esperanto is Arbitrable {
      *  @param _taskID A task evidence is submitted for.
      *  @param _evidence A link to evidence using its URI.
      */
-    function submitEvidence(uint _taskID, string _evidence) public {
+    function submitEvidence(uint _taskID, string _evidence) external {
         Task storage task = tasks[_taskID];
         require(task.status != Status.Resolved, "The task must not already be resolved.");
         require(msg.sender == task.parties[uint(Party.Requester)] || msg.sender == task.parties[uint(Party.Translator)] || msg.sender == task.parties[uint(Party.Challenger)], "Third parties are not allowed to submit evidence.");

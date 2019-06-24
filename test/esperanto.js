@@ -668,10 +668,27 @@ contract('Esperanto', function(accounts) {
     const loserAppealFee =
       arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR
 
-    await esperanto.fundAppeal(0, 1, {
+    const fundTx = await esperanto.fundAppeal(0, 1, {
       from: translator,
       value: 3e18 // Deliberately overpay to check that only required fee amount will be registered.
     })
+
+    // Check that event is emitted when fees are paid.
+    assert.equal(
+      fundTx.logs[0].event,
+      'HasPaidAppealFee',
+      'The event has not been created'
+    )
+    assert.equal(
+      fundTx.logs[0].args._taskID.toNumber(),
+      0,
+      'The event has wrong task ID'
+    )
+    assert.equal(
+      fundTx.logs[0].args._party.toNumber(),
+      1,
+      'The event has wrong party'
+    )
 
     roundInfo = await esperanto.getRoundInfo(0, 0)
 
