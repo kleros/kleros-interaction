@@ -138,7 +138,7 @@ contract('Esperanto', function(accounts) {
     assert.equal(
       taskTx.logs[0].args._evidence,
       'TestMetaEvidence',
-      'The event has wrong requester address'
+      'The event has wrong meta-evidence string'
     )
   })
 
@@ -213,9 +213,9 @@ contract('Esperanto', function(accounts) {
     )
   })
 
-  it('Should not be possible to pay less than pure deposit value', async () => {
+  it('Should not be possible to pay less than minimum deposit value', async () => {
     const pureDeposit = (await esperanto.getMinimumDepositValue(0)).toNumber()
-    // subtract small amount because pure deposit will not always fail on its own
+    // subtract small amount because minimum deposit will not always fail on its own
     await expectThrow(
       esperanto.assignTask(0, {
         from: translator,
@@ -518,6 +518,9 @@ contract('Esperanto', function(accounts) {
         manualNewBalance3 / 1000,
       'The challenger was not paid correctly'
     )
+
+    const task = await esperanto.tasks(0)
+    assert.equal(task[6].toNumber(), 0, 'The ruling of the task is incorrect')
   })
 
   it('Should paid to all parties correctly if translator wins', async () => {
@@ -575,6 +578,9 @@ contract('Esperanto', function(accounts) {
       oldBalance3.toNumber(),
       'Challenger has incorrect balance'
     )
+
+    const task = await esperanto.tasks(0)
+    assert.equal(task[6].toNumber(), 1, 'The ruling of the task is incorrect')
   })
 
   it('Should paid to all parties correctly if challenger wins', async () => {
@@ -632,10 +638,13 @@ contract('Esperanto', function(accounts) {
         manualNewBalance3 / 1000,
       'The challenger was not paid correctly'
     )
+
+    const task = await esperanto.tasks(0)
+    assert.equal(task[6].toNumber(), 2, 'The ruling of the task is incorrect')
   })
 
   it('Should demand correct appeal fees and register that appeal fee has been paid', async () => {
-    let taskInfo
+    let roundInfo
     const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
     await esperanto.assignTask(0, {
@@ -644,7 +653,7 @@ contract('Esperanto', function(accounts) {
     })
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    taskInfo = await esperanto.getTaskInfo(0)
+    const taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
     // add an extra amount because of time fluctuation
     const challengerDeposit =
@@ -658,51 +667,95 @@ contract('Esperanto', function(accounts) {
     // appeal fee is the same as arbitration fee for this arbitrator
     const loserAppealFee =
       arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR
-    await expectThrow(
-      esperanto.fundAppeal(0, 1, {
-        from: translator,
-        value: loserAppealFee - 1000
-      })
-    )
+
     await esperanto.fundAppeal(0, 1, {
       from: translator,
-      value: loserAppealFee
+      value: 3e18 // Deliberately overpay to check that only required fee amount will be registered.
     })
-    taskInfo = await esperanto.getTaskInfo(0)
+
+    roundInfo = await esperanto.getRoundInfo(0, 0)
+
     assert.equal(
-      taskInfo[2][1],
-      true,
-      'Did not register appeal fee payment for translator'
+      roundInfo[0][0].toNumber(),
+      0,
+      'Should not register any payments for requester'
     )
     assert.equal(
-      taskInfo[2][2],
+      roundInfo[1][0],
       false,
-      'Appeal fee payment for challenger should not be registered'
+      'Should not register that requester successfully paid fees'
+    )
+
+    assert.equal(
+      roundInfo[0][1].toNumber(),
+      loserAppealFee,
+      'Registered fee of translator is incorrect'
+    )
+    assert.equal(
+      roundInfo[1][1],
+      true,
+      'Did not register that translator successfully paid his fees'
+    )
+
+    assert.equal(
+      roundInfo[0][2].toNumber(),
+      0,
+      'Should not register any payments for challenger'
+    )
+    assert.equal(
+      roundInfo[1][2],
+      false,
+      'Should not register that challenger successfully paid fees'
+    )
+
+    // Check that it's not possible to fund appeal after funding has been registered.
+    await expectThrow(
+      esperanto.fundAppeal(0, 1, { from: translator, value: loserAppealFee })
     )
 
     const winnerAppealFee =
       arbitrationFee + (arbitrationFee * winnerMultiplier) / MULTIPLIER_DIVISOR
-    await expectThrow(
-      esperanto.fundAppeal(0, 2, {
-        from: challenger,
-        value: winnerAppealFee - 1000
-      })
-    )
+
     // increase time to make sure winner can pay in 2nd half
     await increaseTime(appealTimeOut / 2 + 1)
     await esperanto.fundAppeal(0, 2, {
       from: challenger,
-      value: winnerAppealFee
+      value: 3e18 // Deliberately overpay to check that only required fee amount will be registered.
     })
-    taskInfo = await esperanto.getTaskInfo(0)
-    // if both sides paid their fee it starts the new round where appeal fee payment should not be registered
+
+    roundInfo = await esperanto.getRoundInfo(0, 0)
+
     assert.equal(
-      taskInfo[2][1],
+      roundInfo[0][2].toNumber(),
+      winnerAppealFee,
+      'Registered fee of challenger is incorrect'
+    )
+    assert.equal(
+      roundInfo[1][2],
+      true,
+      'Did not register that challenger successfully paid his fees'
+    )
+
+    assert.equal(
+      roundInfo[2].toNumber(),
+      winnerAppealFee + loserAppealFee - arbitrationFee,
+      'Incorrect fee rewards value'
+    )
+    assert.equal(
+      roundInfo[3].toNumber(),
+      winnerAppealFee + loserAppealFee,
+      'Incorrect successfully paid fees value'
+    )
+
+    // If both sides pay their fees it starts new appeal round. Check that both sides have their value set to default.
+    roundInfo = await esperanto.getRoundInfo(0, 1)
+    assert.equal(
+      roundInfo[1][1],
       false,
       'Appeal fee payment for translator should not be registered'
     )
     assert.equal(
-      taskInfo[2][2],
+      roundInfo[1][2],
       false,
       'Appeal fee payment for challenger should not be registered'
     )
@@ -824,6 +877,195 @@ contract('Esperanto', function(accounts) {
       newBalance3.toNumber(),
       oldBalance3.toNumber(),
       'Challenger has incorrect balance'
+    )
+
+    const task = await esperanto.tasks(0)
+    assert.equal(task[6].toNumber(), 1, 'The ruling of the task is incorrect')
+  })
+
+  it('Should withdraw correct fees if dispute had winner/loser', async () => {
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
+
+    await esperanto.assignTask(0, {
+      from: translator,
+      value: requiredDeposit.toNumber()
+    })
+    await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
+
+    const taskInfo = await esperanto.getTaskInfo(0)
+    const price = taskInfo[1][0].toNumber()
+
+    const challengerDeposit =
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+    await esperanto.challengeTranslation(0, {
+      from: challenger,
+      value: challengerDeposit
+    })
+
+    await arbitrator.giveRuling(0, 2)
+
+    const loserAppealFee =
+      arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR
+
+    await esperanto.fundAppeal(0, 1, {
+      from: other,
+      value: loserAppealFee * 0.75
+    })
+
+    await esperanto.fundAppeal(0, 1, {
+      from: translator,
+      value: 2e18
+    })
+
+    const winnerAppealFee =
+      arbitrationFee + (arbitrationFee * winnerMultiplier) / MULTIPLIER_DIVISOR
+
+    await esperanto.fundAppeal(0, 2, {
+      from: other,
+      value: 0.2 * winnerAppealFee
+    })
+
+    await esperanto.fundAppeal(0, 2, {
+      from: challenger,
+      value: winnerAppealFee
+    })
+
+    const roundInfo = await esperanto.getRoundInfo(0, 0)
+
+    await arbitrator.giveRuling(1, 2)
+
+    await esperanto.fundAppeal(0, 1, {
+      from: translator,
+      value: 1e17 // Deliberately underpay to check that in can be reimbursed later.
+    })
+
+    await increaseTime(appealTimeOut + 1)
+    await arbitrator.giveRuling(1, 2)
+
+    const oldBalance1 = await web3.eth.getBalance(translator)
+    await esperanto.withdrawFeesAndRewards(translator, 0, 0, {
+      from: governor
+    })
+    let newBalance1 = await web3.eth.getBalance(translator)
+    assert.equal(
+      newBalance1.toString(),
+      oldBalance1.toString(),
+      'Translator balance should stay the same after withdrawing from 0 round'
+    )
+    await esperanto.withdrawFeesAndRewards(translator, 0, 1, {
+      from: governor
+    })
+    newBalance1 = await web3.eth.getBalance(translator)
+    assert.equal(
+      newBalance1.toString(),
+      oldBalance1.plus(1e17).toString(),
+      'Translator should be reimbursed unsuccessful payment'
+    )
+
+    const oldBalance2 = await web3.eth.getBalance(challenger)
+    await esperanto.withdrawFeesAndRewards(challenger, 0, 0, {
+      from: governor
+    })
+    const newBalance2 = await web3.eth.getBalance(challenger)
+    assert.equal(
+      newBalance2.toString(),
+      oldBalance2.plus(0.8 * roundInfo[2]).toString(),
+      'Incorrect balance of the challenger after withdrawing'
+    )
+
+    const oldBalance3 = await web3.eth.getBalance(other)
+    await esperanto.withdrawFeesAndRewards(other, 0, 0, {
+      from: governor
+    })
+    const newBalance3 = await web3.eth.getBalance(other)
+    assert.equal(
+      newBalance3.toString(),
+      oldBalance3.plus(0.2 * roundInfo[2]).toString(),
+      'Incorrect balance of the crowdfunder after withdrawing'
+    )
+  })
+
+  it('Should withdraw correct fees if arbitrator refused to arbitrate', async () => {
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
+
+    await esperanto.assignTask(0, {
+      from: translator,
+      value: requiredDeposit.toNumber()
+    })
+    await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
+
+    const taskInfo = await esperanto.getTaskInfo(0)
+    const price = taskInfo[1][0].toNumber()
+
+    const challengerDeposit =
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+    await esperanto.challengeTranslation(0, {
+      from: challenger,
+      value: challengerDeposit
+    })
+
+    await arbitrator.giveRuling(0, 0)
+
+    const sharedAppealFee =
+      arbitrationFee + (arbitrationFee * sharedMultiplier) / MULTIPLIER_DIVISOR
+
+    await esperanto.fundAppeal(0, 1, {
+      from: other,
+      value: 0.4 * sharedAppealFee
+    })
+
+    await esperanto.fundAppeal(0, 1, {
+      from: translator,
+      value: 2e18
+    })
+
+    await esperanto.fundAppeal(0, 2, {
+      from: other,
+      value: 0.2 * sharedAppealFee
+    })
+
+    await esperanto.fundAppeal(0, 2, {
+      from: challenger,
+      value: sharedAppealFee
+    })
+
+    const roundInfo = await esperanto.getRoundInfo(0, 0)
+
+    await arbitrator.giveRuling(1, 0)
+    await increaseTime(appealTimeOut + 1)
+    await arbitrator.giveRuling(1, 0)
+
+    const oldBalance1 = await web3.eth.getBalance(translator)
+    await esperanto.withdrawFeesAndRewards(translator, 0, 0, {
+      from: governor
+    })
+    const newBalance1 = await web3.eth.getBalance(translator)
+    assert.equal(
+      newBalance1.toString(),
+      oldBalance1.plus(0.3 * roundInfo[2]).toString(),
+      'Incorrect translator balance after withdrawing'
+    )
+
+    const oldBalance2 = await web3.eth.getBalance(challenger)
+    await esperanto.withdrawFeesAndRewards(challenger, 0, 0, {
+      from: governor
+    })
+    const newBalance2 = await web3.eth.getBalance(challenger)
+    assert.equal(
+      newBalance2.toString(),
+      oldBalance2.plus(0.4 * roundInfo[2]).toString(),
+      'Incorrect balance of the challenger after withdrawing'
+    )
+
+    const oldBalance3 = await web3.eth.getBalance(other)
+    await esperanto.withdrawFeesAndRewards(other, 0, 0, {
+      from: governor
+    })
+    const newBalance3 = await web3.eth.getBalance(other)
+    assert.equal(
+      newBalance3.toString(),
+      oldBalance3.plus(0.3 * roundInfo[2]).toString(),
+      'Incorrect balance of the crowdfunder after withdrawing'
     )
   })
 })
