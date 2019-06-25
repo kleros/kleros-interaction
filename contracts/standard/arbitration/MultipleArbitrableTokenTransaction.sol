@@ -1,6 +1,6 @@
 /**
  *  @authors: [@n1c01a5, @hellwolf, @satello]
- *  @reviewers: [@ferittuncer*, @unknownunknown1, @mtsalenc]
+ *  @reviewers: [@ferittuncer*, @unknownunknown1, @mtsalenc, @clesaege]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -34,9 +34,9 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
     struct Transaction {
         address sender;
         address receiver;
-        uint256 amount;
+        uint amount;
         ERC20 token;
-        uint256 timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
+        uint timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
         uint disputeId; // If dispute exists, the ID of the dispute.
         uint senderFee; // Total fees paid by the sender.
         uint receiverFee; // Total fees paid by the receiver.
@@ -111,7 +111,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         string _metaEvidence
     ) public returns (uint transactionIndex) {
         // Transfers token from sender wallet to contract.
-        require(_token.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough funds.");
+        require(_token.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough approved funds.");
 
         transactions.push(Transaction({
             sender: msg.sender,
@@ -356,7 +356,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
             uint splitArbitrationFee = senderFee / 2;
             transaction.receiver.send(splitArbitrationFee);
             transaction.sender.send(splitArbitrationFee);
-            // In the case of an uneven token amount, one token can be burnt.
+            // In the case of an uneven token amount, one basic token unit can be burnt.
             require(transaction.token.transfer(transaction.receiver, amount / 2), "The `transfer` function must not fail.");
             require(transaction.token.transfer(transaction.sender, amount / 2), "The `transfer` function must not fail.");
         }
