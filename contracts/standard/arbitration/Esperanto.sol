@@ -336,8 +336,6 @@ contract Esperanto is Arbitrable {
         uint appealCost = arbitrator.appealCost(task.disputeID, arbitratorExtraData);
         uint totalCost = appealCost.addCap((appealCost.mulCap(multiplier)) / MULTIPLIER_DIVISOR);
 
-        require(!round.hasPaid[uint(_side)], "Appeal fee has already been paid");
-
         contribute(_taskID, round, _side, msg.sender, msg.value, totalCost);
 
         // Create an appeal if each side is funded.
@@ -375,6 +373,7 @@ contract Esperanto is Arbitrable {
      *  @param _totalRequired The total amount required for this side.
      */
     function contribute(uint _taskID, Round storage _round, Party _side, address _contributor, uint _amount, uint _totalRequired) internal {
+        require(!_round.hasPaid[uint(_side)], "Appeal fee has already been paid");
         // Take up to the amount necessary to fund the current round at the current costs.
         uint contribution; // Amount contributed.
         uint remainingETH; // Remaining ETH to send back.
