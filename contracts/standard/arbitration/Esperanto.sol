@@ -27,7 +27,6 @@ contract Esperanto is Arbitrable {
 
     enum Status {Created, Assigned, AwaitingReview, DisputeCreated, Resolved}
 
-
     enum Party {
         Requester, // The one requesting the translation.
         Translator, // The one performing translation task.
@@ -60,7 +59,7 @@ contract Esperanto is Arbitrable {
 
     uint public translationMultiplier; // Multiplier for calculating the value of the deposit translator must pay to self-assign a task.
     uint public challengeMultiplier; // Multiplier for calculating the value of the deposit challenger must pay to challenge a translation.
-    uint public sharedStakeMultiplier; // Multiplier for calculating the appeal fee that must be paid by submitter in the case where there isn't a winner and loser (e.g. when the arbitrator ruled "refused to rule"/"could not rule").
+    uint public sharedStakeMultiplier; // Multiplier for calculating the appeal fee that must be paid by submitter in the case where there isn't a winner and loser (e.g. when the arbitrator ruled "refuse to arbitrate").
     uint public winnerStakeMultiplier; // Multiplier for calculating the appeal fee of the party that won the previous round.
     uint public loserStakeMultiplier; // Multiplier for calculating the appeal fee of the party that lost the previous round.
 
@@ -210,7 +209,7 @@ contract Esperanto is Arbitrable {
     /** @dev Assigns a specific task to the sender. Requires a translator's deposit.
      *  @param _taskID The ID of the task.
     */
-    function assignTask(uint _taskID) external payable{
+    function assignTask(uint _taskID) external payable {
         Task storage task = tasks[_taskID];
 
         uint price = getTaskPrice(_taskID, 0);
@@ -321,23 +320,23 @@ contract Esperanto is Arbitrable {
         (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(task.disputeID);
         require(now >= appealPeriodStart && now < appealPeriodEnd, "Funding must be made within the appeal period.");
 
-        bool winner;
+        uint winner = arbitrator.currentRuling(task.disputeID);
         uint multiplier;
-        if (arbitrator.currentRuling(task.disputeID) == uint(_side)){
-            winner = true;
+        if (winner == uint(_side)){
             multiplier = winnerStakeMultiplier;
-        } else if (arbitrator.currentRuling(task.disputeID) == 0){
+        } else if (winner == 0){
             multiplier = sharedStakeMultiplier;
         } else {
+            require(now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart)/2, "The loser must pay during the first half of the appeal period.");
             multiplier = loserStakeMultiplier;
         }
 
-        require(winner || (now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart) / 2), "The loser must pay during the first half of the appeal period.");
         Round storage round = task.rounds[task.rounds.length - 1];
-        require(!round.hasPaid[uint(_side)], "Appeal fee has already been paid");
 
         uint appealCost = arbitrator.appealCost(task.disputeID, arbitratorExtraData);
         uint totalCost = appealCost.addCap((appealCost.mulCap(multiplier)) / MULTIPLIER_DIVISOR);
+
+        require(!round.hasPaid[uint(_side)], "Appeal fee has already been paid");
 
         contribute(_taskID, round, _side, msg.sender, msg.value, totalCost);
 
@@ -396,7 +395,6 @@ contract Esperanto is Arbitrable {
     function withdrawFeesAndRewards(address _beneficiary, uint _taskID, uint _round) external {
         Task storage task = tasks[_taskID];
         Round storage round = task.rounds[_round];
-        // The task must be resolved and there can be no disputes pending resolution.
         require(task.status == Status.Resolved, "The task should be resolved");
         uint reward;
         // Skip 0 party because it can't be funded.
@@ -408,16 +406,15 @@ contract Esperanto is Arbitrable {
             } else {
                 // Reimburse unspent fees proportionally if there is no winner and loser.
                 if (task.ruling == 0) {
-                    uint partyReward = round.successfullyPaid > 0
+                    reward += round.successfullyPaid > 0
                         ? (round.contributions[_beneficiary][i] * round.feeRewards) / round.successfullyPaid
                         : 0;
-                    reward += partyReward;
                     round.contributions[_beneficiary][i] = 0;
                 } else if (task.ruling == i) {
                     // Reward the winner.
                     reward += round.paidFees[i] > 0
-                    ? (round.contributions[_beneficiary][i] * round.feeRewards) / round.paidFees[i]
-                    : 0;
+                        ? (round.contributions[_beneficiary][i] * round.feeRewards) / round.paidFees[i]
+                        : 0;
                     round.contributions[_beneficiary][i] = 0;
                 }
             }
@@ -430,7 +427,7 @@ contract Esperanto is Arbitrable {
     /** @dev Gives a ruling for a dispute. Must be called by the arbitrator.
      *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Refuse to arbitrate".
      */
     function rule(uint _disputeID, uint _ruling) public {
         Party resultRuling = Party(_ruling);
@@ -453,7 +450,7 @@ contract Esperanto is Arbitrable {
 
     /** @dev Executes a ruling of a dispute.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
-     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Not able/wanting to make a decision".
+     *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Refuse to arbitrate".
      */
     function executeRuling(uint _disputeID, uint _ruling) internal {
         uint taskID = disputeIDtoTaskID[_disputeID];
