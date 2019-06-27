@@ -684,7 +684,10 @@ contract ArbitrableAddressList is PermissionInterface, Arbitrable {
 
         for (uint i = 0; i < request.rounds.length; i++) {
             Round storage round = request.rounds[i];
-            if (!request.disputed || request.ruling == Party.None) {
+            if (!round.hasPaid[uint(Party.Requester)] || !round.hasPaid[uint(Party.Challenger)]) {
+                // Amount reimbursable if not enough fees were raised to appeal the ruling.
+                total += round.contributions[_beneficiary][uint(Party.Requester)] + round.contributions[_beneficiary][uint(Party.Challenger)];
+            } else if (request.ruling == Party.None) {
                 uint rewardRequester = round.paidFees[uint(Party.Requester)] > 0
                     ? (round.contributions[_beneficiary][uint(Party.Requester)] * round.feeRewards) / (round.paidFees[uint(Party.Requester)] + round.paidFees[uint(Party.Challenger)])
                     : 0;
