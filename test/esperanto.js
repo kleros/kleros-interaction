@@ -227,23 +227,24 @@ contract('Esperanto', function(accounts) {
   it('Should reimburse requester leftover price after assigning the task and set correct values', async () => {
     const oldBalance = await web3.eth.getBalance(requester)
 
-    const requiredDeposit = await esperanto.getSafeDepositValue(0)
-    const pureDeposit = (await esperanto.getMinimumDepositValue(0)).toNumber()
+    const requiredDeposit = (await esperanto.getSafeDepositValue(0)).toNumber()
+    const pureDeposit = await esperanto.getMinimumDepositValue(0)
 
     await esperanto.assignTask(0, {
       from: translator,
-      value: requiredDeposit.toNumber()
+      value: requiredDeposit
     })
 
     const newBalance = await web3.eth.getBalance(requester)
     const taskInfo = await esperanto.getTaskInfo(0)
 
-    const price = await taskInfo[1][0].toNumber()
-    const manualNewBalance = oldBalance.toNumber() + (taskMaxPrice - price)
-    // an error up to 0.1% is allowed because of time fluctuation
-    assert(
-      Math.abs(newBalance.toNumber() - manualNewBalance) <=
-        manualNewBalance / 1000,
+    const price = await taskInfo[1][0]
+    assert.equal(
+      newBalance.toString(),
+      oldBalance
+        .plus(taskMaxPrice)
+        .minus(price)
+        .toString(),
       'The requester was not reimbursed correctly'
     )
     assert.equal(
@@ -257,6 +258,7 @@ contract('Esperanto', function(accounts) {
       'The translator deposit was not set up properly'
     )
   })
+
   it('Should not be possible to submit translation after submission timeout ended', async () => {
     const requiredDeposit = await esperanto.getSafeDepositValue(0)
     await esperanto.assignTask(0, {
@@ -318,8 +320,8 @@ contract('Esperanto', function(accounts) {
     await esperanto.reimburseRequester(0)
     const newBalance = await web3.eth.getBalance(requester)
     assert.equal(
-      newBalance.toNumber(),
-      oldBalance.toNumber() + taskMaxPrice,
+      newBalance.toString(),
+      oldBalance.plus(taskMaxPrice).toString(),
       'The requester was not reimbursed correctly'
     )
   })
@@ -331,16 +333,16 @@ contract('Esperanto', function(accounts) {
     })
     await increaseTime(submissionTimeout + 1)
     const oldBalance = await web3.eth.getBalance(requester)
-    // task price + translator's deposit should go to requester
     const taskInfo = await esperanto.getTaskInfo(0)
-    const dif = taskInfo[1][0].toNumber() + taskInfo[1][1].toNumber()
     await esperanto.reimburseRequester(0)
     const newBalance = await web3.eth.getBalance(requester)
-    const manualNewBalance = oldBalance.toNumber() + dif
-    // an error up to 0.1% is allowed because of time fluctuation
-    assert(
-      Math.abs(newBalance.toNumber() - manualNewBalance) <=
-        manualNewBalance / 1000,
+    // task price + translator's deposit should go to requester
+    assert.equal(
+      newBalance.toString(),
+      oldBalance
+        .plus(taskInfo[1][0])
+        .plus(taskInfo[1][1])
+        .toString(),
       'The requester was not reimbursed correctly'
     )
   })
@@ -357,15 +359,16 @@ contract('Esperanto', function(accounts) {
     await esperanto.submitTranslation(0, 'ipfs:/X', { from: translator })
     await increaseTime(reviewTimeout + 1)
     const taskInfo = await esperanto.getTaskInfo(0)
-    const dif = taskInfo[1][0].toNumber() + taskInfo[1][1].toNumber()
+
     const oldBalance = await web3.eth.getBalance(translator)
     await esperanto.acceptTranslation(0)
     const newBalance = await web3.eth.getBalance(translator)
-    const manualNewBalance = oldBalance.toNumber() + dif
-    // an error up to 0.1% is allowed because of time fluctuation
-    assert(
-      Math.abs(newBalance.toNumber() - manualNewBalance) <=
-        manualNewBalance / 1000,
+    assert.equal(
+      newBalance.toString(),
+      oldBalance
+        .plus(taskInfo[1][0])
+        .plus(taskInfo[1][1])
+        .toString(),
       'The translator was not paid correctly'
     )
   })
@@ -381,9 +384,9 @@ contract('Esperanto', function(accounts) {
 
     const taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -391,7 +394,6 @@ contract('Esperanto', function(accounts) {
     await increaseTime(reviewTimeout + 1)
     await expectThrow(esperanto.acceptTranslation(0))
   })
-
   it('Should set correct values in contract and in despute after task has been challenged', async () => {
     let taskInfo
     const requiredDeposit = await esperanto.getSafeDepositValue(0)
@@ -404,9 +406,9 @@ contract('Esperanto', function(accounts) {
 
     taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -414,16 +416,16 @@ contract('Esperanto', function(accounts) {
     // get task info again because of updated values
     taskInfo = await esperanto.getTaskInfo(0)
     // fee is subtracted from challenger's deposit upon submission. Also subtract the surplus
-    const pureChallengeDeposit = challengerDeposit - arbitrationFee - 1e17
+    const pureChallengeDeposit = challengerDeposit - arbitrationFee - 1000
     assert.equal(
       taskInfo[0][2],
       challenger,
       'The challenger was not set up properly'
     )
-    // an error up to 1% is allowed because of time fluctuation
+    // an error up to 0.1% is allowed
     assert(
       Math.abs(taskInfo[1][2].toNumber() - pureChallengeDeposit) <=
-        pureChallengeDeposit / 100,
+        pureChallengeDeposit / 1000,
       'The challenger deposit was not set up properly'
     )
 
@@ -444,6 +446,7 @@ contract('Esperanto', function(accounts) {
       'Arbitration fee not set up properly'
     )
   })
+
   it('Should not allow to challenge if review timeout has passed', async () => {
     const requiredDeposit = await esperanto.getSafeDepositValue(0)
 
@@ -456,9 +459,9 @@ contract('Esperanto', function(accounts) {
     await increaseTime(reviewTimeout + 1)
     const taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await expectThrow(
       esperanto.challengeTranslation(0, {
         from: challenger,
@@ -466,7 +469,6 @@ contract('Esperanto', function(accounts) {
       })
     )
   })
-
   it('Should paid to all parties correctly when arbitrator refused to rule', async () => {
     let taskInfo
     const requiredDeposit = await esperanto.getSafeDepositValue(0)
@@ -479,9 +481,9 @@ contract('Esperanto', function(accounts) {
 
     taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -491,9 +493,6 @@ contract('Esperanto', function(accounts) {
     const oldBalance2 = await web3.eth.getBalance(translator)
     const oldBalance3 = await web3.eth.getBalance(challenger)
     taskInfo = await esperanto.getTaskInfo(0)
-    const manualNewBalance1 = taskInfo[1][0].toNumber() + oldBalance1.toNumber()
-    const manualNewBalance2 = taskInfo[1][1].toNumber() + oldBalance2.toNumber()
-    const manualNewBalance3 = taskInfo[1][2].toNumber() + oldBalance3.toNumber()
 
     await arbitrator.giveRuling(0, 0)
     await increaseTime(appealTimeOut + 1)
@@ -502,20 +501,20 @@ contract('Esperanto', function(accounts) {
     const newBalance1 = await web3.eth.getBalance(requester)
     const newBalance2 = await web3.eth.getBalance(translator)
     const newBalance3 = await web3.eth.getBalance(challenger)
-    // an error up to 0.1% is allowed because of time fluctuation
-    assert(
-      Math.abs(newBalance1.toNumber() - manualNewBalance1) <=
-        manualNewBalance1 / 1000,
+
+    assert.equal(
+      newBalance1.toString(),
+      oldBalance1.plus(taskInfo[1][0]).toString(),
       'The requester was not paid correctly'
     )
-    assert(
-      Math.abs(newBalance2.toNumber() - manualNewBalance2) <=
-        manualNewBalance2 / 1000,
+    assert.equal(
+      newBalance2.toString(),
+      oldBalance2.plus(taskInfo[1][1]).toString(),
       'The translator was not paid correctly'
     )
-    assert(
-      Math.abs(newBalance3.toNumber() - manualNewBalance3) <=
-        manualNewBalance3 / 1000,
+    assert.equal(
+      newBalance3.toString(),
+      oldBalance3.plus(taskInfo[1][2]).toString(),
       'The challenger was not paid correctly'
     )
 
@@ -535,9 +534,9 @@ contract('Esperanto', function(accounts) {
 
     taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -549,12 +548,6 @@ contract('Esperanto', function(accounts) {
 
     taskInfo = await esperanto.getTaskInfo(0)
 
-    const manualNewBalance2 =
-      taskInfo[1][0].toNumber() +
-      taskInfo[1][1].toNumber() +
-      taskInfo[1][2].toNumber() +
-      oldBalance2.toNumber()
-
     await arbitrator.giveRuling(0, 1)
     await increaseTime(appealTimeOut + 1)
     await arbitrator.giveRuling(0, 1)
@@ -562,20 +555,24 @@ contract('Esperanto', function(accounts) {
     const newBalance1 = await web3.eth.getBalance(requester)
     const newBalance2 = await web3.eth.getBalance(translator)
     const newBalance3 = await web3.eth.getBalance(challenger)
+
     assert.equal(
-      newBalance1.toNumber(),
-      oldBalance1.toNumber(),
+      newBalance1.toString(),
+      oldBalance1.toString(),
       'Requester has incorrect balance'
     )
-    // an error up to 0.1% is allowed because of time fluctuation
-    assert(
-      Math.abs(newBalance2.toNumber() - manualNewBalance2) <=
-        manualNewBalance2 / 1000,
+    assert.equal(
+      newBalance2.toString(),
+      oldBalance2
+        .plus(taskInfo[1][0])
+        .plus(taskInfo[1][1])
+        .plus(taskInfo[1][2])
+        .toString(),
       'The translator was not paid correctly'
     )
     assert.equal(
-      newBalance3.toNumber(),
-      oldBalance3.toNumber(),
+      newBalance3.toString(),
+      oldBalance3.toString(),
       'Challenger has incorrect balance'
     )
 
@@ -595,9 +592,9 @@ contract('Esperanto', function(accounts) {
 
     taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -608,11 +605,6 @@ contract('Esperanto', function(accounts) {
     const oldBalance3 = await web3.eth.getBalance(challenger)
 
     taskInfo = await esperanto.getTaskInfo(0)
-    const manualNewBalance1 = taskInfo[1][0].toNumber() + oldBalance1.toNumber()
-    const manualNewBalance3 =
-      taskInfo[1][1].toNumber() +
-      taskInfo[1][2].toNumber() +
-      oldBalance3.toNumber()
 
     await arbitrator.giveRuling(0, 2)
     await increaseTime(appealTimeOut + 1)
@@ -622,20 +614,22 @@ contract('Esperanto', function(accounts) {
     const newBalance2 = await web3.eth.getBalance(translator)
     const newBalance3 = await web3.eth.getBalance(challenger)
 
-    // an error up to 0.1% is allowed because of time fluctuation
-    assert(
-      Math.abs(newBalance1.toNumber() - manualNewBalance1) <=
-        manualNewBalance1 / 1000,
+    assert.equal(
+      newBalance1.toString(),
+      oldBalance1.plus(taskInfo[1][0]).toString(),
       'The requester was not paid correctly'
     )
     assert.equal(
-      newBalance2.toNumber(),
-      oldBalance2.toNumber(),
+      newBalance2.toString(),
+      oldBalance2.toString(),
       'Translator has incorrect balance'
     )
-    assert(
-      Math.abs(newBalance3.toNumber() - manualNewBalance3) <=
-        manualNewBalance3 / 1000,
+    assert.equal(
+      newBalance3.toString(),
+      oldBalance3
+        .plus(taskInfo[1][1])
+        .plus(taskInfo[1][2])
+        .toString(),
       'The challenger was not paid correctly'
     )
 
@@ -655,9 +649,9 @@ contract('Esperanto', function(accounts) {
 
     const taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -789,9 +783,9 @@ contract('Esperanto', function(accounts) {
 
     const taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -816,9 +810,9 @@ contract('Esperanto', function(accounts) {
 
     const taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -845,9 +839,9 @@ contract('Esperanto', function(accounts) {
 
     taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-    // add an extra amount because of time fluctuation
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -867,32 +861,30 @@ contract('Esperanto', function(accounts) {
     const oldBalance3 = await web3.eth.getBalance(challenger)
 
     taskInfo = await esperanto.getTaskInfo(0)
-    // translator's balance should increase while other's stay the same despite ruling being in favor of challenger
-    const manualNewBalance2 =
-      taskInfo[1][0].toNumber() +
-      taskInfo[1][1].toNumber() +
-      taskInfo[1][2].toNumber() +
-      oldBalance2.toNumber()
-
     await arbitrator.giveRuling(0, 2)
 
     const newBalance1 = await web3.eth.getBalance(requester)
     const newBalance2 = await web3.eth.getBalance(translator)
     const newBalance3 = await web3.eth.getBalance(challenger)
+
+    // translator's balance should increase while other's stay the same despite ruling being in favor of challenger
     assert.equal(
-      newBalance1.toNumber(),
-      oldBalance1.toNumber(),
+      newBalance1.toString(),
+      oldBalance1.toString(),
       'Requester has incorrect balance'
     )
-    // an error up to 0.1% is allowed because of time fluctuation
-    assert(
-      Math.abs(newBalance2.toNumber() - manualNewBalance2) <=
-        manualNewBalance2 / 1000,
+    assert.equal(
+      newBalance2.toString(),
+      oldBalance2
+        .plus(taskInfo[1][0])
+        .plus(taskInfo[1][1])
+        .plus(taskInfo[1][2])
+        .toString(),
       'The translator was not paid correctly'
     )
     assert.equal(
-      newBalance3.toNumber(),
-      oldBalance3.toNumber(),
+      newBalance3.toString(),
+      oldBalance3.toString(),
       'Challenger has incorrect balance'
     )
 
@@ -912,8 +904,9 @@ contract('Esperanto', function(accounts) {
     const taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
 
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -1013,9 +1006,9 @@ contract('Esperanto', function(accounts) {
 
     const taskInfo = await esperanto.getTaskInfo(0)
     const price = taskInfo[1][0].toNumber()
-
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1e17
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await esperanto.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
