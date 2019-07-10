@@ -227,12 +227,12 @@ contract('Esperanto', function(accounts) {
   it('Should reimburse requester leftover price after assigning the task and set correct values', async () => {
     const oldBalance = await web3.eth.getBalance(requester)
 
-    const requiredDeposit = (await esperanto.getSafeDepositValue(0)).toNumber()
-    const pureDeposit = await esperanto.getMinimumDepositValue(0)
+    const requiredDeposit = await esperanto.getSafeDepositValue(0)
+    const pureDeposit = (await esperanto.getMinimumDepositValue(0)).toNumber()
 
     await esperanto.assignTask(0, {
       from: translator,
-      value: requiredDeposit
+      value: requiredDeposit.toNumber()
     })
 
     const newBalance = await web3.eth.getBalance(requester)
