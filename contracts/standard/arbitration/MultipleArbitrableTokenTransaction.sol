@@ -45,9 +45,9 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
     }
 
     Transaction[] public transactions;
-    Arbitrator arbitrator; // Address of the arbitrator contract.
-    bytes arbitratorExtraData; // Extra data to set up the arbitration.
-    uint feeTimeout; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
+    Arbitrator public arbitrator; // Address of the arbitrator contract.
+    bytes public arbitratorExtraData; // Extra data to set up the arbitration.
+    uint public feeTimeout; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
 
     mapping (uint => uint) public disputeIDtoTransactionID;
 
