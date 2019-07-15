@@ -239,12 +239,9 @@ contract('Esperanto', function(accounts) {
     const taskInfo = await esperanto.getTaskInfo(0)
 
     const price = await taskInfo[1][0]
-    assert.equal(
-      newBalance.toString(),
-      oldBalance
-        .plus(taskMaxPrice)
-        .minus(price)
-        .toString(),
+
+    assert(
+      newBalance.eq(oldBalance.plus(taskMaxPrice).minus(price)),
       'The requester was not reimbursed correctly'
     )
     assert.equal(
