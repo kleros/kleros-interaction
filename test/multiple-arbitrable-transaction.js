@@ -81,6 +81,46 @@ contract('MultipleArbitrableTransaction', function(accounts) {
     assert.equal(newAmount.toNumber(), 0, 'Amount not updated correctly')
   })
 
+  it('Should emit TransactionCreated', async () => {
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      feeTimeout,
+      { from: sender }
+    )
+
+    const lastTransaction = await getLastTransaction(
+      multipleContract,
+      async () => {
+        await multipleContract.createTransaction(
+          timeoutPayment,
+          receiver,
+          metaEvidenceUri,
+          { from: sender, value: 1000 }
+        )
+      }
+    )
+
+    const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
+
+    const eventResult = await (new Promise((resolve, reject) => {
+      multipleContract.TransactionCreated({}, { fromBlock: 0, toBlock: 'latest' }).get((error, eventResult) => {
+        if (error)
+          reject('Could not lookup TransactionCreated event log')
+        else
+          resolve(eventResult)
+      })
+    }))
+
+    assert.equal(eventResult.length, 1)
+    assert.equal(
+      eventResult[0].args._transactionID.toNumber(),
+      arbitrableTransactionId
+    )
+    assert.equal(eventResult[0].args._sender, sender)
+    assert.equal(eventResult[0].args._receiver,receiver)
+  })
+
   it('Should handle 3 transaction', async () => {
     const multipleContract = await MultipleArbitrableTransaction.new(
       0x0,

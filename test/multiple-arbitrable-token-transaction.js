@@ -219,6 +219,28 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     assert.equal(newAmount.toNumber(), 0, 'Amount not updated correctly')
   })
 
+  it('Should emit TransactionCreated', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    const eventResult = await (new Promise((resolve, reject) => {
+      maContract.TransactionCreated({}, { fromBlock: 0, toBlock: 'latest' }).get((error, eventResult) => {
+        if (error)
+          reject('Could not lookup TransactionCreated event log')
+        else
+          resolve(eventResult)
+      })
+    }))
+
+    assert.equal(eventResult.length, 1)
+    assert.equal(
+      eventResult[0].args._transactionID.toNumber(),
+      arbitrableTransactionId
+    )
+    assert.equal(eventResult[0].args._sender, sender)
+    assert.equal(eventResult[0].args._receiver,receiver)
+  })
+
   it('Should handle 1 transaction for reimburse', async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)

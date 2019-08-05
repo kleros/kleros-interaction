@@ -75,6 +75,13 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
      */
     event Ruling(Arbitrator indexed _arbitrator, uint indexed _disputeID, uint _ruling);
 
+    /** @dev Emitted when a transaction is created.
+     *  @param _transactionID The index of the transaction.
+     *  @param _sender The address of the sender.
+     *  @param _receiver The address of the receiver.
+     */
+    event TransactionCreated(uint _transactionID, address indexed _sender, address indexed _receiver);
+
     // **************************** //
     // *    Arbitrable functions  * //
     // *    Modifying the state   * //
@@ -126,6 +133,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
             status: Status.NoDispute
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
+        emit TransactionCreated(transactions.length - 1, msg.sender, _receiver);
 
         return transactions.length - 1;
     }
