@@ -1,6 +1,6 @@
 /**
  *  @authors: [@unknownunknown1]
- *  @reviewers: [@ferittuncer]
+ *  @reviewers: [@ferittuncer*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -28,35 +28,37 @@ contract Esperanto is Arbitrable {
     enum Status {Created, Assigned, AwaitingReview, DisputeCreated, Resolved}
 
     enum Party {
-        Requester, // The one requesting the translation.
+        None, // Party that is mapped with 0 dispute ruling.
         Translator, // The one performing translation task.
         Challenger // The one challenging translated text in the review period.
     }
 
+    // Arrays below have 3 elements to map parties with dispute choices. Index "0" is not used, "1" is reserved for translator and "2" for challenger.
     struct Task {
         uint submissionTimeout; // Time in seconds allotted for submitting a translation. The end of this period is considered a deadline.
         uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases until it reaches maximal price at deadline.
         uint maxPrice; // Maximal price for the translation and also value that must be deposited by the one requesting the translation.
         Status status; // Status of the task.
         uint lastInteraction; // The time of the last action performed on the task.
-        address[3] parties; // Requester, translator and challenger of the task, respectively.
-        uint[3] deposits; // Deposits of requester, translator and challenger.
+        address requester; // The one requesting the translation.
+        uint requesterDeposit; // The deposit requester makes when creating the task. Once a task is assigned this deposit will be partially reimbursed and its value replaced by task price.
+        address[3] parties; // Translator and challenger of the task.
+        uint[3] deposits; // Deposits of translator and challenger.
         uint disputeID; // The ID of the dispute created in arbitrator contract.
         Round[] rounds; // Tracks each appeal round of a dispute.
         uint ruling; // Ruling given to the dispute of the task by the arbitrator.
     }
 
     struct Round {
-        uint[3] paidFees; // Tracks the fees paid by each side on this round.
+        uint[3] paidFees; // Tracks the fees paid by each side in this round.
         bool[3] hasPaid; // True when the side has fully paid its fee. False otherwise.
         uint feeRewards; // Sum of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
-        uint successfullyPaid; // Sum of all successfully paid fees paid by all sides.
     }
 
     address public governor; // The governor of the contract.
     uint public reviewTimeout; // Time in seconds, during which the submitted translation can be challenged.
-
+    // All multipliers below are in basis points.
     uint public translationMultiplier; // Multiplier for calculating the value of the deposit translator must pay to self-assign a task.
     uint public challengeMultiplier; // Multiplier for calculating the value of the deposit challenger must pay to challenge a translation.
     uint public sharedStakeMultiplier; // Multiplier for calculating the appeal fee that must be paid by submitter in the case where there isn't a winner and loser (e.g. when the arbitrator ruled "refuse to arbitrate").
@@ -65,11 +67,11 @@ contract Esperanto is Arbitrable {
 
     Task[] public tasks; // Stores all created tasks.
 
-    mapping (uint => uint) public disputeIDtoTaskID; // Maps a dispute to its respective task.
+    mapping (uint => uint) public disputeIDtoTaskID; // Maps a disputeID to its respective task.
 
     /* *** Events *** */
 
-    /** @dev To be emitted when translation is submitted.
+    /** @dev To be emitted when a translation is submitted.
      *  @param _taskID The ID of the respective task.
      *  @param _translator The address that performed the translation.
      *  @param _translatedText A link to the translated text.
@@ -147,21 +149,21 @@ contract Esperanto is Arbitrable {
         challengeMultiplier = _challengeMultiplier;
     }
 
-    /** @dev Changes the percentage of arbitration fees that must be paid by party if there was no winner and loser in previous round.
+    /** @dev Changes the percentage of arbitration fees that must be paid by parties if there was no winner and loser in previous round.
      *  @param _sharedStakeMultiplier A new value of 'sharedStakeMultiplier' storage variable.
      */
     function changeSharedStakeMultiplier(uint _sharedStakeMultiplier) public onlyGovernor {
         sharedStakeMultiplier = _sharedStakeMultiplier;
     }
 
-    /** @dev Changes the percentage of arbitration fees that must be paid by party that won the previous round.
+    /** @dev Changes the percentage of arbitration fees that must be paid by the party that won the previous round.
      *  @param _winnerStakeMultiplier A new value of 'winnerStakeMultiplier' storage variable.
      */
     function changeWinnerStakeMultiplier(uint _winnerStakeMultiplier) public onlyGovernor {
         winnerStakeMultiplier = _winnerStakeMultiplier;
     }
 
-    /** @dev Changes the percentage of arbitration fees that must be paid by party that lost the previous round.
+    /** @dev Changes the percentage of arbitration fees that must be paid by the party that lost the previous round.
      *  @param _loserStakeMultiplier A new value of 'loserStakeMultiplier' storage variable.
      */
     function changeLoserStakeMultiplier(uint _loserStakeMultiplier) public onlyGovernor {
@@ -187,18 +189,18 @@ contract Esperanto is Arbitrable {
         string _metaEvidence
     ) external payable returns (uint taskID){
         require(msg.value >= _maxPrice, "The value of max price must be depositted");
-        require(_maxPrice > _minPrice, "Max price should be greater than min price");
+        require(_maxPrice >= _minPrice, "Max price should be greater or equal the min price");
+        require(_submissionTimeout > 0, "Submission timeout should not be 0");
 
         tasks.length++;
         taskID = tasks.length - 1;
-        Task storage task = tasks[tasks.length - 1];
+        Task storage task = tasks[taskID];
         task.submissionTimeout = _submissionTimeout;
         task.minPrice = _minPrice;
         task.maxPrice = _maxPrice;
-        task.status = Status.Created;
         task.lastInteraction = now;
-        task.parties[uint(Party.Requester)] = msg.sender;
-        task.deposits[uint(Party.Requester)] = _maxPrice;
+        task.requester = msg.sender;
+        task.requesterDeposit = _maxPrice;
 
         uint remainder = msg.value - _maxPrice;
         msg.sender.send(remainder);
@@ -211,21 +213,22 @@ contract Esperanto is Arbitrable {
     */
     function assignTask(uint _taskID) external payable {
         Task storage task = tasks[_taskID];
+        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
 
-        uint price = getTaskPrice(_taskID, 0);
-        uint deposit = getMinimumDepositValue(_taskID);
+        uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
+        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+        uint deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
 
         require(task.status == Status.Created, "Task has already been assigned or reimbursed");
-        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
         require(msg.value >= deposit, "Not enough ETH to reach the required deposit value");
 
         task.parties[uint(Party.Translator)] = msg.sender;
         task.status = Status.Assigned;
 
         uint remainder = task.maxPrice - price;
-        task.parties[uint(Party.Requester)].send(remainder);
+        task.requester.send(remainder);
         // Update requester's deposit since we reimbursed him the difference between maximal and actual price.
-        task.deposits[uint(Party.Requester)] = price;
+        task.requesterDeposit = price;
         task.deposits[uint(Party.Translator)] = deposit;
 
         remainder = msg.value - deposit;
@@ -256,10 +259,10 @@ contract Esperanto is Arbitrable {
         require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet");
         task.status = Status.Resolved;
         // Requester gets his deposit back and also the deposit of the translator, if there was one.
-        uint amount = task.deposits[uint(Party.Requester)] + task.deposits[uint(Party.Translator)];
-        task.parties[uint(Party.Requester)].send(amount);
+        uint amount = task.requesterDeposit + task.deposits[uint(Party.Translator)];
+        task.requester.send(amount);
 
-        task.deposits[uint(Party.Requester)] = 0;
+        task.requesterDeposit = 0;
         task.deposits[uint(Party.Translator)] = 0;
     }
 
@@ -272,10 +275,10 @@ contract Esperanto is Arbitrable {
         require(now - task.lastInteraction > reviewTimeout, "The review phase hasn't passed yet");
         task.status = Status.Resolved;
         // Translator gets the price of the task and his deposit back.
-        uint amount = task.deposits[uint(Party.Requester)] + task.deposits[uint(Party.Translator)];
+        uint amount = task.requesterDeposit + task.deposits[uint(Party.Translator)];
         task.parties[uint(Party.Translator)].send(amount);
 
-        task.deposits[uint(Party.Requester)] = 0;
+        task.requesterDeposit = 0;
         task.deposits[uint(Party.Translator)] = 0;
     }
 
@@ -286,7 +289,7 @@ contract Esperanto is Arbitrable {
         Task storage task = tasks[_taskID];
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint challengeDeposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.deposits[uint(Party.Requester)])) / MULTIPLIER_DIVISOR);
+        uint challengeDeposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.requesterDeposit)) / MULTIPLIER_DIVISOR);
 
         require(task.status == Status.AwaitingReview, "The task is in the wrong status");
         require(now - task.lastInteraction <= reviewTimeout, "The review phase has already passed");
@@ -384,7 +387,6 @@ contract Esperanto is Arbitrable {
         if (_round.paidFees[uint(_side)] >= _totalRequired) {
             _round.hasPaid[uint(_side)] = true;
             _round.feeRewards += _round.paidFees[uint(_side)];
-            _round.successfullyPaid += _round.paidFees[uint(_side)];
             emit HasPaidAppealFee(_taskID, _side);
         }
 
@@ -396,27 +398,29 @@ contract Esperanto is Arbitrable {
         Round storage round = task.rounds[_round];
         require(task.status == Status.Resolved, "The task should be resolved");
         uint reward;
-        // Skip 0 party because it can't be funded.
-        for (uint i = 1; i < task.parties.length; i++){
+        if (!round.hasPaid[uint(Party.Translator)] || !round.hasPaid[uint(Party.Challenger)]) {
             // Allow to reimburse if funding was unsuccessful.
-            if (!round.hasPaid[i]) {
-                reward += round.contributions[_beneficiary][i];
-                round.contributions[_beneficiary][i] = 0;
-            } else {
-                // Reimburse unspent fees proportionally if there is no winner and loser.
-                if (task.ruling == 0) {
-                    reward += round.successfullyPaid > 0
-                        ? (round.contributions[_beneficiary][i] * round.feeRewards) / round.successfullyPaid
-                        : 0;
-                    round.contributions[_beneficiary][i] = 0;
-                } else if (task.ruling == i) {
-                    // Reward the winner.
-                    reward += round.paidFees[i] > 0
-                        ? (round.contributions[_beneficiary][i] * round.feeRewards) / round.paidFees[i]
-                        : 0;
-                    round.contributions[_beneficiary][i] = 0;
-                }
-            }
+            reward = round.contributions[_beneficiary][uint(Party.Translator)] + round.contributions[_beneficiary][uint(Party.Challenger)];
+            round.contributions[_beneficiary][uint(Party.Translator)] = 0;
+            round.contributions[_beneficiary][uint(Party.Challenger)] = 0;
+        } else if (task.ruling == uint(Party.None)) {
+            // Reimburse unspent fees proportionally if there is no winner and loser.
+            uint rewardTranslator = round.paidFees[uint(Party.Translator)] > 0
+                ? (round.contributions[_beneficiary][uint(Party.Translator)] * round.feeRewards) / (round.paidFees[uint(Party.Translator)] + round.paidFees[uint(Party.Challenger)])
+                : 0;
+            uint rewardChallenger = round.paidFees[uint(Party.Challenger)] > 0
+                ? (round.contributions[_beneficiary][uint(Party.Challenger)] * round.feeRewards) / (round.paidFees[uint(Party.Translator)] + round.paidFees[uint(Party.Challenger)])
+                : 0;
+
+            reward = rewardTranslator + rewardChallenger;
+            round.contributions[_beneficiary][uint(Party.Translator)] = 0;
+            round.contributions[_beneficiary][uint(Party.Challenger)] = 0;
+        } else {
+            // Reward the winner.
+            reward = round.paidFees[task.ruling] > 0
+                ? (round.contributions[_beneficiary][task.ruling] * round.feeRewards) / round.paidFees[task.ruling]
+                : 0;
+            round.contributions[_beneficiary][task.ruling] = 0;
         }
 
         _beneficiary.send(reward); // It is the user responsibility to accept ETH.
@@ -458,20 +462,20 @@ contract Esperanto is Arbitrable {
         task.ruling = _ruling;
         uint amount;
 
-        if(_ruling == 0){
+        if(_ruling == uint(Party.None)){
+            task.requester.send(task.requesterDeposit);
             task.parties[uint(Party.Translator)].send(task.deposits[uint(Party.Translator)]);
             task.parties[uint(Party.Challenger)].send(task.deposits[uint(Party.Challenger)]);
-            task.parties[uint(Party.Requester)].send(task.deposits[uint(Party.Requester)]);
         } else if (_ruling == uint(Party.Translator)) {
-            amount = task.deposits[uint(Party.Requester)] + task.deposits[uint(Party.Translator)] + task.deposits[uint(Party.Challenger)];
-            task.parties[_ruling].send(amount);
+            amount = task.requesterDeposit + task.deposits[uint(Party.Translator)] + task.deposits[uint(Party.Challenger)];
+            task.parties[uint(Party.Translator)].send(amount);
         } else {
             amount = task.deposits[uint(Party.Translator)] + task.deposits[uint(Party.Challenger)];
-            task.parties[_ruling].send(amount);
-            task.parties[uint(Party.Requester)].send(task.deposits[uint(Party.Requester)]);
+            task.parties[uint(Party.Challenger)].send(amount);
+            task.requester.send(task.requesterDeposit);
         }
 
-        task.deposits[uint(Party.Requester)] = 0;
+        task.requesterDeposit = 0;
         task.deposits[uint(Party.Translator)] = 0;
         task.deposits[uint(Party.Challenger)] = 0;
     }
@@ -483,7 +487,6 @@ contract Esperanto is Arbitrable {
     function submitEvidence(uint _taskID, string _evidence) external {
         Task storage task = tasks[_taskID];
         require(task.status != Status.Resolved, "The task must not already be resolved.");
-        require(msg.sender == task.parties[uint(Party.Requester)] || msg.sender == task.parties[uint(Party.Translator)] || msg.sender == task.parties[uint(Party.Challenger)], "Third parties are not allowed to submit evidence.");
         emit Evidence(arbitrator, _taskID, msg.sender, _evidence);
     }
 
@@ -491,35 +494,17 @@ contract Esperanto is Arbitrable {
     // *      Getters     * //
     // ******************** //
 
-    /** @dev Gets the minimum deposit that translator must pay in order to self-assign the task.
+    /** @dev Gets the deposit required for self-assigning the task.
      *  @param _taskID The ID of the task.
-     *  @return deposit The deposit without a surplus.
+     *  @return deposit The translator's deposit.
      */
-    function getMinimumDepositValue(uint _taskID) public view returns (uint deposit) {
-        return getDepositValue(_taskID, 0);
-    }
-
-    /** @dev Gets the deposit value that is little more than minimum that the translator must pay in order to self-assign the task.
-     *  Note that this function is useful for user interfaces because it adds a surplus by calculating a price 20 blocks ahead and thus accounts for the issue of price increase between the time when the transaction is created and mined.
-     *  Also note, depositing more than minimum is not a problem because the excess deposit will be refunded.
-     *  @param _taskID The ID of the task.
-     *  @return deposit The required deposit.
-     */
-    function getSafeDepositValue(uint _taskID) public view returns (uint deposit){
-        return getDepositValue(_taskID, 300);
-    }
-
-    /** @dev Gets the minimum deposit value at (now + _timeOffset) seconds.
-     *  @param _taskID The ID of the task.
-     *  @param _timeOffset Offset by seconds, from now.
-     *  @return deposit The required deposit.
-     */
-    function getDepositValue(uint _taskID, uint _timeOffset) public view returns (uint deposit) {
+    function getDepositValue(uint _taskID) public view returns (uint deposit) {
         Task storage task = tasks[_taskID];
-        if (now - task.lastInteraction > task.submissionTimeout || task.submissionTimeout == 0){
+        require(task.status == Status.Created, "The task can't be assigned");
+        if (now - task.lastInteraction > task.submissionTimeout){
             deposit = NOT_PAYABLE_VALUE;
         } else {
-            uint price = getTaskPrice(_taskID, _timeOffset);
+            uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
         }
@@ -527,15 +512,15 @@ contract Esperanto is Arbitrable {
 
     /** @dev Gets the current price of a specified task.
      *  @param _taskID The ID of the task.
-     *  @param _extraTime Time in seconds added to the current time to calculate future price. Is needed to calculate required deposit. Set to 0 to get current price.
-     *  @return price The price of the task at current point in time.
+     *  @return price The price of the task.
      */
-    function getTaskPrice(uint _taskID, uint _extraTime) public view returns (uint price) {
+    function getTaskPrice(uint _taskID) public view returns (uint price) {
         Task storage task = tasks[_taskID];
-        if (now - task.lastInteraction > task.submissionTimeout || task.submissionTimeout == 0){
+        require(task.status == Status.Created, "The task can't be assigned");
+        if (now - task.lastInteraction > task.submissionTimeout){
             price = 0;
         } else {
-            price = task.minPrice + (task.maxPrice - task.minPrice) * ((now - task.lastInteraction).addCap(_extraTime)) / task.submissionTimeout;
+            price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
         }
     }
 
@@ -583,8 +568,7 @@ contract Esperanto is Arbitrable {
         returns (
             uint[3] paidFees,
             bool[3] hasPaid,
-            uint feeRewards,
-            uint successfullyPaid
+            uint feeRewards
         )
     {
         Task storage task = tasks[_taskID];
@@ -592,8 +576,7 @@ contract Esperanto is Arbitrable {
         return (
             round.paidFees,
             round.hasPaid,
-            round.feeRewards,
-            round.successfullyPaid
+            round.feeRewards
         );
     }
 }
