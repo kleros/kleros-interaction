@@ -79,8 +79,10 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
      *  @param _transactionID The index of the transaction.
      *  @param _sender The address of the sender.
      *  @param _receiver The address of the receiver.
+     *  @param _token The token address.
+     *  @param _amount The initial amount of the token.
      */
-    event TransactionCreated(uint _transactionID, address indexed _sender, address indexed _receiver);
+    event TransactionCreated(uint _transactionID, address indexed _sender, address indexed _receiver, ERC20 _token, uint _amount);
 
     // **************************** //
     // *    Arbitrable functions  * //
@@ -133,7 +135,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
             status: Status.NoDispute
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
-        emit TransactionCreated(transactions.length - 1, msg.sender, _receiver);
+        emit TransactionCreated(transactions.length - 1, msg.sender, _receiver, _token, _amount);
 
         return transactions.length - 1;
     }

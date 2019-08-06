@@ -72,8 +72,9 @@ contract MultipleArbitrableTransaction is IArbitrable {
      *  @param _transactionID The index of the transaction.
      *  @param _sender The address of the sender.
      *  @param _receiver The address of the receiver.
+     *  @param _amount The initial amount in the transaction.
      */
-    event TransactionCreated(uint _transactionID, address indexed _sender, address indexed _receiver);
+    event TransactionCreated(uint _transactionID, address indexed _sender, address indexed _receiver, uint _amount);
 
     // **************************** //
     // *    Arbitrable functions  * //
@@ -118,7 +119,7 @@ contract MultipleArbitrableTransaction is IArbitrable {
             status: Status.NoDispute
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
-        emit TransactionCreated(transactions.length - 1, msg.sender, _receiver);
+        emit TransactionCreated(transactions.length - 1, msg.sender, _receiver, msg.value);
 
         return transactions.length - 1;
     }
