@@ -19,6 +19,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
   const timeoutPayment = 100
   const gasPrice = 5000000000
   const metaEvidenceUri = 'https://kleros.io'
+  const amount = 42
 
   beforeEach(async () => {
     this.token = await ERC20Mock.new(sender, 100)
@@ -74,12 +75,12 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
    * @returns {object} lastTransaction, arbitrableTransactionId
    */
   async function createTestTransaction(maContract) {
-    await this.token.approve(maContract.address, 42, {
+    await this.token.approve(maContract.address, amount, {
       from: sender
     })
     const lastTransaction = await getLastTransaction(maContract, async () => {
       await maContract.createTransaction(
-        42,
+        amount,
         this.token.address,
         timeoutPayment,
         receiver,
@@ -187,14 +188,14 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     )
     assert.equal(
       oldAmount.toNumber(),
-      42,
+      amount,
       "The contract hasn't updated its amount correctly."
     )
 
     await executeActionAndCompareBalances(
       async () => {
         let senderTotalTxCost = 0
-        const tx = await maContract.pay(arbitrableTransactionId, 42, {
+        const tx = await maContract.pay(arbitrableTransactionId, amount, {
           from: sender,
           gasPrice
         })
@@ -206,9 +207,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       {
         maContract,
         receiver: {
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
 
@@ -217,6 +218,31 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       arbitrableTransactionId
     )
     assert.equal(newAmount.toNumber(), 0, 'Amount not updated correctly')
+  })
+
+  it('Should emit TransactionCreated', async () => {
+    const { maContract } = await setupContracts()
+    const { arbitrableTransactionId } = await createTestTransaction(maContract)
+
+    const eventResult = await new Promise((resolve, reject) => {
+      maContract
+        .TransactionCreated({}, { fromBlock: 0, toBlock: 'latest' })
+        .get((error, eventResult) => {
+          if (error)
+            reject(new Error('Could not lookup TransactionCreated event log'))
+          else resolve(eventResult)
+        })
+    })
+
+    assert.equal(eventResult.length, 1)
+    assert.equal(
+      eventResult[0].args._transactionID.toNumber(),
+      arbitrableTransactionId
+    )
+    assert.equal(eventResult[0].args._sender, sender)
+    assert.equal(eventResult[0].args._receiver, receiver)
+    assert.equal(eventResult[0].args._token, this.token.address)
+    assert.equal(eventResult[0].args._amount, amount)
   })
 
   it('Should handle 1 transaction for reimburse', async () => {
@@ -229,14 +255,14 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     )
     assert.equal(
       oldAmount.toNumber(),
-      42,
+      amount,
       "The contract hasn't updated its amount correctly."
     )
 
     await executeActionAndCompareBalances(
       async () => {
         let receiverTotalTxCost = 0
-        const tx = await maContract.reimburse(arbitrableTransactionId, 42, {
+        const tx = await maContract.reimburse(arbitrableTransactionId, amount, {
           from: receiver,
           gasPrice
         })
@@ -248,9 +274,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       {
         maContract,
         sender: {
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
 
@@ -271,10 +297,14 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       await executeActionAndCompareBalances(
         async () => {
           let receiverTotalTxCost = 0
-          const tx = await maContract.reimburse(arbitrableTransactionId, 42, {
-            from: receiver,
-            gasPrice
-          })
+          const tx = await maContract.reimburse(
+            arbitrableTransactionId,
+            amount,
+            {
+              from: receiver,
+              gasPrice
+            }
+          )
           receiverTotalTxCost += tx.receipt.gasUsed * gasPrice
           return {
             receiverTotalTxCost
@@ -283,17 +313,17 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         {
           maContract,
           sender: {
-            tokenDelta: 42
+            tokenDelta: amount
           },
-          contractTokenDelta: -42
+          contractTokenDelta: -amount
         }
       )
 
-      const amount = await getTransactionAmount(
+      const newAmount = await getTransactionAmount(
         maContract,
         arbitrableTransactionId
       )
-      assert.equal(amount.toNumber(), 0, 'Amount not updated correctly')
+      assert.equal(newAmount.toNumber(), 0, 'Amount not updated correctly')
     }
   })
 
@@ -303,7 +333,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     await shouldFail.reverting(
       getLastTransaction(maContract, async () => {
         await maContract.createTransaction(
-          42,
+          amount,
           this.token.address,
           timeoutPayment,
           receiver,
@@ -385,9 +415,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       {
         maContract,
         receiver: {
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
   })
@@ -417,14 +447,14 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
     })
 
     await shouldFail.reverting(
-      maContract.pay(arbitrableTransactionId, 42, {
+      maContract.pay(arbitrableTransactionId, amount, {
         from: sender,
         gasPrice
       })
     )
 
     await shouldFail.reverting(
-      maContract.reimburse(arbitrableTransactionId, 42, {
+      maContract.reimburse(arbitrableTransactionId, amount, {
         from: receiver,
         gasPrice
       })
@@ -452,9 +482,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         maContract,
         sender: {
           etherDelta: 20,
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
   })
@@ -480,9 +510,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         maContract,
         receiver: {
           etherDelta: 20,
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
   })
@@ -514,7 +544,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
           etherDelta: 10,
           tokenDelta: 21
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
   })
@@ -538,13 +568,13 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       'The transaction did not change correctly to new status: `Status.WaitingSender`'
     )
 
-    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, {
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + amount, {
       from: arbitrator
     })
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: sender,
-      value: arbitrationFee + 42
+      value: arbitrationFee + amount
     })
 
     arbitrableTransactionStatus = (await maContract.transactions(
@@ -567,18 +597,18 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
       value: arbitrationFee
     })
 
-    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + 42, {
+    await centralizedArbitrator.setArbitrationPrice(arbitrationFee + amount, {
       from: arbitrator
     })
 
     await maContract.payArbitrationFeeBySender(arbitrableTransactionId, {
       from: sender,
-      value: arbitrationFee + 42
+      value: arbitrationFee + amount
     })
 
     await maContract.payArbitrationFeeByReceiver(arbitrableTransactionId, {
       from: receiver,
-      value: 42 // Pay the rest of arbitration fee with an extra to test also the refund in this case
+      value: amount // Pay the rest of arbitration fee with an extra to test also the refund in this case
     })
 
     arbitrableTransaction = await maContract.transactions(
@@ -644,9 +674,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         maContract,
         sender: {
           etherDelta: 20,
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
   })
@@ -699,9 +729,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         maContract,
         receiver: {
           etherDelta: 20,
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
   })
@@ -800,7 +830,7 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
   it('Should handle multiple transactions concurrently', async () => {
     const { centralizedArbitrator, maContract } = await setupContracts()
 
-    await this.token.approve(maContract.address, 42 * 2, {
+    await this.token.approve(maContract.address, amount * 2, {
       from: sender
     })
 
@@ -837,9 +867,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         maContract,
         sender: {
           etherDelta: 20,
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
 
@@ -851,9 +881,9 @@ contract('MultipleArbitrableTokenTransaction', function(accounts) {
         maContract,
         receiver: {
           etherDelta: 20,
-          tokenDelta: 42
+          tokenDelta: amount
         },
-        contractTokenDelta: -42
+        contractTokenDelta: -amount
       }
     )
   })

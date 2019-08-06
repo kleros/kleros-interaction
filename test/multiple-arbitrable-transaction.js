@@ -22,6 +22,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
   const arbitrationFee = 20
   const gasPrice = 5000000000
   const metaEvidenceUri = 'https://kleros.io'
+  const amount = 1000
 
   /**
    * Getter for the last transaction
@@ -56,14 +57,14 @@ contract('MultipleArbitrableTransaction', function(accounts) {
           timeoutPayment,
           receiver,
           metaEvidenceUri,
-          { from: sender, value: 1000 }
+          { from: sender, value: amount }
         )
       }
     )
 
     const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
     const senderBalanceBeforeReimbursment = web3.eth.getBalance(sender)
-    await multipleContract.reimburse(arbitrableTransactionId, 1000, {
+    await multipleContract.reimburse(arbitrableTransactionId, amount, {
       from: receiver
     })
     const newSenderBalance = web3.eth.getBalance(sender)
@@ -74,11 +75,52 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
     assert.equal(
       newSenderBalance.toString(),
-      senderBalanceBeforeReimbursment.plus(1000).toString(),
+      senderBalanceBeforeReimbursment.plus(amount).toString(),
       'The sender has not been reimbursed correctly'
     )
     assert.equal(newContractBalance.toNumber(), 0, 'Bad amount in the contract')
     assert.equal(newAmount.toNumber(), 0, 'Amount not updated correctly')
+  })
+
+  it('Should emit TransactionCreated', async () => {
+    const multipleContract = await MultipleArbitrableTransaction.new(
+      0x0,
+      0x0,
+      feeTimeout,
+      { from: sender }
+    )
+
+    const lastTransaction = await getLastTransaction(
+      multipleContract,
+      async () => {
+        await multipleContract.createTransaction(
+          timeoutPayment,
+          receiver,
+          metaEvidenceUri,
+          { from: sender, value: amount }
+        )
+      }
+    )
+
+    const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
+
+    const eventResult = await new Promise((resolve, reject) => {
+      multipleContract
+        .TransactionCreated({}, { fromBlock: 0, toBlock: 'latest' })
+        .get((error, eventResult) => {
+          if (error)
+            reject(new Error('Could not lookup TransactionCreated event log'))
+          else resolve(eventResult)
+        })
+    })
+
+    assert.equal(eventResult.length, 1)
+    assert.equal(
+      eventResult[0].args._transactionID.toNumber(),
+      arbitrableTransactionId
+    )
+    assert.equal(eventResult[0].args._sender, sender)
+    assert.equal(eventResult[0].args._receiver, receiver)
   })
 
   it('Should handle 3 transaction', async () => {
@@ -96,7 +138,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
             timeoutPayment,
             receiver,
             metaEvidenceUri,
-            { from: sender, value: 1000 }
+            { from: sender, value: amount }
           )
         }
       )
@@ -104,7 +146,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
       const arbitrableTransactionId = lastTransaction.args._metaEvidenceID.toNumber()
 
       const senderBalanceBeforeReimbursment = web3.eth.getBalance(sender)
-      await multipleContract.reimburse(arbitrableTransactionId, 1000, {
+      await multipleContract.reimburse(arbitrableTransactionId, amount, {
         from: receiver
       })
       const newSenderBalance = web3.eth.getBalance(sender)
@@ -115,7 +157,7 @@ contract('MultipleArbitrableTransaction', function(accounts) {
 
       assert.equal(
         newSenderBalance.toString(),
-        senderBalanceBeforeReimbursment.plus(1000).toString(),
+        senderBalanceBeforeReimbursment.plus(amount).toString(),
         'The sender has not been reimbursed correctly'
       )
       assert.equal(
