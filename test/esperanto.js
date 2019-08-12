@@ -413,14 +413,20 @@ contract('Esperanto', function(accounts) {
     })
     // get task info again because of updated values
     const taskInfo = await esperanto.getTaskInfo(0)
-    // fee is subtracted from challenger's deposit upon submission. Also subtract the surplus
-    const pureChallengeDeposit = challengerDeposit - arbitrationFee - 1000
     assert.equal(
       taskInfo[0][2],
       challenger,
       'The challenger was not set up properly'
     )
+    // arbitration fee is splitted among translator and challenger. Check that deposits are set up correctly. Also subtract the challenger's surplus.
+    const translatorDeposit = requiredDeposit - arbitrationFee / 2
+    const pureChallengeDeposit = challengerDeposit - arbitrationFee / 2 - 1000
     // an error up to 0.1% is allowed
+    assert(
+      Math.abs(taskInfo[1][1].toNumber() - translatorDeposit) <=
+        translatorDeposit / 1000,
+      'The translator deposit was not updated properly'
+    )
     assert(
       Math.abs(taskInfo[1][2].toNumber() - pureChallengeDeposit) <=
         pureChallengeDeposit / 1000,
