@@ -301,7 +301,9 @@ contract Esperanto is Arbitrable {
         task.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
         disputeIDtoTaskID[task.disputeID] = _taskID;
         task.rounds.length++;
-        task.deposits[uint(Party.Challenger)] = challengeDeposit.subCap(arbitrationCost);
+        // Payment of arbitration fees is shared among parties.
+        task.deposits[uint(Party.Challenger)] = challengeDeposit.subCap(arbitrationCost / 2);
+        task.deposits[uint(Party.Translator)] = task.deposits[uint(Party.Translator)].subCap(arbitrationCost / 2);
 
         uint remainder = msg.value - challengeDeposit;
         msg.sender.send(remainder);
