@@ -374,6 +374,11 @@ contract Linguo is Arbitrable {
         return (_requiredAmount, remainder);
     }
 
+    /** @dev Witdraws contributions of appeal rounds. Reimburses contributions if no disputes were raised. If a dispute was raised, sends the fee stake rewards and reimbursements proportional to the contributions made to the winner of a dispute.
+     *  @param _beneficiary The address that made contributions.
+     *  @param _taskID The ID of the associated task.
+     *  @param _round The round from which to withdraw.
+     */
     function withdrawFeesAndRewards(address _beneficiary, uint _taskID, uint _round) external {
         Task storage task = tasks[_taskID];
         Round storage round = task.rounds[_round];
