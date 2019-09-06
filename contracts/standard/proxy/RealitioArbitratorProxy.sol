@@ -9,7 +9,38 @@
 pragma solidity ^0.4.24;
 
 import { Arbitrable, Arbitrator } from "../arbitration/Arbitrable.sol";
-import { Realitio } from "@realitio/realitio-contracts/truffle/contracts/Realitio.sol";
+
+interface RealitioInterface {
+
+    /// @notice Notify the contract that the arbitrator has been paid for a question, freezing it pending their decision.
+    /// @dev The arbitrator contract is trusted to only call this if they've been paid, and tell us who paid them.
+    /// @param question_id The ID of the question.
+    /// @param requester The account that requested arbitration.
+    /// @param max_previous If specified, reverts if a bond higher than this was submitted after you sent your transaction.
+    function notifyOfArbitrationRequest(bytes32 question_id, address requester, uint256 max_previous) external;
+
+    /// @notice Submit the answer for a question, for use by the arbitrator.
+    /// @dev Doesn't require (or allow) a bond.
+    /// If the current final answer is correct, the account should be whoever submitted it.
+    /// If the current final answer is wrong, the account should be whoever paid for arbitration.
+    /// However, the answerer stipulations are not enforced by the contract.
+    /// @param question_id The ID of the question.
+    /// @param answer The answer, encoded into bytes32.
+    /// @param answerer The account credited with this answer for the purpose of bond claims.
+    function submitAnswerByArbitrator(bytes32 question_id, bytes32 answer, address answerer) external;
+
+    /// @notice Returns the history hash of the question.
+    /// @param question_id The ID of the question.
+    /// @dev Updated on each answer, then rewound as each is claimed.
+    function getHistoryHash(bytes32 question_id) external returns(bytes32);
+
+    /// @notice Returns the commitment info by its id.
+    /// @param commitment_id The ID of the commitment.
+    /// @return Time after which the committed answer can be revealed.
+    /// @return Whether the commitment has already been revealed or not.
+    /// @return The committed answer, encoded as bytes32.
+    function commitments(bytes32 commitment_id) external returns(uint32, bool, bytes32);
+}
 
 /**
  *  @title RealitioArbitratorProxy
@@ -29,7 +60,7 @@ contract RealitioArbitratorProxy is Arbitrable {
 
     uint public constant NUMBER_OF_CHOICES_FOR_ARBITRATOR = (2 ** 256) - 2; // The number of choices for the ERC792 arbitrator.
     address public deployer; // The address of the deployer of the contract.
-    Realitio public realitio; // The address of the Realitio contract.
+    RealitioInterface public realitio; // The address of the Realitio contract.
     mapping(uint => bytes32) public disputeIDToQuestionID; // A mapping from disputes to questions.
     mapping(bytes32 => address) public questionIDToDisputer; // A mapping from questions to the addresses that requested arbitration for them.
     mapping(bytes32 => bytes32) public questionIDToAnswer; // A mapping from questions to the answers the arbitrator gave for them.
@@ -46,7 +77,7 @@ contract RealitioArbitratorProxy is Arbitrable {
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
-        Realitio _realitio
+        RealitioInterface _realitio
     ) Arbitrable(_arbitrator, _arbitratorExtraData) public {
         deployer = msg.sender;
         realitio = _realitio;
