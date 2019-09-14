@@ -52,8 +52,10 @@
     "truffle": "^4.1.13"
   },
   "dependencies": {
+    "@kleros/kleros": "^0.1.2",
     "@realitio/realitio-contracts": "^2.0.5",
     "minimetoken": "^0.2.0",
-    "openzeppelin-solidity": "^1.12.0"
+    "openzeppelin-solidity": "^1.12.0",
+    "web3-utils": "^1.2.1"
   }
 }
