@@ -1,5 +1,9 @@
 pragma solidity ^0.4.4;
 
+// Test imports.
+import "@kleros/kleros/contracts/kleros/KlerosLiquid.sol";
+import "@realitio/realitio-contracts/truffle/contracts/RealitioERC20.sol";
+
 contract Migrations {
     address public owner;
     uint public last_completed_migration;
