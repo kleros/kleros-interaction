@@ -124,6 +124,8 @@ contract AutoAppealableArbitrator is Arbitrator {
         dispute.appealCost = _appealCost;
         dispute.appealPeriodStart = now;
         dispute.appealPeriodEnd = now.addCap(_timeToAppeal);
+        
+        emit AppealPossible(_disputeID, dispute.arbitrated);
     }
     
     
