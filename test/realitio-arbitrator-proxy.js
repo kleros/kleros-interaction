@@ -14,7 +14,9 @@ const KlerosLiquid = artifacts.require(
   '@kleros/kleros/contracts/kleros/KlerosLiquid.sol'
 )
 const Pinakion = artifacts.require('MiniMeTokenERC20')
-const Realitio = artifacts.require('Realitio')
+const Realitio = artifacts.require(
+  '@realitio/realitio-contracts/truffle/contracts/Realitio.sol'
+)
 const RealitioERC20 = artifacts.require(
   '@realitio/realitio-contracts/truffle/contracts/RealitioERC20.sol'
 )
