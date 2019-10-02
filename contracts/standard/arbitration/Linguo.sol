@@ -34,7 +34,7 @@ contract Linguo is Arbitrable {
         Challenger // The one challenging translated text in the review period.
     }
 
-    // Arrays below have 3 elements to map parties with dispute choices. Index "0" is not used, "1" is reserved for translator and "2" for challenger.
+    // Arrays of 3 elements in the Task and Round structs map to the parties. Index "0" is not used, "1" is reserved for translator and "2" for challenger.
     struct Task {
         uint submissionTimeout; // Time in seconds allotted for submitting a translation. The end of this period is considered a deadline.
         uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases until it reaches maximal price at deadline.
@@ -185,7 +185,7 @@ contract Linguo is Arbitrable {
         uint _minPrice,
         string _metaEvidence
     ) external payable returns (uint taskID){
-        require(msg.value >= _minPrice, "Deposited value should be greater or equal the min price");
+        require(msg.value >= _minPrice, "Deposited value should be greater than or equal to the min price");
         require(_submissionTimeout > 0, "Submission timeout should not be 0");
 
         taskID = tasks.length++;
