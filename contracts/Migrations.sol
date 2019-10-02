@@ -5,7 +5,6 @@ import "@kleros/kleros/contracts/kleros/KlerosLiquid.sol";
 import { Realitio } from "@realitio/realitio-contracts/truffle/contracts/Realitio.sol";
 import { RealitioERC20 } from "@realitio/realitio-contracts/truffle/contracts/RealitioERC20.sol";
 
-
 contract Migrations {
     address public owner;
     uint public last_completed_migration;
