@@ -86,7 +86,7 @@ contract Linguo is Arbitrable {
     event HasPaidAppealFee(uint indexed _taskID, Party _party);
 
     /* *** Modifiers *** */
-    modifier onlyGovernor() {require(msg.sender == governor, "Only governor is allowed to perform this"); _;}
+    modifier onlyGovernor() {require(msg.sender == governor, "Only governor is allowed to perform this."); _;}
 
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
@@ -185,8 +185,8 @@ contract Linguo is Arbitrable {
         uint _minPrice,
         string _metaEvidence
     ) external payable returns (uint taskID){
-        require(msg.value >= _minPrice, "Deposited value should be greater than or equal to the min price");
-        require(_submissionTimeout > 0, "Submission timeout should not be 0");
+        require(msg.value >= _minPrice, "Deposited value should be greater than or equal to the min price.");
+        require(_submissionTimeout > 0, "Submission timeout should not be 0.");
 
         taskID = tasks.length++;
         Task storage task = tasks[taskID];
@@ -206,14 +206,14 @@ contract Linguo is Arbitrable {
      */
     function assignTask(uint _taskID) external payable {
         Task storage task = tasks[_taskID];
-        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
+        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed.");
 
         uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         uint deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
 
-        require(task.status == Status.Created, "Task has already been assigned or reimbursed");
-        require(msg.value >= deposit, "Not enough ETH to reach the required deposit value");
+        require(task.status == Status.Created, "Task has already been assigned or reimbursed.");
+        require(msg.value >= deposit, "Not enough ETH to reach the required deposit value.");
 
         task.parties[uint(Party.Translator)] = msg.sender;
         task.status = Status.Assigned;
@@ -234,9 +234,9 @@ contract Linguo is Arbitrable {
      */
     function submitTranslation(uint _taskID, string _translation) external {
         Task storage task = tasks[_taskID];
-        require(task.status == Status.Assigned, "The task is either not assigned or translation has already been submitted");
-        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed");
-        require(msg.sender == task.parties[uint(Party.Translator)], "Can't submit translation to the task that wasn't assigned to you");
+        require(task.status == Status.Assigned, "The task is either not assigned or translation has already been submitted.");
+        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed.");
+        require(msg.sender == task.parties[uint(Party.Translator)], "Can't submit translation to the task that wasn't assigned to you.");
         task.status = Status.AwaitingReview;
         task.lastInteraction = now;
 
@@ -248,8 +248,8 @@ contract Linguo is Arbitrable {
      */
     function reimburseRequester(uint _taskID) external {
         Task storage task = tasks[_taskID];
-        require(task.status < Status.AwaitingReview, "Can't reimburse if translation was submitted");
-        require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet");
+        require(task.status < Status.AwaitingReview, "Can't reimburse if translation was submitted.");
+        require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet.");
         task.status = Status.Resolved;
         // Requester gets his deposit back and also the deposit of the translator, if there was one.  Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
         uint amount = task.requesterDeposit + task.sumDeposit;
@@ -264,8 +264,8 @@ contract Linguo is Arbitrable {
      */
     function acceptTranslation(uint _taskID) external {
         Task storage task = tasks[_taskID];
-        require(task.status == Status.AwaitingReview, "The task is in the wrong status");
-        require(now - task.lastInteraction > reviewTimeout, "The review phase hasn't passed yet");
+        require(task.status == Status.AwaitingReview, "The task is in the wrong status.");
+        require(now - task.lastInteraction > reviewTimeout, "The review phase hasn't passed yet.");
         task.status = Status.Resolved;
         // Translator gets the price of the task and his deposit back. Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
         uint amount = task.requesterDeposit + task.sumDeposit;
@@ -284,9 +284,9 @@ contract Linguo is Arbitrable {
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         uint challengeDeposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.requesterDeposit)) / MULTIPLIER_DIVISOR);
 
-        require(task.status == Status.AwaitingReview, "The task is in the wrong status");
-        require(now - task.lastInteraction <= reviewTimeout, "The review phase has already passed");
-        require(msg.value >= challengeDeposit, "Not enough ETH to cover challenge deposit");
+        require(task.status == Status.AwaitingReview, "The task is in the wrong status.");
+        require(now - task.lastInteraction <= reviewTimeout, "The review phase has already passed.");
+        require(msg.value >= challengeDeposit, "Not enough ETH to cover challenge deposit.");
 
         task.status = Status.DisputeCreated;
         task.parties[uint(Party.Challenger)] = msg.sender;
@@ -327,7 +327,7 @@ contract Linguo is Arbitrable {
         }
 
         Round storage round = task.rounds[task.rounds.length - 1];
-        require(!round.hasPaid[uint(_side)], "Appeal fee has already been paid");
+        require(!round.hasPaid[uint(_side)], "Appeal fee has already been paid.");
 
         uint appealCost = arbitrator.appealCost(task.disputeID, arbitratorExtraData);
         uint totalCost = appealCost.addCap((appealCost.mulCap(multiplier)) / MULTIPLIER_DIVISOR);
@@ -382,7 +382,7 @@ contract Linguo is Arbitrable {
     function withdrawFeesAndRewards(address _beneficiary, uint _taskID, uint _round) external {
         Task storage task = tasks[_taskID];
         Round storage round = task.rounds[_round];
-        require(task.status == Status.Resolved, "The task should be resolved");
+        require(task.status == Status.Resolved, "The task should be resolved.");
         uint reward;
         if (!round.hasPaid[uint(Party.Translator)] || !round.hasPaid[uint(Party.Challenger)]) {
             // Allow to reimburse if funding was unsuccessful.
@@ -422,8 +422,8 @@ contract Linguo is Arbitrable {
         uint taskID = disputeIDtoTaskID[_disputeID];
         Task storage task = tasks[taskID];
         Round storage round = task.rounds[task.rounds.length - 1];
-        require(msg.sender == address(arbitrator), "Must be called by the arbitrator");
-        require(task.status == Status.DisputeCreated, "The dispute has already been resolved");
+        require(msg.sender == address(arbitrator), "Must be called by the arbitrator.");
+        require(task.status == Status.DisputeCreated, "The dispute has already been resolved.");
 
         // If only one side paid its fees we assume the ruling to be in its favor.
         if (round.hasPaid[uint(Party.Translator)] == true)
@@ -484,7 +484,7 @@ contract Linguo is Arbitrable {
      */
     function getDepositValue(uint _taskID) public view returns (uint deposit) {
         Task storage task = tasks[_taskID];
-        require(task.status == Status.Created, "The task can't be assigned");
+        require(task.status == Status.Created, "The task can't be assigned.");
         if (now - task.lastInteraction > task.submissionTimeout){
             deposit = NOT_PAYABLE_VALUE;
         } else {
@@ -500,7 +500,7 @@ contract Linguo is Arbitrable {
      */
     function getTaskPrice(uint _taskID) public view returns (uint price) {
         Task storage task = tasks[_taskID];
-        require(task.status == Status.Created, "The task can't be assigned");
+        require(task.status == Status.Created, "The task can't be assigned.");
         if (now - task.lastInteraction > task.submissionTimeout){
             price = 0;
         } else {
