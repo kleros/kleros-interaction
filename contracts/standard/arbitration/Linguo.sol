@@ -1,6 +1,6 @@
 /**
  *  @authors: [@unknownunknown1]
- *  @reviewers: [@ferittuncer*]
+ *  @reviewers: [@ferittuncer*, @clesaege]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -17,6 +17,7 @@ import "../../libraries/CappedMath.sol";
  *  Linguo is a decentralized platform where anyone can submit a document for translation and have it translated by freelancers.
  *  It has no platform fees and disputes about translation quality are handled by Kleros jurors.
  *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call.
+ *  The arbitrator must support appeal period.
  */
 contract Linguo is Arbitrable {
 
@@ -34,10 +35,10 @@ contract Linguo is Arbitrable {
         Challenger // The one challenging translated text in the review period.
     }
 
-    // Arrays of 3 elements in the Task and Round structs map to the parties. Index "0" is not used, "1" is reserved for translator and "2" for challenger.
+    // Arrays of 3 elements in the Task and Round structs map to the parties. Index "0" is not used, "1" is used for translator and "2" for challenger.
     struct Task {
         uint submissionTimeout; // Time in seconds allotted for submitting a translation. The end of this period is considered a deadline.
-        uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases until it reaches maximal price at deadline.
+        uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases such as it reaches maximal price at deadline.
         uint maxPrice; // Maximal price for the translation and also value that must be deposited by the requester.
         Status status; // Status of the task.
         uint lastInteraction; // The time of the last action performed on the task. Note that lastInteraction is updated only during timeout-related actions such as the creation of the task and the submission of the translation.
