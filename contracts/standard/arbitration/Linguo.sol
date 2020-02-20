@@ -590,9 +590,9 @@ contract Linguo is Arbitrable {
      *  @return The round information.
      */
     function getRoundInfo(uint _taskID, uint _round)
-        public 
+        public
         view
-        returns ( 
+        returns (
             uint[3] paidFees,
             bool[3] hasPaid,
             uint feeRewards
