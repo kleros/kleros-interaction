@@ -132,6 +132,22 @@ contract('Linguo', function(accounts) {
       'TestMetaEvidence',
       'The event has wrong meta-evidence string'
     )
+
+    assert.equal(
+      taskTx.logs[1].event,
+      'TaskCreated',
+      'The second event has not been created'
+    )
+    assert.equal(
+      taskTx.logs[1].args._taskID.toNumber(),
+      0,
+      'The second event has wrong task ID'
+    )
+    assert.equal(
+      taskTx.logs[1].args._requester,
+      requester,
+      'The second event has wrong requester address'
+    )
   })
 
   it('Should not be possible to deposit less than min price when creating a task', async () => {
@@ -1040,6 +1056,135 @@ contract('Linguo', function(accounts) {
       newBalance3.toString(),
       oldBalance3.plus(0.3 * roundInfo[2]).toString(),
       'Incorrect balance of the crowdfunder after withdrawing'
+    )
+  })
+
+  it('Should correctly perform batch withdraw', async () => {
+    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
+
+    await linguo.assignTask(0, {
+      from: translator,
+      value: requiredDeposit + 1e17
+    })
+    await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
+
+    const task = await linguo.tasks(0)
+    const price = task[6].toNumber()
+    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
+    const challengerDeposit =
+      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+    await linguo.challengeTranslation(0, {
+      from: challenger,
+      value: challengerDeposit
+    })
+
+    await arbitrator.giveRuling(0, 1)
+
+    const loserAppealFee =
+      arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR
+
+    await linguo.fundAppeal(0, 2, {
+      from: challenger,
+      value: loserAppealFee
+    })
+
+    const winnerAppealFee =
+      arbitrationFee + (arbitrationFee * winnerMultiplier) / MULTIPLIER_DIVISOR
+
+    await linguo.fundAppeal(0, 1, {
+      from: translator,
+      value: winnerAppealFee
+    })
+    const roundInfo = await linguo.getRoundInfo(0, 0)
+
+    await arbitrator.giveRuling(1, 1)
+
+    await linguo.fundAppeal(0, 2, {
+      from: challenger,
+      value: loserAppealFee
+    })
+
+    await linguo.fundAppeal(0, 1, {
+      from: translator,
+      value: winnerAppealFee
+    })
+
+    await arbitrator.giveRuling(2, 1)
+
+    await linguo.fundAppeal(0, 2, {
+      from: challenger,
+      value: 0.5 * loserAppealFee
+    })
+
+    await linguo.fundAppeal(0, 1, {
+      from: translator,
+      value: 0.5 * winnerAppealFee
+    })
+
+    await increaseTime(appealTimeOut + 1)
+    await arbitrator.giveRuling(2, 1)
+
+    const amountTranslator = await linguo.amountWithdrawable(0, translator)
+    const amountChallenger = await linguo.amountWithdrawable(0, challenger)
+
+    const oldBalanceTranslator = await web3.eth.getBalance(translator)
+    await linguo.batchRoundWithdraw(translator, 0, 1, 12, {
+      from: governor
+    })
+    const newBalanceTranslator1 = await web3.eth.getBalance(translator)
+    assert.equal(
+      newBalanceTranslator1.toString(),
+      oldBalanceTranslator
+        .plus(roundInfo[2])
+        .plus(0.5 * winnerAppealFee)
+        .toString(), // The last round was only paid half of the required amount.
+      'Incorrect translator balance after withdrawing from last 2 rounds'
+    )
+    await linguo.batchRoundWithdraw(translator, 0, 0, 1, {
+      from: governor
+    })
+
+    const newBalanceTranslator2 = await web3.eth.getBalance(translator)
+    assert.equal(
+      newBalanceTranslator2.toString(),
+      newBalanceTranslator1.plus(roundInfo[2]).toString(), // First 2 rounds have the same feeRewards value so we don't need to get info directly from each round.
+      'Incorrect translator balance after withdrawing from the first round'
+    )
+
+    // Check that 'amountWithdrawable' function returns the correct amount.
+    assert.equal(
+      newBalanceTranslator2.toString(),
+      oldBalanceTranslator.plus(amountTranslator).toString(),
+      'Getter function does not return correct withdrawable amount for translator'
+    )
+
+    const oldBalanceChallenger = await web3.eth.getBalance(challenger)
+    await linguo.batchRoundWithdraw(challenger, 0, 0, 2, {
+      from: governor
+    })
+    const newBalanceChallenger1 = await web3.eth.getBalance(challenger)
+    assert.equal(
+      newBalanceChallenger1.toString(),
+      oldBalanceChallenger.toString(),
+      'Challenger balance should stay the same after withdrawing from the first 2 rounds'
+    )
+
+    await linguo.batchRoundWithdraw(challenger, 0, 0, 20, {
+      from: governor
+    })
+
+    const newBalanceChallenger2 = await web3.eth.getBalance(challenger)
+    assert.equal(
+      newBalanceChallenger2.toString(),
+      newBalanceChallenger1.plus(0.5 * loserAppealFee).toString(),
+      'Incorrect challenger balance after withdrawing from the last round'
+    )
+
+    // Check that 'amountWithdrawable' function returns the correct amount.
+    assert.equal(
+      newBalanceChallenger2.toString(),
+      oldBalanceChallenger.plus(amountChallenger).toString(),
+      'Getter function does not return correct withdrawable amount for challenger'
     )
   })
 })

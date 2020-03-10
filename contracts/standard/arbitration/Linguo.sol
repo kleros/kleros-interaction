@@ -1,6 +1,6 @@
 /**
  *  @authors: [@unknownunknown1]
- *  @reviewers: [@ferittuncer, @clesaege, @satello]
+ *  @reviewers: [@ferittuncer*, @clesaege*, @satello*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -72,6 +72,12 @@ contract Linguo is Arbitrable {
     mapping (uint => uint) public disputeIDtoTaskID; // Maps a disputeID to its respective task.
 
     /* *** Events *** */
+
+    /** @dev To be emitted when the new task is created.
+     *  @param _taskID The ID of the newly created task.
+     *  @param _requester The address that created the task.
+     */
+    event TaskCreated(uint indexed _taskID, address indexed _requester);
 
     /** @dev To be emitted when a translation is submitted.
      *  @param _taskID The ID of the respective task.
@@ -199,6 +205,7 @@ contract Linguo is Arbitrable {
         task.requesterDeposit = msg.value;
 
         emit MetaEvidence(taskID, _metaEvidence);
+        emit TaskCreated(taskID, msg.sender);
     }
 
     /** @dev Assigns a specific task to the sender. Requires a translator's deposit.
@@ -380,7 +387,7 @@ contract Linguo is Arbitrable {
      *  @param _taskID The ID of the associated task.
      *  @param _round The round from which to withdraw.
      */
-    function withdrawFeesAndRewards(address _beneficiary, uint _taskID, uint _round) external {
+    function withdrawFeesAndRewards(address _beneficiary, uint _taskID, uint _round) public {
         Task storage task = tasks[_taskID];
         Round storage round = task.rounds[_round];
         require(task.status == Status.Resolved, "The task should be resolved.");
@@ -411,6 +418,18 @@ contract Linguo is Arbitrable {
         }
 
         _beneficiary.send(reward); // It is the user responsibility to accept ETH.
+    }
+
+    /** @dev Withdraws contributions of multiple appeal rounds at once. This function is O(n) where n is the number of rounds. This could exceed the gas limit, therefore this function should be used only as a utility and not be relied upon by other contracts.
+     *  @param _beneficiary The address that made contributions.
+     *  @param _taskID The ID of the associated task.
+     *  @param _cursor The round from where to start withdrawing.
+     *  @param _count The number of rounds to iterate. If set to 0 or a value larger than the number of rounds, iterates until the last round.
+     */
+    function batchRoundWithdraw(address _beneficiary, uint _taskID, uint _cursor, uint _count) public {
+        Task storage task = tasks[_taskID];
+        for (uint i = _cursor; i<task.rounds.length && (_count==0 || i<_cursor+_count); i++)
+            withdrawFeesAndRewards(_beneficiary, _taskID, i);
     }
 
     /** @dev Gives a ruling for a dispute. Must be called by the arbitrator.
@@ -479,6 +498,38 @@ contract Linguo is Arbitrable {
     // *      Getters     * //
     // ******************** //
 
+    /** @dev Returns the sum of withdrawable wei from appeal rounds. This function is O(n), where n is the number of rounds of the task. This could exceed the gas limit, therefore this function should only be used for interface display and not by other contracts.
+     *  @param _taskID The ID of the associated task.
+     *  @param _beneficiary The contributor for which to query.
+     *  @return The total amount of wei available to withdraw.
+     */
+    function amountWithdrawable(uint _taskID, address _beneficiary) external view returns (uint total){
+        Task storage task = tasks[_taskID];
+        if (task.status != Status.Resolved) return total;
+
+        for (uint i = 0; i < task.rounds.length; i++) {
+            Round storage round = task.rounds[i];
+            if (!round.hasPaid[uint(Party.Translator)] || !round.hasPaid[uint(Party.Challenger)]) {
+                total += round.contributions[_beneficiary][uint(Party.Translator)] + round.contributions[_beneficiary][uint(Party.Challenger)];
+            } else if (task.ruling == uint(Party.None)) {
+                uint rewardTranslator = round.paidFees[uint(Party.Translator)] > 0
+                    ? (round.contributions[_beneficiary][uint(Party.Translator)] * round.feeRewards) / (round.paidFees[uint(Party.Translator)] + round.paidFees[uint(Party.Challenger)])
+                    : 0;
+                uint rewardChallenger = round.paidFees[uint(Party.Challenger)] > 0
+                    ? (round.contributions[_beneficiary][uint(Party.Challenger)] * round.feeRewards) / (round.paidFees[uint(Party.Translator)] + round.paidFees[uint(Party.Challenger)])
+                    : 0;
+
+                total += rewardTranslator + rewardChallenger;
+            } else {
+                total += round.paidFees[uint(task.ruling)] > 0
+                    ? (round.contributions[_beneficiary][uint(task.ruling)] * round.feeRewards) / round.paidFees[uint(task.ruling)]
+                    : 0;
+            }
+        }
+
+        return total;
+    }
+
     /** @dev Gets the deposit required for self-assigning the task.
      *  @param _taskID The ID of the task.
      *  @return deposit The translator's deposit.
@@ -507,6 +558,22 @@ contract Linguo is Arbitrable {
         } else {
             price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
         }
+    }
+
+    /** @dev Gets the total number of created tasks.
+     *  @return The number of created tasks.
+     */
+    function getTaskCount() public view returns (uint) {
+        return tasks.length;
+    }
+
+    /** @dev Gets the number of rounds of the specific task.
+     *  @param _taskID The ID of the task.
+     *  @return The number of rounds.
+     */
+    function getNumberOfRounds(uint _taskID) public view returns (uint) {
+        Task storage task = tasks[_taskID];
+        return task.rounds.length;
     }
 
     /** @dev Gets the contributions made by a party for a given round of task's appeal.
