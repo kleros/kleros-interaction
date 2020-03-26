@@ -1,5 +1,5 @@
 /**
- *  @authors: [@unknownunknown1]
+ *  @authors: [@unknownunknown1*]
  *  @reviewers: [@ferittuncer*, @clesaege*, @satello*]
  *  @auditors: []
  *  @bounties: []
@@ -182,22 +182,22 @@ contract Linguo is Arbitrable {
     // **************************** //
 
     /** @dev Creates a task based on provided details. Requires a value of maximal price to be deposited.
-     *  @param _submissionTimeout Time allotted for submitting a translation.
+     *  @param _deadline The deadline for the translation to be completed.
      *  @param _minPrice A minimal price of the translation. In wei.
      *  @param _metaEvidence A URI of meta-evidence object for task submission.
      *  @return taskID The ID of the created task.
      */
     function createTask(
-        uint _submissionTimeout,
+        uint _deadline,
         uint _minPrice,
         string _metaEvidence
     ) external payable returns (uint taskID){
         require(msg.value >= _minPrice, "Deposited value should be greater than or equal to the min price.");
-        require(_submissionTimeout > 0, "Submission timeout should not be 0.");
+        require(_deadline > now, "The deadline should be in the future.");
 
         taskID = tasks.length++;
         Task storage task = tasks[taskID];
-        task.submissionTimeout = _submissionTimeout;
+        task.submissionTimeout = _deadline - now;
         task.minPrice = _minPrice;
         task.maxPrice = msg.value;
         task.lastInteraction = now;
