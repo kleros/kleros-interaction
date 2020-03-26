@@ -5,6 +5,7 @@ const {
 const {
   increaseTime
 } = require('openzeppelin-solidity/test/helpers/increaseTime')
+const { latestTime } = require('openzeppelin-solidity/test/helpers/latestTime')
 
 const Linguo = artifacts.require('./Linguo.sol')
 const Arbitrator = artifacts.require(
@@ -37,6 +38,7 @@ contract('Linguo', function(accounts) {
   let linguo
   let MULTIPLIER_DIVISOR
   let taskTx
+  let currentTime
   let secondsPassed
   beforeEach('initialize the contract', async function() {
     arbitrator = await Arbitrator.new(
@@ -62,8 +64,9 @@ contract('Linguo', function(accounts) {
     )
 
     MULTIPLIER_DIVISOR = (await linguo.MULTIPLIER_DIVISOR()).toNumber()
+    currentTime = await latestTime()
     taskTx = await linguo.createTask(
-      submissionTimeout,
+      currentTime + submissionTimeout,
       taskMinPrice,
       'TestMetaEvidence',
       {
@@ -71,7 +74,9 @@ contract('Linguo', function(accounts) {
         value: taskMaxPrice
       }
     )
-    secondsPassed = randomInt(submissionTimeout)
+    // Because of time fluctuation the timeout stored in the contract can deviate a little from the variable value.
+    // So subtract small amount to prevent the time increase going out of timeout range.
+    secondsPassed = randomInt(submissionTimeout - 5)
     await increaseTime(secondsPassed)
   })
 
@@ -88,10 +93,10 @@ contract('Linguo', function(accounts) {
 
   it('Should set the correct values in newly created task and fire an event', async () => {
     const task = await linguo.tasks(0)
-
-    assert.equal(
-      task[0].toNumber(),
-      submissionTimeout,
+    // An error up to 0.1% is allowed because of time fluctuation
+    assert(
+      Math.abs(submissionTimeout - task[0].toNumber()) <=
+        submissionTimeout / 1000,
       'The submissionTimeout is not set up properly'
     )
     assert.equal(
@@ -151,12 +156,18 @@ contract('Linguo', function(accounts) {
   })
 
   it('Should not be possible to deposit less than min price when creating a task', async () => {
+    currentTime = await latestTime()
     // Invert max and min price to make sure it throws when less than min price is deposited.
     await expectThrow(
-      linguo.createTask(submissionTimeout, taskMaxPrice, 'TestMetaEvidence', {
-        from: requester,
-        value: taskMinPrice
-      })
+      linguo.createTask(
+        currentTime + submissionTimeout,
+        taskMaxPrice,
+        'TestMetaEvidence',
+        {
+          from: requester,
+          value: taskMinPrice
+        }
+      )
     )
   })
 
