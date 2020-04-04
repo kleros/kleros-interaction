@@ -552,8 +552,7 @@ contract Linguo is Arbitrable {
      */
     function getTaskPrice(uint _taskID) public view returns (uint price) {
         Task storage task = tasks[_taskID];
-        require(task.status == Status.Created, "The task can't be assigned.");
-        if (now - task.lastInteraction > task.submissionTimeout){
+        if (now - task.lastInteraction > task.submissionTimeout || task.status != Status.Created) {
             price = 0;
         } else {
             price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
