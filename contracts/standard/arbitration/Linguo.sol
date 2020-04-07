@@ -80,13 +80,6 @@ contract Linguo is Arbitrable {
      */
     event TaskCreated(uint indexed _taskID, address indexed _requester, uint _timestamp);
 
-    /** @dev To be emitted when a task is resolved, either by the translation being accepted, the requester being reimbursed or a dispute being settled.
-     *  @param _taskID The ID of the respective task.
-     *  @param _reason Short description of what caused the task to be solved. One of: 'translation-accepted' | 'requester-reimbursed' | 'dispute-settled'
-     *  @param _timestamp When the task was resolved.
-     */
-    event TaskResolved(uint indexed _taskID, string _reason, uint _timestamp);
-
     /** @dev To be emitted when a translation is submitted.
      *  @param _taskID The ID of the respective task.
      *  @param _translator The address that performed the translation.
@@ -94,6 +87,20 @@ contract Linguo is Arbitrable {
      *  @param _timestamp When the translation was submitted.
      */
     event TranslationSubmitted(uint indexed _taskID, address indexed _translator, string _translatedText, uint _timestamp);
+
+    /** @dev To be emitted when a translation is challenged.
+     *  @param _taskID The ID of the respective task.
+     *  @param _challenger The address of the challenger.
+     *  @param _timestamp When the task was challenged.
+     */
+    event TranslationChallenged(uint indexed _taskID, address indexed _challenger, uint _timestamp);
+
+    /** @dev To be emitted when a task is resolved, either by the translation being accepted, the requester being reimbursed or a dispute being settled.
+     *  @param _taskID The ID of the respective task.
+     *  @param _reason Short description of what caused the task to be solved. One of: 'translation-accepted' | 'requester-reimbursed' | 'dispute-settled'
+     *  @param _timestamp When the task was resolved.
+     */
+    event TaskResolved(uint indexed _taskID, string _reason, uint _timestamp);
 
     /** @dev To be emitted when one of the parties successfully paid its appeal fees.
      *  @param _taskID The ID of the respective task.
@@ -321,6 +328,7 @@ contract Linguo is Arbitrable {
         msg.sender.send(remainder);
 
         emit Dispute(arbitrator, task.disputeID, _taskID, _taskID);
+        emit TranslationChallenged(_taskID, msg.sender, now);
     }
 
     /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if all sides are fully funded.

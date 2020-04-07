@@ -411,7 +411,7 @@ contract('Linguo', function(accounts) {
     await expectThrow(linguo.acceptTranslation(0))
   })
 
-  it('Should set correct values in contract and in despute after task has been challenged', async () => {
+  it('Should set correct values in contract and in dispute and emit TranslationChallenged event after task has been challenged', async () => {
     let task
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
 
@@ -426,10 +426,17 @@ contract('Linguo', function(accounts) {
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
       arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
-    await linguo.challengeTranslation(0, {
+    const challengeTx = await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
     })
+
+    assert.equal(
+      challengeTx.logs[1].event,
+      'TranslationChallenged',
+      'TranslationChallenged event was not emitted'
+    )
+
     // get task info again because of updated values
     task = await linguo.tasks(0)
     const taskInfo = await linguo.getTaskParties(0)
