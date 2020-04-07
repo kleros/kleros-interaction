@@ -209,7 +209,31 @@ contract('Linguo', function(accounts) {
     assert.equal(
       depositLinguo.toNumber(),
       deposit,
-      'Contract returns incorrect required deposit afer submission timeout ended'
+      'Contract returns incorrect required deposit after submission timeout ended'
+    )
+  })
+
+  it('Should return correct task price and assignment deposit when status is not `created`', async () => {
+    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
+    await linguo.assignTask(0, {
+      from: translator,
+      value: requiredDeposit + 1e17
+    })
+
+    const expectedTaskPrice = 0
+    const actualTaskPrice = await linguo.getTaskPrice(0)
+    assert.equal(
+      actualTaskPrice,
+      expectedTaskPrice,
+      'Contract returns incorrect task price if status is not `created`'
+    )
+
+    const expectedDeposit = NOT_PAYABLE_VALUE
+    const actualDeposit = await linguo.getDepositValue(0)
+    assert.equal(
+      actualDeposit.toNumber(),
+      expectedDeposit,
+      'Contract returns incorrect required deposit if status is not `created`'
     )
   })
 
