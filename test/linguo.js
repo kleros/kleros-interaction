@@ -316,8 +316,14 @@ contract('Linguo', function(accounts) {
   it('Should reimburse requester if no one picked the task before submission timeout ended', async () => {
     await increaseTime(submissionTimeout + 1)
     const oldBalance = await web3.eth.getBalance(requester)
-    await linguo.reimburseRequester(0)
+    const reimburseTx = await linguo.reimburseRequester(0)
     const newBalance = await web3.eth.getBalance(requester)
+
+    assert.equal(
+      reimburseTx.logs[0].event,
+      'TaskResolved',
+      'TaskResolved event was not emitted'
+    )
     assert.equal(
       newBalance.toString(),
       oldBalance.plus(taskMaxPrice).toString(),
@@ -363,8 +369,15 @@ contract('Linguo', function(accounts) {
     const task = await linguo.tasks(0)
 
     const oldBalance = await web3.eth.getBalance(translator)
-    await linguo.acceptTranslation(0)
+    const acceptTx = await linguo.acceptTranslation(0)
     const newBalance = await web3.eth.getBalance(translator)
+
+    assert.equal(
+      acceptTx.logs[0].event,
+      'TaskResolved',
+      'TaskResolved event was not emitted'
+    )
+
     assert.equal(
       newBalance.toString(),
       oldBalance
