@@ -1,6 +1,6 @@
 /**
- *  @authors: [@unknownunknown1]
- *  @reviewers: [@ferittuncer*, @clesaege*, @satello*]
+ *  @authors: [@unknownunknown1*]
+ *  @reviewers: [@ferittuncer*, @clesaege*, @satello*, @hbarcelos]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -41,7 +41,7 @@ contract Linguo is Arbitrable {
         uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases such as it reaches maximal price at deadline.
         uint maxPrice; // Maximal price for the translation and also value that must be deposited by the requester.
         Status status; // Status of the task.
-        uint lastInteraction; // The time of the last action performed on the task. Note that lastInteraction is updated only during timeout-related actions such as the creation of the task and the submission of the translation.
+        uint lastInteraction; // The time of the last action performed on the task. Note that lastInteraction is updated only during timeout-related actions such as the creation of the task and the submission of the translation or when the translation task is resolved, whether by the translation being accepted or the requester getting reimbursed.
         address requester; // The party requesting the translation.
         uint requesterDeposit; // The deposit requester makes when creating the task. Once a task is assigned this deposit will be partially reimbursed and its value replaced by task price.
         uint sumDeposit; // The sum of the deposits of translator and challenger, if any. This value (minus arbitration fees) will be paid to the party that wins the dispute.
@@ -214,13 +214,13 @@ contract Linguo is Arbitrable {
      */
     function assignTask(uint _taskID) external payable {
         Task storage task = tasks[_taskID];
+        require(task.status == Status.Created, "Task has already been assigned or reimbursed.");
         require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed.");
 
         uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
         uint deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
 
-        require(task.status == Status.Created, "Task has already been assigned or reimbursed.");
         require(msg.value >= deposit, "Not enough ETH to reach the required deposit value.");
 
         task.parties[uint(Party.Translator)] = msg.sender;
@@ -259,6 +259,7 @@ contract Linguo is Arbitrable {
         require(task.status < Status.AwaitingReview, "Can't reimburse if translation was submitted.");
         require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet.");
         task.status = Status.Resolved;
+        task.lastInteraction = now;
         // Requester gets his deposit back and also the deposit of the translator, if there was one.  Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
         uint amount = task.requesterDeposit + task.sumDeposit;
         task.requester.send(amount);
@@ -275,6 +276,7 @@ contract Linguo is Arbitrable {
         require(task.status == Status.AwaitingReview, "The task is in the wrong status.");
         require(now - task.lastInteraction > reviewTimeout, "The review phase hasn't passed yet.");
         task.status = Status.Resolved;
+        task.lastInteraction = now;
         // Translator gets the price of the task and his deposit back. Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
         uint amount = task.requesterDeposit + task.sumDeposit;
         task.parties[uint(Party.Translator)].send(amount);
@@ -463,6 +465,7 @@ contract Linguo is Arbitrable {
         uint taskID = disputeIDtoTaskID[_disputeID];
         Task storage task = tasks[taskID];
         task.status = Status.Resolved;
+        task.lastInteraction = now;
         task.ruling = _ruling;
         uint amount;
 
