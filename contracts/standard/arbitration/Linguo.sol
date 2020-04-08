@@ -80,6 +80,14 @@ contract Linguo is Arbitrable {
      */
     event TaskCreated(uint indexed _taskID, address indexed _requester, uint _timestamp);
 
+    /** @dev To be emitted when a translator assigns the task to himself.
+     *  @param _taskID The ID of the newly created task.
+     *  @param _translator The address that assigned to the task.
+     *  @param _price The task price at the moment it was assigned.
+     *  @param _timestamp When the task was assigned.
+     */
+    event TaskAssigned(uint indexed _taskID, address indexed _translator, uint _price, uint _timestamp);
+
     /** @dev To be emitted when a translation is submitted.
      *  @param _taskID The ID of the respective task.
      *  @param _translator The address that performed the translation.
@@ -250,6 +258,8 @@ contract Linguo is Arbitrable {
 
         remainder = msg.value - deposit;
         msg.sender.send(remainder);
+
+        emit TaskAssigned(_taskID, msg.sender, price, now);
     }
 
     /** @dev Submits translated text for a specific task.

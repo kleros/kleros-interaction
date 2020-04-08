@@ -223,6 +223,20 @@ contract('Linguo', function(accounts) {
     )
   })
 
+  it('Should emit TaskAssigned event after assigning to the task', async () => {
+    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
+    const assignTx = await linguo.assignTask(0, {
+      from: translator,
+      value: requiredDeposit + 1e17
+    })
+
+    assert.equal(
+      assignTx.logs[0].event,
+      'TaskAssigned',
+      'The TaskAssigned event was not emitted'
+    )
+  })
+
   it('Should reimburse requester leftover price after assigning the task and set correct values', async () => {
     const oldBalance = await web3.eth.getBalance(requester)
 
