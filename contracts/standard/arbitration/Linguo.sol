@@ -1,6 +1,6 @@
 /**
  *  @authors: [@unknownunknown1]
- *  @reviewers: [@ferittuncer*, @clesaege*, @satello*]
+ *  @reviewers: [@ferittuncer*, @clesaege*, @satello*, @hbarcelos]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -76,15 +76,39 @@ contract Linguo is Arbitrable {
     /** @dev To be emitted when the new task is created.
      *  @param _taskID The ID of the newly created task.
      *  @param _requester The address that created the task.
+     *  @param _timestamp When the task was created.
      */
-    event TaskCreated(uint indexed _taskID, address indexed _requester);
+    event TaskCreated(uint indexed _taskID, address indexed _requester, uint _timestamp);
+
+    /** @dev To be emitted when a translator assigns the task to himself.
+     *  @param _taskID The ID of the newly created task.
+     *  @param _translator The address that assigned to the task.
+     *  @param _price The task price at the moment it was assigned.
+     *  @param _timestamp When the task was assigned.
+     */
+    event TaskAssigned(uint indexed _taskID, address indexed _translator, uint _price, uint _timestamp);
 
     /** @dev To be emitted when a translation is submitted.
      *  @param _taskID The ID of the respective task.
      *  @param _translator The address that performed the translation.
      *  @param _translatedText A URI to the translated text.
+     *  @param _timestamp When the translation was submitted.
      */
-    event TranslationSubmitted(uint indexed _taskID, address indexed _translator, string _translatedText);
+    event TranslationSubmitted(uint indexed _taskID, address indexed _translator, string _translatedText, uint _timestamp);
+
+    /** @dev To be emitted when a translation is challenged.
+     *  @param _taskID The ID of the respective task.
+     *  @param _challenger The address of the challenger.
+     *  @param _timestamp When the task was challenged.
+     */
+    event TranslationChallenged(uint indexed _taskID, address indexed _challenger, uint _timestamp);
+
+    /** @dev To be emitted when a task is resolved, either by the translation being accepted, the requester being reimbursed or a dispute being settled.
+     *  @param _taskID The ID of the respective task.
+     *  @param _reason Short description of what caused the task to be solved. One of: 'translation-accepted' | 'requester-reimbursed' | 'dispute-settled'
+     *  @param _timestamp When the task was resolved.
+     */
+    event TaskResolved(uint indexed _taskID, string _reason, uint _timestamp);
 
     /** @dev To be emitted when one of the parties successfully paid its appeal fees.
      *  @param _taskID The ID of the respective task.
@@ -191,7 +215,7 @@ contract Linguo is Arbitrable {
         uint _deadline,
         uint _minPrice,
         string _metaEvidence
-    ) external payable returns (uint taskID){
+    ) external payable returns (uint taskID) {
         require(msg.value >= _minPrice, "Deposited value should be greater than or equal to the min price.");
         require(_deadline > now, "The deadline should be in the future.");
 
@@ -205,7 +229,7 @@ contract Linguo is Arbitrable {
         task.requesterDeposit = msg.value;
 
         emit MetaEvidence(taskID, _metaEvidence);
-        emit TaskCreated(taskID, msg.sender);
+        emit TaskCreated(taskID, msg.sender, now);
     }
 
     /** @dev Assigns a specific task to the sender. Requires a translator's deposit.
@@ -234,6 +258,8 @@ contract Linguo is Arbitrable {
 
         remainder = msg.value - deposit;
         msg.sender.send(remainder);
+
+        emit TaskAssigned(_taskID, msg.sender, price, now);
     }
 
     /** @dev Submits translated text for a specific task.
@@ -248,7 +274,7 @@ contract Linguo is Arbitrable {
         task.status = Status.AwaitingReview;
         task.lastInteraction = now;
 
-        emit TranslationSubmitted(_taskID, msg.sender, _translation);
+        emit TranslationSubmitted(_taskID, msg.sender, _translation, now);
     }
 
     /** @dev Reimburses the requester if no one picked the task or the translator failed to submit the translation before deadline.
@@ -265,6 +291,8 @@ contract Linguo is Arbitrable {
 
         task.requesterDeposit = 0;
         task.sumDeposit = 0;
+
+        emit TaskResolved(_taskID, "requester-reimbursed", now);
     }
 
     /** @dev Pays the translator for completed task if no one challenged the translation during review period.
@@ -281,6 +309,8 @@ contract Linguo is Arbitrable {
 
         task.requesterDeposit = 0;
         task.sumDeposit = 0;
+
+        emit TaskResolved(_taskID, "translation-accepted", now);
     }
 
     /** @dev Challenges the translation of a specific task. Requires challenger's deposit.
@@ -308,6 +338,7 @@ contract Linguo is Arbitrable {
         msg.sender.send(remainder);
 
         emit Dispute(arbitrator, task.disputeID, _taskID, _taskID);
+        emit TranslationChallenged(_taskID, msg.sender, now);
     }
 
     /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if all sides are fully funded.
@@ -482,6 +513,8 @@ contract Linguo is Arbitrable {
 
         task.requesterDeposit = 0;
         task.sumDeposit = 0;
+
+        emit TaskResolved(taskID, "dispute-settled", now);
     }
 
     /** @dev Submit a reference to evidence. EVENT.
