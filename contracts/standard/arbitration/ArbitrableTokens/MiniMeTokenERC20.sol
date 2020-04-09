@@ -1,8 +1,8 @@
  /**
- *  @authors: @clesaege
- *  @reviewers: @remedcu
+ *  @authors: [@clesaege]
+ *  @reviewers: [@remedcu]
  *  @auditors: []
- *  @bounties: This code hasn't undertaken a bug bounty program yet.
+ *  @bounties: []
  *  @deployments: []
  */
 
