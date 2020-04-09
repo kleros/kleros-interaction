@@ -1,15 +1,21 @@
  /**
- *  @title Mini Me Token ERC20
- *  Overwrite the MiniMeToken to make it follow ERC20 recommendation.
- *  This is required because the base token reverts when approve is used with the non zero value while allowed is non zero (which not recommended by the standard, see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md).
- *  @author Clément Lesaege - <clement@lesaege.com>
- *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
+ *  @authors: @clesaege
+ *  @reviewers: @remedcu
+ *  @auditors: []
+ *  @bounties: This code hasn't undertaken a bug bounty program yet.
+ *  @deployments: []
  */
 
 pragma solidity ^0.4.18;
 
 import "minimetoken/contracts/MiniMeToken.sol";
 
+ /**
+ *  @title Mini Me Token ERC20
+ *  @notice Overwrite the MiniMeToken to make it follow ERC20 recommendation.
+ *  @dev This is required because the base token reverts when approve is used with the non zero value while allowed is non zero (which not recommended by the standard, see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md).
+ *  @author Clément Lesaege - <clement@lesaege.com>
+ */
 contract MiniMeTokenERC20 is MiniMeToken {
 
     /** @notice Constructor to create a MiniMeTokenERC20
