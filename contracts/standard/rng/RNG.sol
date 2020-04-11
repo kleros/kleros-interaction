@@ -1,4 +1,3 @@
-
  /**
  *  @authors: [@clesaege]
  *  @reviewers: []
@@ -6,7 +5,6 @@
  *  @bounties: []
  *  @deployments: []
  */
-
 
 pragma solidity ^0.4.15;
 
