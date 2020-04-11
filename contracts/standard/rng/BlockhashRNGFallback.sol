@@ -1,3 +1,15 @@
+ /**
+ *  @authors: [@clesaege]
+ *  @reviewers: []
+ *  @auditors: []
+ *  @bounties: []
+ *  @deployments: []
+ */
+
+pragma solidity ^0.4.15;
+ 
+import "./BlockhashRNG.sol";
+
 /**
  *  @title Random Number Generator using blockhash with fallback.
  *  @author Clément Lesaege - <clement@lesaege.com>
@@ -6,12 +18,8 @@
  *  In case no one called it within the 256 blocks, it returns the previous blockhash.
  *  This contract must be used when returning 0 is a worse failure mode than returning another blockhash.
  *  Note that if someone calls it within the timeframe, this contracts acts exactly as BlockHashRNG.
- */
-pragma solidity ^0.4.15;
- 
-import "./BlockhashRNG.sol";
-
-/** Random Number Generator returning the blockhash with a backup behaviour.
+ *
+ *  Random Number Generator returning the blockhash with a backup behaviour.
  *  Allows saving the random number for use in the future. 
  *  It allows the contract to still access the blockhash even after 256 blocks.
  *  The first party to call the save function gets the reward.
