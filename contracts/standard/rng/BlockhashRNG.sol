@@ -26,8 +26,6 @@ contract BlockHashRNG is RNG {
     mapping (uint => uint) public randomNumber; // randomNumber[block] is the random number for this block, 0 otherwise.
     mapping (uint => uint) public reward; // reward[block] is the amount to be paid to the party w.
 
-
-
     /** @dev Contribute to the reward of a random number.
      *  @param _block Block the random number is linked to.
      */
@@ -68,6 +66,6 @@ contract BlockHashRNG is RNG {
      *  @param _block Block the random number is linked to.
      */
     function getFallbackRN(uint _block) internal view returns (uint) {
-        return 0x0; 
+        return 0x0;
     }
 }
