@@ -1,15 +1,22 @@
+ /**
+ *  @authors: [@clesaege]
+ *  @reviewers: []
+ *  @auditors: []
+ *  @bounties: []
+ *  @deployments: []
+ */
+
+pragma solidity ^0.4.15;
+
+import "./RNG.sol";
+
 /**
  *  @title Random Number Generator usign blockhash
  *  @author Clément Lesaege - <clement@lesaege.com>
  *
  *  This contract implements the RNG standard and gives parties incentives to save the blockhash to avoid it to become unreachable after 256 blocks.
  *
- */
-pragma solidity ^0.4.15;
-
-import "./RNG.sol";
-
-/** Simple Random Number Generator returning the blockhash.
+ *  Simple Random Number Generator returning the blockhash.
  *  Allows saving the random number for use in the future.
  *  It allows the contract to still access the blockhash even after 256 blocks.
  *  The first party to call the save function gets the reward.
