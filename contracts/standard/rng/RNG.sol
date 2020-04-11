@@ -1,6 +1,6 @@
  /**
  *  @authors: [@clesaege]
- *  @reviewers: []
+ *  @reviewers: [@remedcu]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -11,6 +11,7 @@ pragma solidity ^0.4.15;
 /**
 *  @title Random Number Generator Standard
 *  @author Clément Lesaege - <clement@lesaege.com>
+*  @dev This is an abstract contract
 */
 contract RNG{
 
