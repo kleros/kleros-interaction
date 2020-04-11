@@ -1,11 +1,19 @@
-/**
-*  @title Random Number Generator Standard
-*  @author Clément Lesaege - <clement@lesaege.com>
-*
-*/
+
+ /**
+ *  @authors: [@clesaege]
+ *  @reviewers: []
+ *  @auditors: []
+ *  @bounties: []
+ *  @deployments: []
+ */
+
 
 pragma solidity ^0.4.15;
 
+/**
+*  @title Random Number Generator Standard
+*  @author Clément Lesaege - <clement@lesaege.com>
+*/
 contract RNG{
 
     /** @dev Contribute to the reward of a random number.
