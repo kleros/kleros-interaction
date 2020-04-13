@@ -23,17 +23,26 @@ import "./BlockhashRNG.sol";
  *  Allows saving the random number for use in the future.
  *  It allows the contract to still access the blockhash even after 256 blocks.
  *  The first party to call the save function gets the reward.
- *  If no one calls the contract within 256 blocks, the contract fallback in returning the blockhash of a block in range.
+ *  If no one calls the contract within 256 blocks, the contract fallback in returning the blockhash of the previous block.
  */
 contract BlockHashRNGFallback is BlockHashRNG {
 
-    /** @dev Fallback by returning a blockhash in range.
+    /** @dev Save the random number for this blockhash and give the reward to the caller.
      *  @param _block Block the random number is linked to.
      */
-    function getFallbackRN(uint _block) internal view returns (uint) {
-        if (_block >= block.number) {
-            return 0x0;
+    function saveRN(uint _block) public {
+        if (_block<block.number && randomNumber[_block]==0) {// If the random number is not already set and can be.
+            if (blockhash(_block) != 0x0) // Normal case.
+                randomNumber[_block] = uint(blockhash(_block));
+            else // The contract was not called in time. Fallback to returning previous blockhash.
+                randomNumber[_block] = uint(blockhash(block.number-1));
         }
-        return uint(blockhash((block.number - 1) - (block.number - 1 - _block)%256));
+
+        if (randomNumber[_block] != 0) { // If the random number is set.
+            uint rewardToSend = reward[_block];
+            reward[_block] = 0;
+            msg.sender.send(rewardToSend); // Note that the use of send is on purpose as we don't want to block in case the msg.sender has a fallback issue.
+        }
     }
+
 }
