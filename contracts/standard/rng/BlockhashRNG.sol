@@ -52,8 +52,6 @@ contract BlockHashRNG is RNG {
     function saveRN(uint _block) public {
         if (blockhash(_block) != 0x0)
             randomNumber[_block] = uint(blockhash(_block));
-        else
-            randomNumber[_block] = getFallbackRN(_block);
 
         if (randomNumber[_block] != 0) { // If the number is set.
             uint rewardToSend = reward[_block];
@@ -62,10 +60,4 @@ contract BlockHashRNG is RNG {
         }
     }
 
-    /** @dev Fallback strategy. This class has no fallback. Subclass provides fallback strategy by overriding this method.
-     *  @param _block Block the random number is linked to.
-     */
-    function getFallbackRN(uint _block) internal view returns (uint) {
-        return 0x0;
-    }
 }
