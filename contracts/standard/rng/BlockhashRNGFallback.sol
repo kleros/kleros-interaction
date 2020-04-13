@@ -3,7 +3,7 @@
  *  @reviewers: [@remedcu]
  *  @auditors: []
  *  @bounties: []
- *  @deployments: []
+ *  @deployments: [ https://etherscan.io/address/0x1738b62e403090666687243e758b1c29edffc90e ]
  */
 
 pragma solidity ^0.4.15;
