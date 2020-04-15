@@ -1,6 +1,6 @@
  /**
- *  @authors: [@clesaege]
- *  @reviewers: [@remedcu]
+ *  @authors: [@remedcu]
+ *  @reviewers: [@clesaege]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -12,12 +12,12 @@ import "./BlockhashRNG.sol";
 
 /**
  *  @title Random Number Generator using blockhash with fallback from the last 256 blockhash mined.
- *  @author Clément Lesaege - <clement@lesaege.com>
+ *  @author Shebin John - <admin@remedcu.com>
  *
  *  Random Number Generator returning the blockhash with a backup behaviour.
  *  This contract implements the RNG standard and gives parties incentives to save the blockhash to avoid it to become unreachable after 256 blocks.
  *  In case no one called it within the 256 blocks, it returns the blockhash from any one of the last mined 256 blocks.
- *  Thus allowing the contract to still access the blockhash even after 256 blocks.
+ *  Thus allowing the contract to still return a value even after 256 blocks.
  *  Allows saving the random number for use in the future.
  *  The first party to call the save function gets the reward.
  *  This contract must be used when returning 0 is a worse failure mode than returning another blockhash.
@@ -30,11 +30,11 @@ contract BlockHashRNGFallback is BlockHashRNG {
      */
     function saveRN(uint _block) public {
         if (_block < block.number && randomNumber[_block] == 0) {// If the random number is not already set and can be.
-            if (blockhash(_block) != 0x0){ // Normal case.
+            if (blockhash(_block) != 0x0) { // Normal case.
                 randomNumber[_block] = uint(blockhash(_block));
             }
-            else{ // The contract was not called in time. Fallback to returning any one of the blockhash of last mined 256 blocks.
-                randomNumber[_block] = uint(blockhash((block.number - 1) - (block.number - 1 - _block)%256));
+            else { // The contract was not called in time. Fallback to returning any one of the blockhash of last mined 256 blocks.
+                randomNumber[_block] = uint(blockhash((block.number-1) - (block.number-1-_block)%256));
             }
         }
 
