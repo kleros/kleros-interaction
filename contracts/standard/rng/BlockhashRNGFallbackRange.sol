@@ -30,7 +30,7 @@ contract BlockHashRNGFallback is BlockHashRNG {
      */
     function saveRN(uint _block) public {
         if (_block < block.number && randomNumber[_block] == 0) {// If the random number is not already set and can be.
-            // The below equation is valid for all cases (last 256 blockhash of blocks or even earlier than that)
+            // The below equation is valid for all cases (last 256 blockhash of blocks or even earlier than that).
             randomNumber[_block] = uint(blockhash((block.number-1) - (block.number-1-_block)%256));
         }
 
