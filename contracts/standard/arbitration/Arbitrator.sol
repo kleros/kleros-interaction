@@ -39,6 +39,7 @@ contract Arbitrator {
 
     /** @dev To be raised when a dispute can be appealed.
      *  @param _disputeID ID of the dispute.
+     *  @param _arbitrable The contract which created the dispute.
      */
     event AppealPossible(uint indexed _disputeID, Arbitrable indexed _arbitrable);
 
