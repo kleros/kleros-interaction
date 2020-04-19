@@ -1,7 +1,9 @@
-/**
- *  @title IArbitrable
- *  @author Enrique Piqueras - <enrique@kleros.io>
- *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
+ /**
+ *  @authors: [@epiqueras]
+ *  @reviewers: [@remedcu]
+ *  @auditors: []
+ *  @bounties: []
+ *  @deployments: []
  */
 
 pragma solidity ^0.4.15;
@@ -9,6 +11,7 @@ pragma solidity ^0.4.15;
 import "./Arbitrator.sol";
 
 /** @title IArbitrable
+ *  @author Enrique Piqueras - <enrique@kleros.io>
  *  Arbitrable interface.
  *  When developing arbitrable contracts, we need to:
  *  -Define the action taken when a ruling is received by the contract. We should do so in executeRuling.
