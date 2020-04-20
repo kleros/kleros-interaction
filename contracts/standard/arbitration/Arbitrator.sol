@@ -1,7 +1,9 @@
-/**
- *  @title Arbitrator
- *  @author Clément Lesaege - <clement@lesaege.com>
- *  Bug Bounties: This code hasn't undertaken a bug bounty program yet.
+ /**
+ *  @authors: [@clesaege]
+ *  @reviewers: [@remedcu]
+ *  @auditors: []
+ *  @bounties: []
+ *  @deployments: []
  */
 
 pragma solidity ^0.4.15;
@@ -9,6 +11,7 @@ pragma solidity ^0.4.15;
 import "./Arbitrable.sol";
 
 /** @title Arbitrator
+ *  @author Clément Lesaege - <clement@lesaege.com>
  *  Arbitrator abstract contract.
  *  When developing arbitrator contracts we need to:
  *  -Define the functions for dispute creation (createDispute) and appeal (appeal). Don't forget to store the arbitrated contract and the disputeID (which should be unique, use nbDisputes).
@@ -36,6 +39,7 @@ contract Arbitrator {
 
     /** @dev To be raised when a dispute can be appealed.
      *  @param _disputeID ID of the dispute.
+     *  @param _arbitrable The contract which created the dispute.
      */
     event AppealPossible(uint indexed _disputeID, Arbitrable indexed _arbitrable);
 
