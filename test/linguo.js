@@ -412,11 +412,9 @@ contract('Linguo', function(accounts) {
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
     await expectThrow(linguo.acceptTranslation(0))
 
-    const task = await linguo.tasks(0)
-    const price = task[6].toNumber()
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -436,10 +434,9 @@ contract('Linguo', function(accounts) {
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     task = await linguo.tasks(0)
-    const price = task[6].toNumber()
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     const challengeTx = await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -516,10 +513,9 @@ contract('Linguo', function(accounts) {
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     task = await linguo.tasks(0)
-    const price = task[6].toNumber()
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -574,11 +570,9 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    task = await linguo.tasks(0)
-    const price = task[6].toNumber()
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -633,10 +627,9 @@ contract('Linguo', function(accounts) {
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     task = await linguo.tasks(0)
-    const price = task[6].toNumber()
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -687,11 +680,9 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const task = await linguo.tasks(0)
-    const price = task[6].toNumber()
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -805,11 +796,10 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const task = await linguo.tasks(0)
-    const price = task[6].toNumber()
+    // DEL: const task = await linguo.tasks(0)
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -832,11 +822,10 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const task = await linguo.tasks(0)
-    const price = task[6].toNumber()
+    // DEL: const task = await linguo.tasks(0)
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -862,10 +851,9 @@ contract('Linguo', function(accounts) {
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
     task = await linguo.tasks(0)
-    const price = task[6].toNumber()
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -926,12 +914,11 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const task = await linguo.tasks(0)
-    const price = task[6].toNumber()
+    // DEL: const task = await linguo.tasks(0)
 
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -1029,11 +1016,10 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const task = await linguo.tasks(0)
-    const price = task[6].toNumber()
+    // DEL: const task = await linguo.tasks(0)
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit
@@ -1113,11 +1099,10 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const task = await linguo.tasks(0)
-    const price = task[6].toNumber()
+    // DEL: const task = await linguo.tasks(0)
     // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
     const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
+      (await linguo.getChallengeValue(0)).toNumber() + 1000
     await linguo.challengeTranslation(0, {
       from: challenger,
       value: challengerDeposit

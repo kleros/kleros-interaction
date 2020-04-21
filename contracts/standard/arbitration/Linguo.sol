@@ -1,5 +1,5 @@
 /**
- *  @authors: [@unknownunknown1]
+ *  @authors: [@unknownunknown1*]
  *  @reviewers: [@ferittuncer*, @clesaege*, @satello*, @hbarcelos]
  *  @auditors: []
  *  @bounties: []
@@ -575,6 +575,20 @@ contract Linguo is Arbitrable {
             uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
+        }
+    }
+
+    /** @dev Gets the deposit required for challenging the translation.
+     *  @param _taskID The ID of the task.
+     *  @return deposit The challengers's deposit.
+     */
+    function getChallengeValue(uint _taskID) public view returns (uint deposit) {
+        Task storage task = tasks[_taskID];
+        if (now - task.lastInteraction > reviewTimeout || task.status != Status.AwaitingReview) {
+            deposit = NOT_PAYABLE_VALUE;
+        } else {
+            uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
+            deposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.requesterDeposit)) / MULTIPLIER_DIVISOR);
         }
     }
 
