@@ -81,7 +81,7 @@ contract Linguo is Arbitrable {
     event TaskCreated(uint indexed _taskID, address indexed _requester, uint _timestamp);
 
     /** @dev To be emitted when a translator assigns the task to himself.
-     *  @param _taskID The ID of task assigned.
+     *  @param _taskID The ID of the assigned task.
      *  @param _translator The address that was assigned to the task.
      *  @param _price The task price at the moment it was assigned.
      *  @param _timestamp When the task was assigned.
@@ -110,7 +110,7 @@ contract Linguo is Arbitrable {
      */
     event TaskResolved(uint indexed _taskID, string _reason, uint _timestamp);
 
-    /** @dev To be emitted when the appeal fees of one of the parties is fully funded.
+    /** @dev To be emitted when the appeal fees of one of the parties are fully funded.
      *  @param _taskID The ID of the respective task.
      *  @param _party The party that is fully funded.
      */
@@ -180,7 +180,7 @@ contract Linguo is Arbitrable {
         challengeMultiplier = _challengeMultiplier;
     }
 
-    /** @dev Changes the percentage of arbitration fees that must be paid by parties as a fee stake if there was no winner and loser in the previouss round.
+    /** @dev Changes the percentage of arbitration fees that must be paid by parties as a fee stake if there was no winner and loser in the previous round.
      *  @param _sharedStakeMultiplier A new value of the multiplier of the appeal cost in case when there is no winner/loser in previous round. In basis point.
      */
     function changeSharedStakeMultiplier(uint _sharedStakeMultiplier) public onlyGovernor {
