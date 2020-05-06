@@ -1,8 +1,8 @@
 /**
  *  @authors: [@mtsalenc]
- *  @reviewers: [@clesaege]
+ *  @reviewers: [@clesaege, @remedcu]
  *  @auditors: []
- *  @bounties: []
+ *  @bounties: [{ duration: 30 days, link: https://github.com/kleros/kleros-interaction/issues/229, maxPayout: 10 ETH }]
  *  @deployments: []
  */
 
