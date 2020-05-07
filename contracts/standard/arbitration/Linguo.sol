@@ -4,6 +4,7 @@
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
+ *  @tools: [MythX]
  */
 
 /* solium-disable security/no-block-members */
@@ -315,8 +316,9 @@ contract Linguo is Arbitrable {
 
     /** @dev Challenges the translation of a specific task. Requires challenger's deposit.
      *  @param _taskID The ID of the task.
+     *  @param _evidence A link to evidence using its URI. Ignored if not provided.
      */
-    function challengeTranslation(uint _taskID) external payable {
+    function challengeTranslation(uint _taskID, string _evidence) external payable {
         Task storage task = tasks[_taskID];
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -339,6 +341,10 @@ contract Linguo is Arbitrable {
 
         emit Dispute(arbitrator, task.disputeID, _taskID, _taskID);
         emit TranslationChallenged(_taskID, msg.sender, now);
+
+        if (bytes(_evidence).length > 0)
+            emit Evidence(arbitrator, _taskID, msg.sender, _evidence);
+
     }
 
     /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if all sides are fully funded.
