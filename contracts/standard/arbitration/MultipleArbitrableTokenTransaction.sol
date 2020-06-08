@@ -4,6 +4,7 @@
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
+ *  @tools: [MythX]
  */
 
 /** @title Multiple Arbitrable ERC20 Token Transaction

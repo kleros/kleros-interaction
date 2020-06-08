@@ -50,7 +50,7 @@
     "openzeppelin-test-helpers": "^0.4.3",
     "pify": "^4.0.1",
     "standard-version": "^4.4.0",
-    "truffle": "^4.1.13"
+    "truffle": "4.1.16"
   },
   "dependencies": {
     "@kleros/kleros": "^0.1.2",

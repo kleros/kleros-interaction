@@ -5,6 +5,7 @@
 *  @auditors: []
 *  @bounties: []
 *  @deployments: []
+*  @tools: [MythX]
 */
 
 pragma solidity ^0.4.24;

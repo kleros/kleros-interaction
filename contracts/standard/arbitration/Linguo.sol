@@ -1,14 +1,15 @@
 /**
  *  @authors: [@unknownunknown1]
- *  @reviewers: [@ferittuncer*, @clesaege*, @satello*, @hbarcelos]
+ *  @reviewers: [@ferittuncer*, @clesaege*, @satello*, @hbarcelos, @mtsalenc]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
+ *  @tools: [MythX]
  */
 
 /* solium-disable security/no-block-members */
 /* solium-disable max-len*/
-pragma solidity ^0.4.24;
+pragma solidity ^0.4.26;
 
 import "./Arbitrable.sol";
 import "../../libraries/CappedMath.sol";
@@ -81,8 +82,8 @@ contract Linguo is Arbitrable {
     event TaskCreated(uint indexed _taskID, address indexed _requester, uint _timestamp);
 
     /** @dev To be emitted when a translator assigns the task to himself.
-     *  @param _taskID The ID of the newly created task.
-     *  @param _translator The address that assigned to the task.
+     *  @param _taskID The ID of the assigned task.
+     *  @param _translator The address that was assigned to the task.
      *  @param _price The task price at the moment it was assigned.
      *  @param _timestamp When the task was assigned.
      */
@@ -110,9 +111,9 @@ contract Linguo is Arbitrable {
      */
     event TaskResolved(uint indexed _taskID, string _reason, uint _timestamp);
 
-    /** @dev To be emitted when one of the parties successfully paid its appeal fees.
+    /** @dev To be emitted when the appeal fees of one of the parties are fully funded.
      *  @param _taskID The ID of the respective task.
-     *  @param _party The party that paid appeal fees.
+     *  @param _party The party that is fully funded.
      */
     event HasPaidAppealFee(uint indexed _taskID, Party _party);
 
@@ -180,21 +181,21 @@ contract Linguo is Arbitrable {
         challengeMultiplier = _challengeMultiplier;
     }
 
-    /** @dev Changes the percentage of arbitration fees that must be paid by parties if there was no winner and loser in previous round.
+    /** @dev Changes the percentage of arbitration fees that must be paid by parties as a fee stake if there was no winner and loser in the previous round.
      *  @param _sharedStakeMultiplier A new value of the multiplier of the appeal cost in case when there is no winner/loser in previous round. In basis point.
      */
     function changeSharedStakeMultiplier(uint _sharedStakeMultiplier) public onlyGovernor {
         sharedStakeMultiplier = _sharedStakeMultiplier;
     }
 
-    /** @dev Changes the percentage of arbitration fees that must be paid by the party that won the previous round.
+    /** @dev Changes the percentage of arbitration fees that must be paid as a fee stake by the party that won the previous round.
      *  @param _winnerStakeMultiplier A new value of the multiplier of the appeal cost that the winner of the previous round has to pay. In basis points.
      */
     function changeWinnerStakeMultiplier(uint _winnerStakeMultiplier) public onlyGovernor {
         winnerStakeMultiplier = _winnerStakeMultiplier;
     }
 
-    /** @dev Changes the percentage of arbitration fees that must be paid by the party that lost the previous round.
+    /** @dev Changes the percentage of arbitration fees that must be paid as a fee stake by the party that lost the previous round.
      *  @param _loserStakeMultiplier A new value of the multiplier of the appeal cost that the party that lost the previous round has to pay. In basis points.
      */
     function changeLoserStakeMultiplier(uint _loserStakeMultiplier) public onlyGovernor {
@@ -242,10 +243,10 @@ contract Linguo is Arbitrable {
 
         uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
+        uint translatorDeposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
 
         require(task.status == Status.Created, "Task has already been assigned or reimbursed.");
-        require(msg.value >= deposit, "Not enough ETH to reach the required deposit value.");
+        require(msg.value >= translatorDeposit, "Not enough ETH to reach the required deposit value.");
 
         task.parties[uint(Party.Translator)] = msg.sender;
         task.status = Status.Assigned;
@@ -254,9 +255,9 @@ contract Linguo is Arbitrable {
         task.requester.send(remainder);
         // Update requester's deposit since we reimbursed him the difference between maximal and actual price.
         task.requesterDeposit = price;
-        task.sumDeposit += deposit;
+        task.sumDeposit += translatorDeposit;
 
-        remainder = msg.value - deposit;
+        remainder = msg.value - translatorDeposit;
         msg.sender.send(remainder);
 
         emit TaskAssigned(_taskID, msg.sender, price, now);
@@ -315,8 +316,9 @@ contract Linguo is Arbitrable {
 
     /** @dev Challenges the translation of a specific task. Requires challenger's deposit.
      *  @param _taskID The ID of the task.
+     *  @param _evidence A link to evidence using its URI. Ignored if not provided.
      */
-    function challengeTranslation(uint _taskID) external payable {
+    function challengeTranslation(uint _taskID, string _evidence) external payable {
         Task storage task = tasks[_taskID];
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -339,6 +341,10 @@ contract Linguo is Arbitrable {
 
         emit Dispute(arbitrator, task.disputeID, _taskID, _taskID);
         emit TranslationChallenged(_taskID, msg.sender, now);
+
+        if (bytes(_evidence).length > 0)
+            emit Evidence(arbitrator, _taskID, msg.sender, _evidence);
+
     }
 
     /** @dev Takes up to the total amount required to fund a side of an appeal. Reimburses the rest. Creates an appeal if all sides are fully funded.
@@ -463,8 +469,8 @@ contract Linguo is Arbitrable {
             withdrawFeesAndRewards(_beneficiary, _taskID, i);
     }
 
-    /** @dev Gives a ruling for a dispute. Must be called by the arbitrator.
-     *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract.
+    /** @dev Gives a ruling for a dispute. Can only be called by the arbitrator.
+     *  The purpose of this function is to ensure that the address calling it has the right to rule on the contract and to invert the ruling in the case a party loses from lack of appeal fees funding.
      *  @param _disputeID ID of the dispute in the Arbitrator contract.
      *  @param _ruling Ruling given by the arbitrator. Note that 0 is reserved for "Refuse to arbitrate".
      */
