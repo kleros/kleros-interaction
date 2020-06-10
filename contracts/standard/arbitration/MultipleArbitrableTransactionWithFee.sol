@@ -19,8 +19,10 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
     // **************************** //
 
     uint8 constant AMOUNT_OF_CHOICES = 2;
+    uint8 constant SENDER_WINS = 1;
+    uint8 constant RECEIVER_WINS = 2;
 
-    enum Party {None, Sender, Receiver}
+    enum Party {Sender, Receiver}
     enum Status {NoDispute, WaitingSender, WaitingReceiver, DisputeCreated, Resolved}
 
     struct Transaction {
@@ -98,7 +100,7 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
      *  @param _feeRecipient Address which receives a % of receiver payment.
-     *  @param _feeRecipientBasisPoint // The % of fee to be received by the feeRecipient, down to 2 decimal places as 550 = 5.5%.
+     *  @param _feeRecipientBasisPoint The % of fee to be received by the feeRecipient, down to 2 decimal places as 550 = 5.5%.
      *  @param _feeTimeout Arbitration fee timeout for the parties.
      */
     constructor (
@@ -127,7 +129,6 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         address _receiver,
         string _metaEvidence
     ) public payable returns (uint transactionID) {
-        transactionID = transactions.length;
         transactions.push(Transaction({
             sender: msg.sender,
             receiver: _receiver,
@@ -141,6 +142,8 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         }));
         emit MetaEvidence(transactions.length - 1, _metaEvidence);
         emit TransactionCreated(transactions.length - 1, msg.sender, _receiver, msg.value);
+
+        return transactions.length - 1;
     }
 
     /** @dev Calculate the amount to be paid in wei according to feeRecipientBasisPoint for a particular amount.
@@ -193,10 +196,8 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
         require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
 
-        transaction.amount -= _amountReimbursed;
-
         transaction.sender.transfer(_amountReimbursed);
-
+        transaction.amount -= _amountReimbursed;
         emit Payment(_transactionID, _amountReimbursed, msg.sender);
     }
 
@@ -210,13 +211,13 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
 
         uint amount = transaction.amount;
         transaction.amount = 0;
-
         uint feeAmount = calculateFeeRecipientAmount(amount);
         feeRecipient.send(feeAmount);
         transaction.receiver.send(amount - feeAmount);
 
-        transaction.status = Status.Resolved;
         emit FeePayment(_transactionID, feeAmount);
+
+        transaction.status = Status.Resolved;
     }
 
     /** @dev Reimburse sender if receiver fails to pay the fee.
@@ -227,7 +228,11 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         require(transaction.status == Status.WaitingReceiver, "The transaction is not waiting on the receiver.");
         require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");        
 
-        executeRuling(_transactionID, uint(Party.Sender));
+        if (transaction.receiverFee != 0) {
+            transaction.receiver.send(transaction.receiverFee);
+            transaction.receiverFee = 0;
+        }
+        executeRuling(_transactionID, SENDER_WINS);
     }
 
     /** @dev Pay receiver if sender fails to pay the fee.
@@ -238,7 +243,11 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         require(transaction.status == Status.WaitingSender, "The transaction is not waiting on the sender.");
         require(now - transaction.lastInteraction >= feeTimeout, "Timeout time has not passed yet.");
 
-        executeRuling(_transactionID, uint(Party.Receiver));
+        if (transaction.senderFee != 0) {
+            transaction.sender.send(transaction.senderFee);
+            transaction.senderFee = 0;
+        }
+        executeRuling(_transactionID, RECEIVER_WINS);
     }
 
     /** @dev Pay the arbitration fee to raise a dispute. To be called by the sender. UNTRUSTED.
@@ -384,9 +393,9 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
 
         // Give the arbitration fee back.
         // Note that we use send to prevent a party from blocking the execution.
-        if (_ruling == uint(Party.Sender)) {
+        if (_ruling == SENDER_WINS) {
             transaction.sender.send(senderArbitrationFee + amount);
-        } else if (_ruling == uint(Party.Receiver)) {
+        } else if (_ruling == RECEIVER_WINS) {
             feeAmount = calculateFeeRecipientAmount(amount);
 
             feeRecipient.send(feeAmount);
