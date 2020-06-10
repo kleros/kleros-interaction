@@ -110,7 +110,6 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         uint _feeRecipientBasisPoint,
         uint _feeTimeout
     ) public {
-        require(_feeRecipientBasisPoint < 10001, "Value of percentage to be in the range [0, 10000]");
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
         feeRecipient = _feeRecipient;
@@ -149,7 +148,7 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
     /** @dev Calculate the amount to be paid in wei according to feeRecipientBasisPoint for a particular amount.
      *  @param _amount Amount to pay in wei.
      */
-    function calculateFeeRecipientAmount(uint _amount) internal returns(uint feeAmount){
+    function calculateFeeRecipientAmount(uint _amount) internal view returns(uint feeAmount){
         feeAmount = (_amount * feeRecipientBasisPoint) / 10000;
     }
 
@@ -157,13 +156,11 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
      *  @param _newFeeRecipient Address of the new Fee Recipient.
      *  @return _status true when suceessful, false otherwise.
      */
-    function changeFeeRecipient(address _newFeeRecipient) public returns(bool _status){
+    function changeFeeRecipient(address _newFeeRecipient) public {
         require(msg.sender == feeRecipient, "The caller must be the current Fee Recipient");
         feeRecipient = _newFeeRecipient;
 
         emit FeeRecipientChanged(msg.sender, _newFeeRecipient);
-
-        return true;
     }
 
     /** @dev Pay receiver. To be called if the good or service is provided.
