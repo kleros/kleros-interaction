@@ -1407,7 +1407,7 @@ const {
         }
       )
   
-      assert.equal(tx.logs[0].event, 'FeePayment')
+      assert.equal(tx.logs[0].event, 'FeeRecipientPayment')
       assert.equal(tx.logs[0].args._transactionID.toNumber(), arbitrableTransactionId)
       assert.equal(tx.logs[0].args._amount, calculateFeeRecipientAmount(amount))
     })

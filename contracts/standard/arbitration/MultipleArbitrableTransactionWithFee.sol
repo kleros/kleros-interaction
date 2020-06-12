@@ -62,7 +62,7 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
      *  @param _transactionID The index of the transaction.
      *  @param _amount The amount paid.
      */
-    event FeePayment(uint indexed _transactionID, uint _amount);
+    event FeeRecipientPayment(uint indexed _transactionID, uint _amount);
 
     /** @dev To be emitted when a feeRecipient is changed.
      *  @param _oldFeeRecipient Previous feeRecipient.
@@ -180,7 +180,7 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         transaction.receiver.send(_amount - feeAmount);
 
         emit Payment(_transactionID, _amount, msg.sender);
-        emit FeePayment(_transactionID, feeAmount);
+        emit FeeRecipientPayment(_transactionID, feeAmount);
     }
 
     /** @dev Reimburse sender. To be called if the good or service can't be fully provided.
@@ -212,7 +212,7 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         feeRecipient.send(feeAmount);
         transaction.receiver.send(amount - feeAmount);
 
-        emit FeePayment(_transactionID, feeAmount);
+        emit FeeRecipientPayment(_transactionID, feeAmount);
 
         transaction.status = Status.Resolved;
     }
@@ -398,7 +398,7 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
             feeRecipient.send(feeAmount);
             transaction.receiver.send(receiverArbitrationFee + amount - feeAmount);
 
-            emit FeePayment(_transactionID, feeAmount);
+            emit FeeRecipientPayment(_transactionID, feeAmount);
         } else {
             uint split_arbitration = senderArbitrationFee / 2;
             uint split_amount = amount / 2;
@@ -408,7 +408,7 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
             feeRecipient.send(feeAmount);
             transaction.receiver.send(split_arbitration + split_amount - feeAmount);
 
-            emit FeePayment(_transactionID, feeAmount);
+            emit FeeRecipientPayment(_transactionID, feeAmount);
         }
 
         transaction.status = Status.Resolved;
