@@ -154,7 +154,6 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
 
     /** @dev Change Fee Recipient.
      *  @param _newFeeRecipient Address of the new Fee Recipient.
-     *  @return _status true when suceessful, false otherwise.
      */
     function changeFeeRecipient(address _newFeeRecipient) public {
         require(msg.sender == feeRecipient, "The caller must be the current Fee Recipient");
