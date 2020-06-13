@@ -113,6 +113,7 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
         feeRecipient = _feeRecipient;
+        // Basis point being set higher than 10000 will result in underflow, but it's the responsibility of the deployer of the contract.
         feeRecipientBasisPoint = _feeRecipientBasisPoint;
         feeTimeout = _feeTimeout;
     }
