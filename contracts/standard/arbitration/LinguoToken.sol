@@ -20,6 +20,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
  *  This version of the contract made for ERC-20 tokens support.
  *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call.
  *  The arbitrator must support appeal period.
+ *  Also note that this contract trusts that the token transfers will not be blocked by the recepient.
  */
 contract LinguoToken is Arbitrable {
 
@@ -523,8 +524,6 @@ contract LinguoToken is Arbitrable {
             sumDeposit = sumDeposit / 2;
             task.parties[uint(Party.Translator)].send(sumDeposit);
             task.parties[uint(Party.Challenger)].send(sumDeposit);
-            // When using a token of the advanced standard (ERC777 etc) the requester can revert this function and prevent fee reimbursement.
-            // This is not an issue however, because "0" ruling is an edge case.
             require(task.token.transfer(task.requester, requesterDeposit), "Could not transfer tokens to requester.");
         } else if (_ruling == uint(Party.Translator)) {
             task.parties[uint(Party.Translator)].send(sumDeposit);
