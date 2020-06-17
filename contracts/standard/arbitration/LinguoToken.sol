@@ -20,7 +20,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
  *  This version of the contract made for ERC-20 tokens support.
  *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call.
  *  The arbitrator must support appeal period.
- *  Also note that this contract trusts that the token transfers will not be blocked by the recepient.
+ *  Also note that this contract trusts that the tokens will not allow the recipients to block the transfers.
  */
 contract LinguoToken is Arbitrable {
 
