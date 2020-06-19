@@ -1036,7 +1036,7 @@ contract('MultipleArbitrableTokenTransactionWithFee', function(accounts) {
   })
 
   // FeeRecipientPayment
-  it('Should emit FeePayment', async () => {
+  it('Should emit FeeRecipientPaymentInToken', async () => {
     const { maContract } = await setupContracts()
     const { arbitrableTransactionId } = await createTestTransaction(maContract)
 
