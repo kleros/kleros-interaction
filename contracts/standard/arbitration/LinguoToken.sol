@@ -20,6 +20,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
  *  This version of the contract made for ERC-20 tokens support.
  *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call.
  *  The arbitrator must support appeal period.
+ *  Also note that this contract trusts that the tokens will not allow the recipients to block the transfers.
  */
 contract LinguoToken is Arbitrable {
 
@@ -260,15 +261,15 @@ contract LinguoToken is Arbitrable {
         task.parties[uint(Party.Translator)] = msg.sender;
         task.status = Status.Assigned;
 
-        uint remainder = task.maxPrice.subCap(price);
-        require(task.token.transfer(task.requester, remainder), "Could not transfer tokens to the requester.");
         // Update requester's deposit since we reimbursed him the difference between maximal and actual price.
         task.requesterDeposit = price;
         task.sumDeposit += translatorDeposit;
 
-        remainder = msg.value - translatorDeposit;
+        uint remainder = msg.value - translatorDeposit;
         msg.sender.send(remainder);
 
+        remainder = task.maxPrice.subCap(price);
+        require(task.token.transfer(task.requester, remainder), "Could not transfer tokens to the requester.");
         emit TaskAssigned(_taskID, msg.sender, price, now);
     }
 
@@ -300,8 +301,8 @@ contract LinguoToken is Arbitrable {
         task.requesterDeposit = 0;
         task.sumDeposit = 0;
         // Requester gets his deposit back and also the deposit of the translator, if there was one.  Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
-        require(task.token.transfer(task.requester, requesterDeposit), "The token transfer was unsuccessful.");
         task.requester.send(sumDeposit);
+        require(task.token.transfer(task.requester, requesterDeposit), "The token transfer was unsuccessful.");
 
         emit TaskResolved(_taskID, "requester-reimbursed", now);
     }
@@ -320,9 +321,9 @@ contract LinguoToken is Arbitrable {
         uint sumDeposit = task.sumDeposit;
         task.requesterDeposit = 0;
         task.sumDeposit = 0;
-        require(task.token.transfer(translator, requesterDeposit), "The token transfer was unsuccessful.");
         translator.send(sumDeposit);
-        
+        require(task.token.transfer(translator, requesterDeposit), "The token transfer was unsuccessful.");
+
         emit TaskResolved(_taskID, "translation-accepted", now);
     }
 
@@ -519,17 +520,17 @@ contract LinguoToken is Arbitrable {
         task.sumDeposit = 0;
 
         if(_ruling == uint(Party.None)){
-            require(task.token.transfer(task.requester, task.requesterDeposit), "Could not transfer tokens to requester.");
             // The value of sumDeposit is split among parties in this case. If the sum is uneven the value of 1 wei can be burnt.
             sumDeposit = sumDeposit / 2;
             task.parties[uint(Party.Translator)].send(sumDeposit);
             task.parties[uint(Party.Challenger)].send(sumDeposit);
-        } else if (_ruling == uint(Party.Translator)) {
-            require(task.token.transfer(task.parties[uint(Party.Translator)], requesterDeposit), "Could not transfer tokens to translator.");
-            task.parties[uint(Party.Translator)].send(sumDeposit);
-        } else {
             require(task.token.transfer(task.requester, requesterDeposit), "Could not transfer tokens to requester.");
+        } else if (_ruling == uint(Party.Translator)) {
+            task.parties[uint(Party.Translator)].send(sumDeposit);
+            require(task.token.transfer(task.parties[uint(Party.Translator)], requesterDeposit), "Could not transfer tokens to translator.");
+        } else {
             task.parties[uint(Party.Challenger)].send(sumDeposit);
+            require(task.token.transfer(task.requester, requesterDeposit), "Could not transfer tokens to requester.");
         }
 
         emit TaskResolved(taskID, "dispute-settled", now);
