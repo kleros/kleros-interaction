@@ -17,7 +17,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 /** @title LinguoToken
  *  Linguo is a decentralized platform where anyone can submit a document for translation and have it translated by freelancers.
  *  It has no platform fees and disputes about translation quality are handled by Kleros jurors.
- *  This version of the contract made for ERC-20 tokens support.
+ *  This version of the contract is made for ERC-20 tokens support.
  *  NOTE: This contract trusts that the Arbitrator is honest and will not reenter or modify its costs during a call.
  *  The arbitrator must support appeal period.
  *  Also note that this contract trusts that the tokens will not allow the recipients to block the transfers.
@@ -183,7 +183,7 @@ contract LinguoToken is Arbitrable {
     /** @dev Changes the base deposit for challenger.
      *  @param _challengerBaseDeposit A new value of the base deposit required for challenging, in wei.
      */
-    function changeChallengrBaseDeposit(uint _challengerBaseDeposit) public onlyGovernor {
+    function changeChallengerBaseDeposit(uint _challengerBaseDeposit) public onlyGovernor {
         challengerBaseDeposit = _challengerBaseDeposit;
     }
 
@@ -233,6 +233,7 @@ contract LinguoToken is Arbitrable {
 
         taskID = tasks.length++;
         Task storage task = tasks[taskID];
+        task.token = _token;
         task.submissionTimeout = _deadline - now;
         task.minPrice = _minPrice;
         task.maxPrice = _maxPrice;
@@ -241,7 +242,7 @@ contract LinguoToken is Arbitrable {
         task.requesterDeposit = _maxPrice;
 
         emit MetaEvidence(taskID, _metaEvidence);
-        emit TaskCreated(taskID, msg.sender, _token, now);
+        emit TaskCreated(taskID, msg.sender, task.token, now);
     }
 
     /** @dev Assigns a specific task to the sender. Requires a translator's deposit in wei.
