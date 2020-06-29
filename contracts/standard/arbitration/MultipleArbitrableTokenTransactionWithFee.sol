@@ -197,7 +197,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
         uint tokenBalance = transaction.token.balanceOf(address(this)); // A token transaction mutex.
         transaction.token.transfer(feeRecipient, feeAmount); // It is the responsibility of the feeRecipient to accept Token.
         require(transaction.token.transfer(transaction.receiver, _amount - feeAmount), "The `transfer` function must not fail.");
-        require(transaction.token.balanceOf(address(this)) == tokenBalance - _amount, "Tried to transfer tokens more than allowed.");
+        require(transaction.token.balanceOf(address(this)) >= tokenBalance - _amount, "Tried to transfer tokens more than allowed.");
 
         emit Payment(_transactionID, _amount - feeAmount, msg.sender);
         emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
@@ -234,7 +234,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
         uint tokenBalance = transaction.token.balanceOf(address(this));
         transaction.token.transfer(feeRecipient, feeAmount);
         require(transaction.token.transfer(transaction.receiver, amount - feeAmount), "The `transfer` function must not fail.");
-        require(transaction.token.balanceOf(address(this)) == tokenBalance - amount, "Tried to transfer tokens more than allowed.");
+        require(transaction.token.balanceOf(address(this)) >= tokenBalance - amount, "Tried to transfer tokens more than allowed.");
 
         emit Payment(_transactionID, amount - feeAmount, transaction.sender);
         emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
