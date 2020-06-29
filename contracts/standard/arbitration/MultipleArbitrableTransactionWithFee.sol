@@ -37,8 +37,8 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         Status status;
     }
 
-    address public feeRecipient; // Address which receives a % of receiver payment.
-    uint public feeRecipientBasisPoint; // The % of fee to be received by the feeRecipient, down to 2 decimal places as 550 = 5.5%.
+    address public feeRecipient; // Address which receives a share of receiver payment.
+    uint public feeRecipientBasisPoint; // The share of fee to be received by the feeRecipient, down to 2 decimal places as 550 = 5.5%.
     Transaction[] public transactions;
     bytes public arbitratorExtraData; // Extra data to set up the arbitration.
     Arbitrator public arbitrator; // Address of the arbitrator contract.
@@ -99,8 +99,8 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
-     *  @param _feeRecipient Address which receives a % of receiver payment.
-     *  @param _feeRecipientBasisPoint The % of fee to be received by the feeRecipient, down to 2 decimal places as 550 = 5.5%.
+     *  @param _feeRecipient Address which receives a share of receiver payment.
+     *  @param _feeRecipientBasisPoint The share of fee to be received by the feeRecipient, down to 2 decimal places as 550 = 5.5%.
      *  @param _feeTimeout Arbitration fee timeout for the parties.
      */
     constructor (
