@@ -69,7 +69,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
     /** @dev To be emitted when a fee is received by the feeRecipient in Token.
      *  @param _transactionID The index of the transaction.
      *  @param _amount The amount paid.
-     *  @param _token The Token ID
+     *  @param _token The Token Address
      */
     event FeeRecipientPaymentInToken(uint indexed _transactionID, uint _amount, ERC20 _token);
 
@@ -189,7 +189,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.sender == msg.sender, "The caller must be the sender.");
         require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
-        require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
+        require(_amount <= transaction.amount, "The amount paid has to be less than or equal to the transaction.");
 
         transaction.amount -= _amount;
         uint feeAmount = calculateFeeRecipientAmount(_amount);
@@ -211,7 +211,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.receiver == msg.sender, "The caller must be the receiver.");
         require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
-        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
+        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less than or equal to the transaction.");
 
         transaction.amount -= _amountReimbursed;
         require(transaction.token.transfer(transaction.sender, _amountReimbursed), "The `transfer` function must not fail.");
