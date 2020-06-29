@@ -236,7 +236,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
         require(transaction.token.transfer(transaction.receiver, amount - feeAmount), "The `transfer` function must not fail.");
         require(transaction.token.balanceOf(address(this)) == tokenBalance - amount, "Tried to transfer tokens more than allowed.");
 
-        emit Payment(_transactionID, amount - feeAmount, msg.sender);
+        emit Payment(_transactionID, amount - feeAmount, transaction.sender);
         emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
     }
 
