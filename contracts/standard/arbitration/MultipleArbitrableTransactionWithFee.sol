@@ -31,8 +31,8 @@ contract MultipleArbitrableTransactionWithFee is IArbitrable {
         uint amount;
         uint timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
         uint disputeId; // If dispute exists, the ID of the dispute.
-        uint senderFee; // Total fees paid by the sender.
-        uint receiverFee; // Total fees paid by the receiver.
+        uint senderFee; // Total arbitration fees paid by the sender.
+        uint receiverFee; // Total arbitration fees paid by the receiver.
         uint lastInteraction; // Last interaction for the dispute procedure.
         Status status;
     }
