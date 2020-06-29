@@ -1,10 +1,11 @@
 /* eslint-disable no-undef */ // Avoid the linter considering truffle elements as undef.
-const shouldFail = require('./helpers/should-fail')
-const time = require('./helpers/time')
 const { assert } = require('chai')
 const {
   expectThrow
 } = require('openzeppelin-solidity/test/helpers/expectThrow')
+
+const time = require('./helpers/time')
+const shouldFail = require('./helpers/should-fail')
 
 const MultipleArbitrableTokenTransactionWithFee = artifacts.require(
   './MultipleArbitrableTokenTransactionWithFee.sol'
