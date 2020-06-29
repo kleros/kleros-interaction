@@ -69,7 +69,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
     /** @dev To be emitted when a fee is received by the feeRecipient in Token.
      *  @param _transactionID The index of the transaction.
      *  @param _amount The amount paid.
-     *  @param _token The Token Address
+     *  @param _token The Token Address.
      */
     event FeeRecipientPaymentInToken(uint indexed _transactionID, uint _amount, ERC20 _token);
 
