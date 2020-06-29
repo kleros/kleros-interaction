@@ -1,9 +1,9 @@
 /**
  *  @authors: [@n1c01a5, @hellwolf, @satello]
- *  @reviewers: [@ferittuncer, @unknownunknown1, @mtsalenc, @clesaege]
+ *  @reviewers: [@ferittuncer, @unknownunknown1, @mtsalenc, @clesaege, @remedcu]
  *  @auditors: []
  *  @bounties: []
- *  @deployments: []
+ *  @deployments: [ https://etherscan.io/address/0xc25a0b9681abf6f090aed71a8c08fb564b41dab6 ]
  *  @tools: [MythX]
  */
 
