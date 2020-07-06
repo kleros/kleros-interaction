@@ -1,9 +1,9 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @reviewers: [@clesaege, @unknownunknown1]
- *  @auditors: []
+ *  @auditors: [@remedcu]
  *  @bounties: []
- *  @deployments: []
+ *  @deployments: [ https://etherscan.io/address/0xd47f72a2d1d0e91b0ec5e5f5d02b2dc26d00a14d ]
  *  @tools: [MythX]
  */
 
