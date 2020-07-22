@@ -50,7 +50,7 @@ contract('MultipleArbitrableTokenTransactionWithFee', function(accounts) {
       feeRecipient,
       feeRecipientBasisPoint,
       timeoutFee,
-      { from: sender }
+      { from: feeRecipient }
     )
 
     return {
@@ -100,6 +100,11 @@ contract('MultipleArbitrableTokenTransactionWithFee', function(accounts) {
     await this.token.approve(maContract.address, amount, {
       from: sender
     })
+    await maContract.acceptOrRejectToken(
+      [this.token.address],
+      [true],
+      { from: feeRecipient }
+      )
     const lastTransaction = await getLastTransaction(maContract, async () => {
       await maContract.createTransaction(
         amount,
@@ -1055,4 +1060,96 @@ contract('MultipleArbitrableTokenTransactionWithFee', function(accounts) {
     assert.equal(tx.logs[1].args._amount, calculateFeeRecipientAmount(amount))
     assert.equal(tx.logs[1].args._token, this.token.address)
   })
+
+  // new token address added
+  it('Should add new Token and emit the corresponding event', async () => {
+    const { maContract } = await setupContracts()
+    const newToken = await ERC20Mock.new(other, 100)
+
+    const tx = await maContract.acceptOrRejectToken(
+        [newToken.address],
+        [true],
+        { from: feeRecipient }
+      )
+
+    const _newToken = await maContract.tokenAccepted(newToken.address)
+
+    assert.equal(tx.logs[0].event, 'TokenStatusChanged', 'Event Name mismatch')
+    assert.equal(tx.logs[0].args._token, newToken.address, 'Token Address Mismatch')
+    assert.equal(tx.logs[0].args._tokenStatus, true, 'Token Status Mismatch in Event')
+    assert.equal(_newToken, true, 'Token Status Mismatch in Mapping')
+  })
+
+  // token address removed
+  it('Should remove a Token and emit the corresponding event', async () => {
+    const { maContract } = await setupContracts()
+
+    const tx = await maContract.acceptOrRejectToken(
+        [this.token.address],
+        [false],
+        { from: feeRecipient }
+      )
+
+    const _newToken = await maContract.tokenAccepted(this.token.address)
+
+    assert.equal(tx.logs[0].event, 'TokenStatusChanged', 'Event Name mismatch')
+    assert.equal(tx.logs[0].args._token, this.token.address, 'Token Address Mismatch')
+    assert.equal(tx.logs[0].args._tokenStatus, false, 'Token Status Mismatch')
+    assert.equal(_newToken, false, 'Token Status Mismatch in Mapping')
+  })
+
+  // add & remove multiple token
+  it('Should add & remove Tokens and emit the corresponding events', async () => {
+    const { maContract } = await setupContracts()
+    const newToken = await ERC20Mock.new(other, 100)
+
+    const tx = await maContract.acceptOrRejectToken(
+        [newToken.address, this.token.address],
+        [true, false],
+        { from: feeRecipient }
+      )
+
+    const _newToken = await maContract.tokenAccepted(newToken.address)
+    const _previousToken = await maContract.tokenAccepted(this.token.address)
+
+    assert.equal(tx.logs[0].event, 'TokenStatusChanged', 'First Event Name mismatch')
+    assert.equal(tx.logs[0].args._token, newToken.address, 'First Token Address Mismatch')
+    assert.equal(tx.logs[0].args._tokenStatus, true, 'First Token Status Mismatch in Event')
+    assert.equal(_newToken, true, 'First Token Status Mismatch in Mapping')
+
+    assert.equal(tx.logs[1].event, 'TokenStatusChanged', 'Second Event Name mismatch')
+    assert.equal(tx.logs[1].args._token, this.token.address, 'Second Token Address Mismatch')
+    assert.equal(tx.logs[1].args._tokenStatus, false, 'Second Token Status Mismatch')
+    assert.equal(_previousToken, false, 'Second Token Status Mismatch in Mapping')
+
+  })
+
+  // Only feeRecipient should be able to add new Token
+  it('Only feeRecipient should be allowed to add new Token', async () => {
+    const { maContract } = await setupContracts()
+    const newToken = await ERC20Mock.new(other, 100)
+
+    await expectThrow(
+      maContract.acceptOrRejectToken(
+        [newToken.address],
+        [true],
+        { from: sender }
+      )
+    )
+  })
+
+  // Only feeRecipient should be able to remove a Token
+  it('Only feeRecipient should be allowed to remove new Token', async () => {
+    const { maContract } = await setupContracts()
+
+    await expectThrow(
+      maContract.acceptOrRejectToken(
+        [this.token.address],
+        [false],
+        { from: sender }
+      )
+    )
+  })
+
+
 })

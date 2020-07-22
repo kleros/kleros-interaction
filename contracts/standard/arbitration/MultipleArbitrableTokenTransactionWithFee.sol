@@ -54,6 +54,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
     uint public feeTimeout; // Time in seconds a party can take to pay arbitration fees before being considered unresponding and lose the dispute.
 
     mapping (uint => uint) public disputeIDtoTransactionID;
+    mapping (address => bool) public tokenAccepted; // Mapping to check whether a token is accepted or not.
 
     // **************************** //
     // *          Events          * //
@@ -101,6 +102,23 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
      */
     event TransactionCreated(uint _transactionID, address indexed _sender, address indexed _receiver, ERC20 _token, uint _amount);
 
+    /** @dev To be emitted when token is added/removed from tokenAccepted mapping.
+     *  @param _token Token Address.
+     *  @param _tokenStatus New Token Status.
+     */
+    event TokenStatusChanged(address indexed _token, bool _tokenStatus);
+
+    // **************************** //
+    // *         Modifiers        * //
+    // **************************** //
+
+    /** @dev Requires that the sender is the feeRecipient.
+     */
+     modifier onlyFeeRecipient() {
+        require(msg.sender == feeRecipient, "The caller must be the current Fee Recipient");
+        _;
+     }
+
     // **************************** //
     // *    Arbitrable functions  * //
     // *    Modifying the state   * //
@@ -126,6 +144,20 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
         // Basis point being set higher than 10000 will result in underflow, but it's the responsibility of the deployer of the contract.
         feeRecipientBasisPoint = _feeRecipientBasisPoint;
         feeTimeout = _feeTimeout;
+    }
+
+    /** @notice Tokens should not reenter or allow recipients to refuse the transfer.
+     *  @dev Accept or Reject a particular Token.
+     *  @param _tokenList Token List.
+     *  @param _tokenStatus New Token Status.
+     */
+    function acceptOrRejectToken(address[] _tokenList, bool[] _tokenStatus) public onlyFeeRecipient {
+        uint tokenLength = _tokenList.length;
+        require(tokenLength == _tokenStatus.length, "No. of token and token staus mismatch.");
+        for(uint i = 0; i < tokenLength; i++){
+            tokenAccepted[_tokenList[i]] = _tokenStatus[i];
+            emit TokenStatusChanged(_tokenList[i], _tokenStatus[i]);
+        }
     }
 
     /** @dev Create a transaction. UNTRUSTED.
@@ -166,6 +198,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
 
     /** @dev Calculate the amount to be paid according to feeRecipientBasisPoint for a particular amount.
      *  @param _amount Amount to pay.
+     *  @return feeAmount Amount to pay to the Fee Recipient.
      */
     function calculateFeeRecipientAmount(uint _amount) internal view returns(uint feeAmount){
         feeAmount = (_amount * feeRecipientBasisPoint) / 10000;
@@ -174,8 +207,7 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
     /** @dev Change Fee Recipient.
      *  @param _newFeeRecipient Address of the new Fee Recipient.
      */
-    function changeFeeRecipient(address _newFeeRecipient) public {
-        require(msg.sender == feeRecipient, "The caller must be the current Fee Recipient");
+    function changeFeeRecipient(address _newFeeRecipient) public onlyFeeRecipient {
         feeRecipient = _newFeeRecipient;
 
         emit FeeRecipientChanged(msg.sender, _newFeeRecipient);
