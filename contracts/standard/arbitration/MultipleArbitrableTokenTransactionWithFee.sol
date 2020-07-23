@@ -1,16 +1,17 @@
 /**
- *  @authors: [@n1c01a5, @hellwolf, @satello]
- *  @reviewers: [@ferittuncer, @unknownunknown1, @mtsalenc, @clesaege, @remedcu]
+ *  @authors: [@remedcu]
+ *  @reviewers: []
  *  @auditors: []
  *  @bounties: []
- *  @deployments: [ https://etherscan.io/address/0xc25a0b9681abf6f090aed71a8c08fb564b41dab6 ]
+ *  @deployments: []
  *  @tools: [MythX]
  */
 
-/** @title Multiple Arbitrable ERC20 Token Transaction
+/** @title Multiple Arbitrable ERC20 Token Transaction with Fee
  *  This is a contract for multiple arbitrated token transactions which can be reversed by an arbitrator.
  *  This can be used for buying goods, services and for paying freelancers.
  *  Parties are identified as "sender" and "receiver".
+ *  A fee is associated with each successful payment to receiver.
  */
 
 pragma solidity ^0.4.24;
@@ -20,7 +21,7 @@ import "./IArbitrable.sol";
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
-contract MultipleArbitrableTokenTransaction is IArbitrable {
+contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
 
     // **************************** //
     // *    Contract variables    * //
@@ -39,12 +40,14 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         ERC20 token;
         uint timeoutPayment; // Time in seconds after which the transaction can be automatically executed if not disputed.
         uint disputeId; // If dispute exists, the ID of the dispute.
-        uint senderFee; // Total fees paid by the sender.
-        uint receiverFee; // Total fees paid by the receiver.
+        uint senderFee; // Total arbitration fees paid by the sender.
+        uint receiverFee; // Total arbitration fees paid by the receiver.
         uint lastInteraction; // Last interaction for the dispute procedure.
         Status status;
     }
 
+    address public feeRecipient; // Address which receives a share of receiver payment.
+    uint public feeRecipientBasisPoint; // The share of fee to be received by the feeRecipient, down to 2 decimal places as 550 = 5.5%.
     Transaction[] public transactions;
     Arbitrator public arbitrator; // Address of the arbitrator contract.
     bytes public arbitratorExtraData; // Extra data to set up the arbitration.
@@ -62,6 +65,19 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
      *  @param _party The party that paid.
      */
     event Payment(uint indexed _transactionID, uint _amount, address _party);
+
+    /** @dev To be emitted when a fee is received by the feeRecipient in Token.
+     *  @param _transactionID The index of the transaction.
+     *  @param _amount The amount paid.
+     *  @param _token The Token Address.
+     */
+    event FeeRecipientPaymentInToken(uint indexed _transactionID, uint _amount, ERC20 _token);
+
+    /** @dev To be emitted when a feeRecipient is changed.
+     *  @param _oldFeeRecipient Previous feeRecipient.
+     *  @param _newFeeRecipient Current feeRecipient.
+     */
+    event FeeRecipientChanged(address indexed _oldFeeRecipient, address indexed _newFeeRecipient);
 
     /** @dev Indicate that a party has to pay a fee or would otherwise be considered as losing.
      *  @param _transactionID The index of the transaction.
@@ -93,15 +109,22 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     *  @param _feeRecipient Address which receives a share of receiver payment.
+     *  @param _feeRecipientBasisPoint The share of fee to be received by the feeRecipient, down to 2 decimal places as 550 = 5.5%.
      *  @param _feeTimeout Arbitration fee timeout for the parties.
      */
     constructor (
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
+        address _feeRecipient,
+        uint _feeRecipientBasisPoint,
         uint _feeTimeout
     ) public {
         arbitrator = _arbitrator;
         arbitratorExtraData = _arbitratorExtraData;
+        feeRecipient = _feeRecipient;
+        // Basis point being set higher than 10000 will result in underflow, but it's the responsibility of the deployer of the contract.
+        feeRecipientBasisPoint = _feeRecipientBasisPoint;
         feeTimeout = _feeTimeout;
     }
 
@@ -141,6 +164,23 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         return transactions.length - 1;
     }
 
+    /** @dev Calculate the amount to be paid according to feeRecipientBasisPoint for a particular amount.
+     *  @param _amount Amount to pay.
+     */
+    function calculateFeeRecipientAmount(uint _amount) internal view returns(uint feeAmount){
+        feeAmount = (_amount * feeRecipientBasisPoint) / 10000;
+    }
+
+    /** @dev Change Fee Recipient.
+     *  @param _newFeeRecipient Address of the new Fee Recipient.
+     */
+    function changeFeeRecipient(address _newFeeRecipient) public {
+        require(msg.sender == feeRecipient, "The caller must be the current Fee Recipient");
+        feeRecipient = _newFeeRecipient;
+
+        emit FeeRecipientChanged(msg.sender, _newFeeRecipient);
+    }
+
     /** @dev Pay receiver. To be called if the good or service is provided. UNTRUSTED.
      *  @param _transactionID The index of the transaction.
      *  @param _amount Amount to pay in tokens.
@@ -149,11 +189,18 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.sender == msg.sender, "The caller must be the sender.");
         require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
-        require(_amount <= transaction.amount, "The amount paid has to be less or equal than the transaction.");
+        require(_amount <= transaction.amount, "The amount paid has to be less than or equal to the transaction.");
 
         transaction.amount -= _amount;
-        require(transaction.token.transfer(transaction.receiver, _amount), "The `transfer` function must not fail.");
-        emit Payment(_transactionID, _amount, msg.sender);
+        uint feeAmount = calculateFeeRecipientAmount(_amount);
+
+        uint tokenBalance = transaction.token.balanceOf(address(this)); // A token transaction mutex.
+        transaction.token.transfer(feeRecipient, feeAmount); // It is the responsibility of the feeRecipient to accept Token.
+        require(transaction.token.transfer(transaction.receiver, _amount - feeAmount), "The `transfer` function must not fail.");
+        require(transaction.token.balanceOf(address(this)) >= tokenBalance - _amount, "Tried to transfer tokens more than allowed.");
+
+        emit Payment(_transactionID, _amount - feeAmount, msg.sender);
+        emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
     }
 
     /** @dev Reimburse sender. To be called if the good or service can't be fully provided. UNTRUSTED.
@@ -164,7 +211,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         Transaction storage transaction = transactions[_transactionID];
         require(transaction.receiver == msg.sender, "The caller must be the receiver.");
         require(transaction.status == Status.NoDispute, "The transaction shouldn't be disputed.");
-        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less or equal than the transaction.");
+        require(_amountReimbursed <= transaction.amount, "The amount reimbursed has to be less than or equal to the transaction.");
 
         transaction.amount -= _amountReimbursed;
         require(transaction.token.transfer(transaction.sender, _amountReimbursed), "The `transfer` function must not fail.");
@@ -181,10 +228,16 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
 
         uint amount = transaction.amount;
         transaction.amount = 0;
-
         transaction.status = Status.Resolved;
+        uint feeAmount = calculateFeeRecipientAmount(amount);
 
-        require(transaction.token.transfer(transaction.receiver, amount), "The `transfer` function must not fail.");
+        uint tokenBalance = transaction.token.balanceOf(address(this));
+        transaction.token.transfer(feeRecipient, feeAmount);
+        require(transaction.token.transfer(transaction.receiver, amount - feeAmount), "The `transfer` function must not fail.");
+        require(transaction.token.balanceOf(address(this)) >= tokenBalance - amount, "Tried to transfer tokens more than allowed.");
+
+        emit Payment(_transactionID, amount - feeAmount, transaction.sender);
+        emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
     }
 
     /** @dev Reimburse sender if receiver fails to pay the fee. UNTRUSTED.
@@ -346,31 +399,47 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
         require(_ruling <= AMOUNT_OF_CHOICES, "Invalid ruling.");
 
         uint amount = transaction.amount;
-        uint senderFee = transaction.senderFee;
-        uint receiverFee = transaction.receiverFee;
+        uint senderArbitrationFee = transaction.senderFee;
+        uint receiverArbitrationFee = transaction.receiverFee;
 
         transaction.amount = 0;
         transaction.senderFee = 0;
         transaction.receiverFee = 0;
         transaction.status = Status.Resolved;
 
+        uint feeAmount;
+
+        uint tokenBalance = transaction.token.balanceOf(address(this));
         // Give the arbitration fee back.
         // Note that we use `send` to prevent a party from blocking the execution.
         if (_ruling == uint(RulingOptions.SenderWins)) {
-            transaction.sender.send(senderFee);
+            transaction.sender.send(senderArbitrationFee);
             require(transaction.token.transfer(transaction.sender, amount), "The `transfer` function must not fail.");
         } else if (_ruling == uint(RulingOptions.ReceiverWins)) {
-            transaction.receiver.send(receiverFee);
-            require(transaction.token.transfer(transaction.receiver, amount), "The `transfer` function must not fail.");
+            feeAmount = calculateFeeRecipientAmount(amount);
+
+            transaction.receiver.send(receiverArbitrationFee);
+            transaction.token.transfer(feeRecipient, feeAmount);
+            require(transaction.token.transfer(transaction.receiver, amount - feeAmount), "The `transfer` function must not fail.");
+
+            emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
         } else {
             // `senderFee` and `receiverFee` are equal to the arbitration cost.
-            uint splitArbitrationFee = senderFee / 2;
-            transaction.receiver.send(splitArbitrationFee);
-            transaction.sender.send(splitArbitrationFee);
+            uint splitArbitration = senderArbitrationFee / 2;
+            uint splitAmount = amount / 2;
+            feeAmount = calculateFeeRecipientAmount(splitAmount);
+
+            transaction.sender.send(splitArbitration);
+            transaction.receiver.send(splitArbitration);
             // In the case of an uneven token amount, one basic token unit can be burnt.
-            require(transaction.token.transfer(transaction.receiver, amount / 2), "The `transfer` function must not fail.");
-            require(transaction.token.transfer(transaction.sender, amount / 2), "The `transfer` function must not fail.");
+            transaction.token.transfer(feeRecipient, feeAmount);
+            require(transaction.token.transfer(transaction.receiver, splitAmount - feeAmount), "The `transfer` function must not fail.");
+            require(transaction.token.transfer(transaction.sender, splitAmount), "The `transfer` function must not fail.");
+
+            emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
         }
+        // If there is uneven token amount, the current token Balance can be greater than tokenBalance - amount, thus >= instead of ==.
+        require(transaction.token.balanceOf(address(this)) >= tokenBalance - amount, "Tried to transfer tokens more than allowed.");
     }
 
     // **************************** //
