@@ -7,10 +7,12 @@ const {
 } = require('openzeppelin-solidity/test/helpers/increaseTime')
 const { latestTime } = require('openzeppelin-solidity/test/helpers/latestTime')
 
-const Linguo = artifacts.require('./Linguo.sol')
+const Linguo = artifacts.require('./LinguoToken.sol')
 const Arbitrator = artifacts.require(
   './standard/arbitration/EnhancedAppealableArbitrator.sol'
 )
+
+const ERC20Mock = artifacts.require('./ERC20Mock.sol')
 
 const randomInt = max => Math.ceil(Math.random() * max)
 
@@ -20,19 +22,20 @@ contract('Linguo', function(accounts) {
   const translator = accounts[2]
   const challenger = accounts[3]
   const other = accounts[4]
-  const arbitrationFee = 1e18
+  const arbitrationFee = 1000
   const arbitratorExtraData = 0x85
   const appealTimeOut = 100
   const reviewTimeout = 2400
-  const translationMultiplier = 1000
-  const challengeMultiplier = 2000
+  const translatorBaseDeposit = 3000
+  const challengerBaseDeposit = 2000
   const sharedMultiplier = 5000
   const winnerMultiplier = 3000
   const loserMultiplier = 7000
   const NOT_PAYABLE_VALUE = (2 ** 256 - 2) / 2
+  const tokenBalance = 100000000
 
-  const taskMinPrice = 1e18
-  const taskMaxPrice = 5e18
+  const taskMinPrice = 5000
+  const taskMaxPrice = 10000
   const submissionTimeout = 3600
   let arbitrator
   let linguo
@@ -55,23 +58,29 @@ contract('Linguo', function(accounts) {
       arbitrator.address,
       arbitratorExtraData,
       reviewTimeout,
-      translationMultiplier,
-      challengeMultiplier,
+      translatorBaseDeposit,
+      challengerBaseDeposit,
       sharedMultiplier,
       winnerMultiplier,
       loserMultiplier,
       { from: governor }
     )
 
+    token = await ERC20Mock.new(requester, tokenBalance, { from: governor })
+    await token.approve(linguo.address, 50000000, {
+      from: requester
+    })
+
     MULTIPLIER_DIVISOR = (await linguo.MULTIPLIER_DIVISOR()).toNumber()
     currentTime = await latestTime()
     taskTx = await linguo.createTask(
       currentTime + submissionTimeout,
+      token.address,
       taskMinPrice,
+      taskMaxPrice,
       'TestMetaEvidence',
       {
-        from: requester,
-        value: taskMaxPrice
+        from: requester
       }
     )
     // Because of time fluctuation the timeout stored in the contract can deviate a little from the variable value.
@@ -83,41 +92,47 @@ contract('Linguo', function(accounts) {
   it('Should set the correct values in constructor', async () => {
     assert.equal(await linguo.arbitrator(), arbitrator.address)
     assert.equal(await linguo.arbitratorExtraData(), arbitratorExtraData)
+    assert.equal(await linguo.governor(), governor)
     assert.equal(await linguo.reviewTimeout(), reviewTimeout)
-    assert.equal(await linguo.translationMultiplier(), translationMultiplier)
-    assert.equal(await linguo.challengeMultiplier(), challengeMultiplier)
+    assert.equal(await linguo.translatorBaseDeposit(), translatorBaseDeposit)
+    assert.equal(await linguo.challengerBaseDeposit(), challengerBaseDeposit)
     assert.equal(await linguo.sharedStakeMultiplier(), sharedMultiplier)
     assert.equal(await linguo.winnerStakeMultiplier(), winnerMultiplier)
     assert.equal(await linguo.loserStakeMultiplier(), loserMultiplier)
   })
 
-  it('Should set the correct values in newly created task and fire an event', async () => {
+  it('Should set the correct values in a newly created task and fire an event', async () => {
     const task = await linguo.tasks(0)
+    assert.equal(
+      task[0],
+      token.address,
+      'The token address is not set up properly'
+    )
+
     // An error up to 0.1% is allowed because of time fluctuation
     assert(
-      Math.abs(submissionTimeout - task[0].toNumber()) <=
+      Math.abs(submissionTimeout - task[1].toNumber()) <=
         submissionTimeout / 1000,
       'The submissionTimeout is not set up properly'
     )
     assert.equal(
-      task[1].toNumber(),
+      task[2].toNumber(),
       taskMinPrice,
       'The min price is not set up properly'
     )
     assert.equal(
-      task[2].toNumber(),
+      task[3].toNumber(),
       taskMaxPrice,
       'The max price is not set up properly'
     )
-
     assert.equal(
-      task[3].toNumber(),
+      task[4].toNumber(),
       0,
       'The task status is not set up properly'
     )
-    assert.equal(task[5], requester, 'The requester is not set up properly')
+    assert.equal(task[6], requester, 'The requester is not set up properly')
     assert.equal(
-      task[6].toNumber(),
+      task[7].toNumber(),
       taskMaxPrice,
       'The requester deposit is not set up properly'
     )
@@ -153,6 +168,11 @@ contract('Linguo', function(accounts) {
       requester,
       'The second event has wrong requester address'
     )
+    assert.equal(
+      taskTx.logs[1].args._token,
+      token.address,
+      'The second event has wrong token address'
+    )
   })
 
   it('Should not be possible to deposit less than min price when creating a task', async () => {
@@ -161,11 +181,26 @@ contract('Linguo', function(accounts) {
     await expectThrow(
       linguo.createTask(
         currentTime + submissionTimeout,
+        token.address,
+        taskMaxPrice,
+        taskMinPrice,
+        'TestMetaEvidence',
+        {
+          from: requester
+        }
+      )
+    )
+
+    // Also check the require for the deadline.
+    await expectThrow(
+      linguo.createTask(
+        currentTime - 5,
+        token.address,
+        taskMinPrice,
         taskMaxPrice,
         'TestMetaEvidence',
         {
-          from: requester,
-          value: taskMinPrice
+          from: requester
         }
       )
     )
@@ -173,7 +208,7 @@ contract('Linguo', function(accounts) {
 
   it('Should return correct task price and assignment deposit value before submission timeout ended', async () => {
     const priceLinguo = await linguo.getTaskPrice(0)
-    let price = Math.floor(
+    const price = Math.floor(
       taskMinPrice +
         ((taskMaxPrice - taskMinPrice) * secondsPassed) / submissionTimeout
     )
@@ -183,16 +218,10 @@ contract('Linguo', function(accounts) {
       'Contract returns incorrect task price'
     )
 
-    price = Math.floor(
-      taskMinPrice +
-        ((taskMaxPrice - taskMinPrice) * secondsPassed) / submissionTimeout
-    )
-    const deposit =
-      arbitrationFee + (translationMultiplier * price) / MULTIPLIER_DIVISOR
-    const depositLinguo = await linguo.getDepositValue(0)
-    assert(
-      Math.abs(depositLinguo.toNumber() - deposit) <= deposit / 100,
-      'Contract returns incorrect required deposit'
+    assert.equal(
+      (await linguo.getDepositValue(0)).toNumber(),
+      4000, // Arbitration fee + translation base deposit (1000 + 3000).
+      'Contract returns incorrect translator deposit'
     )
   })
 
@@ -217,13 +246,13 @@ contract('Linguo', function(accounts) {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
 
     const expectedTaskPrice = 0
     const actualTaskPrice = await linguo.getTaskPrice(0)
     assert.equal(
-      actualTaskPrice,
+      actualTaskPrice.toNumber(),
       expectedTaskPrice,
       'Contract returns incorrect task price if status is not `created`'
     )
@@ -242,7 +271,7 @@ contract('Linguo', function(accounts) {
     await expectThrow(
       linguo.assignTask(0, {
         from: translator,
-        value: requiredDeposit - 1000
+        value: requiredDeposit - 1
       })
     )
   })
@@ -251,7 +280,7 @@ contract('Linguo', function(accounts) {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
     const assignTx = await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
 
     assert.equal(
@@ -261,24 +290,22 @@ contract('Linguo', function(accounts) {
     )
   })
 
-  it('Should reimburse requester leftover price after assigning the task and set correct values', async () => {
-    const oldBalance = await web3.eth.getBalance(requester)
+  it('Should reimburse requester leftover token price after assigning the task and should set correct values', async () => {
+    const oldBalance = await token.balanceOf(requester)
 
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
 
-    // Add a surplus of 0.1 ETH to the required deposit to account for the difference between the time transaction was created and mined.
-
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
 
-    const newBalance = await web3.eth.getBalance(requester)
+    const newBalance = await token.balanceOf(requester)
     const taskInfo = await linguo.getTaskParties(0)
     const task = await linguo.tasks(0)
-
-    assert(
-      newBalance.eq(oldBalance.plus(taskMaxPrice).minus(task[6])),
+    assert.equal(
+      newBalance.toNumber(),
+      oldBalance.toNumber() + taskMaxPrice - task[7].toNumber(),
       'The requester was not reimbursed correctly'
     )
     assert.equal(
@@ -286,10 +313,10 @@ contract('Linguo', function(accounts) {
       translator,
       'The translator was not set up properly'
     )
-    // an error up to 1% is allowed because of time fluctuation
-    assert(
-      Math.abs(task[7].toNumber() - requiredDeposit) <= requiredDeposit / 100,
-      'The translator deposit was not set up properly'
+    assert.equal(
+      task[8].toNumber(),
+      4000,
+      'Translator deposit was not set up correctly'
     )
   })
 
@@ -297,7 +324,7 @@ contract('Linguo', function(accounts) {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await increaseTime(submissionTimeout - secondsPassed + 1)
     await expectThrow(
@@ -311,7 +338,7 @@ contract('Linguo', function(accounts) {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await expectThrow(
       linguo.submitTranslation(0, 'ipfs:/X', {
@@ -324,7 +351,7 @@ contract('Linguo', function(accounts) {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     submissionTx = await linguo.submitTranslation(0, 'ipfs:/X', {
       from: translator
@@ -353,9 +380,8 @@ contract('Linguo', function(accounts) {
 
   it('Should reimburse requester if no one picked the task before submission timeout ended', async () => {
     await increaseTime(submissionTimeout + 1)
-    const oldBalance = await web3.eth.getBalance(requester)
     const reimburseTx = await linguo.reimburseRequester(0)
-    const newBalance = await web3.eth.getBalance(requester)
+    const newTokenBalance = await token.balanceOf(requester)
 
     assert.equal(
       reimburseTx.logs[0].event,
@@ -363,32 +389,43 @@ contract('Linguo', function(accounts) {
       'TaskResolved event was not emitted'
     )
     assert.equal(
-      newBalance.toString(),
-      oldBalance.plus(taskMaxPrice).toString(),
-      'The requester was not reimbursed correctly'
+      newTokenBalance,
+      tokenBalance,
+      'The requester should have an initial token balance'
     )
+    const task = await linguo.tasks(0)
+    assert.equal(task[7].toNumber(), 0, 'The price should be set to 0')
+    assert.equal(task[8].toNumber(), 0, 'Sum deposit should be set to 0')
   })
 
   it('Should reimburse requester if translator failed to submit translation before submission timeout ended', async () => {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await increaseTime(submissionTimeout + 1)
     const oldBalance = await web3.eth.getBalance(requester)
-    const task = await linguo.tasks(0)
+    const oldTokenBalance = await token.balanceOf(requester)
+    let task = await linguo.tasks(0)
     await linguo.reimburseRequester(0)
+
     const newBalance = await web3.eth.getBalance(requester)
-    // task price + translator's deposit should go to requester
+    const newTokenBalance = await token.balanceOf(requester)
     assert.equal(
       newBalance.toString(),
-      oldBalance
-        .plus(task[6])
-        .plus(task[7])
-        .toString(),
+      oldBalance.plus(requiredDeposit).toString(),
       'The requester was not reimbursed correctly'
     )
+    assert.equal(
+      newTokenBalance.toNumber(),
+      oldTokenBalance.toNumber() + task[7].toNumber(), // This sum should give an initial balance value.
+      'The requester should have an initial token balance'
+    )
+
+    task = await linguo.tasks(0)
+    assert.equal(task[7].toNumber(), 0, 'The price should be set to 0')
+    assert.equal(task[8].toNumber(), 0, 'Sum deposit should be set to 0')
   })
 
   it('Should not be possible to reimburse if submission timeout has not passed', async () => {
@@ -400,15 +437,16 @@ contract('Linguo', function(accounts) {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
     await increaseTime(reviewTimeout + 1)
-    const task = await linguo.tasks(0)
+    let task = await linguo.tasks(0)
 
     const oldBalance = await web3.eth.getBalance(translator)
     const acceptTx = await linguo.acceptTranslation(0)
     const newBalance = await web3.eth.getBalance(translator)
+    const newTokenBalance = await token.balanceOf(translator)
 
     assert.equal(
       acceptTx.logs[0].event,
@@ -419,11 +457,18 @@ contract('Linguo', function(accounts) {
     assert.equal(
       newBalance.toString(),
       oldBalance
-        .plus(task[6])
-        .plus(task[7])
+        .plus(4000) // Translator deposit
         .toString(),
+      'The translator did not get his deposit back'
+    )
+    assert.equal(
+      newTokenBalance.toNumber(),
+      task[7].toNumber(), // Translator's initial token balance was 0, so now it should be equal to the task price.
       'The translator was not paid correctly'
     )
+    task = await linguo.tasks(0)
+    assert.equal(task[7].toNumber(), 0, 'The price should be set to 0')
+    assert.equal(task[8].toNumber(), 0, 'Sum deposit should be set to 0')
   })
 
   it('Should not be possible to accept translation if review timeout has not passed or if it was challenged', async () => {
@@ -431,14 +476,12 @@ contract('Linguo', function(accounts) {
 
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
     await expectThrow(linguo.acceptTranslation(0))
 
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -448,19 +491,23 @@ contract('Linguo', function(accounts) {
   })
 
   it('Should set correct values in contract and in dispute and emit TranslationChallenged event after task has been challenged', async () => {
-    let task
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
 
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    task = await linguo.tasks(0)
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+
+    // Check that reverts if the deposit is lower than expected
+    await expectThrow(
+      linguo.challengeTranslation(0, 'ChallengeEvidence:/X', {
+        from: challenger,
+        value: challengerDeposit - 1
+      })
+    )
     const challengeTx = await linguo.challengeTranslation(
       0,
       'ChallengeEvidence',
@@ -506,8 +553,7 @@ contract('Linguo', function(accounts) {
       'The Evidence event has wrong evidence string'
     )
 
-    // get task info again because of updated values
-    task = await linguo.tasks(0)
+    const task = await linguo.tasks(0)
     const taskInfo = await linguo.getTaskParties(0)
     assert.equal(
       taskInfo[2],
@@ -515,11 +561,9 @@ contract('Linguo', function(accounts) {
       'The challenger was not set up properly'
     )
 
-    const sumDeposit =
-      requiredDeposit + challengerDeposit - arbitrationFee - 1000
-    // an error up to 0.1% is allowed
-    assert(
-      Math.abs(task[7].toNumber() - sumDeposit) <= sumDeposit / 1000,
+    assert.equal(
+      task[8].toNumber(),
+      6000, // Translator deposit + challenger deposit - arbitration fees: 4000 + 3000 - 1000
       'The sum of translator and challenger deposits was not set up properly'
     )
 
@@ -532,7 +576,7 @@ contract('Linguo', function(accounts) {
     )
     assert.equal(
       dispute[2].toNumber(),
-      1e18,
+      1000,
       'Arbitration fee not set up properly'
     )
   })
@@ -542,16 +586,11 @@ contract('Linguo', function(accounts) {
 
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
-
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
     await increaseTime(reviewTimeout + 1)
-    const task = await linguo.tasks(0)
-    const price = task[6].toNumber()
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      arbitrationFee + (challengeMultiplier * price) / MULTIPLIER_DIVISOR + 1000
     await expectThrow(
       linguo.challengeTranslation(0, '', {
         from: challenger,
@@ -560,172 +599,189 @@ contract('Linguo', function(accounts) {
     )
   })
 
-  it('Should paid to all parties correctly when arbitrator refused to rule', async () => {
-    let task
+  it('Should pay to all parties correctly when arbitrator refused to rule', async () => {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
 
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
+    let task = await linguo.tasks(0)
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    task = await linguo.tasks(0)
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
     })
 
-    // Get the task info again to get updated sumDeposit value.
-    task = await linguo.tasks(0)
+    const oldTokenBalanceRequester = await token.balanceOf(requester)
 
-    const oldBalance1 = await web3.eth.getBalance(requester)
-    const oldBalance2 = await web3.eth.getBalance(translator)
-    const oldBalance3 = await web3.eth.getBalance(challenger)
+    const oldBalance1 = await web3.eth.getBalance(translator)
+    const oldBalance2 = await web3.eth.getBalance(challenger)
 
     await arbitrator.giveRuling(0, 0)
     await increaseTime(appealTimeOut + 1)
     await arbitrator.giveRuling(0, 0)
 
-    const newBalance1 = await web3.eth.getBalance(requester)
-    const newBalance2 = await web3.eth.getBalance(translator)
-    const newBalance3 = await web3.eth.getBalance(challenger)
+    const newBalance1 = await web3.eth.getBalance(translator)
+    const newBalance2 = await web3.eth.getBalance(challenger)
+
+    const newTokenBalanceRequester = await token.balanceOf(requester)
+
+    assert.equal(
+      newTokenBalanceRequester.toNumber(),
+      oldTokenBalanceRequester.toNumber() + task[7].toNumber(),
+      'The requester was not reimbursed correctly'
+    )
 
     assert.equal(
       newBalance1.toString(),
-      oldBalance1.plus(task[6]).toString(),
-      'The requester was not paid correctly'
-    )
-    // Check in proximity because division by 2 can sometimes return floating point which is not supported by solidity thus requiring conversion toNumber() which can have small aberration.
-    const balance2 = oldBalance2.plus(task[7].div(2)).toNumber()
-    assert(
-      Math.abs(balance2 - newBalance2.toNumber()) <=
-        newBalance2.toNumber() / 10000,
+      oldBalance1.plus(3000).toString(), // 3000 is a half of the sum of the eth deposits.
       'The translator was not paid correctly'
     )
 
-    const balance3 = oldBalance3.plus(task[7].div(2)).toNumber()
-    assert(
-      Math.abs(balance3 - newBalance3.toNumber()) <=
-        newBalance3.toNumber() / 10000,
+    assert.equal(
+      newBalance2.toString(),
+      oldBalance2.plus(3000).toString(),
       'The challenger was not paid correctly'
     )
 
     task = await linguo.tasks(0)
-    assert.equal(task[9].toNumber(), 0, 'The ruling of the task is incorrect')
+    assert.equal(task[10].toNumber(), 0, 'The ruling of the task is incorrect')
+    assert.equal(task[7].toNumber(), 0, 'The price should be set to 0')
+    assert.equal(task[8].toNumber(), 0, 'Sum deposit should be set to 0')
   })
 
-  it('Should paid to all parties correctly if translator wins', async () => {
-    let task
+  it('Should pay to all parties correctly if translator wins', async () => {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
 
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
+    let task = await linguo.tasks(0)
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
     })
 
-    // Get the task info again to get updated sumDeposit value.
-    task = await linguo.tasks(0)
-
-    const oldBalance1 = await web3.eth.getBalance(requester)
-    const oldBalance2 = await web3.eth.getBalance(translator)
-    const oldBalance3 = await web3.eth.getBalance(challenger)
+    const oldTokenBalanceRequester = await token.balanceOf(requester)
+    const oldBalance1 = await web3.eth.getBalance(translator)
+    const oldBalance2 = await web3.eth.getBalance(challenger)
 
     await arbitrator.giveRuling(0, 1)
     await increaseTime(appealTimeOut + 1)
     await arbitrator.giveRuling(0, 1)
 
-    const newBalance1 = await web3.eth.getBalance(requester)
-    const newBalance2 = await web3.eth.getBalance(translator)
-    const newBalance3 = await web3.eth.getBalance(challenger)
+    const newTokenBalanceRequester = await token.balanceOf(requester)
+    const newBalance1 = await web3.eth.getBalance(translator)
+    const newBalance2 = await web3.eth.getBalance(challenger)
+
+    const balanceTokenTranslator = await token.balanceOf(translator)
+
+    assert.equal(
+      newTokenBalanceRequester.toNumber(),
+      oldTokenBalanceRequester.toNumber(),
+      'The requester should have the same token balance'
+    )
+
+    assert.equal(
+      newBalance1.toString(),
+      oldBalance1.plus(6000).toString(),
+      'The translator was not paid correctly'
+    )
+    assert.equal(
+      balanceTokenTranslator.toNumber(),
+      task[7].toNumber(),
+      'The translator has incorrect token balance'
+    )
+
+    assert.equal(
+      newBalance2.toString(),
+      oldBalance2.toString(),
+      'The challenger should have the same balance'
+    )
+
+    task = await linguo.tasks(0)
+    assert.equal(task[10].toNumber(), 1, 'The ruling of the task is incorrect')
+  })
+
+  it('Should pay to all parties correctly if challenger wins', async () => {
+    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
+
+    await linguo.assignTask(0, {
+      from: translator,
+      value: requiredDeposit
+    })
+    let task = await linguo.tasks(0)
+    await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
+
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    await linguo.challengeTranslation(0, '', {
+      from: challenger,
+      value: challengerDeposit
+    })
+
+    const oldTokenBalanceRequester = await token.balanceOf(requester)
+    const oldBalance1 = await web3.eth.getBalance(translator)
+    const oldBalance2 = await web3.eth.getBalance(challenger)
+
+    await arbitrator.giveRuling(0, 2)
+    await increaseTime(appealTimeOut + 1)
+    await arbitrator.giveRuling(0, 2)
+
+    const newTokenBalanceRequester = await token.balanceOf(requester)
+    const newBalance1 = await web3.eth.getBalance(translator)
+    const newBalance2 = await web3.eth.getBalance(challenger)
+
+    const balanceTokenTranslator = await token.balanceOf(translator)
+    const balanceTokenChallenger = await token.balanceOf(challenger)
+
+    assert.equal(
+      newTokenBalanceRequester.toNumber(),
+      oldTokenBalanceRequester.toNumber() + task[7].toNumber(),
+      'The requester was not reimbursed correctly'
+    )
 
     assert.equal(
       newBalance1.toString(),
       oldBalance1.toString(),
-      'Requester has incorrect balance'
+      'The translator should have the same balance'
     )
+    assert.equal(
+      balanceTokenTranslator.toNumber(),
+      0,
+      'The translator should have 0 token balance'
+    )
+
     assert.equal(
       newBalance2.toString(),
-      oldBalance2
-        .plus(task[6])
-        .plus(task[7])
-        .toString(),
-      'The translator was not paid correctly'
-    )
-    assert.equal(
-      newBalance3.toString(),
-      oldBalance3.toString(),
-      'Challenger has incorrect balance'
-    )
-
-    task = await linguo.tasks(0)
-    assert.equal(task[9].toNumber(), 1, 'The ruling of the task is incorrect')
-  })
-
-  it('Should paid to all parties correctly if challenger wins', async () => {
-    let task
-    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
-
-    await linguo.assignTask(0, {
-      from: translator,
-      value: requiredDeposit + 1e17
-    })
-    await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
-
-    task = await linguo.tasks(0)
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
-    await linguo.challengeTranslation(0, '', {
-      from: challenger,
-      value: challengerDeposit
-    })
-
-    // Get the task info again to get updated sumDeposit value.
-    task = await linguo.tasks(0)
-
-    const oldBalance1 = await web3.eth.getBalance(requester)
-    const oldBalance2 = await web3.eth.getBalance(translator)
-    const oldBalance3 = await web3.eth.getBalance(challenger)
-
-    await arbitrator.giveRuling(0, 2)
-    await increaseTime(appealTimeOut + 1)
-    await arbitrator.giveRuling(0, 2)
-
-    const newBalance1 = await web3.eth.getBalance(requester)
-    const newBalance2 = await web3.eth.getBalance(translator)
-    const newBalance3 = await web3.eth.getBalance(challenger)
-
-    assert.equal(
-      newBalance1.toString(),
-      oldBalance1.plus(task[6]).toString(),
-      'The requester was not paid correctly'
-    )
-    assert.equal(
-      newBalance2.toString(),
-      oldBalance2.toString(),
-      'Translator has incorrect balance'
-    )
-    assert.equal(
-      newBalance3.toString(),
-      oldBalance3.plus(task[7]).toString(),
+      oldBalance2.plus(6000).toString(),
       'The challenger was not paid correctly'
     )
+    assert.equal(
+      balanceTokenChallenger.toNumber(),
+      0,
+      'The challenger should have 0 token balance'
+    )
 
     task = await linguo.tasks(0)
-    assert.equal(task[9].toNumber(), 2, 'The ruling of the task is incorrect')
+    assert.equal(task[10].toNumber(), 2, 'The ruling of the task is incorrect')
+  })
+
+  it('Should not be possible to assign the task after the timeout', async () => {
+    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
+    await increaseTime(submissionTimeout - secondsPassed + 1)
+    await expectThrow(
+      linguo.assignTask(0, {
+        from: translator,
+        value: requiredDeposit
+      })
+    )
   })
 
   it('Should demand correct appeal fees and register that appeal fee has been paid', async () => {
@@ -734,26 +790,23 @@ contract('Linguo', function(accounts) {
 
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
     })
-    // in  that case translator is loser and challenger is winner
+
     await arbitrator.giveRuling(0, 2)
-    // appeal fee is the same as arbitration fee for this arbitrator
     const loserAppealFee =
-      arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR
+      arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR // 1700
 
     const fundTx = await linguo.fundAppeal(0, 1, {
       from: translator,
-      value: 3e18 // Deliberately overpay to check that only required fee amount will be registered.
+      value: 10000 // Deliberately overpay to check that only required fee amount will be registered.
     })
 
     // Check that event is emitted when fees are paid.
@@ -777,7 +830,7 @@ contract('Linguo', function(accounts) {
 
     assert.equal(
       roundInfo[0][1].toNumber(),
-      loserAppealFee,
+      1700,
       'Registered fee of translator is incorrect'
     )
     assert.equal(
@@ -802,21 +855,18 @@ contract('Linguo', function(accounts) {
       linguo.fundAppeal(0, 1, { from: translator, value: loserAppealFee })
     )
 
-    const winnerAppealFee =
-      arbitrationFee + (arbitrationFee * winnerMultiplier) / MULTIPLIER_DIVISOR
-
     // increase time to make sure winner can pay in 2nd half
     await increaseTime(appealTimeOut / 2 + 1)
     await linguo.fundAppeal(0, 2, {
       from: challenger,
-      value: 3e18 // Deliberately overpay to check that only required fee amount will be registered.
+      value: 20000 // Deliberately overpay to check that only required fee amount will be registered.
     })
 
     roundInfo = await linguo.getRoundInfo(0, 0)
 
     assert.equal(
       roundInfo[0][2].toNumber(),
-      winnerAppealFee,
+      1300,
       'Registered fee of challenger is incorrect'
     )
     assert.equal(
@@ -827,7 +877,7 @@ contract('Linguo', function(accounts) {
 
     assert.equal(
       roundInfo[2].toNumber(),
-      winnerAppealFee + loserAppealFee - arbitrationFee,
+      2000, // winnerAppealFee + loserAppealFee - arbitrationFee
       'Incorrect fee rewards value'
     )
 
@@ -845,78 +895,22 @@ contract('Linguo', function(accounts) {
     )
   })
 
-  it('Should not be possible for loser to fund appeal if first half of appeal period has passed', async () => {
-    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
-
-    await linguo.assignTask(0, {
-      from: translator,
-      value: requiredDeposit + 1e17
-    })
-    await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
-
-    // DEL: const task = await linguo.tasks(0)
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
-    await linguo.challengeTranslation(0, '', {
-      from: challenger,
-      value: challengerDeposit
-    })
-    await arbitrator.giveRuling(0, 1)
-    const loserAppealFee =
-      arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR
-    await increaseTime(appealTimeOut / 2 + 1)
-    await expectThrow(
-      linguo.fundAppeal(0, 2, { from: challenger, value: loserAppealFee })
-    )
-  })
-
-  it('Should not be possible for winner to fund appeal if appeal period has passed', async () => {
-    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
-
-    await linguo.assignTask(0, {
-      from: translator,
-      value: requiredDeposit + 1e17
-    })
-    await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
-
-    // DEL: const task = await linguo.tasks(0)
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
-    await linguo.challengeTranslation(0, '', {
-      from: challenger,
-      value: challengerDeposit
-    })
-    await arbitrator.giveRuling(0, 1)
-
-    const winnerAppealFee =
-      arbitrationFee + (arbitrationFee * winnerMultiplier) / MULTIPLIER_DIVISOR
-    await increaseTime(appealTimeOut + 1)
-    await expectThrow(
-      linguo.fundAppeal(0, 1, { from: translator, value: winnerAppealFee })
-    )
-  })
-
   it('Should change the ruling if loser paid appeal fee while winner did not', async () => {
     let task
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
 
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    task = await linguo.tasks(0)
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
     })
-    // Get the task info again to get updated sumDeposit value.
+
     task = await linguo.tasks(0)
 
     await arbitrator.giveRuling(0, 2)
@@ -929,54 +923,55 @@ contract('Linguo', function(accounts) {
     })
     await increaseTime(appealTimeOut + 1)
 
-    const oldBalance1 = await web3.eth.getBalance(requester)
-    const oldBalance2 = await web3.eth.getBalance(translator)
-    const oldBalance3 = await web3.eth.getBalance(challenger)
+    const oldTokenBalanceRequester = await token.balanceOf(requester)
+    const oldBalance1 = await web3.eth.getBalance(translator)
+    const oldBalance2 = await web3.eth.getBalance(challenger)
 
     await arbitrator.giveRuling(0, 2)
 
-    const newBalance1 = await web3.eth.getBalance(requester)
-    const newBalance2 = await web3.eth.getBalance(translator)
-    const newBalance3 = await web3.eth.getBalance(challenger)
+    const newTokenBalanceRequester = await token.balanceOf(requester)
+    const newBalance1 = await web3.eth.getBalance(translator)
+    const newBalance2 = await web3.eth.getBalance(challenger)
 
-    // translator's balance should increase while other's stay the same despite ruling being in favor of challenger
+    const balanceTokenTranslator = await token.balanceOf(translator)
+
+    assert.equal(
+      newTokenBalanceRequester.toNumber(),
+      oldTokenBalanceRequester.toNumber(),
+      'The requester should have the same token balance'
+    )
+
     assert.equal(
       newBalance1.toString(),
-      oldBalance1.toString(),
-      'Requester has incorrect balance'
-    )
-    assert.equal(
-      newBalance2.toString(),
-      oldBalance2
-        .plus(task[6])
-        .plus(task[7])
-        .toString(),
+      oldBalance1.plus(6000).toString(),
       'The translator was not paid correctly'
     )
     assert.equal(
-      newBalance3.toString(),
-      oldBalance3.toString(),
-      'Challenger has incorrect balance'
+      balanceTokenTranslator.toNumber(),
+      task[7].toNumber(),
+      'The translator has incorrect token balance'
+    )
+
+    assert.equal(
+      newBalance2.toString(),
+      oldBalance2.toString(),
+      'The challenger should have the same balance'
     )
 
     task = await linguo.tasks(0)
-    assert.equal(task[9].toNumber(), 1, 'The ruling of the task is incorrect')
+    assert.equal(task[10].toNumber(), 1, 'The ruling of the task is incorrect')
   })
 
-  it('Should withdraw correct fees if dispute had winner/loser', async () => {
+  it('Should withdraw correct fees', async () => {
     const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
 
     await linguo.assignTask(0, {
       from: translator,
-      value: requiredDeposit + 1e17
+      value: requiredDeposit
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    // DEL: const task = await linguo.tasks(0)
-
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
+    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -985,24 +980,24 @@ contract('Linguo', function(accounts) {
     await arbitrator.giveRuling(0, 2)
 
     const loserAppealFee =
-      arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR
+      arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR // 1700
 
     await linguo.fundAppeal(0, 1, {
       from: other,
-      value: loserAppealFee * 0.75
+      value: loserAppealFee * 0.75 // 1275
     })
 
     await linguo.fundAppeal(0, 1, {
       from: translator,
-      value: 2e18
+      value: 5000
     })
 
     const winnerAppealFee =
-      arbitrationFee + (arbitrationFee * winnerMultiplier) / MULTIPLIER_DIVISOR
+      arbitrationFee + (arbitrationFee * winnerMultiplier) / MULTIPLIER_DIVISOR // 1300
 
     await linguo.fundAppeal(0, 2, {
       from: other,
-      value: 0.2 * winnerAppealFee
+      value: 0.2 * winnerAppealFee // 260
     })
 
     await linguo.fundAppeal(0, 2, {
@@ -1016,7 +1011,7 @@ contract('Linguo', function(accounts) {
 
     await linguo.fundAppeal(0, 1, {
       from: translator,
-      value: 1e17 // Deliberately underpay to check that in can be reimbursed later.
+      value: loserAppealFee - 1 // Deliberately underpay to check that in can be reimbursed later. (1699)
     })
 
     await increaseTime(appealTimeOut + 1)
@@ -1038,7 +1033,7 @@ contract('Linguo', function(accounts) {
     newBalance1 = await web3.eth.getBalance(translator)
     assert.equal(
       newBalance1.toString(),
-      oldBalance1.plus(1e17).toString(),
+      oldBalance1.plus(1699).toString(),
       'Translator should be reimbursed unsuccessful payment'
     )
 
@@ -1049,7 +1044,7 @@ contract('Linguo', function(accounts) {
     const newBalance2 = await web3.eth.getBalance(challenger)
     assert.equal(
       newBalance2.toString(),
-      oldBalance2.plus(0.8 * roundInfo[2]).toString(),
+      oldBalance2.plus(0.8 * roundInfo[2]).toString(), // 1600
       'Incorrect balance of the challenger after withdrawing'
     )
 
@@ -1060,219 +1055,112 @@ contract('Linguo', function(accounts) {
     const newBalance3 = await web3.eth.getBalance(other)
     assert.equal(
       newBalance3.toString(),
-      oldBalance3.plus(0.2 * roundInfo[2]).toString(),
+      oldBalance3.plus(0.2 * roundInfo[2]).toString(), // 400
       'Incorrect balance of the crowdfunder after withdrawing'
     )
   })
 
-  it('Should withdraw correct fees if arbitrator refused to arbitrate', async () => {
-    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
-
-    await linguo.assignTask(0, {
-      from: translator,
-      value: requiredDeposit + 1e17
-    })
-    await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
-
-    // DEL: const task = await linguo.tasks(0)
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
-    await linguo.challengeTranslation(0, '', {
-      from: challenger,
-      value: challengerDeposit
-    })
-
-    await arbitrator.giveRuling(0, 0)
-
-    const sharedAppealFee =
-      arbitrationFee + (arbitrationFee * sharedMultiplier) / MULTIPLIER_DIVISOR
-
-    await linguo.fundAppeal(0, 1, {
-      from: other,
-      value: 0.4 * sharedAppealFee
-    })
-
-    await linguo.fundAppeal(0, 1, {
-      from: translator,
-      value: 2e18
-    })
-
-    await linguo.fundAppeal(0, 2, {
-      from: other,
-      value: 0.2 * sharedAppealFee
-    })
-
-    await linguo.fundAppeal(0, 2, {
-      from: challenger,
-      value: sharedAppealFee
-    })
-
-    const roundInfo = await linguo.getRoundInfo(0, 0)
-
-    await arbitrator.giveRuling(1, 0)
-    await increaseTime(appealTimeOut + 1)
-    await arbitrator.giveRuling(1, 0)
-
-    const oldBalance1 = await web3.eth.getBalance(translator)
-    await linguo.withdrawFeesAndRewards(translator, 0, 0, {
-      from: governor
-    })
-    const newBalance1 = await web3.eth.getBalance(translator)
-    assert.equal(
-      newBalance1.toString(),
-      oldBalance1.plus(0.3 * roundInfo[2]).toString(),
-      'Incorrect translator balance after withdrawing'
+  it('Should make governance changes', async () => {
+    // reviewTimeout
+    await expectThrow(
+      linguo.changeReviewTimeout(22, {
+        from: other
+      })
     )
-
-    const oldBalance2 = await web3.eth.getBalance(challenger)
-    await linguo.withdrawFeesAndRewards(challenger, 0, 0, {
-      from: governor
-    })
-    const newBalance2 = await web3.eth.getBalance(challenger)
-    assert.equal(
-      newBalance2.toString(),
-      oldBalance2.plus(0.4 * roundInfo[2]).toString(),
-      'Incorrect balance of the challenger after withdrawing'
-    )
-
-    const oldBalance3 = await web3.eth.getBalance(other)
-    await linguo.withdrawFeesAndRewards(other, 0, 0, {
-      from: governor
-    })
-    const newBalance3 = await web3.eth.getBalance(other)
-    assert.equal(
-      newBalance3.toString(),
-      oldBalance3.plus(0.3 * roundInfo[2]).toString(),
-      'Incorrect balance of the crowdfunder after withdrawing'
-    )
-  })
-
-  it('Should correctly perform batch withdraw', async () => {
-    const requiredDeposit = (await linguo.getDepositValue(0)).toNumber()
-
-    await linguo.assignTask(0, {
-      from: translator,
-      value: requiredDeposit + 1e17
-    })
-    await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
-
-    // DEL: const task = await linguo.tasks(0)
-    // add a small amount because javascript can have small deviations up to several hundreds when operating with large numbers
-    const challengerDeposit =
-      (await linguo.getChallengeValue(0)).toNumber() + 1000
-    await linguo.challengeTranslation(0, '', {
-      from: challenger,
-      value: challengerDeposit
-    })
-
-    await arbitrator.giveRuling(0, 1)
-
-    const loserAppealFee =
-      arbitrationFee + (arbitrationFee * loserMultiplier) / MULTIPLIER_DIVISOR
-
-    await linguo.fundAppeal(0, 2, {
-      from: challenger,
-      value: loserAppealFee
-    })
-
-    const winnerAppealFee =
-      arbitrationFee + (arbitrationFee * winnerMultiplier) / MULTIPLIER_DIVISOR
-
-    await linguo.fundAppeal(0, 1, {
-      from: translator,
-      value: winnerAppealFee
-    })
-    const roundInfo = await linguo.getRoundInfo(0, 0)
-
-    await arbitrator.giveRuling(1, 1)
-
-    await linguo.fundAppeal(0, 2, {
-      from: challenger,
-      value: loserAppealFee
-    })
-
-    await linguo.fundAppeal(0, 1, {
-      from: translator,
-      value: winnerAppealFee
-    })
-
-    await arbitrator.giveRuling(2, 1)
-
-    await linguo.fundAppeal(0, 2, {
-      from: challenger,
-      value: 0.5 * loserAppealFee
-    })
-
-    await linguo.fundAppeal(0, 1, {
-      from: translator,
-      value: 0.5 * winnerAppealFee
-    })
-
-    await increaseTime(appealTimeOut + 1)
-    await arbitrator.giveRuling(2, 1)
-
-    const amountTranslator = await linguo.amountWithdrawable(0, translator)
-    const amountChallenger = await linguo.amountWithdrawable(0, challenger)
-
-    const oldBalanceTranslator = await web3.eth.getBalance(translator)
-    await linguo.batchRoundWithdraw(translator, 0, 1, 12, {
-      from: governor
-    })
-    const newBalanceTranslator1 = await web3.eth.getBalance(translator)
-    assert.equal(
-      newBalanceTranslator1.toString(),
-      oldBalanceTranslator
-        .plus(roundInfo[2])
-        .plus(0.5 * winnerAppealFee)
-        .toString(), // The last round was only paid half of the required amount.
-      'Incorrect translator balance after withdrawing from last 2 rounds'
-    )
-    await linguo.batchRoundWithdraw(translator, 0, 0, 1, {
+    await linguo.changeReviewTimeout(22, {
       from: governor
     })
 
-    const newBalanceTranslator2 = await web3.eth.getBalance(translator)
     assert.equal(
-      newBalanceTranslator2.toString(),
-      newBalanceTranslator1.plus(roundInfo[2]).toString(), // First 2 rounds have the same feeRewards value so we don't need to get info directly from each round.
-      'Incorrect translator balance after withdrawing from the first round'
+      (await linguo.reviewTimeout()).toNumber(),
+      22,
+      'Incorrect review timeout value'
     )
-
-    // Check that 'amountWithdrawable' function returns the correct amount.
-    assert.equal(
-      newBalanceTranslator2.toString(),
-      oldBalanceTranslator.plus(amountTranslator).toString(),
-      'Getter function does not return correct withdrawable amount for translator'
+    // translator deposit
+    await expectThrow(
+      linguo.changeTranslatorBaseDeposit(44, {
+        from: other
+      })
     )
-
-    const oldBalanceChallenger = await web3.eth.getBalance(challenger)
-    await linguo.batchRoundWithdraw(challenger, 0, 0, 2, {
-      from: governor
-    })
-    const newBalanceChallenger1 = await web3.eth.getBalance(challenger)
-    assert.equal(
-      newBalanceChallenger1.toString(),
-      oldBalanceChallenger.toString(),
-      'Challenger balance should stay the same after withdrawing from the first 2 rounds'
-    )
-
-    await linguo.batchRoundWithdraw(challenger, 0, 0, 20, {
+    await linguo.changeTranslatorBaseDeposit(44, {
       from: governor
     })
 
-    const newBalanceChallenger2 = await web3.eth.getBalance(challenger)
     assert.equal(
-      newBalanceChallenger2.toString(),
-      newBalanceChallenger1.plus(0.5 * loserAppealFee).toString(),
-      'Incorrect challenger balance after withdrawing from the last round'
+      (await linguo.translatorBaseDeposit()).toNumber(),
+      44,
+      'Incorrect translatorBaseDeposit value'
     )
+    // challenger deposit
+    await expectThrow(
+      linguo.changeChallengerBaseDeposit(88, {
+        from: other
+      })
+    )
+    await linguo.changeChallengerBaseDeposit(88, {
+      from: governor
+    })
 
-    // Check that 'amountWithdrawable' function returns the correct amount.
     assert.equal(
-      newBalanceChallenger2.toString(),
-      oldBalanceChallenger.plus(amountChallenger).toString(),
-      'Getter function does not return correct withdrawable amount for challenger'
+      (await linguo.challengerBaseDeposit()).toNumber(),
+      88,
+      'Incorrect challengerBaseDeposit value'
+    )
+    // shared multiplier
+    await expectThrow(
+      linguo.changeSharedStakeMultiplier(5011, {
+        from: other
+      })
+    )
+    await linguo.changeSharedStakeMultiplier(5011, {
+      from: governor
+    })
+
+    assert.equal(
+      (await linguo.sharedStakeMultiplier()).toNumber(),
+      5011,
+      'Incorrect sharedStakeMultiplier value'
+    )
+    // winner multiplier
+    await expectThrow(
+      linguo.changeWinnerStakeMultiplier(3033, {
+        from: other
+      })
+    )
+    await linguo.changeWinnerStakeMultiplier(3033, {
+      from: governor
+    })
+
+    assert.equal(
+      (await linguo.winnerStakeMultiplier()).toNumber(),
+      3033,
+      'Incorrect winnerStakeMultiplier value'
+    )
+    // governor
+    await expectThrow(
+      linguo.changeGovernor(other, {
+        from: other
+      })
+    )
+    await linguo.changeGovernor(other, {
+      from: governor
+    })
+
+    assert.equal(await linguo.governor(), other, 'Incorrect governor address')
+    // loser multiplier
+    await expectThrow(
+      linguo.changeLoserStakeMultiplier(7077, {
+        from: governor
+      })
+    )
+    await linguo.changeLoserStakeMultiplier(7077, {
+      from: other
+    })
+
+    assert.equal(
+      (await linguo.loserStakeMultiplier()).toNumber(),
+      7077,
+      'Incorrect loserStakeMultiplier value'
     )
   })
 })

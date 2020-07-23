@@ -4,6 +4,7 @@
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
+ *  @tools: [MythX]
  */
 /* solium-disable max-len*/
 pragma solidity ^0.4.24;
