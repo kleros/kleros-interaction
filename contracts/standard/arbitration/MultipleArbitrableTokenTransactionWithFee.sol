@@ -193,11 +193,10 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
 
         transaction.amount -= _amount;
         uint feeAmount = calculateFeeRecipientAmount(_amount);
-
-        uint tokenBalance = transaction.token.balanceOf(address(this)); // A token transaction mutex.
+        
+        // Tokens should not reenter or allow recipients to refuse the transfer.        
         transaction.token.transfer(feeRecipient, feeAmount); // It is the responsibility of the feeRecipient to accept Token.
         require(transaction.token.transfer(transaction.receiver, _amount - feeAmount), "The `transfer` function must not fail.");
-        require(transaction.token.balanceOf(address(this)) >= tokenBalance - _amount, "Tried to transfer tokens more than allowed.");
 
         emit Payment(_transactionID, _amount - feeAmount, msg.sender);
         emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
@@ -231,10 +230,8 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
         transaction.status = Status.Resolved;
         uint feeAmount = calculateFeeRecipientAmount(amount);
 
-        uint tokenBalance = transaction.token.balanceOf(address(this));
         transaction.token.transfer(feeRecipient, feeAmount);
         require(transaction.token.transfer(transaction.receiver, amount - feeAmount), "The `transfer` function must not fail.");
-        require(transaction.token.balanceOf(address(this)) >= tokenBalance - amount, "Tried to transfer tokens more than allowed.");
 
         emit Payment(_transactionID, amount - feeAmount, transaction.sender);
         emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
@@ -409,7 +406,6 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
 
         uint feeAmount;
 
-        uint tokenBalance = transaction.token.balanceOf(address(this));
         // Give the arbitration fee back.
         // Note that we use `send` to prevent a party from blocking the execution.
         if (_ruling == uint(RulingOptions.SenderWins)) {
@@ -438,8 +434,6 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
 
             emit FeeRecipientPaymentInToken(_transactionID, feeAmount, transaction.token);
         }
-        // If there is uneven token amount, the current token Balance can be greater than tokenBalance - amount, thus >= instead of ==.
-        require(transaction.token.balanceOf(address(this)) >= tokenBalance - amount, "Tried to transfer tokens more than allowed.");
     }
 
     // **************************** //
