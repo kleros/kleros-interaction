@@ -367,6 +367,7 @@ contract MultipleArbitrableTokenTransaction is IArbitrable {
             uint splitArbitrationFee = senderFee / 2;
             transaction.receiver.send(splitArbitrationFee);
             transaction.sender.send(splitArbitrationFee);
+            // Tokens should not reenter or allow recipients to refuse the transfer.
             // In the case of an uneven token amount, one basic token unit can be burnt.
             require(transaction.token.transfer(transaction.receiver, amount / 2), "The `transfer` function must not fail.");
             require(transaction.token.transfer(transaction.sender, amount / 2), "The `transfer` function must not fail.");
