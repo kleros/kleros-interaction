@@ -193,8 +193,8 @@ contract MultipleArbitrableTokenTransactionWithFee is IArbitrable {
 
         transaction.amount -= _amount;
         uint feeAmount = calculateFeeRecipientAmount(_amount);
-        
-        // Tokens should not reenter or allow recipients to refuse the transfer.        
+
+        // Tokens should not reenter or allow recipients to refuse the transfer.
         transaction.token.transfer(feeRecipient, feeAmount); // It is the responsibility of the feeRecipient to accept Token.
         require(transaction.token.transfer(transaction.receiver, _amount - feeAmount), "The `transfer` function must not fail.");
 
