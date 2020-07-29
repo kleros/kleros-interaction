@@ -635,7 +635,7 @@ contract LinguoToken is Arbitrable {
         }
     }
 
-    /** @dev Gets the current price of a specified task.
+    /** @dev Gets the current price of a specified task. Returns 0 if the task can no longer be assigned.
      *  @param _taskID The ID of the task.
      *  @return price The price of the task.
      */
@@ -648,7 +648,7 @@ contract LinguoToken is Arbitrable {
         }
     }
 
-    /** @dev Gets the current price of a specified task in ETH.
+    /** @dev Gets the current price of a specified task in ETH. Returns 0 if the task can no longer be assigned.
      *  @param _taskID The ID of the task.
      *  @return price The price of the task.
      */
