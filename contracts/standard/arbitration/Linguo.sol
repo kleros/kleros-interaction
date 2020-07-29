@@ -25,6 +25,7 @@ contract Linguo is Arbitrable {
     using CappedMath for uint;
 
     /* *** Contract variables *** */
+    uint8 public constant VERSION_ID = 0; // Value that represents the version of the contract. The value is incremented each time the new version is deployed. Range for LinguoETH: 0-127, LinguoToken: 128-255.
     uint public constant MULTIPLIER_DIVISOR = 10000; // Divisor parameter for multipliers.
     uint constant NOT_PAYABLE_VALUE = (2**256-2)/2; // A value depositor won't be able to pay.
 

@@ -1,6 +1,6 @@
 /**
  *  @authors: [@unknownunknown1]
- *  @reviewers: [@remedcu]
+ *  @reviewers: [@remedcu*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -13,6 +13,12 @@ pragma solidity ^0.4.26;
 import "./Arbitrable.sol";
 import "../../libraries/CappedMath.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
+
+interface IUniswapV2Pair {
+
+    function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast);
+
+}
 
 /** @title LinguoToken
  *  Linguo is a decentralized platform where anyone can submit a document for translation and have it translated by freelancers.
@@ -27,6 +33,7 @@ contract LinguoToken is Arbitrable {
     using CappedMath for uint;
 
     /* *** Contract variables *** */
+    uint8 public constant VERSION_ID = 128; // Value that represents the version of the contract. The value is incremented each time the new version is deployed. Range for LinguoToken: 128-255, LinguoETH: 0-127.
     uint public constant MULTIPLIER_DIVISOR = 10000; // Divisor parameter for multipliers.
     uint constant NOT_PAYABLE_VALUE = (2**256-2)/2; // A value depositor won't be able to pay.
 
@@ -53,6 +60,7 @@ contract LinguoToken is Arbitrable {
         uint disputeID; // The ID of the dispute created in arbitrator contract.
         Round[] rounds; // Tracks each appeal round of a dispute.
         uint ruling; // Ruling given to the dispute of the task by the arbitrator.
+        uint priceETH; // Price of the task, converted into ETH. We store it for challenger, to make sure the token price for him doesn't differ from translator.
     }
 
     // Rounds are only used in appeal funding.
@@ -63,10 +71,13 @@ contract LinguoToken is Arbitrable {
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
+    ERC20 public WETH; // Address of the wETH token contract. It's required for token -> ETH conversion.
+    address public uniswapFactory; // Address of the UniswapPair factory. It's required for token -> ETH conversion.
+
     address public governor; // The governor of the contract.
     uint public reviewTimeout; // Time in seconds, during which the submitted translation can be challenged.
-    uint public translatorBaseDeposit; // The base deposit a translator must pay to self-assign a task, in wei.
-    uint public challengerBaseDeposit; // The base deposit a challenger must pay to challenge a translation, in wei.
+    uint public translationMultiplier; // Multiplier for calculating the value of the deposit translator must pay to self-assign a task.
+    uint public challengeMultiplier; // Multiplier for calculating the value of the deposit challenger must pay to challenge a translation.
 
     // All multipliers below are in basis points.
     uint public sharedStakeMultiplier; // Multiplier for calculating the appeal fee that must be paid by submitter in the case where there is no winner or loser (e.g. when the arbitrator ruled "refuse to arbitrate").
@@ -129,9 +140,11 @@ contract LinguoToken is Arbitrable {
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
+     *  @param _WETH Address of the WETH token contract
+     *  @param _uniswapFactory Address of the UniswapPair factory contract.
      *  @param _reviewTimeout Time in seconds during which a translation can be challenged.
-     *  @param _translatorBaseDeposit The base deposit that must be paid in order to self-assign the task, in wei.
-     *  @param _challengerBaseDeposit The base deposit that must be paid in order to challenge the translation, in wei.
+     *  @param _translationMultiplier Multiplier for calculating translator's deposit. In basis points.
+     *  @param _challengeMultiplier Multiplier for calculating challenger's deposit. In basis points.
      *  @param _sharedStakeMultiplier Multiplier of the appeal cost that submitter must pay for a round when there is no winner/loser in the previous round. In basis points.
      *  @param _winnerStakeMultiplier Multiplier of the appeal cost that the winner has to pay for a round. In basis points.
      *  @param _loserStakeMultiplier Multiplier of the appeal cost that the loser has to pay for a round. In basis points.
@@ -139,17 +152,21 @@ contract LinguoToken is Arbitrable {
     constructor(
         Arbitrator _arbitrator,
         bytes _arbitratorExtraData,
+        ERC20 _WETH,
+        address _uniswapFactory,
         uint _reviewTimeout,
-        uint _translatorBaseDeposit,
-        uint _challengerBaseDeposit,
+        uint _translationMultiplier,
+        uint _challengeMultiplier,
         uint _sharedStakeMultiplier,
         uint _winnerStakeMultiplier,
         uint _loserStakeMultiplier
     ) public Arbitrable(_arbitrator, _arbitratorExtraData){
         governor = msg.sender;
+        WETH = _WETH;
+        uniswapFactory = _uniswapFactory;
         reviewTimeout = _reviewTimeout;
-        translatorBaseDeposit = _translatorBaseDeposit;
-        challengerBaseDeposit = _challengerBaseDeposit;
+        translationMultiplier = _translationMultiplier;
+        challengeMultiplier = _challengeMultiplier;
         sharedStakeMultiplier = _sharedStakeMultiplier;
         winnerStakeMultiplier = _winnerStakeMultiplier;
         loserStakeMultiplier = _loserStakeMultiplier;
@@ -173,18 +190,18 @@ contract LinguoToken is Arbitrable {
         reviewTimeout = _reviewTimeout;
     }
 
-    /** @dev Changes the base deposit for translator.
-     *  @param _translatorBaseDeposit A new value of the base deposit required for self-assigning the task, in wei.
+    /** @dev Changes the multiplier for translator's deposit.
+     *  @param _translationMultiplier A new value of the multiplier for calculating translator's deposit. In basis points.
      */
-    function changeTranslatorBaseDeposit(uint _translatorBaseDeposit) public onlyGovernor {
-        translatorBaseDeposit = _translatorBaseDeposit;
+    function changeTranslationMultiplier(uint _translationMultiplier) public onlyGovernor {
+        translationMultiplier = _translationMultiplier;
     }
 
-    /** @dev Changes the base deposit for challenger.
-     *  @param _challengerBaseDeposit A new value of the base deposit required for challenging, in wei.
+    /** @dev Changes the multiplier for challenger's deposit.
+     *  @param _challengeMultiplier A new value of the multiplier for calculating challenger's deposit. In basis points.
      */
-    function changeChallengerBaseDeposit(uint _challengerBaseDeposit) public onlyGovernor {
-        challengerBaseDeposit = _challengerBaseDeposit;
+    function changeChallengeMultiplier(uint _challengeMultiplier) public onlyGovernor {
+        challengeMultiplier = _challengeMultiplier;
     }
 
     /** @dev Changes the percentage of arbitration fees that must be paid by parties as a fee stake if there was no winner and loser in the previous round.
@@ -253,8 +270,10 @@ contract LinguoToken is Arbitrable {
         require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed.");
 
         uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
+
+        uint priceETH = getTaskPriceInETH(_taskID);
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint translatorDeposit = arbitrationCost.addCap(translatorBaseDeposit);
+        uint translatorDeposit = arbitrationCost.addCap((translationMultiplier.mulCap(priceETH)) / MULTIPLIER_DIVISOR);
 
         require(task.status == Status.Created, "Task has already been assigned or reimbursed.");
         require(msg.value >= translatorDeposit, "Not enough ETH to reach the required deposit value.");
@@ -264,6 +283,8 @@ contract LinguoToken is Arbitrable {
 
         // Update requester's deposit since we reimbursed him the difference between maximal and actual price.
         task.requesterDeposit = price;
+
+        task.priceETH = priceETH;
         task.sumDeposit += translatorDeposit;
 
         uint remainder = msg.value - translatorDeposit;
@@ -336,7 +357,7 @@ contract LinguoToken is Arbitrable {
         Task storage task = tasks[_taskID];
 
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint challengeDeposit = arbitrationCost.addCap(challengerBaseDeposit);
+        uint challengeDeposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.priceETH)) / MULTIPLIER_DIVISOR);
 
         require(task.status == Status.AwaitingReview, "The task is in the wrong status.");
         require(now - task.lastInteraction <= reviewTimeout, "The review phase has already passed.");
@@ -592,8 +613,11 @@ contract LinguoToken is Arbitrable {
         if (now - task.lastInteraction > task.submissionTimeout || task.status != Status.Created) {
             deposit = NOT_PAYABLE_VALUE;
         } else {
+            uint priceETH = getTaskPriceInETH(_taskID);
+
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-            deposit = arbitrationCost.addCap(translatorBaseDeposit);
+            deposit = arbitrationCost.addCap((translationMultiplier.mulCap(priceETH)) / MULTIPLIER_DIVISOR);
+
         }
     }
 
@@ -607,7 +631,7 @@ contract LinguoToken is Arbitrable {
             deposit = NOT_PAYABLE_VALUE;
         } else {
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-            deposit = arbitrationCost.addCap(challengerBaseDeposit);
+            deposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.priceETH)) / MULTIPLIER_DIVISOR);
         }
     }
 
@@ -621,6 +645,27 @@ contract LinguoToken is Arbitrable {
             price = 0;
         } else {
             price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
+        }
+    }
+
+    /** @dev Gets the current price of a specified task in ETH.
+     *  @param _taskID The ID of the task.
+     *  @return price The price of the task.
+     */
+    function getTaskPriceInETH(uint _taskID) public view returns (uint priceETH) {
+        Task storage task = tasks[_taskID];
+        uint tokenPrice = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
+        if (now - task.lastInteraction > task.submissionTimeout || task.status != Status.Created)
+            priceETH = 0;
+        else if (task.token == WETH)
+            priceETH = tokenPrice;
+        else {
+            (ERC20 token0, ERC20 token1) = task.token < WETH ? (task.token, WETH) : (WETH, task.token);
+            IUniswapV2Pair pair = IUniswapV2Pair(address(uint(keccak256(abi.encodePacked(hex"ff", uniswapFactory, keccak256(abi.encodePacked(token0, token1)), hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f")))));
+            (uint reserve0, uint reserve1,) = pair.getReserves();
+            (uint reserveA, uint reserveB) = token0 == task.token ? (reserve0, reserve1) : (reserve1, reserve0);
+            require(reserveA > 0 && reserveB > 0, "Could not calculate the price.");
+            priceETH = tokenPrice.mulCap(reserveB) / reserveA;
         }
     }
 
