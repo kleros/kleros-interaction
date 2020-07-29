@@ -140,7 +140,7 @@ contract LinguoToken is Arbitrable {
     /** @dev Constructor.
      *  @param _arbitrator The arbitrator of the contract.
      *  @param _arbitratorExtraData Extra data for the arbitrator.
-     *  @param _WETH Address of the WETH token contract
+     *  @param _WETH Address of the WETH token contract.
      *  @param _uniswapFactory Address of the UniswapPair factory contract.
      *  @param _reviewTimeout Time in seconds during which a translation can be challenged.
      *  @param _translationMultiplier Multiplier for calculating translator's deposit. In basis points.
