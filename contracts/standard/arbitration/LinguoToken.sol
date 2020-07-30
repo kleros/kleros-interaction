@@ -55,7 +55,7 @@ contract LinguoToken is Arbitrable {
         uint lastInteraction; // The time of the last action performed on the task. Note that lastInteraction is updated only during timeout-related actions such as the creation of the task and the submission of the translation.
         address requester; // The party requesting the translation.
         uint requesterDeposit; // The deposit requester makes when creating the task. Once a task is assigned this deposit will be partially reimbursed and its value will be replaced by task price.
-        uint translatorDeposit; // The deposit of the translator, if any. This value will be paid/reimbursed to the party that wins the dispute.
+        uint sumDeposit; // The sum of the deposits of translator and challenger, if any. This value (minus arbitration fees) will be paid to the party that wins the dispute.
         address[3] parties; // Translator and challenger of the task.
         uint disputeID; // The ID of the dispute created in arbitrator contract.
         Round[] rounds; // Tracks each appeal round of a dispute.
@@ -271,7 +271,7 @@ contract LinguoToken is Arbitrable {
 
         // Update requester's deposit since we reimbursed him the difference between maximal and actual price.
         task.requesterDeposit = price;
-        task.translatorDeposit = translatorDeposit;
+        task.sumDeposit = translatorDeposit;
 
         uint remainder = msg.value - translatorDeposit;
         msg.sender.send(remainder);
@@ -305,11 +305,11 @@ contract LinguoToken is Arbitrable {
         require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet.");
         task.status = Status.Resolved;
         uint requesterDeposit = task.requesterDeposit;
-        uint translatorDeposit = task.translatorDeposit;
+        uint sumDeposit = task.sumDeposit;
         task.requesterDeposit = 0;
-        task.translatorDeposit = 0;
+        task.sumDeposit = 0;
         // Requester gets his deposit back and also the deposit of the translator, if there was one.
-        task.requester.send(translatorDeposit);
+        task.requester.send(sumDeposit);
         require(task.token.transfer(task.requester, requesterDeposit), "The token transfer was unsuccessful.");
 
         emit TaskResolved(_taskID, "requester-reimbursed", now);
@@ -326,10 +326,10 @@ contract LinguoToken is Arbitrable {
         // Translator gets the price of the task and his deposit back.
         address translator = task.parties[uint(Party.Translator)];
         uint requesterDeposit = task.requesterDeposit;
-        uint translatorDeposit = task.translatorDeposit;
+        uint sumDeposit = task.sumDeposit;
         task.requesterDeposit = 0;
-        task.translatorDeposit = 0;
-        translator.send(translatorDeposit);
+        task.sumDeposit = 0;
+        translator.send(sumDeposit);
         require(task.token.transfer(translator, requesterDeposit), "The token transfer was unsuccessful.");
 
         emit TaskResolved(_taskID, "translation-accepted", now);
@@ -355,6 +355,7 @@ contract LinguoToken is Arbitrable {
         task.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
         disputeIDtoTaskID[task.disputeID] = _taskID;
         task.rounds.length++;
+        //We don't change sumDeposit because adding challenger's deposit while subtracting arbitration fee will give 0 as a result.
 
         uint remainder = msg.value - arbitrationCost;
         msg.sender.send(remainder);
@@ -521,22 +522,22 @@ contract LinguoToken is Arbitrable {
         Task storage task = tasks[taskID];
         task.status = Status.Resolved;
         task.ruling = _ruling;
-        uint translatorDeposit = task.translatorDeposit;
+        uint sumDeposit = task.sumDeposit;
         uint requesterDeposit = task.requesterDeposit;
         task.requesterDeposit = 0;
-        task.translatorDeposit = 0;
+        task.sumDeposit = 0;
 
         if(_ruling == uint(Party.None)){
-            // The value of translatorDeposit is split among parties in this case. If it's uneven the value of 1 wei can be burnt.
-            translatorDeposit = translatorDeposit / 2;
-            task.parties[uint(Party.Translator)].send(translatorDeposit);
-            task.parties[uint(Party.Challenger)].send(translatorDeposit);
+            // The value of sumDeposit is split among parties in this case. If it's uneven the value of 1 wei can be burnt.
+            sumDeposit = sumDeposit / 2;
+            task.parties[uint(Party.Translator)].send(sumDeposit);
+            task.parties[uint(Party.Challenger)].send(sumDeposit);
             require(task.token.transfer(task.requester, requesterDeposit), "Could not transfer tokens to requester.");
         } else if (_ruling == uint(Party.Translator)) {
-            task.parties[uint(Party.Translator)].send(translatorDeposit);
+            task.parties[uint(Party.Translator)].send(sumDeposit);
             require(task.token.transfer(task.parties[uint(Party.Translator)], requesterDeposit), "Could not transfer tokens to translator.");
         } else {
-            task.parties[uint(Party.Challenger)].send(translatorDeposit);
+            task.parties[uint(Party.Challenger)].send(sumDeposit);
             require(task.token.transfer(task.requester, requesterDeposit), "Could not transfer tokens to requester.");
         }
 
@@ -603,6 +604,19 @@ contract LinguoToken is Arbitrable {
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             deposit = arbitrationCost.addCap((translationMultiplier.mulCap(priceETH)) / MULTIPLIER_DIVISOR);
 
+        }
+    }
+
+    /** @dev Gets the deposit required for challenging the translation.
+     *  @param _taskID The ID of the task.
+     *  @return deposit The challengers's deposit.
+     */
+    function getChallengeValue(uint _taskID) public view returns (uint deposit) {
+        Task storage task = tasks[_taskID];
+        if (now - task.lastInteraction > reviewTimeout || task.status != Status.AwaitingReview) {
+            deposit = NOT_PAYABLE_VALUE;
+        } else {
+            deposit = arbitrator.arbitrationCost(arbitratorExtraData);
         }
     }
 
