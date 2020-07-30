@@ -28,7 +28,6 @@ contract('Linguo', function(accounts) {
   const appealTimeOut = 100
   const reviewTimeout = 2400
   const translationMultiplier = 1000
-  const challengeMultiplier = 2000
   const sharedMultiplier = 5000
   const winnerMultiplier = 3000
   const loserMultiplier = 7000
@@ -65,7 +64,6 @@ contract('Linguo', function(accounts) {
       fakeFactory, // uniswapFactory. Can't test the uniswap getters because of the old compiler, so set it random value.
       reviewTimeout,
       translationMultiplier,
-      challengeMultiplier,
       sharedMultiplier,
       winnerMultiplier,
       loserMultiplier,
@@ -104,7 +102,6 @@ contract('Linguo', function(accounts) {
     assert.equal(await linguo.governor(), governor)
     assert.equal(await linguo.reviewTimeout(), reviewTimeout)
     assert.equal(await linguo.translationMultiplier(), translationMultiplier)
-    assert.equal(await linguo.challengeMultiplier(), challengeMultiplier)
     assert.equal(await linguo.sharedStakeMultiplier(), sharedMultiplier)
     assert.equal(await linguo.winnerStakeMultiplier(), winnerMultiplier)
     assert.equal(await linguo.loserStakeMultiplier(), loserMultiplier)
@@ -352,12 +349,6 @@ contract('Linguo', function(accounts) {
       Math.abs(task[8].toNumber() - requiredDeposit) <= requiredDeposit / 100,
       'The translator deposit was not set up properly'
     )
-
-    assert.equal(
-      task[7].toNumber(),
-      task[11].toNumber(),
-      'Incorrect price in ETH value'
-    )
   })
 
   it('Should not be possible to submit translation after submission timeout ended', async () => {
@@ -469,7 +460,7 @@ contract('Linguo', function(accounts) {
   })
 
   it('Should not be possible to reimburse if submission timeout has not passed', async () => {
-    await increaseTime(submissionTimeout - secondsPassed - 1)
+    await increaseTime(submissionTimeout - secondsPassed - 5)
     await expectThrow(linguo.reimburseRequester(0))
   })
 
@@ -519,7 +510,7 @@ contract('Linguo', function(accounts) {
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
     await expectThrow(linguo.acceptTranslation(0))
 
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -537,7 +528,7 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
 
     // Check that reverts if the deposit is lower than expected
     await expectThrow(
@@ -632,7 +623,7 @@ contract('Linguo', function(accounts) {
       value: requiredDeposit + 1000
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
     await increaseTime(reviewTimeout + 1)
     await expectThrow(
       linguo.challengeTranslation(0, '', {
@@ -652,7 +643,7 @@ contract('Linguo', function(accounts) {
 
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -708,7 +699,7 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -767,7 +758,7 @@ contract('Linguo', function(accounts) {
 
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -843,7 +834,7 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -954,7 +945,7 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -1020,7 +1011,7 @@ contract('Linguo', function(accounts) {
     })
     await linguo.submitTranslation(0, 'ipfs:/X', { from: translator })
 
-    const challengerDeposit = (await linguo.getChallengeValue(0)).toNumber()
+    const challengerDeposit = arbitrationFee
     await linguo.challengeTranslation(0, '', {
       from: challenger,
       value: challengerDeposit
@@ -1139,21 +1130,6 @@ contract('Linguo', function(accounts) {
       (await linguo.translationMultiplier()).toNumber(),
       44,
       'Incorrect translationMultiplier value'
-    )
-    // changeChallengeMultiplier
-    await expectThrow(
-      linguo.changeChallengeMultiplier(88, {
-        from: other
-      })
-    )
-    await linguo.changeChallengeMultiplier(88, {
-      from: governor
-    })
-
-    assert.equal(
-      (await linguo.challengeMultiplier()).toNumber(),
-      88,
-      'Incorrect challengeMultiplier value'
     )
     // shared multiplier
     await expectThrow(

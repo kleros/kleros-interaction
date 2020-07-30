@@ -55,12 +55,11 @@ contract LinguoToken is Arbitrable {
         uint lastInteraction; // The time of the last action performed on the task. Note that lastInteraction is updated only during timeout-related actions such as the creation of the task and the submission of the translation.
         address requester; // The party requesting the translation.
         uint requesterDeposit; // The deposit requester makes when creating the task. Once a task is assigned this deposit will be partially reimbursed and its value will be replaced by task price.
-        uint sumDeposit; // The sum of the deposits of translator and challenger, if any. This value (minus arbitration fees) will be paid to the party that wins the dispute.
+        uint translatorDeposit; // The deposit of the translator, if any. This value will be paid/reimbursed to the party that wins the dispute.
         address[3] parties; // Translator and challenger of the task.
         uint disputeID; // The ID of the dispute created in arbitrator contract.
         Round[] rounds; // Tracks each appeal round of a dispute.
         uint ruling; // Ruling given to the dispute of the task by the arbitrator.
-        uint priceETH; // Price of the task, converted into ETH. We store it for challenger, to make sure the token price for him doesn't differ from translator.
     }
 
     // Rounds are only used in appeal funding.
@@ -77,7 +76,6 @@ contract LinguoToken is Arbitrable {
     address public governor; // The governor of the contract.
     uint public reviewTimeout; // Time in seconds, during which the submitted translation can be challenged.
     uint public translationMultiplier; // Multiplier for calculating the value of the deposit translator must pay to self-assign a task.
-    uint public challengeMultiplier; // Multiplier for calculating the value of the deposit challenger must pay to challenge a translation.
 
     // All multipliers below are in basis points.
     uint public sharedStakeMultiplier; // Multiplier for calculating the appeal fee that must be paid by submitter in the case where there is no winner or loser (e.g. when the arbitrator ruled "refuse to arbitrate").
@@ -144,7 +142,6 @@ contract LinguoToken is Arbitrable {
      *  @param _uniswapFactory Address of the UniswapPair factory contract.
      *  @param _reviewTimeout Time in seconds during which a translation can be challenged.
      *  @param _translationMultiplier Multiplier for calculating translator's deposit. In basis points.
-     *  @param _challengeMultiplier Multiplier for calculating challenger's deposit. In basis points.
      *  @param _sharedStakeMultiplier Multiplier of the appeal cost that submitter must pay for a round when there is no winner/loser in the previous round. In basis points.
      *  @param _winnerStakeMultiplier Multiplier of the appeal cost that the winner has to pay for a round. In basis points.
      *  @param _loserStakeMultiplier Multiplier of the appeal cost that the loser has to pay for a round. In basis points.
@@ -156,7 +153,6 @@ contract LinguoToken is Arbitrable {
         address _uniswapFactory,
         uint _reviewTimeout,
         uint _translationMultiplier,
-        uint _challengeMultiplier,
         uint _sharedStakeMultiplier,
         uint _winnerStakeMultiplier,
         uint _loserStakeMultiplier
@@ -166,7 +162,6 @@ contract LinguoToken is Arbitrable {
         uniswapFactory = _uniswapFactory;
         reviewTimeout = _reviewTimeout;
         translationMultiplier = _translationMultiplier;
-        challengeMultiplier = _challengeMultiplier;
         sharedStakeMultiplier = _sharedStakeMultiplier;
         winnerStakeMultiplier = _winnerStakeMultiplier;
         loserStakeMultiplier = _loserStakeMultiplier;
@@ -195,13 +190,6 @@ contract LinguoToken is Arbitrable {
      */
     function changeTranslationMultiplier(uint _translationMultiplier) public onlyGovernor {
         translationMultiplier = _translationMultiplier;
-    }
-
-    /** @dev Changes the multiplier for challenger's deposit.
-     *  @param _challengeMultiplier A new value of the multiplier for calculating challenger's deposit. In basis points.
-     */
-    function changeChallengeMultiplier(uint _challengeMultiplier) public onlyGovernor {
-        challengeMultiplier = _challengeMultiplier;
     }
 
     /** @dev Changes the percentage of arbitration fees that must be paid by parties as a fee stake if there was no winner and loser in the previous round.
@@ -283,9 +271,7 @@ contract LinguoToken is Arbitrable {
 
         // Update requester's deposit since we reimbursed him the difference between maximal and actual price.
         task.requesterDeposit = price;
-
-        task.priceETH = priceETH;
-        task.sumDeposit += translatorDeposit;
+        task.translatorDeposit = translatorDeposit;
 
         uint remainder = msg.value - translatorDeposit;
         msg.sender.send(remainder);
@@ -319,11 +305,11 @@ contract LinguoToken is Arbitrable {
         require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet.");
         task.status = Status.Resolved;
         uint requesterDeposit = task.requesterDeposit;
-        uint sumDeposit = task.sumDeposit;
+        uint translatorDeposit = task.translatorDeposit;
         task.requesterDeposit = 0;
-        task.sumDeposit = 0;
-        // Requester gets his deposit back and also the deposit of the translator, if there was one.  Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
-        task.requester.send(sumDeposit);
+        task.translatorDeposit = 0;
+        // Requester gets his deposit back and also the deposit of the translator, if there was one.
+        task.requester.send(translatorDeposit);
         require(task.token.transfer(task.requester, requesterDeposit), "The token transfer was unsuccessful.");
 
         emit TaskResolved(_taskID, "requester-reimbursed", now);
@@ -337,13 +323,13 @@ contract LinguoToken is Arbitrable {
         require(task.status == Status.AwaitingReview, "The task is in the wrong status.");
         require(now - task.lastInteraction > reviewTimeout, "The review phase hasn't passed yet.");
         task.status = Status.Resolved;
-        // Translator gets the price of the task and his deposit back. Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
+        // Translator gets the price of the task and his deposit back.
         address translator = task.parties[uint(Party.Translator)];
         uint requesterDeposit = task.requesterDeposit;
-        uint sumDeposit = task.sumDeposit;
+        uint translatorDeposit = task.translatorDeposit;
         task.requesterDeposit = 0;
-        task.sumDeposit = 0;
-        translator.send(sumDeposit);
+        task.translatorDeposit = 0;
+        translator.send(translatorDeposit);
         require(task.token.transfer(translator, requesterDeposit), "The token transfer was unsuccessful.");
 
         emit TaskResolved(_taskID, "translation-accepted", now);
@@ -356,12 +342,12 @@ contract LinguoToken is Arbitrable {
     function challengeTranslation(uint _taskID, string _evidence) external payable {
         Task storage task = tasks[_taskID];
 
+        // The challenger should only deposit the value of arbitration cost.
         uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint challengeDeposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.priceETH)) / MULTIPLIER_DIVISOR);
 
         require(task.status == Status.AwaitingReview, "The task is in the wrong status.");
         require(now - task.lastInteraction <= reviewTimeout, "The review phase has already passed.");
-        require(msg.value >= challengeDeposit, "Not enough ETH to cover challenge deposit.");
+        require(msg.value >= arbitrationCost, "Not enough ETH to cover challenge deposit.");
 
         task.status = Status.DisputeCreated;
         task.parties[uint(Party.Challenger)] = msg.sender;
@@ -369,9 +355,8 @@ contract LinguoToken is Arbitrable {
         task.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
         disputeIDtoTaskID[task.disputeID] = _taskID;
         task.rounds.length++;
-        task.sumDeposit = task.sumDeposit.addCap(challengeDeposit).subCap(arbitrationCost);
 
-        uint remainder = msg.value - challengeDeposit;
+        uint remainder = msg.value - arbitrationCost;
         msg.sender.send(remainder);
 
         emit Dispute(arbitrator, task.disputeID, _taskID, _taskID);
@@ -536,22 +521,22 @@ contract LinguoToken is Arbitrable {
         Task storage task = tasks[taskID];
         task.status = Status.Resolved;
         task.ruling = _ruling;
-        uint sumDeposit = task.sumDeposit;
+        uint translatorDeposit = task.translatorDeposit;
         uint requesterDeposit = task.requesterDeposit;
         task.requesterDeposit = 0;
-        task.sumDeposit = 0;
+        task.translatorDeposit = 0;
 
         if(_ruling == uint(Party.None)){
-            // The value of sumDeposit is split among parties in this case. If the sum is uneven the value of 1 wei can be burnt.
-            sumDeposit = sumDeposit / 2;
-            task.parties[uint(Party.Translator)].send(sumDeposit);
-            task.parties[uint(Party.Challenger)].send(sumDeposit);
+            // The value of translatorDeposit is split among parties in this case. If it's uneven the value of 1 wei can be burnt.
+            translatorDeposit = translatorDeposit / 2;
+            task.parties[uint(Party.Translator)].send(translatorDeposit);
+            task.parties[uint(Party.Challenger)].send(translatorDeposit);
             require(task.token.transfer(task.requester, requesterDeposit), "Could not transfer tokens to requester.");
         } else if (_ruling == uint(Party.Translator)) {
-            task.parties[uint(Party.Translator)].send(sumDeposit);
+            task.parties[uint(Party.Translator)].send(translatorDeposit);
             require(task.token.transfer(task.parties[uint(Party.Translator)], requesterDeposit), "Could not transfer tokens to translator.");
         } else {
-            task.parties[uint(Party.Challenger)].send(sumDeposit);
+            task.parties[uint(Party.Challenger)].send(translatorDeposit);
             require(task.token.transfer(task.requester, requesterDeposit), "Could not transfer tokens to requester.");
         }
 
@@ -618,20 +603,6 @@ contract LinguoToken is Arbitrable {
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             deposit = arbitrationCost.addCap((translationMultiplier.mulCap(priceETH)) / MULTIPLIER_DIVISOR);
 
-        }
-    }
-
-    /** @dev Gets the deposit required for challenging the translation.
-     *  @param _taskID The ID of the task.
-     *  @return deposit The challengers's deposit.
-     */
-    function getChallengeValue(uint _taskID) public view returns (uint deposit) {
-        Task storage task = tasks[_taskID];
-        if (now - task.lastInteraction > reviewTimeout || task.status != Status.AwaitingReview) {
-            deposit = NOT_PAYABLE_VALUE;
-        } else {
-            uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-            deposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.priceETH)) / MULTIPLIER_DIVISOR);
         }
     }
 
