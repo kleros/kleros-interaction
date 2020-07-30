@@ -355,7 +355,7 @@ contract LinguoToken is Arbitrable {
         task.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
         disputeIDtoTaskID[task.disputeID] = _taskID;
         task.rounds.length++;
-        //We don't change sumDeposit because adding challenger's deposit while subtracting arbitration fee will give 0 as a result.
+        // We don't change sumDeposit because adding challenger's deposit while subtracting arbitration fee will give 0 as a result.
 
         uint remainder = msg.value - arbitrationCost;
         msg.sender.send(remainder);
