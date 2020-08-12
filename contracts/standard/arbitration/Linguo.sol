@@ -112,6 +112,14 @@ contract Linguo is Arbitrable {
      */
     event TaskResolved(uint indexed _taskID, string _reason, uint _timestamp);
 
+    /** @dev To be emitted when someone contributes to the appeal process.
+     *  @param _taskID The ID of the respective task.
+     *  @param _party The party which received the contribution.
+     *  @param _contributor The address of the contributor.
+     *  @param _amount The amount contributed.
+     */
+    event AppealContribution(uint indexed _taskID, Party _party, address _contributor, uint _amount);
+
     /** @dev To be emitted when the appeal fees of one of the parties are fully funded.
      *  @param _taskID The ID of the respective task.
      *  @param _party The party that is fully funded.
@@ -384,6 +392,9 @@ contract Linguo is Arbitrable {
         (contribution, remainingETH) = calculateContribution(msg.value, totalCost.subCap(round.paidFees[uint(_side)]));
         round.contributions[msg.sender][uint(_side)] += contribution;
         round.paidFees[uint(_side)] += contribution;
+
+        emit AppealContribution(_taskID, _side, msg.sender, contribution);
+
         // Add contribution to reward when the fee funding is successful, otherwise it can be withdrawn later.
         if (round.paidFees[uint(_side)] >= totalCost) {
             round.hasPaid[uint(_side)] = true;
@@ -682,3 +693,4 @@ contract Linguo is Arbitrable {
         );
     }
 }
+
