@@ -112,9 +112,9 @@ contract Linguo is Arbitrable {
      */
     event TaskResolved(uint indexed _taskID, string _reason, uint _timestamp);
 
-    /** @dev To be emitted when someone contributes to the appeal process
+    /** @dev To be emitted when someone contributes to the appeal process.
      *  @param _taskID The ID of the respective task.
-     *  @param _party The party that is fully funded.
+     *  @param _party The party which received the contribution.
      *  @param _contributor The address of the contributor.
      *  @param _amount The amount contributed.
      */
