@@ -13,6 +13,7 @@ pragma solidity ^0.4.26;
 
 import "./Arbitrable.sol";
 import "../../libraries/CappedMath.sol";
+import "../../libraries/SafeCast.sol";
 
 /** @title Linguo
  *  Linguo is a decentralized platform where anyone can submit a document for translation and have it translated by freelancers.
@@ -23,9 +24,12 @@ import "../../libraries/CappedMath.sol";
 contract Linguo is Arbitrable {
 
     using CappedMath for uint;
+    using CappedMath for uint128;
+    using CappedMath for uint40;
+    using SafeCast for uint;
 
     /* *** Contract variables *** */
-    uint8 public constant VERSION_ID = 0; // Value that represents the version of the contract. The value is incremented each time the new version is deployed. Range for LinguoETH: 0-127, LinguoToken: 128-255.
+    uint8 public constant VERSION_ID = 1; // Value that represents the version of the contract. The value is incremented each time the new version is deployed. Range for LinguoETH: 0-127, LinguoToken: 128-255.
     uint public constant MULTIPLIER_DIVISOR = 10000; // Divisor parameter for multipliers.
     uint constant NOT_PAYABLE_VALUE = (2**256-2)/2; // A value depositor won't be able to pay.
 
@@ -39,24 +43,29 @@ contract Linguo is Arbitrable {
 
     // Arrays of 3 elements in the Task and Round structs map to the parties. Index "0" is not used, "1" is used for translator and "2" for challenger.
     struct Task {
-        uint submissionTimeout; // Time in seconds allotted for submitting a translation. The end of this period is considered a deadline.
-        uint minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases such as it reaches maximal price at deadline.
-        uint maxPrice; // Maximal price for the translation and also value that must be deposited by the requester.
         Status status; // Status of the task.
-        uint lastInteraction; // The time of the last action performed on the task. Note that lastInteraction is updated only during timeout-related actions such as the creation of the task and the submission of the translation.
         address requester; // The party requesting the translation.
-        uint requesterDeposit; // The deposit requester makes when creating the task. Once a task is assigned this deposit will be partially reimbursed and its value replaced by task price.
-        uint sumDeposit; // The sum of the deposits of translator and challenger, if any. This value (minus arbitration fees) will be paid to the party that wins the dispute.
+        uint40 submissionTimeout; // Time in seconds allotted for submitting a translation. The end of this period is considered a deadline.
+        uint40 lastInteraction; // The time of the last action performed on the task. Note that lastInteraction is updated only during timeout-related actions such as the creation of the task and the submission of the translation.
+
+        uint128 minPrice; // Minimal price for the translation. When the task is created it has minimal price that gradually increases such as it reaches maximal price at deadline.
+        uint128 maxPrice; // Maximal price for the translation and also value that must be deposited by the requester.
+
+        uint128 requesterDeposit; // The deposit requester makes when creating the task. Once a task is assigned this deposit will be partially reimbursed and its value replaced by task price.
+        uint128 sumDeposit; // The sum of the deposits of translator and challenger, if any. This value (minus arbitration fees) will be paid to the party that wins the dispute.
+
+        uint128 disputeID; // The ID of the dispute created in arbitrator contract.
+        uint128 ruling; // Ruling given to the dispute of the task by the arbitrator.
+        
         address[3] parties; // Translator and challenger of the task.
-        uint disputeID; // The ID of the dispute created in arbitrator contract.
+        
         Round[] rounds; // Tracks each appeal round of a dispute.
-        uint ruling; // Ruling given to the dispute of the task by the arbitrator.
     }
 
     struct Round {
+        uint feeRewards; // Sum of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
         uint[3] paidFees; // Tracks the fees paid by each side in this round.
         bool[3] hasPaid; // True when the side has fully paid its fee. False otherwise.
-        uint feeRewards; // Sum of reimbursable fees and stake rewards available to the parties that made contributions to the side that ultimately wins a dispute.
         mapping(address => uint[3]) contributions; // Maps contributors to their contributions for each side.
     }
 
@@ -222,24 +231,26 @@ contract Linguo is Arbitrable {
      *  @return taskID The ID of the created task.
      */
     function createTask(
-        uint _deadline,
-        uint _minPrice,
+        uint40 _deadline,
+        uint128 _minPrice,
         string _metaEvidence
     ) external payable returns (uint taskID) {
         require(msg.value >= _minPrice, "Deposited value should be greater than or equal to the min price.");
-        require(_deadline > now, "The deadline should be in the future.");
+        require(_deadline > block.timestamp, "The deadline should be in the future.");
 
         taskID = tasks.length++;
         Task storage task = tasks[taskID];
-        task.submissionTimeout = _deadline - now;
-        task.minPrice = _minPrice;
-        task.maxPrice = msg.value;
-        task.lastInteraction = now;
+        task.submissionTimeout = (_deadline - block.timestamp).toUint40();
+        task.lastInteraction = block.timestamp.toUint40();
         task.requester = msg.sender;
-        task.requesterDeposit = msg.value;
+        task.minPrice = _minPrice;
+        
+        uint128 value = msg.value.toUint128();
+        task.maxPrice = value;
+        task.requesterDeposit = value;
 
         emit MetaEvidence(taskID, _metaEvidence);
-        emit TaskCreated(taskID, msg.sender, now);
+        emit TaskCreated(taskID, msg.sender, block.timestamp);
     }
 
     /** @dev Assigns a specific task to the sender. Requires a translator's deposit.
@@ -248,11 +259,11 @@ contract Linguo is Arbitrable {
      */
     function assignTask(uint _taskID) external payable {
         Task storage task = tasks[_taskID];
-        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed.");
+        require(block.timestamp - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed.");
 
-        uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
-        uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
-        uint translatorDeposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
+        uint128 price = (task.minPrice + (task.maxPrice - task.minPrice) * (block.timestamp - task.lastInteraction) / task.submissionTimeout).toUint128();
+        uint128 arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData).toUint128();
+        uint128 translatorDeposit = (arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR)).toUint128();
 
         require(task.status == Status.Created, "Task has already been assigned or reimbursed.");
         require(msg.value >= translatorDeposit, "Not enough ETH to reach the required deposit value.");
@@ -260,16 +271,16 @@ contract Linguo is Arbitrable {
         task.parties[uint(Party.Translator)] = msg.sender;
         task.status = Status.Assigned;
 
-        uint remainder = task.maxPrice - price;
+        uint128 remainder = task.maxPrice - price;
         task.requester.send(remainder);
         // Update requester's deposit since we reimbursed him the difference between maximal and actual price.
         task.requesterDeposit = price;
         task.sumDeposit += translatorDeposit;
 
-        remainder = msg.value - translatorDeposit;
+        remainder = (msg.value - translatorDeposit).toUint128();
         msg.sender.send(remainder);
 
-        emit TaskAssigned(_taskID, msg.sender, price, now);
+        emit TaskAssigned(_taskID, msg.sender, price, block.timestamp);
     }
 
     /** @dev Submits translated text for a specific task.
@@ -279,12 +290,12 @@ contract Linguo is Arbitrable {
     function submitTranslation(uint _taskID, string _translation) external {
         Task storage task = tasks[_taskID];
         require(task.status == Status.Assigned, "The task is either not assigned or translation has already been submitted.");
-        require(now - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed.");
+        require(block.timestamp - task.lastInteraction <= task.submissionTimeout, "The deadline has already passed.");
         require(msg.sender == task.parties[uint(Party.Translator)], "Can't submit translation to the task that wasn't assigned to you.");
         task.status = Status.AwaitingReview;
-        task.lastInteraction = now;
+        task.lastInteraction = block.timestamp.toUint40();
 
-        emit TranslationSubmitted(_taskID, msg.sender, _translation, now);
+        emit TranslationSubmitted(_taskID, msg.sender, _translation, block.timestamp);
     }
 
     /** @dev Reimburses the requester if no one picked the task or the translator failed to submit the translation before deadline.
@@ -293,7 +304,7 @@ contract Linguo is Arbitrable {
     function reimburseRequester(uint _taskID) external {
         Task storage task = tasks[_taskID];
         require(task.status < Status.AwaitingReview, "Can't reimburse if translation was submitted.");
-        require(now - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet.");
+        require(block.timestamp - task.lastInteraction > task.submissionTimeout, "Can't reimburse if the deadline hasn't passed yet.");
         task.status = Status.Resolved;
         // Requester gets his deposit back and also the deposit of the translator, if there was one.  Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
         uint amount = task.requesterDeposit + task.sumDeposit;
@@ -302,7 +313,7 @@ contract Linguo is Arbitrable {
         task.requesterDeposit = 0;
         task.sumDeposit = 0;
 
-        emit TaskResolved(_taskID, "requester-reimbursed", now);
+        emit TaskResolved(_taskID, "requester-reimbursed", block.timestamp);
     }
 
     /** @dev Pays the translator for completed task if no one challenged the translation during review period.
@@ -311,7 +322,7 @@ contract Linguo is Arbitrable {
     function acceptTranslation(uint _taskID) external {
         Task storage task = tasks[_taskID];
         require(task.status == Status.AwaitingReview, "The task is in the wrong status.");
-        require(now - task.lastInteraction > reviewTimeout, "The review phase hasn't passed yet.");
+        require(block.timestamp - task.lastInteraction > reviewTimeout, "The review phase hasn't passed yet.");
         task.status = Status.Resolved;
         // Translator gets the price of the task and his deposit back. Note that sumDeposit can't contain challenger's deposit until the task is in DisputeCreated status.
         uint amount = task.requesterDeposit + task.sumDeposit;
@@ -320,7 +331,7 @@ contract Linguo is Arbitrable {
         task.requesterDeposit = 0;
         task.sumDeposit = 0;
 
-        emit TaskResolved(_taskID, "translation-accepted", now);
+        emit TaskResolved(_taskID, "translation-accepted", block.timestamp);
     }
 
     /** @dev Challenges the translation of a specific task. Requires challenger's deposit.
@@ -334,22 +345,22 @@ contract Linguo is Arbitrable {
         uint challengeDeposit = arbitrationCost.addCap((challengeMultiplier.mulCap(task.requesterDeposit)) / MULTIPLIER_DIVISOR);
 
         require(task.status == Status.AwaitingReview, "The task is in the wrong status.");
-        require(now - task.lastInteraction <= reviewTimeout, "The review phase has already passed.");
+        require(block.timestamp - task.lastInteraction <= reviewTimeout, "The review phase has already passed.");
         require(msg.value >= challengeDeposit, "Not enough ETH to cover challenge deposit.");
 
         task.status = Status.DisputeCreated;
         task.parties[uint(Party.Challenger)] = msg.sender;
 
-        task.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData);
+        task.disputeID = arbitrator.createDispute.value(arbitrationCost)(2, arbitratorExtraData).toUint128();
         disputeIDtoTaskID[task.disputeID] = _taskID;
         task.rounds.length++;
-        task.sumDeposit = task.sumDeposit.addCap(challengeDeposit).subCap(arbitrationCost);
+        task.sumDeposit = task.sumDeposit.addCap(challengeDeposit).subCap(arbitrationCost).toUint128();
 
         uint remainder = msg.value - challengeDeposit;
         msg.sender.send(remainder);
 
         emit Dispute(arbitrator, task.disputeID, _taskID, _taskID);
-        emit TranslationChallenged(_taskID, msg.sender, now);
+        emit TranslationChallenged(_taskID, msg.sender, block.timestamp);
 
         if (bytes(_evidence).length > 0)
             emit Evidence(arbitrator, _taskID, msg.sender, _evidence);
@@ -367,7 +378,7 @@ contract Linguo is Arbitrable {
         require(arbitrator.disputeStatus(task.disputeID) == Arbitrator.DisputeStatus.Appealable, "Dispute is not appealable.");
 
         (uint appealPeriodStart, uint appealPeriodEnd) = arbitrator.appealPeriod(task.disputeID);
-        require(now >= appealPeriodStart && now < appealPeriodEnd, "Funding must be made within the appeal period.");
+        require(block.timestamp >= appealPeriodStart && block.timestamp < appealPeriodEnd, "Funding must be made within the appeal period.");
 
         uint winner = arbitrator.currentRuling(task.disputeID);
         uint multiplier;
@@ -376,7 +387,7 @@ contract Linguo is Arbitrable {
         } else if (winner == 0){
             multiplier = sharedStakeMultiplier;
         } else {
-            require(now - appealPeriodStart < (appealPeriodEnd - appealPeriodStart)/2, "The loser must pay during the first half of the appeal period.");
+            require(block.timestamp - appealPeriodStart < (appealPeriodEnd - appealPeriodStart)/2, "The loser must pay during the first half of the appeal period.");
             multiplier = loserStakeMultiplier;
         }
 
@@ -512,7 +523,7 @@ contract Linguo is Arbitrable {
         uint taskID = disputeIDtoTaskID[_disputeID];
         Task storage task = tasks[taskID];
         task.status = Status.Resolved;
-        task.ruling = _ruling;
+        task.ruling = _ruling.toUint128();
         uint amount;
 
         if(_ruling == uint(Party.None)){
@@ -532,7 +543,7 @@ contract Linguo is Arbitrable {
         task.requesterDeposit = 0;
         task.sumDeposit = 0;
 
-        emit TaskResolved(taskID, "dispute-settled", now);
+        emit TaskResolved(taskID, "dispute-settled", block.timestamp);
     }
 
     /** @dev Submit a reference to evidence. EVENT.
@@ -587,10 +598,10 @@ contract Linguo is Arbitrable {
      */
     function getDepositValue(uint _taskID) public view returns (uint deposit) {
         Task storage task = tasks[_taskID];
-        if (now - task.lastInteraction > task.submissionTimeout || task.status != Status.Created) {
+        if (block.timestamp - task.lastInteraction > task.submissionTimeout || task.status != Status.Created) {
             deposit = NOT_PAYABLE_VALUE;
         } else {
-            uint price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
+            uint price = task.minPrice + (task.maxPrice - task.minPrice) * (block.timestamp - task.lastInteraction) / task.submissionTimeout;
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
             deposit = arbitrationCost.addCap((translationMultiplier.mulCap(price)) / MULTIPLIER_DIVISOR);
         }
@@ -602,7 +613,7 @@ contract Linguo is Arbitrable {
      */
     function getChallengeValue(uint _taskID) public view returns (uint deposit) {
         Task storage task = tasks[_taskID];
-        if (now - task.lastInteraction > reviewTimeout || task.status != Status.AwaitingReview) {
+        if (block.timestamp - task.lastInteraction > reviewTimeout || task.status != Status.AwaitingReview) {
             deposit = NOT_PAYABLE_VALUE;
         } else {
             uint arbitrationCost = arbitrator.arbitrationCost(arbitratorExtraData);
@@ -616,10 +627,10 @@ contract Linguo is Arbitrable {
      */
     function getTaskPrice(uint _taskID) public view returns (uint price) {
         Task storage task = tasks[_taskID];
-        if (now - task.lastInteraction > task.submissionTimeout || task.status != Status.Created) {
+        if (block.timestamp - task.lastInteraction > task.submissionTimeout || task.status != Status.Created) {
             price = 0;
         } else {
-            price = task.minPrice + (task.maxPrice - task.minPrice) * (now - task.lastInteraction) / task.submissionTimeout;
+            price = task.minPrice + (task.maxPrice - task.minPrice) * (block.timestamp - task.lastInteraction) / task.submissionTimeout;
         }
     }
 
