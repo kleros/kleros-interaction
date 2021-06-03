@@ -12,7 +12,7 @@ import "./RNG.sol";
 
 
 interface IKlerosLiquid {
-    function passPhase() external {}
+    function passPhase() external;
 }
 
 
@@ -38,7 +38,7 @@ contract ChainlinkRNG is RNG, VRFConsumerBase {
     /* Modifier */
 
     modifier onlyByKleros() {
-        require(msg.sender == kleros, "ChainlinkRNG: not called by Kleros");
+        require(msg.sender == address(kleros), "ChainlinkRNG: not called by Kleros");
         _;
     }
 
@@ -114,7 +114,7 @@ contract ChainlinkRNG is RNG, VRFConsumerBase {
      * @param _requestId The request Id initially returned by requestRN.
      * @return RN Random Number. If the number is not ready or has not been required it returns 0.
      */
-    function getRN(bytes32 _requestId) external returns (bytes32 RN) {
+    function getRN(bytes32 _requestId) external view returns (uint256 RN) {
         return randomNumber[_requestId];
     }
 
