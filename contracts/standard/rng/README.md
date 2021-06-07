@@ -8,4 +8,6 @@ BlockhashRNGFallback.sol does the same as the previous contract but fallback to 
 
 TrustedRNG.sol implements a random number generator based on a trusted third party.
 
-ConstantNG.sol implements a contracts always returning a specified number to ease testing.
+ConstantNG.sol implements a contract always returning a specified number to ease testing.
+
+Chainlink.sol implements the RNG standard using Chainlink's Verifiable Randomness Mechanism
