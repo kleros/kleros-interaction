@@ -8,8 +8,6 @@
 pragma solidity ^0.6.6;
 
 import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
-import "./RNG.sol";
-
 
 interface IKlerosLiquid {
     function passPhase() external;
@@ -26,7 +24,7 @@ interface IKlerosLiquid {
  * @dev Chainlink documentation: https://docs.chain.link/docs/chainlink-vrf/
  * @dev For SECURITY CONSIDERATIONS, you might also have look to: https://github.com/smartcontractkit/chainlink/blob/master/evm-contracts/src/v0.6/VRFConsumerBase.sol
  */
-contract ChainlinkRNG is RNG, VRFConsumerBase {
+contract ChainlinkRNG is VRFConsumerBase {
 
     /* Storage */
 
@@ -96,17 +94,11 @@ contract ChainlinkRNG is RNG, VRFConsumerBase {
 
     /**
      * @dev Requests a random number.
-     * @dev The _seed parameter is vestigial, and is kept only for API
-     * @dev compatibility with older versions. It can't *hurt* to mix in some of
-     * @dev your own randomness, here, but it's not necessary because the VRF
-     * @dev oracle will mix the hash of the block containing your request into the
-     * @dev VRF seed it ultimately uses.
-     * @param _seed seed mixed into the input of the VRF.
      * @return requestId unique ID for this request.
      */
-    function requestRN(uint _seed) external onlyByKleros returns (bytes32 requestId) {
+    function requestRN() external onlyByKleros returns (bytes32 requestId) {
         require(LINK.balanceOf(address(this)) >= fee, "ChainlinkRNG: not enough LINK to pay the fee");
-        return requestRandomness(keyHash, fee, _seed);
+        return requestRandomness(keyHash, fee);
     }
 
     /**
