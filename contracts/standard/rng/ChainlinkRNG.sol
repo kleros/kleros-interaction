@@ -1,6 +1,6 @@
 /**
  *  @authors: [@MerlinEgalite]
- *  @reviewers: []
+ *  @reviewers: [@shalzz]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
