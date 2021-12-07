@@ -1,5 +1,5 @@
  /**
- *  @authors: [@shalzz
+ *  @authors: [@shalzz]
  *  @reviewers: []
  *  @auditors: []
  *  @bounties: []
