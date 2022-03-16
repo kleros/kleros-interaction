@@ -1,6 +1,6 @@
  /**
  *  @authors: [@shalzz]
- *  @reviewers: [@jaybuidl]
+ *  @reviewers: [@jaybuidl*, @geaxed]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -26,6 +26,15 @@ contract BeaconRNGFallBack is RNG {
         beaconRNG = _beaconRNG;
         blockhashRNG = _blockhashRNG;
     }
+
+    /**
+     * @dev Since we don't really need to incentivize requesting the beacon chain randomness,
+     * this is a stub implementation required for backwards compatibility with the
+     * RNG interface.
+     * @notice All the ETH sent here will be lost forever.
+     * @param _block Block the random number is linked to.
+     */
+    function contribute(uint _block) public payable {}
 
     /**
      * @dev Request a random number.
