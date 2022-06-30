@@ -5,8 +5,6 @@
 <p align="center">
   <a href="https://standardjs.com"><img src="https://img.shields.io/badge/code_style-standard-brightgreen.svg" alt="JavaScript Style Guide"></a>
   <a href="https://travis-ci.org/kleros/kleros-interaction"><img src="https://travis-ci.org/kleros/kleros-interaction.svg?branch=master" alt="Build Status"></a>
-  <a href="https://david-dm.org/kleros/kleros-interaction"><img src="https://david-dm.org/kleros/kleros-interaction.svg" alt="Dependencies"></a>
-  <a href="https://david-dm.org/kleros/kleros-interaction?type=dev"><img src="https://david-dm.org/kleros/kleros-interaction/dev-status.svg" alt="Dev Dependencies"></a>
   <a href="https://github.com/trufflesuite/truffle"><img src="https://img.shields.io/badge/tested%20with-truffle-red.svg" alt="Tested with Truffle"></a>
   <a href="https://conventionalcommits.org"><img src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg" alt="Conventional Commits"></a>
   <a href="http://commitizen.github.io/cz-cli/"><img src="https://img.shields.io/badge/commitizen-friendly-brightgreen.svg" alt="Commitizen Friendly"></a>
