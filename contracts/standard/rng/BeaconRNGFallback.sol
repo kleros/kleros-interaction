@@ -1,6 +1,6 @@
  /**
- *  @authors: [@shalzz]
- *  @reviewers: [@jaybuidl*, @geaxed]
+ *  @authors: [@shalzz, @unknownunknown1]
+ *  @reviewers: [@jaybuidl, @geaxed*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -17,6 +17,8 @@ contract BeaconRNGFallBack is RNG {
 
     RNG public beaconRNG;
     RNG public blockhashRNG;
+
+    uint public constant LOOKAHEAD = 132; // Number of blocks that has to pass before obtaining the random number. 4 epochs + 4 slots, according to EIP-4399.
 
     /** @dev Constructor.
      * @param _beaconRNG The beacon chain RNG deployed contract address
@@ -65,6 +67,10 @@ contract BeaconRNGFallBack is RNG {
         // fallback to blockhash RNG
         if (RN == 0) {
             RN = blockhashRNG.getRN(_block);
+        } else if (block.number < _block + LOOKAHEAD) {
+            // Beacon chain returns the random number, but sufficient number of blocks hasn't been mined yet.
+            // In this case signal to the court that RN isn't ready.
+            RN = 0;
         }
     }
 }
