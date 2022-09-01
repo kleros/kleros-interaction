@@ -16,9 +16,11 @@ import "./RNG.sol";
 contract BeaconRNG is RNG {
     
     uint public constant LOOKAHEAD = 132; // Number of blocks that has to pass before obtaining the random number. 4 epochs + 4 slots, according to EIP-4399.
+    uint public constant ERROR = 20; // Number of blocks after which the lookahead gets reset, so eligible blocks after lookahead don't go long distance, to avoid a possiblity for manipulation.
 
     RNG public blockhashRNG; // Address of blockhashRNG to fall back on.
-    mapping (uint => uint) public randomNumber; // randomNumber[block] is the random number for this requested block, 0 otherwise.
+    mapping (uint => uint) public randomNumber; // randomNumber[_requestedBlock] is the random number for this requested block, 0 otherwise.
+    mapping (uint => uint) public startingBlock; // The starting block number for lookahead countdown. startingBlock[_requestedBlock].
 
     /** @dev Constructor.
      * @param _blockhashRNG The blockhash RNG deployed contract address.
@@ -48,6 +50,9 @@ contract BeaconRNG is RNG {
         if (block.difficulty <= 2**64) {
             blockhashRNG.contribute(_block);
         } else {
+            if (startingBlock[_block] == 0) {
+                startingBlock[_block] = _block; // Starting block is equal to requested by default.
+            }
             contribute(_block);
         }
     }
@@ -62,11 +67,17 @@ contract BeaconRNG is RNG {
         // fallback to blockhash RNG
         if (block.difficulty <= 2**64) {
             return blockhashRNG.getRN(_block);
-        } else if (block.number < _block + LOOKAHEAD) {
-            // Beacon chain returns the random number, but sufficient number of blocks hasn't been mined yet.
-            // In this case signal to the court that RN isn't ready.
-            return 0;
         } else {
+            // Reset the starting block if too many blocks passed since lookahead.
+            if (block.number > startingBlock[_block] + LOOKAHEAD + ERROR) {
+                startingBlock[_block] = block.number;
+            }
+            if (block.number < startingBlock[_block] + LOOKAHEAD) {
+                // Beacon chain returns the random number, but sufficient number of blocks hasn't been mined yet.
+                // In this case signal to the court that RN isn't ready.
+                return 0;
+            }
+
             if (randomNumber[_block] == 0) {
                 randomNumber[_block] = block.difficulty;
             }
