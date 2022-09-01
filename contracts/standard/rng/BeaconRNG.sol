@@ -16,7 +16,7 @@ import "./RNG.sol";
 contract BeaconRNG is RNG {
     
     uint public constant LOOKAHEAD = 132; // Number of blocks that has to pass before obtaining the random number. 4 epochs + 4 slots, according to EIP-4399.
-    uint public constant ERROR = 20; // Number of blocks after which the lookahead gets reset, so eligible blocks after lookahead don't go long distance, to avoid a possiblity for manipulation.
+    uint public constant ERROR = 32; // Number of blocks after which the lookahead gets reset, so eligible blocks after lookahead don't go long distance, to avoid a possiblity for manipulation.
 
     RNG public blockhashRNG; // Address of blockhashRNG to fall back on.
     mapping (uint => uint) public randomNumber; // randomNumber[_requestedBlock] is the random number for this requested block, 0 otherwise.
