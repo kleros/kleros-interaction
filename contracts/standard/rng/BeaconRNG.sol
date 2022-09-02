@@ -33,7 +33,7 @@ contract BeaconRNG {
     function requestRN(uint /*_block*/) public pure {}
 
     /**
-     * @dev Get aт uncorrelated random number.
+     * @dev Get an uncorrelated random number.
      * @param _block Block the random number is linked to.
      * @return RN Random Number. If the number is not ready or has not been required 0 instead.
      */
