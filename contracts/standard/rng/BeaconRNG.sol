@@ -19,7 +19,6 @@ contract BeaconRNG {
     uint public constant ERROR = 32; // Number of blocks after which the lookahead gets reset, so eligible blocks after lookahead don't go long distance, to avoid a possiblity for manipulation.
 
     RNG public blockhashRNG; // Address of blockhashRNG to fall back on.
-    mapping (uint => uint) public randomNumber; // randomNumber[_block] is the random number for this requested block, 0 otherwise.
 
     /** @dev Constructor.
      * @param _blockhashRNG The blockhash RNG deployed contract address.
@@ -52,10 +51,7 @@ contract BeaconRNG {
             if (block.number > _block && (block.number - _block) % (LOOKAHEAD + ERROR) > LOOKAHEAD) {
                 // Eligible block number should exceed LOOKAHEAD but shouldn't be higher than LOOKAHEAD + ERROR.
                 // In case of the latter LOOKAHEAD gets reset.  
-                if (randomNumber[_block] == 0) {
-                    randomNumber[_block] = block.difficulty;
-                }
-                return uint(keccak256(abi.encodePacked(msg.sender, randomNumber[_block])));
+                return uint(keccak256(abi.encodePacked(msg.sender, block.difficulty)));
             } else {
                 return 0;
             }
