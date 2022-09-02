@@ -13,14 +13,13 @@ import "./RNG.sol";
 /**
  *  @title Random Number Generator using beacon chain random opcode
  */
-contract BeaconRNG is RNG {
+contract BeaconRNG {
     
     uint public constant LOOKAHEAD = 132; // Number of blocks that has to pass before obtaining the random number. 4 epochs + 4 slots, according to EIP-4399.
     uint public constant ERROR = 32; // Number of blocks after which the lookahead gets reset, so eligible blocks after lookahead don't go long distance, to avoid a possiblity for manipulation.
 
     RNG public blockhashRNG; // Address of blockhashRNG to fall back on.
-    mapping (uint => uint) public randomNumber; // randomNumber[_requestedBlock] is the random number for this requested block, 0 otherwise.
-    mapping (uint => uint) public startingBlock; // The starting block number for lookahead countdown. startingBlock[_requestedBlock].
+    mapping (uint => uint) public randomNumber; // randomNumber[_block] is the random number for this requested block, 0 otherwise.
 
     /** @dev Constructor.
      * @param _blockhashRNG The blockhash RNG deployed contract address.
@@ -30,58 +29,36 @@ contract BeaconRNG is RNG {
     }
 
     /**
-     * @dev Since we don't really need to incentivize requesting the beacon chain randomness,
-     * this is a stub implementation required for backwards compatibility with the
-     * RNG interface.
-     * @notice All the ETH sent here will be lost forever.
-     * @param _block Block the random number is linked to.
+     * @dev Request a random number. It is not used by this contract and only exists for backward compatibility.
      */
-    function contribute(uint _block) public payable {}
+    function requestRN(uint /*_block*/) public pure {}
 
     /**
-     * @dev Request a random number.
-     * @dev Since the beacon chain randomness is not related to a block
-     * we can call ahead its getRN function to check if the PoS merge has happened or not.
-     *  
-     * @param _block Block linked to the request.
-     */
-    function requestRN(uint _block) public payable {
-        // Use the old RNG pre-Merge.
-        if (block.difficulty <= 2**64) {
-            blockhashRNG.contribute(_block);
-        } else {
-            if (startingBlock[_block] == 0) {
-                startingBlock[_block] = _block; // Starting block is equal to requested by default.
-            }
-            contribute(_block);
-        }
-    }
-
-    /**
-     * @dev Get the random number.
+     * @dev Get aт uncorrelated random number.
      * @param _block Block the random number is linked to.
      * @return RN Random Number. If the number is not ready or has not been required 0 instead.
      */
-    function getRN(uint _block) public returns (uint) {
-        // if beacon chain randomness is zero
-        // fallback to blockhash RNG
+    function getUncorrelatedRN(uint _block) public returns (uint) {
+        // Pre-Merge.
         if (block.difficulty <= 2**64) {
-            return blockhashRNG.getRN(_block);
-        } else {
-            // Reset the starting block if too many blocks passed since lookahead.
-            if (block.number > startingBlock[_block] + LOOKAHEAD + ERROR) {
-                startingBlock[_block] = block.number;
+            uint baseRN = blockhashRNG.getRN(_block);
+            if (baseRN == 0) {
+                return 0;
+            } else {
+                return uint(keccak256(abi.encodePacked(msg.sender, baseRN)));
             }
-            if (block.number < startingBlock[_block] + LOOKAHEAD) {
-                // Beacon chain returns the random number, but sufficient number of blocks hasn't been mined yet.
-                // In this case signal to the court that RN isn't ready.
+        // Post-Merge.
+        } else {
+            if (block.number > _block && (block.number - _block) % (LOOKAHEAD + ERROR) > LOOKAHEAD) {
+                // Eligible block number should exceed LOOKAHEAD but shouldn't be higher than LOOKAHEAD + ERROR.
+                // In case of the latter LOOKAHEAD gets reset.  
+                if (randomNumber[_block] == 0) {
+                    randomNumber[_block] = block.difficulty;
+                }
+                return uint(keccak256(abi.encodePacked(msg.sender, randomNumber[_block])));
+            } else {
                 return 0;
             }
-
-            if (randomNumber[_block] == 0) {
-                randomNumber[_block] = block.difficulty;
-            }
-            return randomNumber[_block]; 
         }
     }
 }
