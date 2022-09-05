@@ -48,7 +48,7 @@ contract BeaconRNG {
             }
         // Post-Merge.
         } else {
-            if (block.number > _block && (block.number - _block) % (LOOKAHEAD + ERROR) > LOOKAHEAD) {
+            if (block.number > _block && (block.number - _block) % (LOOKAHEAD + ERROR) >= LOOKAHEAD) {
                 // Eligible block number should exceed LOOKAHEAD but shouldn't be higher than LOOKAHEAD + ERROR.
                 // In case of the latter LOOKAHEAD gets reset.  
                 return uint(keccak256(abi.encodePacked(msg.sender, block.difficulty)));
