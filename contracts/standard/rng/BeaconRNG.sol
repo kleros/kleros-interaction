@@ -1,6 +1,6 @@
  /**
  *  @authors: [@shalzz, @unknownunknown1]
- *  @reviewers: [@jaybuidl*, @geaxed*]
+ *  @reviewers: [@jaybuidl, @geaxed*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
