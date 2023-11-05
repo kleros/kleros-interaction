@@ -12,7 +12,7 @@ import "minimetoken/contracts/MiniMeToken.sol";
 /** @title Funding Vault
 *  A contract storing the ETH raised in a crowdfunding event.
 *  Funds are delivered when milestones are reached.
-*  The team can claim a milestone is reached. Token holders will have some time to dispute that claim.
+*  The team can claim a milestone has been reached. Token holders will have some time to dispute that claim.
 *  When some token holders vote to dispute the claim, extra time is given to other token holders to dispute that claim.
 *  If a sufficient amount of token holders dispute it. A dispute is created and the arbitrator will decide if the milestone has been reached.
 *  When there is a disagreement a vote token is created. Holders should send the voteToken to the Vault to disagree with the milestone.
@@ -31,12 +31,12 @@ contract FundingVault is Arbitrable {
         uint amount; // The maximum amount which can be unlocked for this milestone.
         uint amountClaimed; // The current amount which is claimed.
         uint claimTime; // The time the current claim was made. Or 0 if it's not currently claimed.
-        bool disputed; // True if a dispute has been raised.
         uint feeTeam;  // Arbitration fee paid by the team.
         uint feeHolders; // Arbitration fee paid by token holders.
         MiniMeToken voteToken; // Forked token which will be used to vote.
         uint disputeID; // ID of the dispute if this claim is disputed.
         uint lastTotalFeePayment; // Time of the last total fee payment, useful for timeouts.
+        bool disputed; // True if a dispute has been raised.
         bool lastTotalFeePaymentIsTeam; // True if the last interaction is from the team.
         address payerForHolders; // The address who first paid the arbitration fee and will be refunded in case of victory.
     }
@@ -175,7 +175,7 @@ contract FundingVault is Arbitrable {
                 }
     }
 
-    /** @dev Pay fee to for a milestone dispute. To be called by the team when the holders have enough votes and fee paid.
+    /** @dev Pay fee for a milestone dispute. To be called by the team when the holders have enough votes and fee paid.
     *  @param _milestoneID The milestone which is disputed.
     */
     function payDisputeFeeByTeam(uint _milestoneID) public payable {
@@ -247,7 +247,7 @@ contract FundingVault is Arbitrable {
     function timeoutByTeam(uint _milestoneID) public {
         Milestone storage milestone = milestones[_milestoneID];
         require(msg.sender == team, "Can only be called by the team.");
-        require(milestone.lastTotalFeePaymentIsTeam, "Team wasn't the last to pay.");
+        require(milestone.lastTotalFeePaymentIsTeam, "Team wasnt the last to pay.");
         require(now - milestone.lastTotalFeePayment > timeout, "Timeout has not passed.");
 
         team.transfer(milestone.amountClaimed+milestone.feeTeam+milestone.feeHolders); // Pay the amount claimed and the unused fees to the team.
@@ -262,12 +262,12 @@ contract FundingVault is Arbitrable {
         milestone.payerForHolders = 0x0;
     }
 
-    /** @dev Timeout to use whe the team don't pay the fee.
+    /** @dev Timeout to use when the team doesn't pay the fee.
     *  @param _milestoneID The milestone which is disputed.
     */
     function timeoutByHolders(uint _milestoneID) public {
         Milestone storage milestone = milestones[_milestoneID];
-        require(!milestone.lastTotalFeePaymentIsTeam, "Team wasn't the last to pay.");
+        require(!milestone.lastTotalFeePaymentIsTeam, "Team wasnt the last to pay.");
         require(now - milestone.lastTotalFeePayment > timeout, "Timeout has not passed.");
 
         milestone.payerForHolders.transfer(milestone.feeTeam+milestone.feeHolders); // Pay the unused fees to the payer for holders.
@@ -298,7 +298,7 @@ contract FundingVault is Arbitrable {
     */
     function executeRuling(uint _disputeID, uint _ruling) internal{
         Milestone storage milestone = milestones[disputeIDToMilstoneID[_disputeID]];
-        // Make sure there is enough votes to protect against a malicious arbitrator.
+        // Make sure there are enough votes to protect against a malicious arbitrator.
         require(milestone.voteToken.balanceOf(this) >= (disputeThreshold*milestone.voteToken.totalSupply()) / 1000, "Not enough votes.");
 
         uint _milestoneID = disputeIDToMilstoneID[_disputeID];
