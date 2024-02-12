@@ -20,7 +20,13 @@ contract SimpleTwoPartyArbitrableEscrowPayment is Arbitrable {
         _;
     }
 
-    constructor(address _receiver, bytes _extraData, Arbitrator _arbitrator, uint _timeOut, string _metaEvidence) public payable {
+    constructor(
+        address _receiver,
+        bytes _extraData,
+        Arbitrator _arbitrator,
+        uint _timeOut,
+        string _metaEvidence
+    ) public payable Arbitrable(_arbitrator, _extraData) {
         sender = msg.sender;
         receiver = _receiver;
         value = msg.value;
@@ -32,6 +38,7 @@ contract SimpleTwoPartyArbitrableEscrowPayment is Arbitrable {
     }
 
     function raiseDispute() public payable onlySenderOrReceiver {
+        disputed = true;
         disputeID = arbitrator.createDispute.value(msg.value)(2, extraData);
         emit Dispute(arbitrator, disputeID, 0, 0);
     }
