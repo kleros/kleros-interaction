@@ -39,7 +39,7 @@ contract BeaconRNG {
      */
     function getUncorrelatedRN(uint _block) public returns (uint) {
         // Pre-Merge.
-        if (block.difficulty <= 2**64) {
+        if (block.difficulty < 18_446_744_073_709_551_617) { // block.difficulty <= 2**64
             uint baseRN = blockhashRNGFallback.getRN(_block);
             if (baseRN == 0) {
                 return 0;
